@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import * as Button from '@repo/components/ui/button';
+	import { Badge } from '@repo/components/ui/badge';
+	import { Button } from '@repo/components/ui/button';
 	let { data } = $props();
 </script>
 
@@ -21,8 +22,8 @@
 				<span class="font-medium text-foreground">{data.activeOrganization.slug}</span>.
 			</p>
 			<div class="flex flex-wrap gap-3">
-				<Button.Root href="/organizations">Switch organization</Button.Root>
-				<Button.Root href="/organizations/new" variant="outline">Create another workspace</Button.Root>
+				<Button href="/organizations">Switch organization</Button>
+				<Button href="/organizations/new" variant="outline">Create another workspace</Button>
 			</div>
 		</section>
 
@@ -37,18 +38,14 @@
 								<p class="text-sm text-muted-foreground">{organization.slug}</p>
 							</div>
 							{#if organization.id === data.activeOrganization.id}
-								<span
-									class="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
-								>
-									Active
-								</span>
+								<Badge>Active</Badge>
 							{/if}
 						</div>
 					</div>
 				{/each}
 			</div>
 			<form class="mt-4" method="post" use:enhance>
-				<Button.Root type="submit" variant="ghost">Sign out</Button.Root>
+				<Button type="submit" variant="ghost">Sign out</Button>
 			</form>
 		</aside>
 	</div>
