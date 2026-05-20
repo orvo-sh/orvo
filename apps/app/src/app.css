@@ -1,0 +1,5 @@
+@import "tailwindcss";
+@import "@repo/components/styles.css";
+
+@source "./**/*.{svelte,ts,js}";
+@source "../node_modules/@repo/components";

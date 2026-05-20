@@ -21,10 +21,285 @@
       "default": "./src/lib/hooks/index.ts"
     },
     "./styles.css": "./src/lib/styles.css",
+    "./ui/accordion": {
+      "types": "./src/lib/components/ui/accordion/index.ts",
+      "svelte": "./src/lib/components/ui/accordion/index.ts",
+      "default": "./src/lib/components/ui/accordion/index.ts"
+    },
+    "./ui/alert": {
+      "types": "./src/lib/components/ui/alert/index.ts",
+      "svelte": "./src/lib/components/ui/alert/index.ts",
+      "default": "./src/lib/components/ui/alert/index.ts"
+    },
+    "./ui/alert-dialog": {
+      "types": "./src/lib/components/ui/alert-dialog/index.ts",
+      "svelte": "./src/lib/components/ui/alert-dialog/index.ts",
+      "default": "./src/lib/components/ui/alert-dialog/index.ts"
+    },
+    "./ui/aspect-ratio": {
+      "types": "./src/lib/components/ui/aspect-ratio/index.ts",
+      "svelte": "./src/lib/components/ui/aspect-ratio/index.ts",
+      "default": "./src/lib/components/ui/aspect-ratio/index.ts"
+    },
+    "./ui/avatar": {
+      "types": "./src/lib/components/ui/avatar/index.ts",
+      "svelte": "./src/lib/components/ui/avatar/index.ts",
+      "default": "./src/lib/components/ui/avatar/index.ts"
+    },
+    "./ui/badge": {
+      "types": "./src/lib/components/ui/badge/index.ts",
+      "svelte": "./src/lib/components/ui/badge/index.ts",
+      "default": "./src/lib/components/ui/badge/index.ts"
+    },
+    "./ui/breadcrumb": {
+      "types": "./src/lib/components/ui/breadcrumb/index.ts",
+      "svelte": "./src/lib/components/ui/breadcrumb/index.ts",
+      "default": "./src/lib/components/ui/breadcrumb/index.ts"
+    },
     "./ui/button": {
       "types": "./src/lib/components/ui/button/index.ts",
       "svelte": "./src/lib/components/ui/button/index.ts",
       "default": "./src/lib/components/ui/button/index.ts"
+    },
+    "./ui/button-group": {
+      "types": "./src/lib/components/ui/button-group/index.ts",
+      "svelte": "./src/lib/components/ui/button-group/index.ts",
+      "default": "./src/lib/components/ui/button-group/index.ts"
+    },
+    "./ui/calendar": {
+      "types": "./src/lib/components/ui/calendar/index.ts",
+      "svelte": "./src/lib/components/ui/calendar/index.ts",
+      "default": "./src/lib/components/ui/calendar/index.ts"
+    },
+    "./ui/card": {
+      "types": "./src/lib/components/ui/card/index.ts",
+      "svelte": "./src/lib/components/ui/card/index.ts",
+      "default": "./src/lib/components/ui/card/index.ts"
+    },
+    "./ui/carousel": {
+      "types": "./src/lib/components/ui/carousel/index.ts",
+      "svelte": "./src/lib/components/ui/carousel/index.ts",
+      "default": "./src/lib/components/ui/carousel/index.ts"
+    },
+    "./ui/chart": {
+      "types": "./src/lib/components/ui/chart/index.ts",
+      "svelte": "./src/lib/components/ui/chart/index.ts",
+      "default": "./src/lib/components/ui/chart/index.ts"
+    },
+    "./ui/checkbox": {
+      "types": "./src/lib/components/ui/checkbox/index.ts",
+      "svelte": "./src/lib/components/ui/checkbox/index.ts",
+      "default": "./src/lib/components/ui/checkbox/index.ts"
+    },
+    "./ui/collapsible": {
+      "types": "./src/lib/components/ui/collapsible/index.ts",
+      "svelte": "./src/lib/components/ui/collapsible/index.ts",
+      "default": "./src/lib/components/ui/collapsible/index.ts"
+    },
+    "./ui/command": {
+      "types": "./src/lib/components/ui/command/index.ts",
+      "svelte": "./src/lib/components/ui/command/index.ts",
+      "default": "./src/lib/components/ui/command/index.ts"
+    },
+    "./ui/context-menu": {
+      "types": "./src/lib/components/ui/context-menu/index.ts",
+      "svelte": "./src/lib/components/ui/context-menu/index.ts",
+      "default": "./src/lib/components/ui/context-menu/index.ts"
+    },
+    "./ui/data-table": {
+      "types": "./src/lib/components/ui/data-table/index.ts",
+      "svelte": "./src/lib/components/ui/data-table/index.ts",
+      "default": "./src/lib/components/ui/data-table/index.ts"
+    },
+    "./ui/dialog": {
+      "types": "./src/lib/components/ui/dialog/index.ts",
+      "svelte": "./src/lib/components/ui/dialog/index.ts",
+      "default": "./src/lib/components/ui/dialog/index.ts"
+    },
+    "./ui/drawer": {
+      "types": "./src/lib/components/ui/drawer/index.ts",
+      "svelte": "./src/lib/components/ui/drawer/index.ts",
+      "default": "./src/lib/components/ui/drawer/index.ts"
+    },
+    "./ui/dropdown-menu": {
+      "types": "./src/lib/components/ui/dropdown-menu/index.ts",
+      "svelte": "./src/lib/components/ui/dropdown-menu/index.ts",
+      "default": "./src/lib/components/ui/dropdown-menu/index.ts"
+    },
+    "./ui/empty": {
+      "types": "./src/lib/components/ui/empty/index.ts",
+      "svelte": "./src/lib/components/ui/empty/index.ts",
+      "default": "./src/lib/components/ui/empty/index.ts"
+    },
+    "./ui/field": {
+      "types": "./src/lib/components/ui/field/index.ts",
+      "svelte": "./src/lib/components/ui/field/index.ts",
+      "default": "./src/lib/components/ui/field/index.ts"
+    },
+    "./ui/form": {
+      "types": "./src/lib/components/ui/form/index.ts",
+      "svelte": "./src/lib/components/ui/form/index.ts",
+      "default": "./src/lib/components/ui/form/index.ts"
+    },
+    "./ui/hover-card": {
+      "types": "./src/lib/components/ui/hover-card/index.ts",
+      "svelte": "./src/lib/components/ui/hover-card/index.ts",
+      "default": "./src/lib/components/ui/hover-card/index.ts"
+    },
+    "./ui/input": {
+      "types": "./src/lib/components/ui/input/index.ts",
+      "svelte": "./src/lib/components/ui/input/index.ts",
+      "default": "./src/lib/components/ui/input/index.ts"
+    },
+    "./ui/input-group": {
+      "types": "./src/lib/components/ui/input-group/index.ts",
+      "svelte": "./src/lib/components/ui/input-group/index.ts",
+      "default": "./src/lib/components/ui/input-group/index.ts"
+    },
+    "./ui/input-otp": {
+      "types": "./src/lib/components/ui/input-otp/index.ts",
+      "svelte": "./src/lib/components/ui/input-otp/index.ts",
+      "default": "./src/lib/components/ui/input-otp/index.ts"
+    },
+    "./ui/item": {
+      "types": "./src/lib/components/ui/item/index.ts",
+      "svelte": "./src/lib/components/ui/item/index.ts",
+      "default": "./src/lib/components/ui/item/index.ts"
+    },
+    "./ui/kbd": {
+      "types": "./src/lib/components/ui/kbd/index.ts",
+      "svelte": "./src/lib/components/ui/kbd/index.ts",
+      "default": "./src/lib/components/ui/kbd/index.ts"
+    },
+    "./ui/label": {
+      "types": "./src/lib/components/ui/label/index.ts",
+      "svelte": "./src/lib/components/ui/label/index.ts",
+      "default": "./src/lib/components/ui/label/index.ts"
+    },
+    "./ui/menubar": {
+      "types": "./src/lib/components/ui/menubar/index.ts",
+      "svelte": "./src/lib/components/ui/menubar/index.ts",
+      "default": "./src/lib/components/ui/menubar/index.ts"
+    },
+    "./ui/native-select": {
+      "types": "./src/lib/components/ui/native-select/index.ts",
+      "svelte": "./src/lib/components/ui/native-select/index.ts",
+      "default": "./src/lib/components/ui/native-select/index.ts"
+    },
+    "./ui/navigation-menu": {
+      "types": "./src/lib/components/ui/navigation-menu/index.ts",
+      "svelte": "./src/lib/components/ui/navigation-menu/index.ts",
+      "default": "./src/lib/components/ui/navigation-menu/index.ts"
+    },
+    "./ui/pagination": {
+      "types": "./src/lib/components/ui/pagination/index.ts",
+      "svelte": "./src/lib/components/ui/pagination/index.ts",
+      "default": "./src/lib/components/ui/pagination/index.ts"
+    },
+    "./ui/popover": {
+      "types": "./src/lib/components/ui/popover/index.ts",
+      "svelte": "./src/lib/components/ui/popover/index.ts",
+      "default": "./src/lib/components/ui/popover/index.ts"
+    },
+    "./ui/progress": {
+      "types": "./src/lib/components/ui/progress/index.ts",
+      "svelte": "./src/lib/components/ui/progress/index.ts",
+      "default": "./src/lib/components/ui/progress/index.ts"
+    },
+    "./ui/radio-group": {
+      "types": "./src/lib/components/ui/radio-group/index.ts",
+      "svelte": "./src/lib/components/ui/radio-group/index.ts",
+      "default": "./src/lib/components/ui/radio-group/index.ts"
+    },
+    "./ui/range-calendar": {
+      "types": "./src/lib/components/ui/range-calendar/index.ts",
+      "svelte": "./src/lib/components/ui/range-calendar/index.ts",
+      "default": "./src/lib/components/ui/range-calendar/index.ts"
+    },
+    "./ui/resizable": {
+      "types": "./src/lib/components/ui/resizable/index.ts",
+      "svelte": "./src/lib/components/ui/resizable/index.ts",
+      "default": "./src/lib/components/ui/resizable/index.ts"
+    },
+    "./ui/scroll-area": {
+      "types": "./src/lib/components/ui/scroll-area/index.ts",
+      "svelte": "./src/lib/components/ui/scroll-area/index.ts",
+      "default": "./src/lib/components/ui/scroll-area/index.ts"
+    },
+    "./ui/select": {
+      "types": "./src/lib/components/ui/select/index.ts",
+      "svelte": "./src/lib/components/ui/select/index.ts",
+      "default": "./src/lib/components/ui/select/index.ts"
+    },
+    "./ui/separator": {
+      "types": "./src/lib/components/ui/separator/index.ts",
+      "svelte": "./src/lib/components/ui/separator/index.ts",
+      "default": "./src/lib/components/ui/separator/index.ts"
+    },
+    "./ui/sheet": {
+      "types": "./src/lib/components/ui/sheet/index.ts",
+      "svelte": "./src/lib/components/ui/sheet/index.ts",
+      "default": "./src/lib/components/ui/sheet/index.ts"
+    },
+    "./ui/sidebar": {
+      "types": "./src/lib/components/ui/sidebar/index.ts",
+      "svelte": "./src/lib/components/ui/sidebar/index.ts",
+      "default": "./src/lib/components/ui/sidebar/index.ts"
+    },
+    "./ui/skeleton": {
+      "types": "./src/lib/components/ui/skeleton/index.ts",
+      "svelte": "./src/lib/components/ui/skeleton/index.ts",
+      "default": "./src/lib/components/ui/skeleton/index.ts"
+    },
+    "./ui/slider": {
+      "types": "./src/lib/components/ui/slider/index.ts",
+      "svelte": "./src/lib/components/ui/slider/index.ts",
+      "default": "./src/lib/components/ui/slider/index.ts"
+    },
+    "./ui/sonner": {
+      "types": "./src/lib/components/ui/sonner/index.ts",
+      "svelte": "./src/lib/components/ui/sonner/index.ts",
+      "default": "./src/lib/components/ui/sonner/index.ts"
+    },
+    "./ui/spinner": {
+      "types": "./src/lib/components/ui/spinner/index.ts",
+      "svelte": "./src/lib/components/ui/spinner/index.ts",
+      "default": "./src/lib/components/ui/spinner/index.ts"
+    },
+    "./ui/switch": {
+      "types": "./src/lib/components/ui/switch/index.ts",
+      "svelte": "./src/lib/components/ui/switch/index.ts",
+      "default": "./src/lib/components/ui/switch/index.ts"
+    },
+    "./ui/table": {
+      "types": "./src/lib/components/ui/table/index.ts",
+      "svelte": "./src/lib/components/ui/table/index.ts",
+      "default": "./src/lib/components/ui/table/index.ts"
+    },
+    "./ui/tabs": {
+      "types": "./src/lib/components/ui/tabs/index.ts",
+      "svelte": "./src/lib/components/ui/tabs/index.ts",
+      "default": "./src/lib/components/ui/tabs/index.ts"
+    },
+    "./ui/textarea": {
+      "types": "./src/lib/components/ui/textarea/index.ts",
+      "svelte": "./src/lib/components/ui/textarea/index.ts",
+      "default": "./src/lib/components/ui/textarea/index.ts"
+    },
+    "./ui/toggle": {
+      "types": "./src/lib/components/ui/toggle/index.ts",
+      "svelte": "./src/lib/components/ui/toggle/index.ts",
+      "default": "./src/lib/components/ui/toggle/index.ts"
+    },
+    "./ui/toggle-group": {
+      "types": "./src/lib/components/ui/toggle-group/index.ts",
+      "svelte": "./src/lib/components/ui/toggle-group/index.ts",
+      "default": "./src/lib/components/ui/toggle-group/index.ts"
+    },
+    "./ui/tooltip": {
+      "types": "./src/lib/components/ui/tooltip/index.ts",
+      "svelte": "./src/lib/components/ui/tooltip/index.ts",
+      "default": "./src/lib/components/ui/tooltip/index.ts"
     }
   },
   "sideEffects": [
@@ -37,13 +312,24 @@
     "check-types": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
+    "@internationalized/date": "^3.12.0",
     "@fontsource-variable/inter": "^5.2.8",
+    "@tanstack/table-core": "^8.21.3",
+    "bits-ui": "^2.16.3",
     "clsx": "^2.1.1",
+    "embla-carousel-svelte": "^8.6.0",
+    "formsnap": "^2.0.1",
+    "layerchart": "2.0.0-next.48",
+    "mode-watcher": "^1.1.0",
+    "paneforge": "^1.0.2",
     "phosphor-svelte": "^3.1.0",
     "shadcn-svelte": "^1.2.7",
+    "svelte-sonner": "^1.1.0",
+    "sveltekit-superforms": "^2.30.0",
     "tailwind-merge": "^3.5.0",
     "tailwind-variants": "^3.2.2",
-    "tw-animate-css": "^1.4.0"
+    "tw-animate-css": "^1.4.0",
+    "vaul-svelte": "next"
   },
   "peerDependencies": {
     "svelte": "^5.0.0"

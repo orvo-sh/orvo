@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { CounterView } from '@repo/ui';
+	import { Button } from '@repo/components/ui/button';
 </script>
 
 <h1>Web</h1>
-<CounterView />
+<Button>Open Components</Button>
 <p>Visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to read the documentation</p>

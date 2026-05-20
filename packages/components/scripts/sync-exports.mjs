@@ -9,6 +9,7 @@ const sourceIndexPath = path.join(packageRoot, "src", "index.ts");
 const libIndexPath = path.join(packageRoot, "src", "lib", "index.ts");
 const hooksIndexPath = path.join(packageRoot, "src", "lib", "hooks", "index.ts");
 const uiDir = path.join(packageRoot, "src", "lib", "components", "ui");
+const hooksDir = path.join(packageRoot, "src", "lib", "hooks");
 
 const toEntry = (target) => ({
   types: target,
@@ -23,6 +24,7 @@ const components = dirents
   .filter((dirent) => dirent.isDirectory())
   .map((dirent) => dirent.name)
   .sort();
+const hookEntries = await listHookEntries(hooksDir);
 
 await rewriteLibImports(uiDir);
 
@@ -62,7 +64,15 @@ const libIndex = [
 await writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
 await writeFile(sourceIndexPath, sourceIndex);
 await writeFile(libIndexPath, libIndex);
-await writeFile(hooksIndexPath, "export {};\n");
+await writeFile(
+  hooksIndexPath,
+  [
+    ...hookEntries.map(
+      (hookEntry) => `export * from "./${hookEntry.modulePath}";`,
+    ),
+    "",
+  ].join("\n"),
+);
 
 function toPascalCase(value) {
   return value
@@ -101,4 +111,37 @@ async function rewriteLibImports(directory) {
       await writeFile(filepath, rewritten);
     }
   }
+}
+
+async function listHookEntries(directory, relativeDirectory = "") {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const hooks = [];
+
+  for (const entry of entries) {
+    if (entry.name === "index.ts") {
+      continue;
+    }
+
+    const relativePath = relativeDirectory
+      ? path.posix.join(relativeDirectory, entry.name)
+      : entry.name;
+    const filepath = path.join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      hooks.push(...(await listHookEntries(filepath, relativePath)));
+      continue;
+    }
+
+    if (!/\.(?:svelte\.)?(?:ts|js)$/.test(entry.name)) {
+      continue;
+    }
+
+    const importPath = relativePath.replace(/\.(?:svelte\.)?(?:ts|js)$/, "");
+    const modulePath = entry.name.includes(".svelte.")
+      ? `${importPath}.svelte.js`
+      : `${importPath}.js`;
+    hooks.push({ importPath, modulePath });
+  }
+
+  return hooks.sort((left, right) => left.importPath.localeCompare(right.importPath));
 }
