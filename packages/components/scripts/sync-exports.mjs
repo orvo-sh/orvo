@@ -24,6 +24,8 @@ const components = dirents
   .map((dirent) => dirent.name)
   .sort();
 
+await rewriteLibImports(uiDir);
+
 packageJson.exports = {
   ".": toEntry("./src/index.ts"),
   "./utils": toEntry("./src/lib/utils.ts"),
@@ -68,4 +70,35 @@ function toPascalCase(value) {
     .filter(Boolean)
     .map((segment) => segment[0].toUpperCase() + segment.slice(1))
     .join("");
+}
+
+async function rewriteLibImports(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const filepath = path.join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      await rewriteLibImports(filepath);
+      continue;
+    }
+
+    if (!/\.(svelte|ts|js)$/.test(entry.name)) {
+      continue;
+    }
+
+    const file = await readFile(filepath, "utf8");
+    const rewritten = file.replaceAll(/from "\$lib\/([^"]+)"/g, (_match, target) => {
+      const relativePath = path.relative(path.dirname(filepath), path.join(packageRoot, "src", "lib", target));
+      const normalizedPath = relativePath.startsWith(".")
+        ? relativePath
+        : `./${relativePath}`;
+
+      return `from "${normalizedPath.replaceAll(path.sep, "/")}"`;
+    });
+
+    if (rewritten !== file) {
+      await writeFile(filepath, rewritten);
+    }
+  }
 }

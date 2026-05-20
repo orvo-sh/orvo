@@ -1,0 +1,48 @@
+{
+  "name": "app",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "prepare": "svelte-kit sync || echo ''",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "check-types": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "lint": "eslint .",
+    "db:push": "pnpm --filter @repo/db run db:push",
+    "db:generate": "pnpm --filter @repo/db run db:generate",
+    "db:migrate": "pnpm --filter @repo/db run db:migrate",
+    "db:studio": "pnpm --filter @repo/db run db:studio",
+    "auth:schema": "better-auth generate --config src/lib/server/auth.ts --output ../../packages/db/src/schema/auth.schema.ts --yes"
+  },
+  "dependencies": {
+    "@repo/components": "workspace:*",
+    "@repo/db": "workspace:*",
+    "better-auth": "~1.4.21",
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "@better-auth/cli": "~1.4.21",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@sveltejs/adapter-auto": "^7.0.1",
+    "@sveltejs/kit": "^2.57.0",
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/node": "^24.12.0",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9.39.4",
+    "prettier": "^3.8.1",
+    "prettier-plugin-svelte": "^3.5.1",
+    "prettier-plugin-tailwindcss": "^0.7.2",
+    "svelte": "^5.55.2",
+    "svelte-check": "^4.4.6",
+    "tailwindcss": "^4.2.2",
+    "typescript": "5.9.3",
+    "vite": "^8.0.7"
+  }
+}
