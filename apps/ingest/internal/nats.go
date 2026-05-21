@@ -46,12 +46,12 @@ func NewNATSClient(ctx context.Context, logger *slog.Logger, config NatsConfig) 
 
 func (client *NATSClient) ensureStream(ctx context.Context) error {
 	_, err := client.jetstream.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-		Name:     client.config.StreamName,
-		Subjects: []string{client.config.LogsSubject, client.config.TracesSubject, client.config.MetricsSubject},
+		Name:     TelemetryStreamName,
+		Subjects: []string{TelemetryLogsSubject, TelemetryTracesSubject, TelemetryMetricsSubject},
 		Storage:  jetstream.FileStorage,
 	})
 	if err != nil {
-		return fmt.Errorf("nats: ensure stream %s: %w", client.config.StreamName, err)
+		return fmt.Errorf("nats: ensure stream %s: %w", TelemetryStreamName, err)
 	}
 
 	return nil
@@ -93,15 +93,15 @@ func (client *NATSClient) publish(ctx context.Context, subject string, message a
 }
 
 func (client *NATSClient) PublishLogs(ctx context.Context, message LogsMessage) error {
-	return client.publish(ctx, client.config.LogsSubject, message)
+	return client.publish(ctx, TelemetryLogsSubject, message)
 }
 
 func (client *NATSClient) PublishTraces(ctx context.Context, message TracesMessage) error {
-	return client.publish(ctx, client.config.TracesSubject, message)
+	return client.publish(ctx, TelemetryTracesSubject, message)
 }
 
 func (client *NATSClient) PublishMetrics(ctx context.Context, message MetricsMessage) error {
-	return client.publish(ctx, client.config.MetricsSubject, message)
+	return client.publish(ctx, TelemetryMetricsSubject, message)
 }
 
 func (client *NATSClient) Close() {

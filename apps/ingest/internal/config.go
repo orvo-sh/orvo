@@ -7,6 +7,29 @@ import (
 	"github.com/caarlos0/env/v11"
 )
 
+const (
+	ServiceName = "orvo-ingest"
+
+	DefaultEnvironment       = "development"
+	DefaultShutdownTimeout   = 15 * time.Second
+	DefaultBackgroundTimeout = 5 * time.Second
+
+	DefaultNATSURL          = "nats://127.0.0.1:4222"
+	TelemetryStreamName     = "TELEMETRY_V1"
+	TelemetryLogsSubject    = "telemetry.logs.v1"
+	TelemetryTracesSubject  = "telemetry.traces.v1"
+	TelemetryMetricsSubject = "telemetry.metrics.v1"
+	DefaultPublishTimeout   = 5 * time.Second
+
+	DefaultHTTPHost       = "0.0.0.0"
+	DefaultHTTPPort       = "4318"
+	DefaultMaxBodyBytes   = 10 * 1024 * 1024
+	DefaultAPIKeyCacheTTL = 5 * time.Minute
+	DefaultReadTimeout    = 15 * time.Second
+	DefaultWriteTimeout   = 15 * time.Second
+	DefaultIdleTimeout    = 60 * time.Second
+)
+
 type Config struct {
 	App      AppConfig      `envPrefix:"APP_"`
 	Postgres PostgresConfig `envPrefix:"POSTGRES_"`
@@ -16,9 +39,7 @@ type Config struct {
 }
 
 type AppConfig struct {
-	ServiceName     string        `env:"SERVICE_NAME" envDefault:"orvo-ingest"`
-	Environment     string        `env:"ENVIRONMENT" envDefault:"development"`
-	ShutdownTimeout time.Duration `env:"SHUTDOWN_TIMEOUT" envDefault:"15s"`
+	Environment string `env:"ENVIRONMENT"`
 }
 
 type PostgresConfig struct {
@@ -26,28 +47,24 @@ type PostgresConfig struct {
 }
 
 type NatsConfig struct {
-	URL            string        `env:"URL" envDefault:"nats://127.0.0.1:4222"`
-	StreamName     string        `env:"STREAM_NAME" envDefault:"TELEMETRY_V1"`
-	LogsSubject    string        `env:"LOGS_SUBJECT" envDefault:"telemetry.logs.v1"`
-	TracesSubject  string        `env:"TRACES_SUBJECT" envDefault:"telemetry.traces.v1"`
-	MetricsSubject string        `env:"METRICS_SUBJECT" envDefault:"telemetry.metrics.v1"`
-	PublishTimeout time.Duration `env:"PUBLISH_TIMEOUT" envDefault:"5s"`
+	URL            string        `env:"URL"`
+	PublishTimeout time.Duration `env:"PUBLISH_TIMEOUT"`
 }
 
 type OtelConfig struct {
 	Endpoint string `env:"ENDPOINT"`
 	APIKey   string `env:"API_KEY"`
-	Insecure bool   `env:"INSECURE" envDefault:"false"`
+	Insecure bool   `env:"INSECURE"`
 }
 
 type IngestConfig struct {
-	HTTPHost       string        `env:"HTTP_HOST" envDefault:"0.0.0.0"`
-	HTTPPort       string        `env:"HTTP_PORT" envDefault:"4318"`
-	MaxBodyBytes   int64         `env:"MAX_BODY_BYTES" envDefault:"10485760"`
-	ApiKeyCacheTTL time.Duration `env:"API_KEY_CACHE_TTL" envDefault:"5m"`
-	ReadTimeout    time.Duration `env:"READ_TIMEOUT" envDefault:"15s"`
-	WriteTimeout   time.Duration `env:"WRITE_TIMEOUT" envDefault:"15s"`
-	IdleTimeout    time.Duration `env:"IDLE_TIMEOUT" envDefault:"60s"`
+	HTTPHost       string        `env:"HTTP_HOST"`
+	HTTPPort       string        `env:"HTTP_PORT"`
+	MaxBodyBytes   int64         `env:"MAX_BODY_BYTES"`
+	ApiKeyCacheTTL time.Duration `env:"API_KEY_CACHE_TTL"`
+	ReadTimeout    time.Duration `env:"READ_TIMEOUT"`
+	WriteTimeout   time.Duration `env:"WRITE_TIMEOUT"`
+	IdleTimeout    time.Duration `env:"IDLE_TIMEOUT"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -56,5 +73,40 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
 	}
 
+	cfg.applyDefaults()
+
 	return &cfg, nil
+}
+
+func (cfg *Config) applyDefaults() {
+	if cfg.App.Environment == "" {
+		cfg.App.Environment = DefaultEnvironment
+	}
+	if cfg.Nats.URL == "" {
+		cfg.Nats.URL = DefaultNATSURL
+	}
+	if cfg.Nats.PublishTimeout == 0 {
+		cfg.Nats.PublishTimeout = DefaultPublishTimeout
+	}
+	if cfg.Ingest.HTTPHost == "" {
+		cfg.Ingest.HTTPHost = DefaultHTTPHost
+	}
+	if cfg.Ingest.HTTPPort == "" {
+		cfg.Ingest.HTTPPort = DefaultHTTPPort
+	}
+	if cfg.Ingest.MaxBodyBytes == 0 {
+		cfg.Ingest.MaxBodyBytes = DefaultMaxBodyBytes
+	}
+	if cfg.Ingest.ApiKeyCacheTTL == 0 {
+		cfg.Ingest.ApiKeyCacheTTL = DefaultAPIKeyCacheTTL
+	}
+	if cfg.Ingest.ReadTimeout == 0 {
+		cfg.Ingest.ReadTimeout = DefaultReadTimeout
+	}
+	if cfg.Ingest.WriteTimeout == 0 {
+		cfg.Ingest.WriteTimeout = DefaultWriteTimeout
+	}
+	if cfg.Ingest.IdleTimeout == 0 {
+		cfg.Ingest.IdleTimeout = DefaultIdleTimeout
+	}
 }

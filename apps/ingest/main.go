@@ -20,7 +20,7 @@ func main() {
 	}
 
 	logger := ingest.NewLogger(ingest.LoggerConfig{
-		ServiceName: cfg.App.ServiceName,
+		ServiceName: ingest.ServiceName,
 		Environment: cfg.App.Environment,
 	})
 
@@ -52,7 +52,7 @@ func main() {
 	defer natsClient.Close()
 
 	backgroundManager := ingest.NewBackgroundManager(logger, ingest.BackgroundConfig{
-		DefaultTimeout: 5 * time.Second,
+		DefaultTimeout: ingest.DefaultBackgroundTimeout,
 	})
 
 	authService := ingest.NewAuthService(postgresDB, logger, backgroundManager, cfg.Ingest.ApiKeyCacheTTL)
@@ -67,7 +67,7 @@ func main() {
 	server.Start()
 
 	logger.Info("main: ingest service started",
-		slog.String("service_name", cfg.App.ServiceName),
+		slog.String("service_name", ingest.ServiceName),
 		slog.String("environment", cfg.App.Environment),
 	)
 
@@ -77,7 +77,7 @@ func main() {
 
 	logger.Info("main: shutting down ingest service")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.App.ShutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), ingest.DefaultShutdownTimeout)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {

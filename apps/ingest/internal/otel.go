@@ -16,7 +16,7 @@ func SetupOTel(ctx context.Context, appConfig AppConfig, otelConfig OtelConfig) 
 	res, err := resource.New(
 		ctx,
 		resource.WithAttributes(
-			semconv.ServiceName(appConfig.ServiceName),
+			semconv.ServiceName(ServiceName),
 			semconv.DeploymentEnvironmentName(appConfig.Environment),
 		),
 	)
