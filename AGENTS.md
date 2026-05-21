@@ -53,3 +53,16 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - Verify that Tailwind classes are actually emitted after CSS changes. A successful type-check is not enough.
 - For app-level styling issues, check the built CSS output or run the app build before assuming component code is broken.
 - Preserve established patterns when editing an existing screen. Improve them, do not restyle everything opportunistically.
+
+## Go services
+
+- Small standalone Go apps can live under `apps/*` when they are product-facing services in the monorepo.
+- Each Go app should own its own `go.mod`, `Makefile`, and runtime assets.
+- For thin single-purpose binaries, prefer a root `main.go` plus one local `internal/` package over deep horizontal layering.
+- Keep `main.go` limited to wiring, startup, shutdown, and dependency assembly.
+- Keep HTTP handlers thin. Header parsing, body decode, and response mapping can live near the server code, but transforms and business decisions should stay in focused helpers.
+- Split files by concern only as far as it helps scanning the app. Prefer files like `server.go`, `auth.go`, `postgres.go`, `nats.go`, `logs.go`, `traces.go`, `metrics.go`, and `transform*.go` over `domain/services/infra` trees for small binaries.
+- Default to stdlib `net/http`, `context`, and focused dependencies. Do not introduce framework-heavy Go stacks unless there is a hard requirement.
+- Use `slog` with structured fields. Log operation entry with `InfoContext`, failures with `ErrorContext`, and include counts, IDs, and dependency state where useful.
+- Match the existing log tone: method-prefixed messages like `IngestTraces: ingesting traces`, no noisy debug spam, and no secrets or raw telemetry payloads in logs.
+- Keep helpers inside the app-local `internal/` package by default. Only introduce a local `pkg/` if there is a real second consumer and the split clearly pays for itself.
