@@ -1,14 +1,14 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
-import { auth } from '$lib/server/auth';
-
 export const load = (async (event) => {
   if (!event.locals.auth) {
     throw redirect(302, '/sign-in');
   }
 
-  const organizations = await auth.api.listOrganizations({ headers: event.request.headers });
+  const organizations = await event.locals.container.authService.api.listOrganizations({
+    headers: event.request.headers
+  });
   const activeOrganizationId = event.locals.auth.session.activeOrganizationId;
 
   if (!activeOrganizationId) {
@@ -34,7 +34,7 @@ export const load = (async (event) => {
 
 export const actions = {
   signOut: async (event) => {
-    await auth.api.signOut({
+    await event.locals.container.authService.api.signOut({
       headers: event.request.headers
     });
 
