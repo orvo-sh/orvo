@@ -4,12 +4,14 @@ import { getClickHouseClient } from '@repo/clickhouse';
 import { getDb } from '@repo/db';
 import { createAuth, type Auth } from '$lib/server/auth';
 import { ConsoleEmail, ResendEmail } from '$lib/server/email';
+import { IngestionKeyService } from '$lib/server/services/ingestion-key.service';
 import { Logger } from '$lib/server/observability/logger';
 import { LogFacetsService } from '$lib/server/services/log-facets.service';
 import { LogsService } from '$lib/server/services/logs.service';
 
 export type ServerContainer = {
 	authService: Auth;
+	ingestionKeyService: IngestionKeyService;
 	logsService: LogsService;
 	logFacetsService: LogFacetsService;
 };
@@ -39,6 +41,7 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
 			githubClientId: process.env.GITHUB_CLIENT_ID ?? env.GITHUB_CLIENT_ID,
 			githubClientSecret: process.env.GITHUB_CLIENT_SECRET ?? env.GITHUB_CLIENT_SECRET
 		}),
+		ingestionKeyService: new IngestionKeyService(db, logger),
 		logsService: new LogsService(clickhouse, logger),
 		logFacetsService: new LogFacetsService(clickhouse, logger)
 	};

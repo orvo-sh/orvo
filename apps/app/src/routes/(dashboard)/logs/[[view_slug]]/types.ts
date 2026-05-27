@@ -1,7 +1,7 @@
 export type LogRecord = {
 	id?: string;
 	organization_id?: string;
-	api_key_id?: string;
+	ingestion_key_id?: string;
 	received_at?: string;
 	expires_at?: string;
 	timestamp: string;
@@ -49,7 +49,7 @@ export type LogFacets = {
 	services: LogFacetOption[];
 	environments: LogFacetOption[];
 	scopes: LogFacetOption[];
-	apiKeyIds: LogFacetOption[];
+	ingestionKeyIds: LogFacetOption[];
 	contentTypes: LogFacetOption[];
 	contentEncodings: LogFacetOption[];
 	remoteAddrs: LogFacetOption[];

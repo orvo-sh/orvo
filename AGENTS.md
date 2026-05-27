@@ -55,6 +55,10 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - Environment-based implementation choice belongs in `container.ts`. For example, choose console vs external email providers there and inject the selected implementation into auth.
 - If email templates change, regenerate `src/lib/server/email/email.generated.ts` from the `.html` templates instead of editing the generated file by hand.
 - Prefer server-side route guardrails for auth and onboarding flows. Redirect logic for unauthenticated, unverified, or already-onboarded users should live in `+layout.server.ts` or `+page.server.ts`, not only in client navigation code.
+- Match the `sey` service shape: keep app services in `apps/app/src/lib/server/services`, name files `*.service.ts`, export the zod input schemas from the same file, and keep remote functions thin over those schemas.
+- Service classes should take dependencies through the constructor, immediately derive a child logger in the constructor, log once at method entry, validate with `safeParse` near the top, and log one failure in the catch path before returning a stable result.
+- `hooks.server.ts` should create the request-scoped logger and container once per request. Routes and remote functions should call `event.locals.container.*` rather than instantiating services directly.
+- Keep `src/lib/api/*.remote.ts` focused on transport only: import the service schemas, call `query(...)` or `command(...)`, pull `getRequestEvent()`, and forward into the relevant container service. Put business logic in the service, not in the remote function.
 - Frontend-to-service calls should go through SvelteKit remote functions in `src/lib/api/*.remote.ts`. Keep those files thin: import the zod input schemas from the service files, then forward to `event.locals.container.*Service` with request-local auth context.
 - Service input schemas should live with the service that owns the behavior, so remote functions can import the same zod schemas directly instead of duplicating request validation.
 

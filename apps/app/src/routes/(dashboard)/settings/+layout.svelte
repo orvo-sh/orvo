@@ -20,7 +20,7 @@
         },
         {
           href: "/settings/ingest-keys",
-          label: "Ingest keys",
+          label: "Ingestion keys",
           icon: KeyIcon,
           isActive: (pathname: string) =>
             pathname.startsWith("/settings/ingest-keys"),

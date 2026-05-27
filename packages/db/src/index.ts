@@ -7,6 +7,7 @@ import * as schema from './schema/index.js';
 const createDb = (databaseUrl: string) => drizzle(getDbClient(databaseUrl), { schema });
 
 type Database = ReturnType<typeof createDb>;
+export type DB = Database;
 
 const clients = new Map<string, Sql>();
 const databases = new Map<string, Database>();

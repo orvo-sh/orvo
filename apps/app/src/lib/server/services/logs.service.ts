@@ -41,7 +41,7 @@ export const logsQueryFiltersSchema = z.object({
 	services: stringArrayFilterSchema,
 	environments: stringArrayFilterSchema,
 	scopes: stringArrayFilterSchema,
-	apiKeyIds: stringArrayFilterSchema,
+	ingestionKeyIds: stringArrayFilterSchema,
 	contentTypes: stringArrayFilterSchema,
 	contentEncodings: stringArrayFilterSchema,
 	remoteAddrs: stringArrayFilterSchema,
@@ -72,7 +72,7 @@ export type LogsOmitFacet =
 	| 'services'
 	| 'environments'
 	| 'scopes'
-	| 'apiKeyIds'
+	| 'ingestionKeyIds'
 	| 'contentTypes'
 	| 'contentEncodings'
 	| 'remoteAddrs'
@@ -81,7 +81,7 @@ export type LogsOmitFacet =
 export type LogRecordRow = {
 	id: string;
 	organization_id: string;
-	api_key_id: string;
+	ingestion_key_id: string;
 	received_at: string;
 	expires_at: string;
 	timestamp: string;
@@ -236,8 +236,8 @@ const buildWhereClause = (
 		whereClauses.push(buildInClause('scope_name', input.scopes));
 	}
 
-	if (input.apiKeyIds.length > 0 && options?.omitFacet !== 'apiKeyIds') {
-		whereClauses.push(buildInClause('api_key_id', input.apiKeyIds));
+	if (input.ingestionKeyIds.length > 0 && options?.omitFacet !== 'ingestionKeyIds') {
+		whereClauses.push(buildInClause('ingestion_key_id', input.ingestionKeyIds));
 	}
 
 	if (input.contentTypes.length > 0 && options?.omitFacet !== 'contentTypes') {
@@ -304,7 +304,7 @@ class LogsService {
 					SELECT
 						id,
 						organization_id,
-						api_key_id,
+						ingestion_key_id,
 						received_at,
 						expires_at,
 						timestamp,

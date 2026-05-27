@@ -20,7 +20,7 @@ export type LogFacetsResult = {
 	services: LogFacetOption[];
 	environments: LogFacetOption[];
 	scopes: LogFacetOption[];
-	apiKeyIds: LogFacetOption[];
+	ingestionKeyIds: LogFacetOption[];
 	contentTypes: LogFacetOption[];
 	contentEncodings: LogFacetOption[];
 	remoteAddrs: LogFacetOption[];
@@ -44,7 +44,7 @@ const facetColumns: Record<
 	services: { column: 'service_name', omitFacet: 'services' },
 	environments: { column: 'deployment_environment', omitFacet: 'environments' },
 	scopes: { column: 'scope_name', omitFacet: 'scopes' },
-	apiKeyIds: { column: 'api_key_id', omitFacet: 'apiKeyIds' },
+	ingestionKeyIds: { column: 'ingestion_key_id', omitFacet: 'ingestionKeyIds' },
 	contentTypes: { column: 'content_type', omitFacet: 'contentTypes' },
 	contentEncodings: { column: 'content_encoding', omitFacet: 'contentEncodings' },
 	remoteAddrs: { column: 'remote_addr', omitFacet: 'remoteAddrs' },

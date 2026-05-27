@@ -51,7 +51,7 @@ try {
         SELECT 1
         FROM information_schema.tables
         WHERE table_schema = 'public'
-          AND table_name = 'api_key'
+          AND table_name = 'ingestion_key'
       ) AS has_latest_schema
     `);
     const { rows: publicTableRows } = await client.query(`
