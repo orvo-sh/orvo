@@ -1,4 +1,9 @@
 export type LogRecord = {
+	id?: string;
+	organization_id?: string;
+	api_key_id?: string;
+	received_at?: string;
+	expires_at?: string;
 	timestamp: string;
 	observed_timestamp: string;
 	severity_number: number;
@@ -16,6 +21,39 @@ export type LogRecord = {
 	log_attributes: Record<string, string>;
 	service_name: string;
 	deployment_environment: string;
+	content_type?: string;
+	content_encoding?: string;
+	remote_addr?: string;
+	user_agent?: string;
+};
+
+export type LogVolumeBucket = {
+	startAtUtc: string;
+	endAtUtc: string;
+	fatal: number;
+	error: number;
+	warn: number;
+	info: number;
+	debug: number;
+	trace: number;
+	total: number;
+};
+
+export type LogFacetOption = {
+	value: string;
+	count: number;
+};
+
+export type LogFacets = {
+	levels: LogFacetOption[];
+	services: LogFacetOption[];
+	environments: LogFacetOption[];
+	scopes: LogFacetOption[];
+	apiKeyIds: LogFacetOption[];
+	contentTypes: LogFacetOption[];
+	contentEncodings: LogFacetOption[];
+	remoteAddrs: LogFacetOption[];
+	userAgents: LogFacetOption[];
 };
 
 export type LogFilters = {

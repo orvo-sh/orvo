@@ -13,21 +13,7 @@
 	 * This is the same pattern used by Datadog, Grafana Loki, Railway, and Hookdeck.
 	 */
 
-	import type { LogRecord } from '../types';
-
-	type Bucket = {
-		start: Date;
-		end: Date;
-		fatal: number;
-		error: number;
-		warn: number;
-		info: number;
-		debug: number;
-		trace: number;
-		total: number;
-	};
-
-	const BUCKET_COUNT = 80;
+	import type { LogVolumeBucket } from '../types';
 
 	const SEVERITY_COLOR: Record<string, string> = {
 		fatal: 'var(--color-destructive)',
@@ -38,60 +24,20 @@
 		trace: 'color-mix(in srgb, var(--color-muted-foreground) 30%, transparent)'
 	};
 
-	function severityBucket(sev: string): keyof Omit<Bucket, 'start' | 'end' | 'total'> {
-		const s = (sev ?? '').toLowerCase();
-		if (s === 'fatal') return 'fatal';
-		if (s === 'error' || s.includes('err')) return 'error';
-		if (s === 'warn' || s.includes('warn')) return 'warn';
-		if (s === 'debug' || s.includes('debug')) return 'debug';
-		if (s === 'trace') return 'trace';
-		return 'info';
-	}
-
 	let {
-		logs = [],
+		buckets = [],
 		start,
 		end,
 		onBucketClick
 	}: {
-		logs?: LogRecord[];
+		buckets?: LogVolumeBucket[];
 		start: Date;
 		end: Date;
 		onBucketClick?: (bucketStart: Date, bucketEnd: Date) => void;
 	} = $props();
 
-	const buckets = $derived.by(() => {
-		const rangeMs = end.getTime() - start.getTime();
-		const bucketMs = rangeMs / BUCKET_COUNT;
-
-		const b: Bucket[] = Array.from({ length: BUCKET_COUNT }, (_, i) => ({
-			start: new Date(start.getTime() + i * bucketMs),
-			end: new Date(start.getTime() + (i + 1) * bucketMs),
-			fatal: 0,
-			error: 0,
-			warn: 0,
-			info: 0,
-			debug: 0,
-			trace: 0,
-			total: 0
-		}));
-
-		for (const log of logs) {
-			const t = new Date(log.timestamp).getTime();
-			const idx = Math.min(
-				Math.floor(((t - start.getTime()) / rangeMs) * BUCKET_COUNT),
-				BUCKET_COUNT - 1
-			);
-			if (idx < 0 || idx >= BUCKET_COUNT) continue;
-			const key = severityBucket(log.severity_text);
-			b[idx][key]++;
-			b[idx].total++;
-		}
-
-		return b;
-	});
-
 	const maxCount = $derived(Math.max(1, ...buckets.map((b) => b.total)));
+	const bucketCount = $derived(Math.max(buckets.length, 1));
 
 	// X-axis time labels: 6 evenly spaced labels
 	const timeLabels = $derived.by(() => {
@@ -146,9 +92,9 @@
 			onmouseleave={() => (hovered = null)}
 		>
 			<!-- Bars -->
-			{#each buckets as bucket, i}
-				{@const barW = `${(1 / BUCKET_COUNT) * 100}%`}
-				{@const x = `${(i / BUCKET_COUNT) * 100}%`}
+				{#each buckets as bucket, i}
+				{@const barW = `${(1 / bucketCount) * 100}%`}
+				{@const x = `${(i / bucketCount) * 100}%`}
 				{@const hasError = bucket.error + bucket.fatal > 0}
 				{@const hasWarn = bucket.warn > 0}
 				{@const color = hasError
@@ -168,11 +114,13 @@
 						tooltipX = e.clientX;
 						tooltipY = e.clientY;
 					}}
-					onclick={() => bucket.total > 0 && onBucketClick?.(bucket.start, bucket.end)}
+					onclick={() =>
+						bucket.total > 0 &&
+						onBucketClick?.(new Date(bucket.startAtUtc), new Date(bucket.endAtUtc))}
 					onkeydown={(e) => {
 						if (bucket.total > 0 && (e.key === 'Enter' || e.key === ' ')) {
 							e.preventDefault();
-							onBucketClick?.(bucket.start, bucket.end);
+							onBucketClick?.(new Date(bucket.startAtUtc), new Date(bucket.endAtUtc));
 						}
 					}}
 					style="cursor: {bucket.total > 0 ? 'pointer' : 'default'}"
@@ -246,7 +194,7 @@
 				style="left: {tooltipX + 12}px; top: {tooltipY - 8}px; transform: translateY(-100%)"
 			>
 				<p class="text-muted-foreground mb-1">
-					{fmt(b.start)} → {fmt(b.end)}
+					{fmt(new Date(b.startAtUtc))} → {fmt(new Date(b.endAtUtc))}
 				</p>
 				<div class="flex flex-col gap-0.5">
 					{#if b.fatal + b.error > 0}

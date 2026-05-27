@@ -1,4 +1,9 @@
 <script lang="ts">
+	import {
+		getLogFacetsQuery,
+		getLogsQuery,
+		getLogVolumeQuery
+	} from '$lib/api/logs.remote';
 	import { Button, buttonVariants } from '@repo/components/ui/button';
 	import { ButtonGroup } from '@repo/components/ui/button-group';
 	import * as DropdownMenu from '@repo/components/ui/dropdown-menu';
@@ -15,7 +20,7 @@
 	import LogFilterBar from './_components/log-filter-bar.svelte';
 	import LogTable from './_components/log-table.svelte';
 	import LogVolumeChart from './_components/log-volume-chart.svelte';
-	import type { LogFilters, LogRecord } from './types';
+	import type { LogFacets, LogFilters, LogRecord, LogVolumeBucket } from './types';
 
 	let hasView = $state(true);
 	let live = $state(false);
@@ -41,102 +46,145 @@
 		traceId: ''
 	});
 
-	// --- Mock data -------------------------------------------------------
-	// In production this would come from a server load or streaming fetch
-	// keyed on rangeStart/rangeEnd and filters.
+	let logs = $state<LogRecord[]>([]);
+	let volumeBuckets = $state<LogVolumeBucket[]>([]);
+	let loading = $state(false);
+	let error = $state('');
+	let loadRequest = 0;
 
-	const SERVICES = ['api-gateway', 'auth-service', 'billing', 'worker', 'mailer'];
-	const ENVS = ['production', 'staging'];
-	const LEVELS = [
-		{ text: 'INFO', num: 9 },
-		{ text: 'INFO', num: 9 },
-		{ text: 'INFO', num: 9 },
-		{ text: 'DEBUG', num: 5 },
-		{ text: 'WARN', num: 13 },
-		{ text: 'ERROR', num: 17 },
-		{ text: 'FATAL', num: 21 }
-	];
-	const BODIES = [
-		'Request completed successfully',
-		'Database connection established',
-		'Cache miss — falling back to origin',
-		'[404] GET /wp-includes/js/jquery/jquery.js',
-		'[500] POST /api/v1/checkout — upstream timeout',
-		'[403] GET /.env — blocked',
-		'Saving metrics to "/tmp/app-metrics.json"',
-		'Current period usage: {"successful":0,"timedout":0,"totalTime":0}',
-		'Worker heartbeat OK',
-		'Email dispatched to user@example.com',
-		'Retrying failed job #8821 (attempt 2/3)',
-		'Auth token validated — user_id=usr_29xk3',
-		'Stripe webhook received: invoice.paid',
-		'Outgoing request to https://api.stripe.com/v1/charges',
-		'Background task completed in 142ms'
-	];
-
-	function rand<T>(arr: T[]): T {
-		return arr[Math.floor(Math.random() * arr.length)];
-	}
-
-	const MOCK_LOGS: LogRecord[] = Array.from({ length: 180 }, () => {
-		const svc = rand(SERVICES);
-		const env = rand(ENVS);
-		const lvl = rand(LEVELS);
-		const t = new Date(
-			rangeStart.getTime() +
-				Math.random() * (rangeEnd.getTime() - rangeStart.getTime())
-		);
-		return {
-			timestamp: t.toISOString(),
-			observed_timestamp: t.toISOString(),
-			severity_number: lvl.num,
-			severity_text: lvl.text,
-			body: rand(BODIES),
-			trace_id: Math.random() > 0.4 ? crypto.randomUUID().replace(/-/g, '') : '',
-			span_id: Math.random() > 0.5 ? crypto.randomUUID().split('-')[0] : '',
-			trace_flags: 1,
-			resource_attributes: { 'host.name': `${svc}-${Math.ceil(Math.random() * 3)}`, 'host.arch': 'amd64' },
-			resource_schema_url: '',
-			scope_name: `${svc}/handler`,
-			scope_version: '1.0.0',
-			scope_attributes: {},
-			scope_schema_url: '',
-			log_attributes: { request_id: crypto.randomUUID().split('-')[0], latency_ms: String(Math.floor(Math.random() * 2000)) },
-			service_name: svc,
-			deployment_environment: env
-		};
+	let facets = $state<LogFacets>({
+		levels: [],
+		services: [],
+		environments: [],
+		scopes: [],
+		apiKeyIds: [],
+		contentTypes: [],
+		contentEncodings: [],
+		remoteAddrs: [],
+		userAgents: []
 	});
-	// --------------------------------------------------------------------
+
+	const createBaseLogsInput = () => ({
+		time: {
+			kind: 'range' as const,
+			startAtUtc: rangeStart.toISOString(),
+			endAtUtc: rangeEnd.toISOString()
+		},
+		search: filters.search.trim(),
+		levels: filters.levels,
+		services: filters.services,
+		environments: filters.environments,
+		scopes: filters.scopes,
+		apiKeyIds: [],
+		contentTypes: [],
+		contentEncodings: [],
+		remoteAddrs: [],
+		userAgents: [],
+		traceId: filters.traceId.trim() || undefined
+	});
+
+	const refreshLogs = async () => {
+		const requestId = ++loadRequest;
+		loading = true;
+		error = '';
+
+		const [logsResult, volumeResult, facetsResult] = await Promise.all([
+			getLogsQuery({
+				...createBaseLogsInput(),
+				limit: 250
+			}),
+			getLogVolumeQuery({
+				...createBaseLogsInput(),
+				bucketCount: 80
+			}),
+			getLogFacetsQuery({
+				...createBaseLogsInput(),
+				maxValuesPerFacet: 50
+			})
+		]);
+
+		if (requestId !== loadRequest) {
+			return;
+		}
+
+		if (logsResult.success === false) {
+			error = logsResult.error;
+			loading = false;
+			return;
+		}
+
+		if (volumeResult.success === false) {
+			error = volumeResult.error;
+			loading = false;
+			return;
+		}
+
+		if (facetsResult.success === false) {
+			error = facetsResult.error;
+			loading = false;
+			return;
+		}
+
+		logs = logsResult.data.logs;
+		volumeBuckets = volumeResult.data.buckets;
+		facets = facetsResult.data;
+		loading = false;
+	};
+
+	const querySignature = $derived.by(() =>
+		JSON.stringify({
+			start: rangeStart.toISOString(),
+			end: rangeEnd.toISOString(),
+			search: filters.search,
+			levels: filters.levels,
+			services: filters.services,
+			scopes: filters.scopes,
+			environments: filters.environments,
+			traceId: filters.traceId
+		})
+	);
 
 	const serviceOptions = $derived(
-		[...new Set(MOCK_LOGS.map((l) => l.service_name).filter(Boolean))].map((s) => ({
-			value: s,
-			label: s
+		facets.services.map((service) => ({
+			value: service.value,
+			label: service.value
 		}))
 	);
 
 	const environmentOptions = $derived(
-		[...new Set(MOCK_LOGS.map((l) => l.deployment_environment).filter(Boolean))].map((e) => ({
-			value: e,
-			label: e
+		facets.environments.map((environment) => ({
+			value: environment.value,
+			label: environment.value
 		}))
 	);
 
 	const scopeOptions = $derived(
-		[...new Set(MOCK_LOGS.map((l) => l.scope_name).filter(Boolean))].map((scope) => ({
-			value: scope,
-			label: scope
+		facets.scopes.map((scope) => ({
+			value: scope.value,
+			label: scope.value
 		}))
 	);
 
-	function refresh() {
+	const refresh = () => {
 		rangeEnd = new Date();
-	}
+	};
 
-	function onBucketClick(start: Date, end: Date) {
+	const onBucketClick = (start: Date, end: Date) => {
 		rangeStart = start;
 		rangeEnd = end;
-	}
+	};
+
+	$effect(() => {
+		querySignature;
+
+		const timeout = setTimeout(() => {
+			void refreshLogs();
+		}, 250);
+
+		return () => {
+			clearTimeout(timeout);
+		};
+	});
 </script>
 
 <PageContainer title="Logs" class="overflow-hidden">
@@ -214,10 +262,16 @@
 				{scopeOptions}
 			/>
 
+			{#if error}
+				<div class="border-b bg-destructive/5 px-4 py-2 text-sm text-destructive">
+					{error}
+				</div>
+			{/if}
+
 			<!-- Volume chart -->
 			<div class="px-4 pt-3 pb-1 border-b bg-background shrink-0">
 				<LogVolumeChart
-					logs={MOCK_LOGS}
+					buckets={volumeBuckets}
 					start={rangeStart}
 					end={rangeEnd}
 					{onBucketClick}
@@ -225,7 +279,7 @@
 			</div>
 
 			<!-- Log table — fills remaining height -->
-			<LogTable logs={MOCK_LOGS} {filters} />
+			<LogTable {logs} {filters} {loading} />
 		</div>
 	{/snippet}
 </PageContainer>

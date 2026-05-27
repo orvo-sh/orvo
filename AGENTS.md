@@ -55,6 +55,8 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - Environment-based implementation choice belongs in `container.ts`. For example, choose console vs external email providers there and inject the selected implementation into auth.
 - If email templates change, regenerate `src/lib/server/email/email.generated.ts` from the `.html` templates instead of editing the generated file by hand.
 - Prefer server-side route guardrails for auth and onboarding flows. Redirect logic for unauthenticated, unverified, or already-onboarded users should live in `+layout.server.ts` or `+page.server.ts`, not only in client navigation code.
+- Frontend-to-service calls should go through SvelteKit remote functions in `src/lib/api/*.remote.ts`. Keep those files thin: import the zod input schemas from the service files, then forward to `event.locals.container.*Service` with request-local auth context.
+- Service input schemas should live with the service that owns the behavior, so remote functions can import the same zod schemas directly instead of duplicating request validation.
 
 ## Tooling scripts
 
