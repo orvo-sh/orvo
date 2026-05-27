@@ -18,6 +18,8 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - Typography should feel intentional. Default to `Inter Variable` unless the existing app already establishes something else.
 - Prefer visual confidence through proportion, spacing, and hierarchy rather than decoration.
 - The best default is understated and sharp: compact forms, readable density, and controls that look production-ready without extra styling.
+- Button loading states should preserve the label text. Do not swap labels like `Sign up` to `Signing up...`; keep the text stable and show loading with a spinner instead.
+- If a button includes an icon, mark that icon with `data-slot="button-icon"` so shared loading states can replace the icon with the spinner without shifting the label.
 
 ## CSS structure
 
@@ -37,6 +39,25 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - If a UI library component already exists, use it instead of raw `button`, `input`, `textarea`, or ad hoc form chrome.
 - Treat the component library defaults as the source of truth. Add classes for layout, width, spacing, or composition first; avoid restyling the primitive itself unless there is a concrete gap.
 - If a page needs custom styling, stay close to the shared token vocabulary: `bg-background`, `text-foreground`, `border-border`, `text-muted-foreground`, `bg-muted`, `bg-card`.
+- Prefer shared button loading behavior over page-local loading label swaps or ad hoc spinner placement.
+
+## Code style
+
+- Use arrow functions for handlers and helpers in the app codebase unless there is a concrete reason not to.
+- Commit messages should follow the existing history style: conventional prefix like `feat:`, `fix:`, or `refactor:` followed by a lowercase subject.
+
+## Server wiring
+
+- `apps/app/src/lib/server/container.ts` is the server-side composition root. Instantiate concrete infrastructure and implementations there, then inject them into services and factories.
+- Prefer dependency injection for server modules. Factories like auth should accept the dependencies they need instead of reading environment and selecting implementations internally.
+- `ServerContainer` should expose only services that routes, hooks, and API handlers call directly. Do not export raw infrastructure dependencies like the email client from the container type.
+- Environment-based implementation choice belongs in `container.ts`. For example, choose console vs external email providers there and inject the selected implementation into auth.
+- If email templates change, regenerate `src/lib/server/email/email.generated.ts` from the `.html` templates instead of editing the generated file by hand.
+
+## Tooling scripts
+
+- Prefer TypeScript tooling scripts run through `vite-node` over package-local `.mjs` maintenance scripts.
+- When a package has internal sync or codegen scripts, keep the `package.json` script entry aligned with the `vite-node` pattern.
 
 ## Layout and page design
 

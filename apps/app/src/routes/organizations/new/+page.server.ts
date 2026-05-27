@@ -5,8 +5,4 @@ export const load = (async (event) => {
   if (!event.locals.auth) {
     throw redirect(302, '/sign-in');
   }
-
-  return {
-    user: event.locals.auth.user
-  };
 }) satisfies PageServerLoad;
