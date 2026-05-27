@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { buttonVariants } from "@repo/components/ui/button";
-  import * as HoverCard from "@repo/components/ui/hover-card";
-  import * as Sidebar from "@repo/components/ui/sidebar";
-  import { InfoIcon } from "phosphor-svelte";
-  import type { Snippet } from "svelte";
+    import { cn } from "@repo/components";
+    import { buttonVariants } from "@repo/components/ui/button";
+    import * as HoverCard from "@repo/components/ui/hover-card";
+    import * as Sidebar from "@repo/components/ui/sidebar";
+    import { InfoIcon } from "phosphor-svelte";
+    import type { Snippet } from "svelte";
 
   let {
     title,
@@ -11,20 +12,22 @@
     actions,
     children,
     class: className = "",
+    innerClass
   }: {
     title: string;
     helper?: Snippet;
     actions?: Snippet;
     children?: Snippet;
     class?: string;
+    innerClass?: string;
   } = $props();
 </script>
 
 <div
-  class={`flex min-h-0 flex-1 flex-col overflow-hidden bg-background ${className}`}
+  class={cn(`flex min-h-0 flex-1 flex-col overflow-hidden bg-background`,className)}
 >
   <header
-    class="sticky top-0 z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border/90 bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/88"
+    class="sticky h-14 top-0 z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border/90 bg-background/95 px-4 py-3 "
   >
     <div class="flex min-w-0 items-center gap-2">
       <div class="md:hidden">
@@ -66,7 +69,7 @@
   </header>
 
   <div
-    class="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 md:px-6 md:py-5"
+    class={cn("flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 md:px-6 md:py-5", innerClass)}
   >
     {@render children?.()}
   </div>

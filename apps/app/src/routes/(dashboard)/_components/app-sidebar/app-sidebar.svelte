@@ -5,10 +5,10 @@
       BookOpenTextIcon,
       ChartBarIcon,
       GearSixIcon,
-      GraphIcon,
-      ListBulletsIcon,
+      HouseIcon,
       MegaphoneIcon,
-      SparkleIcon,
+      PathIcon,
+      TerminalWindowIcon
   } from "phosphor-svelte";
 
   import AppSidebarOrganizationSwitcher from "./app-sidebar-organization-switcher.svelte";
@@ -17,12 +17,12 @@
   const navigation = [
     {
       href: "/",
-      label: "Overview",
-      icon: SparkleIcon,
+      label: "Home",
+      icon: HouseIcon,
     },
-    { href: "/logs", label: "Logs", icon: ListBulletsIcon },
+    { href: "/logs", label: "Logs", icon: TerminalWindowIcon },
     { href: "/metrics", label: "Metrics", icon: ChartBarIcon },
-    { href: "/tracers", label: "Tracers", icon: GraphIcon },
+    { href: "/tracers", label: "Tracers", icon: PathIcon },
   ];
 
   let {
@@ -51,7 +51,7 @@
   class="border-sidebar-border/80 border-e bg-sidebar"
 >
   <Sidebar.Header
-    class="justify-center gap-0 border-b border-sidebar-border/80 px-1.5 py-3"
+    class="justify-center h-14 gap-0 border-b border-sidebar-border/80 px-1.5 py-3"
   >
     <AppSidebarOrganizationSwitcher {organizations} {activeOrganizationId} />
   </Sidebar.Header>

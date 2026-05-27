@@ -1,7 +1,15 @@
 <script lang="ts">
-	import { ArrowsClockwiseIcon, DatabaseIcon } from 'phosphor-svelte';
+	import { ArrowsClockwiseIcon, CheckIcon, ColumnsIcon, DatabaseIcon } from 'phosphor-svelte';
+	import * as DropdownMenu from '@repo/components/ui/dropdown-menu';
 	import type { LogFilters, LogRecord } from '../types';
 	import LogRow from './log-row.svelte';
+
+	export type ColumnKey = 'environment' | 'trace_id';
+
+	const OPTIONAL_COLUMNS: { key: ColumnKey; label: string }[] = [
+		{ key: 'environment', label: 'Environment' },
+		{ key: 'trace_id', label: 'Trace ID' }
+	];
 
 	let {
 		logs = [],
@@ -14,6 +22,15 @@
 		loading?: boolean;
 		timezone?: string;
 	} = $props();
+
+	let visibleCols = $state<Set<ColumnKey>>(new Set());
+
+	function toggleCol(key: ColumnKey) {
+		const next = new Set(visibleCols);
+		if (next.has(key)) next.delete(key);
+		else next.add(key);
+		visibleCols = next;
+	}
 
 	const filtered = $derived.by(() => {
 		let result = logs;
@@ -54,7 +71,6 @@
 			result = result.filter((l) => l.trace_id === filters.traceId);
 		}
 
-		// Sort newest first
 		return result.slice().sort(
 			(a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
 		);
@@ -69,10 +85,45 @@
 		class="flex items-center gap-0 border-b bg-muted/30 px-3 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide shrink-0"
 		role="row"
 	>
-		<span class="w-5 mr-1"></span>
-		<span class="w-44 mr-3">Time ({tz})</span>
-		<span class="w-32 mr-3">Service</span>
+		<span class="w-5 mr-1 shrink-0"></span>
+		<span class="w-44 mr-3 shrink-0">Time ({tz})</span>
+		<span class="w-28 mr-3 shrink-0">Service</span>
+		{#if visibleCols.has('environment')}
+			<span class="w-24 mr-3 shrink-0">Environment</span>
+		{/if}
+		{#if visibleCols.has('trace_id')}
+			<span class="w-28 mr-3 shrink-0">Trace ID</span>
+		{/if}
 		<span class="flex-1">Data</span>
+
+		<!-- Column picker -->
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger
+				class="ml-2 flex items-center gap-1 rounded p-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
+				aria-label="Configure columns"
+			>
+				<ColumnsIcon class="size-3.5" />
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="end" class="w-44">
+				<DropdownMenu.Label class="text-[10px] uppercase tracking-wide text-muted-foreground">
+					Optional columns
+				</DropdownMenu.Label>
+				<DropdownMenu.Separator />
+				{#each OPTIONAL_COLUMNS as col}
+					<DropdownMenu.Item onSelect={() => toggleCol(col.key)} class="gap-2">
+						<span
+							class="flex size-4 items-center justify-center rounded border border-border transition-colors
+							{visibleCols.has(col.key) ? 'bg-primary border-primary text-primary-foreground' : ''}"
+						>
+							{#if visibleCols.has(col.key)}
+								<CheckIcon class="size-2.5" />
+							{/if}
+						</span>
+						{col.label}
+					</DropdownMenu.Item>
+				{/each}
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
 	</div>
 
 	<!-- Log rows -->
@@ -96,7 +147,7 @@
 			</div>
 		{:else}
 			{#each filtered as log, i (log.timestamp + log.span_id + i)}
-				<LogRow {log} prevLog={filtered[i + 1]} {timezone} />
+				<LogRow {log} prevLog={filtered[i + 1]} {timezone} {visibleCols} />
 			{/each}
 		{/if}
 	</div>

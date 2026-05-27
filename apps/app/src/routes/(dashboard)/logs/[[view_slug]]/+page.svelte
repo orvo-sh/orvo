@@ -8,6 +8,7 @@
 	    CopyIcon,
 	    FloppyDiskIcon,
 	    PencilSimpleIcon,
+	    PlayIcon,
 	    TrashIcon
 	} from 'phosphor-svelte';
 	import PageContainer from '../../_components/page-container.svelte';
@@ -17,10 +18,19 @@
 	import type { LogFilters, LogRecord } from './types';
 
 	let hasView = $state(true);
+	let live = $state(false);
 
 	// Default time window: last 10 hours
 	let rangeStart = $state(new Date(Date.now() - 10 * 60 * 60 * 1000));
 	let rangeEnd = $state(new Date());
+
+	$effect(() => {
+		if (!live) return;
+		const id = setInterval(() => {
+			rangeEnd = new Date();
+		}, 5000);
+		return () => clearInterval(id);
+	});
 
 	let filters = $state<LogFilters>({
 		search: '',
@@ -131,10 +141,27 @@
 
 <PageContainer title="Logs" class="overflow-hidden">
 	{#snippet actions()}
-		<Button variant="outline" onclick={refresh}>
-			<ArrowsClockwiseIcon data-slot="button-icon" />
-			Refresh
+		<!-- Live mode toggle -->
+		<Button
+			variant="outline"
+			onclick={() => { live = !live; if (live) rangeEnd = new Date(); }}
+			class={live ? 'border-green-500/50 text-green-600 dark:text-green-400' : ''}
+		>
+			{#if live}
+				<span class="size-2 rounded-full bg-green-500 animate-pulse" data-slot="button-icon"></span>
+				Live
+			{:else}
+				<PlayIcon data-slot="button-icon" />
+				Live
+			{/if}
 		</Button>
+
+		{#if !live}
+			<Button variant="outline" onclick={refresh}>
+				<ArrowsClockwiseIcon data-slot="button-icon" />
+				Refresh
+			</Button>
+		{/if}
 
 		<ButtonGroup>
 			<Button variant="outline">

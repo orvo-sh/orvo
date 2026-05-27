@@ -1,0 +1,34 @@
+import { relations } from 'drizzle-orm';
+import { bigint, index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+
+import { organization } from './auth.schema.js';
+
+export const entitlement = pgTable(
+  'entitlements',
+  {
+    organizationId: text('organization_id')
+      .primaryKey()
+      .references(() => organization.id, { onDelete: 'cascade' }),
+    planKey: text('plan_key'),
+    source: text('source').default('default').notNull(),
+    logsRetentionDays: integer('logs_retention_days').default(30).notNull(),
+    tracesRetentionDays: integer('traces_retention_days').default(14).notNull(),
+    metricsRetentionDays: integer('metrics_retention_days').default(90).notNull(),
+    maxIngestBytesMonthly: bigint('max_ingest_bytes_monthly', { mode: 'number' }),
+    maxStoredBytes: bigint('max_stored_bytes', { mode: 'number' }),
+    maxTelemetryEventsMonthly: bigint('max_telemetry_events_monthly', { mode: 'number' }),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull()
+  },
+  (table) => [index('entitlements_plan_key_idx').on(table.planKey)]
+);
+
+export const entitlementRelations = relations(entitlement, ({ one }) => ({
+  organization: one(organization, {
+    fields: [entitlement.organizationId],
+    references: [organization.id]
+  })
+}));

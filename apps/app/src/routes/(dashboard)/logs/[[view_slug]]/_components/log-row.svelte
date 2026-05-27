@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { CaretRightIcon, CopyIcon } from 'phosphor-svelte';
 	import type { LogRecord } from '../types';
+	import type { ColumnKey } from './log-table.svelte';
 
 	type SeverityMeta = { label: string; bg: string; text: string; border: string };
 
@@ -87,11 +88,13 @@
 	let {
 		log,
 		prevLog,
-		timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+		timezone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+		visibleCols = new Set<ColumnKey>()
 	}: {
 		log: LogRecord;
 		prevLog?: LogRecord;
 		timezone?: string;
+		visibleCols?: Set<ColumnKey>;
 	} = $props();
 
 	let expanded = $state(false);
@@ -140,16 +143,43 @@
 		</div>
 
 		<!-- Service badge -->
-		<div class="shrink-0 w-32 mr-3 mt-0.5">
+		<div class="shrink-0 w-28 mr-3 mt-0.5">
 			{#if log.service_name}
-				<span
-					class="text-xs font-medium text-foreground/80 truncate block"
-					title={log.service_name}
-				>
+				<span class="text-xs font-medium text-foreground/80 truncate block" title={log.service_name}>
 					{log.service_name}
 				</span>
 			{/if}
 		</div>
+
+		<!-- Optional: Environment -->
+		{#if visibleCols.has('environment')}
+			<div class="shrink-0 w-24 mr-3 mt-0.5">
+				{#if log.deployment_environment}
+					<span
+						class="inline-flex items-center rounded-sm border border-border/60 px-1.5 py-px text-[10px] font-medium text-muted-foreground truncate"
+						title={log.deployment_environment}
+					>
+						{log.deployment_environment}
+					</span>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- Optional: Trace ID -->
+		{#if visibleCols.has('trace_id')}
+			<div class="shrink-0 w-28 mr-3 mt-0.5">
+				{#if log.trace_id}
+					<span
+						class="text-[10px] font-mono text-muted-foreground/70 truncate block"
+						title={log.trace_id}
+					>
+						{log.trace_id.slice(0, 12)}…
+					</span>
+				{:else}
+					<span class="text-[10px] text-muted-foreground/30">—</span>
+				{/if}
+			</div>
+		{/if}
 
 		<!-- Body -->
 		<div class="flex-1 min-w-0 flex items-start gap-2">
