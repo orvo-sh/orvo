@@ -44,6 +44,7 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 ## Code style
 
 - Use arrow functions for handlers and helpers in the app codebase unless there is a concrete reason not to.
+- Use sentence case for user-facing labels, headings, actions, and menu items. Avoid Title Case unless a third-party name requires it.
 - Commit messages should follow the existing history style: conventional prefix like `feat:`, `fix:`, or `refactor:` followed by a lowercase subject.
 
 ## Server wiring
@@ -53,6 +54,7 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - `ServerContainer` should expose only services that routes, hooks, and API handlers call directly. Do not export raw infrastructure dependencies like the email client from the container type.
 - Environment-based implementation choice belongs in `container.ts`. For example, choose console vs external email providers there and inject the selected implementation into auth.
 - If email templates change, regenerate `src/lib/server/email/email.generated.ts` from the `.html` templates instead of editing the generated file by hand.
+- Prefer server-side route guardrails for auth and onboarding flows. Redirect logic for unauthenticated, unverified, or already-onboarded users should live in `+layout.server.ts` or `+page.server.ts`, not only in client navigation code.
 
 ## Tooling scripts
 
