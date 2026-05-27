@@ -108,7 +108,7 @@ jobs:
           cd /opt/orvo
           printf '%s\n' "${PROD_GHCR_PULL_TOKEN}" | docker login ghcr.io -u "${PROD_GHCR_PULL_USERNAME}" --password-stdin
           docker compose -f docker-compose.prod.yml --env-file .env pull
-          docker compose -f docker-compose.prod.yml --env-file .env run --rm --no-deps app sh -lc 'pnpm --filter @repo/db db:migrate'
-          docker compose -f docker-compose.prod.yml --env-file .env run --rm --no-deps app sh -lc 'pnpm --filter @repo/clickhouse run db:migrate'
+          docker compose -f docker-compose.prod.yml --env-file .env run -T --rm --no-deps app sh -lc 'pnpm --filter @repo/db db:migrate'
+          docker compose -f docker-compose.prod.yml --env-file .env run -T --rm --no-deps app sh -lc 'pnpm --filter @repo/clickhouse run db:migrate'
           docker compose -f docker-compose.prod.yml --env-file .env up -d --remove-orphans
           EOF
