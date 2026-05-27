@@ -24,6 +24,8 @@ const pool = new Pool({ connectionString: postgresUrl });
 const client = await pool.connect();
 
 try {
+  let baselined = false;
+
   await client.query('BEGIN');
   await client.query('CREATE SCHEMA IF NOT EXISTS drizzle');
   await client.query(`
@@ -43,32 +45,81 @@ try {
 
   const lastAppliedAt = rows[0] ? Number(rows[0].created_at) : null;
 
-  for (const entry of journal.entries) {
-    if (lastAppliedAt !== null && lastAppliedAt >= entry.when) {
-      continue;
+  if (lastAppliedAt === null) {
+    const { rows: latestTableRows } = await client.query(`
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = 'api_key'
+      ) AS has_latest_schema
+    `);
+    const { rows: publicTableRows } = await client.query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_type = 'BASE TABLE'
+      ORDER BY table_name
+    `);
+    const hasLatestSchema = latestTableRows[0]?.has_latest_schema === true;
+    const hasExistingPublicTables = publicTableRows.length > 0;
+
+    if (hasLatestSchema) {
+      for (const entry of journal.entries) {
+        const migrationPath = path.join(migrationsDir, `${entry.tag}.sql`);
+        const sql = await readFile(migrationPath, 'utf8');
+        const hash = crypto.createHash('sha256').update(sql).digest('hex');
+
+        await client.query(
+          `
+            INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+            VALUES ($1, $2)
+          `,
+          [hash, entry.when]
+        );
+      }
+
+      console.log('Baselined existing PostgreSQL schema into drizzle.__drizzle_migrations');
+      baselined = true;
     }
 
-    const migrationPath = path.join(migrationsDir, `${entry.tag}.sql`);
-    const sql = await readFile(migrationPath, 'utf8');
-    const statements = sql
-      .split('--> statement-breakpoint')
-      .map((statement) => statement.trim())
-      .filter(Boolean);
-    const hash = crypto.createHash('sha256').update(sql).digest('hex');
-
-    for (const statement of statements) {
-      await client.query(statement);
+    if (!baselined && hasExistingPublicTables) {
+      throw new Error(
+        `Refusing to apply migrations to a partially initialized database without migration history. Existing tables: ${publicTableRows
+          .map((row) => row.table_name)
+          .join(', ')}`
+      );
     }
+  }
 
-    await client.query(
-      `
-        INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
-        VALUES ($1, $2)
-      `,
-      [hash, entry.when]
-    );
+  if (!baselined) {
+    for (const entry of journal.entries) {
+      if (lastAppliedAt !== null && lastAppliedAt >= entry.when) {
+        continue;
+      }
 
-    console.log(`Applied ${entry.tag}.sql`);
+      const migrationPath = path.join(migrationsDir, `${entry.tag}.sql`);
+      const sql = await readFile(migrationPath, 'utf8');
+      const statements = sql
+        .split('--> statement-breakpoint')
+        .map((statement) => statement.trim())
+        .filter(Boolean);
+      const hash = crypto.createHash('sha256').update(sql).digest('hex');
+
+      for (const statement of statements) {
+        await client.query(statement);
+      }
+
+      await client.query(
+        `
+          INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+          VALUES ($1, $2)
+        `,
+        [hash, entry.when]
+      );
+
+      console.log(`Applied ${entry.tag}.sql`);
+    }
   }
 
   await client.query('COMMIT');

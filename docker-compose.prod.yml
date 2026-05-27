@@ -25,6 +25,8 @@ services:
     restart: unless-stopped
     env_file:
       - ./env/app.env
+    volumes:
+      - ./certs:/opt/orvo/certs:ro
     command: ["node", "build"]
 
   ingest:
@@ -32,6 +34,8 @@ services:
     restart: unless-stopped
     env_file:
       - ./env/ingest.env
+    volumes:
+      - ./certs:/opt/orvo/certs:ro
     environment:
       NATS_URL: nats://nats:4222
       INGEST_HTTP_HOST: 0.0.0.0

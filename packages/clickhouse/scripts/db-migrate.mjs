@@ -15,6 +15,13 @@ if (!clickhouseUrl) {
   process.exit(1);
 }
 
+const clickhouseHost = new URL(clickhouseUrl).hostname;
+
+if (clickhouseHost.endsWith('tinybird.co')) {
+  console.log('Skipping ClickHouse SQL migrations for Tinybird query interface');
+  process.exit(0);
+}
+
 const client = createClient({ url: clickhouseUrl });
 
 await client.command({
