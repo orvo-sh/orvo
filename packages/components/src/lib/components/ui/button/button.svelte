@@ -38,14 +38,20 @@
 		WithElementRef<HTMLAnchorAttributes> & {
 			variant?: ButtonVariant;
 			size?: ButtonSize;
+			loading?: boolean;
+			loaderPosition?: "left" | "right";
 		};
 </script>
 
 <script lang="ts">
+	import { Spinner } from "../spinner/index.js";
+
 	let {
 		class: className,
 		variant = "default",
 		size = "default",
+		loading = false,
+		loaderPosition = "left",
 		ref = $bindable(null),
 		href = undefined,
 		type = "button",
@@ -59,24 +65,48 @@
 	<a
 		bind:this={ref}
 		data-slot="button"
-		class={cn(buttonVariants({ variant, size }), className)}
-		href={disabled ? undefined : href}
-		aria-disabled={disabled}
-		role={disabled ? "link" : undefined}
-		tabindex={disabled ? -1 : undefined}
+		data-loading={loading ? "true" : undefined}
+		class={cn(
+			buttonVariants({ variant, size }),
+			loading && "[&_[data-slot=button-icon]]:hidden",
+			className
+		)}
+		href={disabled || loading ? undefined : href}
+		aria-disabled={disabled || loading}
+		aria-busy={loading || undefined}
+		role={disabled || loading ? "link" : undefined}
+		tabindex={disabled || loading ? -1 : undefined}
 		{...restProps}
 	>
+		{#if loading && loaderPosition === "left"}
+			<Spinner class="loader size-4" aria-hidden="true" />
+		{/if}
 		{@render children?.()}
+		{#if loading && loaderPosition === "right"}
+			<Spinner class="loader size-4" aria-hidden="true" />
+		{/if}
 	</a>
 {:else}
 	<button
 		bind:this={ref}
 		data-slot="button"
-		class={cn(buttonVariants({ variant, size }), className)}
+		data-loading={loading ? "true" : undefined}
+		class={cn(
+			buttonVariants({ variant, size }),
+			loading && "[&_[data-slot=button-icon]]:hidden",
+			className
+		)}
+		aria-busy={loading || undefined}
 		{type}
-		{disabled}
+		disabled={disabled || loading}
 		{...restProps}
 	>
+		{#if loading && loaderPosition === "left"}
+			<Spinner class="loader size-4" aria-hidden="true" />
+		{/if}
 		{@render children?.()}
+		{#if loading && loaderPosition === "right"}
+			<Spinner class="loader size-4" aria-hidden="true" />
+		{/if}
 	</button>
 {/if}

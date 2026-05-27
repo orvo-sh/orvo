@@ -21,6 +21,16 @@
       "default": "./src/lib/hooks/index.ts"
     },
     "./styles.css": "./src/lib/styles.css",
+    "./icons/github": {
+      "types": "./src/lib/components/icons/github/index.ts",
+      "svelte": "./src/lib/components/icons/github/index.ts",
+      "default": "./src/lib/components/icons/github/index.ts"
+    },
+    "./icons/orvo-logo": {
+      "types": "./src/lib/components/icons/orvo-logo/index.ts",
+      "svelte": "./src/lib/components/icons/orvo-logo/index.ts",
+      "default": "./src/lib/components/icons/orvo-logo/index.ts"
+    },
     "./ui/accordion": {
       "types": "./src/lib/components/ui/accordion/index.ts",
       "svelte": "./src/lib/components/ui/accordion/index.ts",
@@ -308,7 +318,7 @@
   "scripts": {
     "dev": "svelte-kit sync && vite dev",
     "lint": "eslint .",
-    "sync-exports": "node ./scripts/sync-exports.mjs",
+    "sync-exports": "vite-node scripts/sync-exports.ts",
     "check-types": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
@@ -350,6 +360,7 @@
     "svelte-check": "^4.4.6",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.57.1",
-    "vite": "^8.0.7"
+    "vite": "^8.0.7",
+    "vite-node": "^5.2.0"
   }
 }

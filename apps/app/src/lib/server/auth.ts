@@ -1,40 +1,67 @@
 import { getRequestEvent } from '$app/server';
-import { env } from '$env/dynamic/private';
 import { getDb } from '@repo/db';
 import * as dbSchema from '@repo/db/schema';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { organization } from 'better-auth/plugins';
+import { emailOTP, organization } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
+import type { IEmail } from './email';
 
-const databaseUrl = process.env.POSTGRES_URL ?? env.POSTGRES_URL;
-const authSecret = process.env.BETTER_AUTH_SECRET ?? env.BETTER_AUTH_SECRET;
-const origin = process.env.ORIGIN ?? env.ORIGIN;
-const githubClientId = process.env.GITHUB_CLIENT_ID ?? env.GITHUB_CLIENT_ID;
-const githubClientSecret = process.env.GITHUB_CLIENT_SECRET ?? env.GITHUB_CLIENT_SECRET;
+type DB = ReturnType<typeof getDb>;
 
-const db = getDb(databaseUrl);
-
-const createAuth = () => {
+const createAuth = (config: {
+	db: DB;
+	email: IEmail;
+	secret: string;
+	baseUrl: string;
+	githubClientId?: string;
+	githubClientSecret?: string;
+}) => {
 	return betterAuth({
-		baseURL: origin,
-		secret: authSecret,
-		database: drizzleAdapter(db, { provider: 'pg', schema: dbSchema }),
+		baseURL: config.baseUrl,
+		secret: config.secret,
+		database: drizzleAdapter(config.db, { provider: 'pg', schema: dbSchema }),
 		emailAndPassword: {
-			enabled: true
+			enabled: true,
+			requireEmailVerification: true
 		},
-		socialProviders: githubClientId && githubClientSecret ? {
-			github: {
-				clientId: githubClientId,
-				clientSecret: githubClientSecret
-			}
-		} : undefined,
+		emailVerification: {
+			sendOnSignUp: true,
+			autoSignInAfterVerification: true
+		},
+		socialProviders:
+			config.githubClientId && config.githubClientSecret
+				? {
+						github: {
+							clientId: config.githubClientId,
+							clientSecret: config.githubClientSecret
+						}
+					}
+				: undefined,
 		plugins: [
+			emailOTP({
+				overrideDefaultEmailVerification: true,
+				sendVerificationOTP: async ({ email, otp, type }) => {
+					if (type !== 'email-verification') {
+						return;
+					}
+
+					await config.email.sendEmail({
+						to: email,
+						subject: 'Verify your email',
+						template: 'otp',
+						props: {
+							code: otp,
+							purpose: 'sign-up'
+						}
+					});
+				}
+			}),
 			organization(),
 			sveltekitCookies(getRequestEvent)
 		]
-	})
-}
+	});
+};
 
 type Auth = ReturnType<typeof createAuth>;
 export { createAuth, type Auth };

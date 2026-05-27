@@ -2,12 +2,15 @@
   import { goto } from '$app/navigation';
   import { Button } from '@repo/components/ui/button';
   import {
-    Field,
-    FieldDescription,
-    FieldError,
-    FieldGroup,
-    FieldLabel
+      Field,
+      FieldDescription,
+      FieldError,
+      FieldGroup,
+      FieldLabel,
+      FieldSeparator
   } from '@repo/components/ui/field';
+  import { GitHubIcon } from '@repo/components/icons/github';
+  import { OrvoLogo } from '@repo/components/icons/orvo-logo';
   import { Input } from '@repo/components/ui/input';
 
   import { authClient, getFriendlyErrorMessage } from '$lib/auth-client';
@@ -16,6 +19,7 @@
   let password = $state('');
   let error = $state('');
   let loading = $state(false);
+  let githubLoading = $state(false);
 
   const handleSubmit = async () => {
     loading = true;
@@ -40,6 +44,18 @@
       loading = false;
     });
   };
+  const handleGithubSignIn = async () => {
+    githubLoading = true;
+    error = '';
+
+    await authClient.signIn.social({
+      provider: 'github',
+      callbackURL: '/'
+    }).catch(() => {
+      error = 'Unable to continue with GitHub right now. Please try again.';
+      githubLoading = false;
+    });
+  };
 </script>
 
 <div class="flex flex-col gap-6">
@@ -51,14 +67,27 @@
   >
     <FieldGroup>
       <div class="flex flex-col items-center gap-3 text-center">
-        <div class="bg-primary text-primary-foreground flex size-12 items-center justify-center rounded-xl text-sm font-semibold">
-          O
-        </div>
+        <OrvoLogo class="size-12" />
         <div class="space-y-1">
           <h1 class="text-xl font-semibold">Welcome back</h1>
           <FieldDescription>Sign in to continue to your Orvo workspace.</FieldDescription>
         </div>
       </div>
+
+      <Field>
+        <Button
+          type="button"
+          variant="outline"
+          class="w-full"
+          loading={githubLoading}
+          onclick={handleGithubSignIn}
+        >
+          <GitHubIcon data-slot="button-icon" class="size-4" />
+          Continue with GitHub
+        </Button>
+      </Field>
+
+      <FieldSeparator>OR</FieldSeparator>
 
       <div class="grid gap-3">
         <Field>
@@ -86,8 +115,8 @@
         <FieldError>{error}</FieldError>
 
         <Field>
-          <Button type="submit" disabled={loading} class="w-full">
-            {loading ? 'Signing in...' : 'Sign in'}
+          <Button type="submit" disabled={githubLoading} loading={loading} class="w-full">
+            Sign in
           </Button>
         </Field>
       </div>

@@ -1,5 +1,7 @@
 export * from "./utils.js";
 export * from "./hooks/index.js";
+export * as Github from "./components/icons/github/index.js";
+export * as OrvoLogo from "./components/icons/orvo-logo/index.js";
 export * as Accordion from "./components/ui/accordion/index.js";
 export * as Alert from "./components/ui/alert/index.js";
 export * as AlertDialog from "./components/ui/alert-dialog/index.js";

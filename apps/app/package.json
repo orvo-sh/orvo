@@ -12,6 +12,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "check-types": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "email:generate": "vite-node scripts/generate-email-templates.ts",
     "lint": "eslint .",
     "db:push": "pnpm --filter @repo/db run db:push",
     "db:generate": "pnpm --filter @repo/db run db:generate",
@@ -45,6 +46,7 @@
     "svelte-check": "^4.4.6",
     "tailwindcss": "^4.2.2",
     "typescript": "5.9.3",
-    "vite": "^8.0.7"
+    "vite": "^8.0.7",
+    "vite-node": "^5.2.0"
   }
 }
