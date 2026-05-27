@@ -58,7 +58,7 @@ func main() {
 	authService := ingest.NewAuthService(postgresDB, logger, backgroundManager, cfg.Ingest.ApiKeyCacheTTL)
 	ingestService := ingest.NewIngestService(natsClient, logger)
 
-	server, err := ingest.NewServer(authService, ingestService, logger, cfg.Ingest, postgresDB, natsClient)
+	server, err := ingest.NewServer(authService, ingestService, logger, cfg.Ingest)
 	if err != nil {
 		logger.Error("main: failed to initialize ingest server", slog.Any("error", err))
 		os.Exit(1)

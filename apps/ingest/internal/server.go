@@ -10,17 +10,13 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-type readinessChecker interface {
-	CheckReady(ctx context.Context) error
-}
-
 type Server struct {
 	logger     *slog.Logger
 	httpServer *http.Server
 	listener   net.Listener
 }
 
-func NewServer(authService *AuthService, ingestService *IngestService, logger *slog.Logger, config IngestConfig, readinessCheckers ...readinessChecker) (*Server, error) {
+func NewServer(authService *AuthService, ingestService *IngestService, logger *slog.Logger, config IngestConfig) (*Server, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/v1/logs", &httpLogHandler{
 		authService:   authService,
@@ -45,14 +41,6 @@ func NewServer(authService *AuthService, ingestService *IngestService, logger *s
 		_, _ = writer.Write([]byte("OK"))
 	})
 	mux.HandleFunc("/ready", func(writer http.ResponseWriter, request *http.Request) {
-		for _, checker := range readinessCheckers {
-			if err := checker.CheckReady(request.Context()); err != nil {
-				logger.ErrorContext(request.Context(), "Ready: dependency not ready", slog.Any("error", err))
-				http.Error(writer, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
-				return
-			}
-		}
-
 		writer.WriteHeader(http.StatusOK)
 		_, _ = writer.Write([]byte("OK"))
 	})
