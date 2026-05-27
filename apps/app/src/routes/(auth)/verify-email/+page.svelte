@@ -33,7 +33,7 @@
       },
       {
         onSuccess: async () => {
-          await goto('/organizations/new');
+          await goto('/');
         },
         onError: (ctx) => {
           error = ctx.error.message;
