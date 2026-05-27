@@ -1,0 +1,45 @@
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+      - ingest
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  nats:
+    image: nats:2.11-alpine
+    restart: unless-stopped
+    command: ["-js", "--store_dir", "/data"]
+    volumes:
+      - nats_data:/data
+
+  app:
+    image: ${APP_IMAGE}
+    restart: unless-stopped
+    env_file:
+      - ./env/app.env
+    command: ["node", "build"]
+
+  ingest:
+    image: ${INGEST_IMAGE}
+    restart: unless-stopped
+    env_file:
+      - ./env/ingest.env
+    environment:
+      NATS_URL: nats://nats:4222
+      INGEST_HTTP_HOST: 0.0.0.0
+      INGEST_HTTP_PORT: 4318
+    depends_on:
+      - nats
+
+volumes:
+  caddy_data:
+  caddy_config:
+  nats_data:
