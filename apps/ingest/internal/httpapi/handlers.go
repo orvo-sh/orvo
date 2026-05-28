@@ -52,7 +52,7 @@ func (handler *signalHandler) ServeHTTP(writer http.ResponseWriter, request *htt
 		}
 		if ingestErr := handler.ingestService.IngestLogs(request.Context(), telemetry.LogsInput{
 			ResolvedIngestionKey: *resolved,
-			Meta:                 requestMeta(request, contentType),
+			Meta:                 requestMeta(),
 			ResourceLogs:         payload.GetResourceLogs(),
 		}); ingestErr != nil {
 			writeAppError(writer, ingestErr)
@@ -67,7 +67,7 @@ func (handler *signalHandler) ServeHTTP(writer http.ResponseWriter, request *htt
 		}
 		if ingestErr := handler.ingestService.IngestTraces(request.Context(), telemetry.TracesInput{
 			ResolvedIngestionKey: *resolved,
-			Meta:                 requestMeta(request, contentType),
+			Meta:                 requestMeta(),
 			ResourceSpans:        payload.GetResourceSpans(),
 		}); ingestErr != nil {
 			writeAppError(writer, ingestErr)
@@ -82,7 +82,7 @@ func (handler *signalHandler) ServeHTTP(writer http.ResponseWriter, request *htt
 		}
 		if ingestErr := handler.ingestService.IngestMetrics(request.Context(), telemetry.MetricsInput{
 			ResolvedIngestionKey: *resolved,
-			Meta:                 requestMeta(request, contentType),
+			Meta:                 requestMeta(),
 			ResourceMetrics:      payload.GetResourceMetrics(),
 		}); ingestErr != nil {
 			writeAppError(writer, ingestErr)

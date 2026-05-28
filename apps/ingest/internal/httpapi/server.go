@@ -49,7 +49,7 @@ func New(authService *auth.Service, ingestService *telemetry.Service, logger *sl
 		_, _ = writer.Write([]byte("OK"))
 	})
 
-	handler := requestIDMiddleware(otelhttp.NewHandler(mux, "ingest.http"))
+	handler := corsMiddleware(requestIDMiddleware(otelhttp.NewHandler(mux, "ingest.http")))
 	addr := net.JoinHostPort(cfg.HTTPHost, cfg.HTTPPort)
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -67,6 +67,22 @@ func New(authService *auth.Service, ingestService *telemetry.Service, logger *sl
 		},
 		listener: listener,
 	}, nil
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Access-Control-Allow-Origin", "*")
+		writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Content-Encoding, Traceparent, Tracestate, Baggage")
+		writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		writer.Header().Set("Access-Control-Max-Age", "86400")
+
+		if request.Method == http.MethodOptions {
+			writer.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(writer, request)
+	})
 }
 
 func (server *Server) Start() {

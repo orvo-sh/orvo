@@ -16,6 +16,7 @@ const createAuth = (config: {
 	baseUrl: string;
 	githubClientId?: string;
 	githubClientSecret?: string;
+	onOrganizationCreated?: (context: { organizationId: string; userId: string }) => Promise<void>;
 }) => {
 	return betterAuth({
 		baseURL: config.baseUrl,
@@ -57,7 +58,16 @@ const createAuth = (config: {
 					});
 				}
 			}),
-			organization(),
+			organization({
+				organizationHooks: {
+					afterCreateOrganization: async ({ organization, user }) => {
+						await config.onOrganizationCreated?.({
+							organizationId: organization.id,
+							userId: user.id
+						});
+					}
+				}
+			}),
 			sveltekitCookies(getRequestEvent)
 		]
 	});

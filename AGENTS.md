@@ -46,6 +46,7 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - Use arrow functions for handlers and helpers in the app codebase unless there is a concrete reason not to.
 - Use sentence case for user-facing labels, headings, actions, and menu items. Avoid Title Case unless a third-party name requires it.
 - Commit messages should follow the existing history style: conventional prefix like `feat:`, `fix:`, or `refactor:` followed by a lowercase subject.
+- Prefer grouping exports at the very bottom of the file (e.g., `export { x, y }`) instead of using inline exports on every member (e.g., `export const x = ...`).
 
 ## Server wiring
 
@@ -55,7 +56,15 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - Environment-based implementation choice belongs in `container.ts`. For example, choose console vs external email providers there and inject the selected implementation into auth.
 - If email templates change, regenerate `src/lib/server/email/email.generated.ts` from the `.html` templates instead of editing the generated file by hand.
 - Prefer server-side route guardrails for auth and onboarding flows. Redirect logic for unauthenticated, unverified, or already-onboarded users should live in `+layout.server.ts` or `+page.server.ts`, not only in client navigation code.
-- Match the `sey` service shape: keep app services in `apps/app/src/lib/server/services`, name files `*.service.ts`, export the zod input schemas from the same file, and keep remote functions thin over those schemas.
+- Keep app services in `apps/app/src/lib/server/services`, name files `*.service.ts`, export the zod input schemas from the same file, and keep remote functions thin over those schemas.
+- In service files, put the service class first after imports, then exported zod input schemas, then type aliases. Keep helper schemas and type aliases to the minimum needed.
+- Prefer implicit TypeScript inference in services. Do not create row/result/input type aliases when the value can be inferred clearly from zod, Drizzle, or the returned object.
+- Avoid one-off private service helper methods for logic used by a single method. Keep that logic inline unless the helper is reused or materially improves readability.
+- Use `genId(prefix)` from `src/lib/utils/gen-id.ts` for app-generated ids. Pass prefixes without underscores, for example `genId('logv')`; the utility adds the underscore and lowercases the ULID.
+- When a service creates a new resource, return `ok({ id })` unless the caller explicitly needs a richer payload.
+- Returning Drizzle rows directly from services is fine. Do not add mapper functions or DTOs unless the caller needs a different shape.
+- Prefer a small verb surface over CRUD-by-default. Add only the methods the product uses, for example `get*`, `create*`, and `rotate*` instead of list/revoke variants when rotation is the actual workflow.
+- Service methods should take request metadata such as `organizationId` through a `context` object, not as zod input. Direct identifiers like `id` or `slug` may stay in the zod input when they are part of the user action.
 - Service classes should take dependencies through the constructor, immediately derive a child logger in the constructor, log once at method entry, validate with `safeParse` near the top, and log one failure in the catch path before returning a stable result.
 - `hooks.server.ts` should create the request-scoped logger and container once per request. Routes and remote functions should call `event.locals.container.*` rather than instantiating services directly.
 - Keep `src/lib/api/*.remote.ts` focused on transport only: import the service schemas, call `query(...)` or `command(...)`, pull `getRequestEvent()`, and forward into the relevant container service. Put business logic in the service, not in the remote function.

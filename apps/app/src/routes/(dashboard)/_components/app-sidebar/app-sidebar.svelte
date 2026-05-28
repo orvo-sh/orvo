@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import * as Sidebar from "@repo/components/ui/sidebar";
   import {
@@ -22,8 +23,8 @@
     },
     { href: "/logs", label: "Logs", icon: TerminalWindowIcon },
     { href: "/metrics", label: "Metrics", icon: ChartBarIcon },
-    { href: "/tracers", label: "Tracers", icon: PathIcon },
-  ];
+    { href: "/traces", label: "Traces", icon: PathIcon },
+  ] as const;
 
   let {
     organizations,
@@ -60,16 +61,18 @@
     <Sidebar.Group>
       <Sidebar.GroupContent>
         <Sidebar.Menu class="gap-0.5">
-          {#each navigation as item}
+          {#each navigation as item (item.href)}
             <Sidebar.MenuItem >
               {@const Icon = item.icon}
+              {@const href = item.href}
               {@const isActive =
-                item.href === "/"
-                  ? page.url.pathname === item.href
-                  : page.url.pathname.startsWith(item.href)}
+                href === "/"
+                  ? page.url.pathname === href
+                  : page.url.pathname.startsWith(href)}
               <Sidebar.MenuButton class="gap-2.5" {isActive} tooltipContent={item.label}>
                 {#snippet child({ props })}
-                  <a href={item.href} {...props}>
+                  <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+                  <a {href} {...props}>
                     <Icon />
                     <span>{item.label}</span>
                   </a>
@@ -90,10 +93,10 @@
             <Sidebar.MenuButton
               class="gap-2.5"
               isActive={page.url.pathname.startsWith("/settings")}
-              tooltipContent={"Settings"}
+              tooltipContent="Settings"
             >
               {#snippet child({ props })}
-                <a href={"/settings"} {...props}>
+                <a href={resolve("/settings")} {...props}>
                   <GearSixIcon />
                   <span>Settings</span>
                 </a>
@@ -101,9 +104,9 @@
             </Sidebar.MenuButton>
           </Sidebar.MenuItem>
           <Sidebar.MenuItem>
-            <Sidebar.MenuButton class="gap-2.5" tooltipContent={"Documentation"}>
+            <Sidebar.MenuButton class="gap-2.5" tooltipContent="Documentation">
               {#snippet child({ props })}
-                <a href={"https://orvo.sh/docs"} {...props}>
+                <a href="https://orvo.sh/docs" {...props}>
                   <BookOpenTextIcon />
                   <span>Documentation</span>
                 </a>
@@ -111,7 +114,7 @@
             </Sidebar.MenuButton>
           </Sidebar.MenuItem>
           <Sidebar.MenuItem>
-            <Sidebar.MenuButton class="gap-2.5" tooltipContent={"Give feedback"}>
+            <Sidebar.MenuButton class="gap-2.5" tooltipContent="Give feedback">
               {#snippet child({ props })}
                 <button data-sey-feedback {...props}>
                   <MegaphoneIcon />

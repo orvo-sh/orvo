@@ -21,10 +21,6 @@ export type LogRecord = {
 	log_attributes: Record<string, string>;
 	service_name: string;
 	deployment_environment: string;
-	content_type?: string;
-	content_encoding?: string;
-	remote_addr?: string;
-	user_agent?: string;
 };
 
 export type LogVolumeBucket = {
@@ -50,10 +46,6 @@ export type LogFacets = {
 	environments: LogFacetOption[];
 	scopes: LogFacetOption[];
 	ingestionKeyIds: LogFacetOption[];
-	contentTypes: LogFacetOption[];
-	contentEncodings: LogFacetOption[];
-	remoteAddrs: LogFacetOption[];
-	userAgents: LogFacetOption[];
 };
 
 export type LogFilters = {

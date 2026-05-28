@@ -57,11 +57,7 @@
 		services: [],
 		environments: [],
 		scopes: [],
-		ingestionKeyIds: [],
-		contentTypes: [],
-		contentEncodings: [],
-		remoteAddrs: [],
-		userAgents: []
+		ingestionKeyIds: []
 	});
 
 	const createBaseLogsInput = () => ({
@@ -76,10 +72,6 @@
 		environments: filters.environments,
 		scopes: filters.scopes,
 		ingestionKeyIds: [],
-		contentTypes: [],
-		contentEncodings: [],
-		remoteAddrs: [],
-		userAgents: [],
 		traceId: filters.traceId.trim() || undefined
 	});
 
@@ -92,15 +84,15 @@
 			getLogsQuery({
 				...createBaseLogsInput(),
 				limit: 250
-			}),
+			}).run(),
 			getLogVolumeQuery({
 				...createBaseLogsInput(),
 				bucketCount: 80
-			}),
+			}).run(),
 			getLogFacetsQuery({
 				...createBaseLogsInput(),
 				maxValuesPerFacet: 50
-			})
+			}).run()
 		]);
 
 		if (requestId !== loadRequest) {

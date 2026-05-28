@@ -1,15 +1,15 @@
 import { relations, sql } from 'drizzle-orm';
 import {
+	check,
 	index,
 	pgEnum,
 	pgTable,
 	text,
 	timestamp,
-	uniqueIndex,
-	check
+	uniqueIndex
 } from 'drizzle-orm/pg-core';
 
-import { organization, user } from './auth.schema.js';
+import { organization, user } from './auth.js';
 
 export const ingestionKeyKind = pgEnum('ingestion_key_kind', ['public', 'private']);
 

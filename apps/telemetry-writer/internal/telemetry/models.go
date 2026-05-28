@@ -3,15 +3,11 @@ package telemetry
 import "time"
 
 type MessageMeta struct {
-	Version         string    `json:"version"`
-	Signal          string    `json:"signal"`
-	OrganizationID  string    `json:"organization_id"`
-	IngestionKeyID  string    `json:"ingestion_key_id"`
-	ReceivedAt      time.Time `json:"received_at"`
-	ContentType     string    `json:"content_type"`
-	ContentEncoding string    `json:"content_encoding,omitempty"`
-	RemoteAddr      string    `json:"remote_addr,omitempty"`
-	UserAgent       string    `json:"user_agent,omitempty"`
+	Version        string    `json:"version"`
+	Signal         string    `json:"signal"`
+	OrganizationID string    `json:"organization_id"`
+	IngestionKeyID string    `json:"ingestion_key_id"`
+	ReceivedAt     time.Time `json:"received_at"`
 }
 
 type LogRecord struct {
@@ -144,10 +140,6 @@ type LogRow struct {
 	LogAttributes         map[string]string
 	ServiceName           string
 	DeploymentEnvironment string
-	ContentType           string
-	ContentEncoding       string
-	RemoteAddr            string
-	UserAgent             string
 }
 
 type TraceRow struct {
@@ -178,10 +170,6 @@ type TraceRow struct {
 	LinksJSON             string
 	ServiceName           string
 	DeploymentEnvironment string
-	ContentType           string
-	ContentEncoding       string
-	RemoteAddr            string
-	UserAgent             string
 }
 
 type MetricRow struct {
@@ -214,8 +202,4 @@ type MetricRow struct {
 	HistogramExplicitBounds []float64
 	ExemplarsJSON           string
 	Flags                   uint32
-	ContentType             string
-	ContentEncoding         string
-	RemoteAddr              string
-	UserAgent               string
 }

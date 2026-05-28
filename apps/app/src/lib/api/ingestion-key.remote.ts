@@ -1,33 +1,20 @@
 import { command, getRequestEvent, query } from '$app/server';
 import {
-	createIngestionKeyInputSchema,
-	getIngestionKeysInputSchema,
-	revokeIngestionKeyInputSchema
+	getIngestionKeyInputSchema,
+	rotateIngestionKeyInputSchema
 } from '$lib/server/services/ingestion-key.service';
 
-export const getIngestionKeysQuery = query(getIngestionKeysInputSchema, (input) => {
+export const getIngestionKeyQuery = query(getIngestionKeyInputSchema, (input) => {
 	const event = getRequestEvent();
-	return event.locals.container.ingestionKeyService.getIngestionKeys(
-		event.locals.auth!.session.activeOrganizationId!,
-		input
-	);
+	return event.locals.container.ingestionKeyService.getIngestionKey(input, {
+		organizationId: event.locals.auth!.session.activeOrganizationId!
+	});
 });
 
-export const createIngestionKeyCommand = command(createIngestionKeyInputSchema, (input) => {
+export const rotateIngestionKeyCommand = command(rotateIngestionKeyInputSchema, (input) => {
 	const event = getRequestEvent();
-	return event.locals.container.ingestionKeyService.createIngestionKey(
-		event.locals.auth!.session.activeOrganizationId!,
-		input,
-		{
-			userId: event.locals.auth!.user.id
-		}
-	);
-});
-
-export const revokeIngestionKeyCommand = command(revokeIngestionKeyInputSchema, (input) => {
-	const event = getRequestEvent();
-	return event.locals.container.ingestionKeyService.revokeIngestionKey(
-		event.locals.auth!.session.activeOrganizationId!,
-		input
-	);
+	return event.locals.container.ingestionKeyService.rotateIngestionKey(input, {
+		organizationId: event.locals.auth!.session.activeOrganizationId!,
+		userId: event.locals.auth!.user.id
+	});
 });

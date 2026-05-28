@@ -1,7 +1,162 @@
+import type { Logger } from '$lib/server/observability/logger';
 import type { ClickHouseClient } from '@repo/clickhouse';
 import { z } from 'zod';
-import type { Logger } from '$lib/server/observability/logger';
-import { err, ok, type ServiceResult } from './result';
+import { err, ok } from '../../utils/result';
+
+class LogsService {
+	private logger: Logger;
+
+	constructor(
+		private clickhouse: ClickHouseClient,
+		logger: Logger
+	) {
+		this.logger = logger.child('LogsService');
+	}
+
+	async getLogs(input: z.infer<typeof getLogsInputSchema>, context: { organizationId: string }) {
+		this.logger.info('getLogs: fetching logs', { input, context });
+
+		const validated = getLogsInputSchema.safeParse(input);
+		if (!validated.success) {
+			return err(validated.error.message);
+		}
+
+		try {
+			const pageSize = validated.data.limit + 1;
+			const whereClause = buildWhereClause(context.organizationId, validated.data, {
+				cursor: validated.data.cursor
+			});
+			const result = await this.clickhouse.query({
+				format: 'JSONEachRow',
+				query: `
+					SELECT
+						id,
+						organization_id,
+						ingestion_key_id,
+						received_at,
+						expires_at,
+						timestamp,
+						observed_timestamp,
+						severity_number,
+						severity_text,
+						body,
+						trace_id,
+						span_id,
+						trace_flags,
+						resource_attributes,
+						resource_schema_url,
+						scope_name,
+						scope_version,
+						scope_attributes,
+						scope_schema_url,
+						log_attributes,
+						service_name,
+						deployment_environment
+					FROM logs_raw
+					WHERE ${whereClause}
+					ORDER BY timestamp DESC, id DESC
+					LIMIT ${pageSize}
+				`
+			});
+			const rows = (await result.json()) as unknown as RawLogRow[];
+			const hasNextPage = rows.length > validated.data.limit;
+			const visibleRows = rows.slice(0, validated.data.limit).map((row) => ({
+				...row,
+				received_at: normalizeDateTime(row.received_at),
+				expires_at: normalizeDateTime(row.expires_at),
+				timestamp: normalizeDateTime(row.timestamp),
+				observed_timestamp: normalizeDateTime(row.observed_timestamp)
+			}));
+			const lastRow = visibleRows.at(-1);
+
+			return ok({
+				logs: visibleRows,
+				nextCursor:
+					hasNextPage && lastRow
+						? {
+							id: lastRow.id,
+							timestamp: lastRow.timestamp
+						}
+						: null
+			});
+		} catch (error) {
+			this.logger.error('getLogs: failed to fetch logs', error as Error);
+			return err('Failed to fetch logs.');
+		}
+	}
+
+	async getLogVolume(input: z.infer<typeof getLogVolumeInputSchema>, context: { organizationId: string }) {
+		this.logger.info('getLogVolume: fetching log volume', { input, context });
+
+		const validated = getLogVolumeInputSchema.safeParse(input);
+		if (!validated.success) {
+			return err(validated.error.message);
+		}
+
+		try {
+			const timeRange = resolveTimeRange(validated.data.time);
+			const rangeMs = Math.max(timeRange.endAtUtc.getTime() - timeRange.startAtUtc.getTime(), 1);
+			const bucketCount = validated.data.bucketCount;
+			const bucketSizeMs = Math.max(Math.ceil(rangeMs / bucketCount), 1);
+			const whereClause = buildWhereClause(context.organizationId, validated.data);
+			const result = await this.clickhouse.query({
+				format: 'JSONEachRow',
+				query: `
+					WITH
+						${timeRange.startAtUtc.getTime()} AS start_ms,
+						${bucketSizeMs} AS bucket_ms
+					SELECT
+						least(toInt32(intDiv(toUnixTimestamp64Milli(timestamp) - start_ms, bucket_ms)), ${bucketCount - 1}) AS bucket_index,
+						countIf(lowerUTF8(severity_text) = 'fatal') AS fatal,
+						countIf(lowerUTF8(severity_text) = 'error' OR positionCaseInsensitiveUTF8(severity_text, 'err') > 0) AS error,
+						countIf(positionCaseInsensitiveUTF8(severity_text, 'warn') > 0) AS warn,
+						countIf(lowerUTF8(severity_text) = 'debug' OR positionCaseInsensitiveUTF8(severity_text, 'debug') > 0) AS debug,
+						countIf(lowerUTF8(severity_text) = 'trace') AS trace,
+						countIf(
+							lowerUTF8(severity_text) NOT IN ('fatal', 'trace')
+							AND positionCaseInsensitiveUTF8(severity_text, 'err') = 0
+							AND positionCaseInsensitiveUTF8(severity_text, 'warn') = 0
+							AND positionCaseInsensitiveUTF8(severity_text, 'debug') = 0
+						) AS info,
+						count() AS total
+					FROM logs_raw
+					WHERE ${whereClause}
+					GROUP BY bucket_index
+					ORDER BY bucket_index ASC
+				`
+			});
+			const rows = (await result.json()) as unknown as RawVolumeRow[];
+			const rowMap = new Map(rows.map((row) => [row.bucket_index, row]));
+			const buckets = Array.from({ length: bucketCount }, (_, index) => {
+				const bucketStart = new Date(timeRange.startAtUtc.getTime() + index * bucketSizeMs);
+				const bucketEnd = new Date(
+					Math.min(
+						timeRange.startAtUtc.getTime() + (index + 1) * bucketSizeMs,
+						timeRange.endAtUtc.getTime()
+					)
+				);
+				const row = rowMap.get(index);
+
+				return {
+					startAtUtc: bucketStart.toISOString(),
+					endAtUtc: bucketEnd.toISOString(),
+					fatal: row?.fatal ?? 0,
+					error: row?.error ?? 0,
+					warn: row?.warn ?? 0,
+					info: row?.info ?? 0,
+					debug: row?.debug ?? 0,
+					trace: row?.trace ?? 0,
+					total: row?.total ?? 0
+				};
+			});
+
+			return ok({ buckets });
+		} catch (error) {
+			this.logger.error('getLogVolume: failed to fetch log volume', error as Error);
+			return err('Failed to fetch log volume.');
+		}
+	}
+}
 
 const logTimePresetValues = [
 	'last_hour',
@@ -42,10 +197,6 @@ export const logsQueryFiltersSchema = z.object({
 	environments: stringArrayFilterSchema,
 	scopes: stringArrayFilterSchema,
 	ingestionKeyIds: stringArrayFilterSchema,
-	contentTypes: stringArrayFilterSchema,
-	contentEncodings: stringArrayFilterSchema,
-	remoteAddrs: stringArrayFilterSchema,
-	userAgents: stringArrayFilterSchema,
 	traceId: z.string().trim().max(255).optional(),
 	spanId: z.string().trim().max(255).optional()
 });
@@ -64,28 +215,21 @@ export const getLogVolumeInputSchema = logsQueryFiltersSchema.extend({
 	bucketCount: z.number().int().min(10).max(240).default(80)
 });
 
-export type GetLogsInput = z.infer<typeof getLogsInputSchema>;
-export type GetLogVolumeInput = z.infer<typeof getLogVolumeInputSchema>;
-export type LogsCursor = z.infer<typeof logsCursorSchema>;
 export type LogsOmitFacet =
 	| 'levels'
 	| 'services'
 	| 'environments'
 	| 'scopes'
-	| 'ingestionKeyIds'
-	| 'contentTypes'
-	| 'contentEncodings'
-	| 'remoteAddrs'
-	| 'userAgents';
+	| 'ingestionKeyIds';
 
-export type LogRecordRow = {
+type RawLogRow = {
 	id: string;
 	organization_id: string;
 	ingestion_key_id: string;
-	received_at: string;
-	expires_at: string;
-	timestamp: string;
-	observed_timestamp: string;
+	received_at: string | Date;
+	expires_at: string | Date;
+	timestamp: string | Date;
+	observed_timestamp: string | Date;
 	severity_number: number;
 	severity_text: string;
 	body: string;
@@ -101,39 +245,6 @@ export type LogRecordRow = {
 	log_attributes: Record<string, string>;
 	service_name: string;
 	deployment_environment: string;
-	content_type: string;
-	content_encoding: string;
-	remote_addr: string;
-	user_agent: string;
-};
-
-export type PaginatedLogsResult = {
-	logs: LogRecordRow[];
-	nextCursor: LogsCursor | null;
-};
-
-export type LogVolumeBucket = {
-	startAtUtc: string;
-	endAtUtc: string;
-	fatal: number;
-	error: number;
-	warn: number;
-	info: number;
-	debug: number;
-	trace: number;
-	total: number;
-};
-
-type DateRange = {
-	startAtUtc: Date;
-	endAtUtc: Date;
-};
-
-type RawLogRow = Omit<LogRecordRow, 'received_at' | 'expires_at' | 'timestamp' | 'observed_timestamp'> & {
-	received_at: string | Date;
-	expires_at: string | Date;
-	timestamp: string | Date;
-	observed_timestamp: string | Date;
 };
 
 type RawVolumeRow = {
@@ -166,7 +277,7 @@ const normalizeDateTime = (value: string | Date) => {
 const buildInClause = (column: string, values: string[]) =>
 	`${column} IN (${values.map((value) => quote(value)).join(', ')})`;
 
-const resolveTimeRange = (time: z.infer<typeof logTimeFilterSchema>): DateRange => {
+const resolveTimeRange = (time: z.infer<typeof logTimeFilterSchema>) => {
 	const endAtUtc = new Date();
 
 	if (time.kind === 'range') {
@@ -206,7 +317,7 @@ const buildWhereClause = (
 	input: z.infer<typeof logsQueryFiltersSchema>,
 	options?: {
 		omitFacet?: LogsOmitFacet;
-		cursor?: LogsCursor;
+		cursor?: z.infer<typeof logsCursorSchema>;
 	}
 ) => {
 	const { startAtUtc, endAtUtc } = resolveTimeRange(input.time);
@@ -240,22 +351,6 @@ const buildWhereClause = (
 		whereClauses.push(buildInClause('ingestion_key_id', input.ingestionKeyIds));
 	}
 
-	if (input.contentTypes.length > 0 && options?.omitFacet !== 'contentTypes') {
-		whereClauses.push(buildInClause('content_type', input.contentTypes));
-	}
-
-	if (input.contentEncodings.length > 0 && options?.omitFacet !== 'contentEncodings') {
-		whereClauses.push(buildInClause('content_encoding', input.contentEncodings));
-	}
-
-	if (input.remoteAddrs.length > 0 && options?.omitFacet !== 'remoteAddrs') {
-		whereClauses.push(buildInClause('remote_addr', input.remoteAddrs));
-	}
-
-	if (input.userAgents.length > 0 && options?.omitFacet !== 'userAgents') {
-		whereClauses.push(buildInClause('user_agent', input.userAgents));
-	}
-
 	if (input.traceId) {
 		whereClauses.push(`trace_id = ${quote(input.traceId)}`);
 	}
@@ -273,166 +368,4 @@ const buildWhereClause = (
 	return whereClauses.join(' AND ');
 };
 
-class LogsService {
-	private logger: Logger;
-
-	constructor(
-		private clickhouse: ClickHouseClient,
-		logger: Logger
-	) {
-		this.logger = logger.child('LogsService');
-	}
-
-	async getLogs(
-		organizationId: string,
-		input: GetLogsInput
-	): Promise<ServiceResult<PaginatedLogsResult>> {
-		this.logger.info('getLogs: fetching logs', { organizationId, input });
-
-		const validated = getLogsInputSchema.safeParse(input);
-		if (!validated.success) {
-			return err(validated.error.message);
-		}
-
-		try {
-			const pageSize = validated.data.limit + 1;
-			const whereClause = buildWhereClause(organizationId, validated.data, {
-				cursor: validated.data.cursor
-			});
-			const result = await this.clickhouse.query({
-				query: `
-					SELECT
-						id,
-						organization_id,
-						ingestion_key_id,
-						received_at,
-						expires_at,
-						timestamp,
-						observed_timestamp,
-						severity_number,
-						severity_text,
-						body,
-						trace_id,
-						span_id,
-						trace_flags,
-						resource_attributes,
-						resource_schema_url,
-						scope_name,
-						scope_version,
-						scope_attributes,
-						scope_schema_url,
-						log_attributes,
-						service_name,
-						deployment_environment,
-						content_type,
-						content_encoding,
-						remote_addr,
-						user_agent
-					FROM logs_raw
-					WHERE ${whereClause}
-					ORDER BY timestamp DESC, id DESC
-					LIMIT ${pageSize}
-					FORMAT JSONEachRow
-				`
-			});
-			const rows = (await result.json()) as unknown as RawLogRow[];
-			const hasNextPage = rows.length > validated.data.limit;
-			const visibleRows = rows.slice(0, validated.data.limit).map((row) => ({
-				...row,
-				received_at: normalizeDateTime(row.received_at),
-				expires_at: normalizeDateTime(row.expires_at),
-				timestamp: normalizeDateTime(row.timestamp),
-				observed_timestamp: normalizeDateTime(row.observed_timestamp)
-			}));
-			const lastRow = visibleRows.at(-1);
-
-			return ok({
-				logs: visibleRows,
-				nextCursor:
-					hasNextPage && lastRow
-						? {
-								id: lastRow.id,
-								timestamp: lastRow.timestamp
-							}
-						: null
-			});
-		} catch (error) {
-			this.logger.error('getLogs: failed to fetch logs', error as Error);
-			return err('Failed to fetch logs.');
-		}
-	}
-
-	async getLogVolume(
-		organizationId: string,
-		input: GetLogVolumeInput
-	): Promise<ServiceResult<{ buckets: LogVolumeBucket[] }>> {
-		this.logger.info('getLogVolume: fetching log volume', { organizationId, input });
-
-		const validated = getLogVolumeInputSchema.safeParse(input);
-		if (!validated.success) {
-			return err(validated.error.message);
-		}
-
-		try {
-			const timeRange = resolveTimeRange(validated.data.time);
-			const rangeMs = Math.max(timeRange.endAtUtc.getTime() - timeRange.startAtUtc.getTime(), 1);
-			const bucketCount = validated.data.bucketCount;
-			const bucketSizeMs = Math.max(Math.ceil(rangeMs / bucketCount), 1);
-			const whereClause = buildWhereClause(organizationId, validated.data);
-			const result = await this.clickhouse.query({
-				query: `
-					WITH
-						${timeRange.startAtUtc.getTime()} AS start_ms,
-						${bucketSizeMs} AS bucket_ms
-					SELECT
-						least(toInt32(intDiv(toUnixTimestamp64Milli(timestamp) - start_ms, bucket_ms)), ${bucketCount - 1}) AS bucket_index,
-						countIf(lowerUTF8(severity_text) = 'fatal') AS fatal,
-						countIf(lowerUTF8(severity_text) = 'error' OR positionCaseInsensitiveUTF8(severity_text, 'err') > 0) AS error,
-						countIf(positionCaseInsensitiveUTF8(severity_text, 'warn') > 0) AS warn,
-						countIf(lowerUTF8(severity_text) = 'debug' OR positionCaseInsensitiveUTF8(severity_text, 'debug') > 0) AS debug,
-						countIf(lowerUTF8(severity_text) = 'trace') AS trace,
-						countIf(
-							lowerUTF8(severity_text) NOT IN ('fatal', 'trace')
-							AND positionCaseInsensitiveUTF8(severity_text, 'err') = 0
-							AND positionCaseInsensitiveUTF8(severity_text, 'warn') = 0
-							AND positionCaseInsensitiveUTF8(severity_text, 'debug') = 0
-						) AS info,
-						count() AS total
-					FROM logs_raw
-					WHERE ${whereClause}
-					GROUP BY bucket_index
-					ORDER BY bucket_index ASC
-					FORMAT JSONEachRow
-				`
-			});
-			const rows = (await result.json()) as unknown as RawVolumeRow[];
-			const rowMap = new Map(rows.map((row) => [row.bucket_index, row]));
-			const buckets = Array.from({ length: bucketCount }, (_, index) => {
-				const bucketStart = new Date(timeRange.startAtUtc.getTime() + index * bucketSizeMs);
-				const bucketEnd = new Date(
-					Math.min(timeRange.startAtUtc.getTime() + (index + 1) * bucketSizeMs, timeRange.endAtUtc.getTime())
-				);
-				const row = rowMap.get(index);
-
-				return {
-					startAtUtc: bucketStart.toISOString(),
-					endAtUtc: bucketEnd.toISOString(),
-					fatal: row?.fatal ?? 0,
-					error: row?.error ?? 0,
-					warn: row?.warn ?? 0,
-					info: row?.info ?? 0,
-					debug: row?.debug ?? 0,
-					trace: row?.trace ?? 0,
-					total: row?.total ?? 0
-				};
-			});
-
-			return ok({ buckets });
-		} catch (error) {
-			this.logger.error('getLogVolume: failed to fetch log volume', error as Error);
-			return err('Failed to fetch log volume.');
-		}
-	}
-}
-
-export { LogsService, buildWhereClause, resolveTimeRange };
+export { buildWhereClause, LogsService, resolveTimeRange };

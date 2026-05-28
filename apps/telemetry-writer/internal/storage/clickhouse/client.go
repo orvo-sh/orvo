@@ -68,10 +68,6 @@ func (client *Client) InsertLogs(ctx context.Context, rows []telemetry.LogRow) e
 			row.LogAttributes,
 			row.ServiceName,
 			row.DeploymentEnvironment,
-			row.ContentType,
-			row.ContentEncoding,
-			row.RemoteAddr,
-			row.UserAgent,
 		); err != nil {
 			return fmt.Errorf("clickhouse: append log row: %w", err)
 		}
@@ -118,10 +114,6 @@ func (client *Client) InsertTraces(ctx context.Context, rows []telemetry.TraceRo
 			row.LinksJSON,
 			row.ServiceName,
 			row.DeploymentEnvironment,
-			row.ContentType,
-			row.ContentEncoding,
-			row.RemoteAddr,
-			row.UserAgent,
 		); err != nil {
 			return fmt.Errorf("clickhouse: append trace row: %w", err)
 		}
@@ -170,10 +162,6 @@ func (client *Client) InsertMetrics(ctx context.Context, rows []telemetry.Metric
 			row.HistogramExplicitBounds,
 			row.ExemplarsJSON,
 			row.Flags,
-			row.ContentType,
-			row.ContentEncoding,
-			row.RemoteAddr,
-			row.UserAgent,
 		); err != nil {
 			return fmt.Errorf("clickhouse: append metric row: %w", err)
 		}

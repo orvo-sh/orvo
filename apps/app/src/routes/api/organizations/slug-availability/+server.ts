@@ -1,7 +1,6 @@
 import { env } from '$env/dynamic/private';
-import { getDb } from '@repo/db';
+import { eq, getDb } from '@repo/db';
 import * as dbSchema from '@repo/db/schema';
-import { eq } from 'drizzle-orm';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { isValidOrganizationSlug } from '$lib/organization-slug';

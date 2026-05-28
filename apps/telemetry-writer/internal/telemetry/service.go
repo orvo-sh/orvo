@@ -344,10 +344,6 @@ func (service *Service) decodeLogs(ctx context.Context, payload []byte) ([]LogRo
 			LogAttributes:         NormalizeStringMap(record.LogAttributes),
 			ServiceName:           record.ServiceName,
 			DeploymentEnvironment: record.DeploymentEnvironment,
-			ContentType:           message.ContentType,
-			ContentEncoding:       message.ContentEncoding,
-			RemoteAddr:            message.RemoteAddr,
-			UserAgent:             message.UserAgent,
 		})
 	}
 
@@ -406,10 +402,6 @@ func (service *Service) decodeTraces(ctx context.Context, payload []byte) ([]Tra
 			LinksJSON:             MarshalJSON(span.Links, "[]"),
 			ServiceName:           span.ServiceName,
 			DeploymentEnvironment: span.DeploymentEnvironment,
-			ContentType:           message.ContentType,
-			ContentEncoding:       message.ContentEncoding,
-			RemoteAddr:            message.RemoteAddr,
-			UserAgent:             message.UserAgent,
 		})
 	}
 
@@ -470,10 +462,6 @@ func (service *Service) decodeMetrics(ctx context.Context, payload []byte) ([]Me
 			HistogramExplicitBounds: point.HistogramExplicitBounds,
 			ExemplarsJSON:           MarshalJSON(point.Exemplars, "[]"),
 			Flags:                   point.Flags,
-			ContentType:             message.ContentType,
-			ContentEncoding:         message.ContentEncoding,
-			RemoteAddr:              message.RemoteAddr,
-			UserAgent:               message.UserAgent,
 		})
 	}
 

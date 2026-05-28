@@ -19,8 +19,29 @@
     {
       "idx": 2,
       "version": "7",
+      "when": 1779450000000,
+      "tag": "0002_cuddly_orchid_entitlements",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
       "when": 1779990000000,
       "tag": "0003_replace_api_keys_with_ingestion_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780000000000,
+      "tag": "0004_restore_entitlements_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780000100000,
+      "tag": "0005_create_dashboard_log_view",
       "breakpoints": true
     }
   ]

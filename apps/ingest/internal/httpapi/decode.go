@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"mime"
-	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -96,24 +95,10 @@ func unmarshalOTLP(contentType string, body []byte, message proto.Message) apper
 	return nil
 }
 
-func requestMeta(request *http.Request, contentType string) telemetry.MessageMeta {
-	contentEncoding := strings.TrimSpace(strings.ToLower(request.Header.Get("Content-Encoding")))
+func requestMeta() telemetry.MessageMeta {
 	return telemetry.MessageMeta{
-		ReceivedAt:      time.Now().UTC(),
-		ContentType:     contentType,
-		ContentEncoding: contentEncoding,
-		RemoteAddr:      remoteAddr(request.RemoteAddr),
-		UserAgent:       request.UserAgent(),
+		ReceivedAt: time.Now().UTC(),
 	}
-}
-
-func remoteAddr(value string) string {
-	host, _, err := net.SplitHostPort(value)
-	if err == nil {
-		return host
-	}
-
-	return value
 }
 
 func writeOTLPResponse(writer http.ResponseWriter, requestContentType string, message proto.Message) {

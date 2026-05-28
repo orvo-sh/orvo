@@ -1,55 +1,8 @@
+import type { Logger } from '$lib/server/observability/logger';
 import type { ClickHouseClient } from '@repo/clickhouse';
 import { z } from 'zod';
-import type { Logger } from '$lib/server/observability/logger';
+import { err, ok } from '../../utils/result';
 import { buildWhereClause, logsQueryFiltersSchema, type LogsOmitFacet } from './logs.service';
-import { err, ok, type ServiceResult } from './result';
-
-export const getLogFacetsInputSchema = logsQueryFiltersSchema.extend({
-	maxValuesPerFacet: z.number().int().min(1).max(200).default(50)
-});
-
-export type GetLogFacetsInput = z.infer<typeof getLogFacetsInputSchema>;
-
-export type LogFacetOption = {
-	value: string;
-	count: number;
-};
-
-export type LogFacetsResult = {
-	levels: LogFacetOption[];
-	services: LogFacetOption[];
-	environments: LogFacetOption[];
-	scopes: LogFacetOption[];
-	ingestionKeyIds: LogFacetOption[];
-	contentTypes: LogFacetOption[];
-	contentEncodings: LogFacetOption[];
-	remoteAddrs: LogFacetOption[];
-	userAgents: LogFacetOption[];
-};
-
-type FacetKey = keyof Omit<LogFacetsResult, never>;
-type RawFacetRow = {
-	value: string;
-	count: number;
-};
-
-const facetColumns: Record<
-	FacetKey,
-	{
-		column: string;
-		omitFacet: LogsOmitFacet;
-	}
-> = {
-	levels: { column: 'severity_text', omitFacet: 'levels' },
-	services: { column: 'service_name', omitFacet: 'services' },
-	environments: { column: 'deployment_environment', omitFacet: 'environments' },
-	scopes: { column: 'scope_name', omitFacet: 'scopes' },
-	ingestionKeyIds: { column: 'ingestion_key_id', omitFacet: 'ingestionKeyIds' },
-	contentTypes: { column: 'content_type', omitFacet: 'contentTypes' },
-	contentEncodings: { column: 'content_encoding', omitFacet: 'contentEncodings' },
-	remoteAddrs: { column: 'remote_addr', omitFacet: 'remoteAddrs' },
-	userAgents: { column: 'user_agent', omitFacet: 'userAgents' }
-};
 
 class LogFacetsService {
 	private logger: Logger;
@@ -62,10 +15,10 @@ class LogFacetsService {
 	}
 
 	async getLogFacets(
-		organizationId: string,
-		input: GetLogFacetsInput
-	): Promise<ServiceResult<LogFacetsResult>> {
-		this.logger.info('getLogFacets: fetching log facets', { organizationId, input });
+		input: z.infer<typeof getLogFacetsInputSchema>,
+		context: { organizationId: string }
+	) {
+		this.logger.info('getLogFacets: fetching log facets', { input, context });
 
 		const validated = getLogFacetsInputSchema.safeParse(input);
 		if (!validated.success) {
@@ -75,10 +28,11 @@ class LogFacetsService {
 		try {
 			const entries = await Promise.all(
 				Object.entries(facetColumns).map(async ([facetKey, facetConfig]) => {
-					const whereClause = buildWhereClause(organizationId, validated.data, {
+					const whereClause = buildWhereClause(context.organizationId, validated.data, {
 						omitFacet: facetConfig.omitFacet
 					});
 					const result = await this.clickhouse.query({
+						format: 'JSONEachRow',
 						query: `
 							SELECT
 								${facetConfig.column} AS value,
@@ -89,7 +43,6 @@ class LogFacetsService {
 							GROUP BY value
 							ORDER BY count DESC, value ASC
 							LIMIT ${validated.data.maxValuesPerFacet}
-							FORMAT JSONEachRow
 						`
 					});
 
@@ -104,5 +57,36 @@ class LogFacetsService {
 		}
 	}
 }
+
+export const getLogFacetsInputSchema = logsQueryFiltersSchema.extend({
+	maxValuesPerFacet: z.number().int().min(1).max(200).default(50)
+});
+
+type LogFacetsResult = {
+	levels: RawFacetRow[];
+	services: RawFacetRow[];
+	environments: RawFacetRow[];
+	scopes: RawFacetRow[];
+	ingestionKeyIds: RawFacetRow[];
+};
+
+type RawFacetRow = {
+	value: string;
+	count: number;
+};
+
+const facetColumns = {
+	levels: { column: 'severity_text', omitFacet: 'levels' },
+	services: { column: 'service_name', omitFacet: 'services' },
+	environments: { column: 'deployment_environment', omitFacet: 'environments' },
+	scopes: { column: 'scope_name', omitFacet: 'scopes' },
+	ingestionKeyIds: { column: 'ingestion_key_id', omitFacet: 'ingestionKeyIds' }
+} satisfies Record<
+	keyof LogFacetsResult,
+	{
+		column: string;
+		omitFacet: LogsOmitFacet;
+	}
+>;
 
 export { LogFacetsService };

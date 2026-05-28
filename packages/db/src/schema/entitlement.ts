@@ -1,7 +1,7 @@
 import { relations } from 'drizzle-orm';
 import { bigint, index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
-import { organization } from './auth.schema.js';
+import { organization } from './auth.js';
 
 export const entitlement = pgTable(
   'entitlements',
