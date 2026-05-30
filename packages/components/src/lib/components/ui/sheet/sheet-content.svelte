@@ -8,7 +8,7 @@
 	import SheetPortal from "./sheet-portal.svelte";
 	import SheetOverlay from "./sheet-overlay.svelte";
 	import { Button } from "../button/index.js";
-	import XIcon from 'phosphor-svelte/lib/X';
+	import { IconX as XIcon } from "@tabler/icons-svelte";
 	import { cn, type WithoutChildrenOrChild } from "../../../utils.js";
 	import type { ComponentProps } from "svelte";
 

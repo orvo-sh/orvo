@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Calendar as CalendarPrimitive } from "bits-ui";
-	import CaretRightIcon from 'phosphor-svelte/lib/CaretRight';
+	import { IconChevronRight as CaretRightIcon } from "@tabler/icons-svelte";
 	import { buttonVariants, type ButtonVariant } from "../button/index.js";
 	import { cn } from "../../../utils.js";
 

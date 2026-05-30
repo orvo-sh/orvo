@@ -1,6 +1,6 @@
 <script lang="ts">
+	import { IconLayoutSidebar as SidebarIcon } from "@tabler/icons-svelte";
 	import { Button } from "../button/index.js";
-	import SidebarIcon from 'phosphor-svelte/lib/Sidebar';
 	import { cn } from "../../../utils.js";
 	import type { ComponentProps } from "svelte";
 	import { useSidebar } from "./context.svelte.js";

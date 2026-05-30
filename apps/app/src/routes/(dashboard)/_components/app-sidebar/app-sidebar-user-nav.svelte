@@ -1,10 +1,12 @@
 <script lang="ts">
   import { authClient } from "$lib/auth-client";
+  import {
+    IconCreditCard as CreditCardIcon,
+    IconLogout2 as SignOutIcon,
+    IconSettings as GearIcon
+  } from "@tabler/icons-svelte";
   import * as Avatar from "@repo/components/ui/avatar";
   import * as DropdownMenu from "@repo/components/ui/dropdown-menu";
-
-  import { CreditCardIcon, GearIcon, SignOutIcon } from "phosphor-svelte";
-
   import * as Sidebar from "@repo/components/ui/sidebar";
 
   let {
@@ -99,4 +101,3 @@
                 
             </Sidebar.MenuButton>
           </Sidebar.MenuItem>
-

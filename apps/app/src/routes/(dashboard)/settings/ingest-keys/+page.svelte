@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getIngestionKeyQuery, rotateIngestionKeyCommand } from '$lib/api/ingestion-key.remote';
+	import { IconCopy as CopyIcon } from "@tabler/icons-svelte";
 	import { Button } from '@repo/components/ui/button';
-	import { CopyIcon } from 'phosphor-svelte';
 	import { onMount } from 'svelte';
 
 	let loading = $state(true);

@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { CaretRightIcon, CopyIcon } from 'phosphor-svelte';
+	import {
+		IconChevronRight as CaretRightIcon,
+		IconCopy as CopyIcon
+	} from "@tabler/icons-svelte";
 	import type { LogRecord } from '../types';
 	import type { ColumnKey } from './log-table.svelte';
 

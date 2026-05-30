@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Select as SelectPrimitive } from "bits-ui";
 	import { cn, type WithoutChildrenOrChild } from "../../../utils.js";
-	import CaretUpIcon from 'phosphor-svelte/lib/CaretUp';
+	import { IconChevronUp as CaretUpIcon } from "@tabler/icons-svelte";
 
 	let {
 		ref = $bindable(null),

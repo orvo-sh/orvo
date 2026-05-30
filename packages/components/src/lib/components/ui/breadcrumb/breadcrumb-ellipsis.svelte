@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { HTMLAttributes } from "svelte/elements";
 	import { cn, type WithElementRef, type WithoutChildren } from "../../../utils.js";
-	import DotsThreeIcon from 'phosphor-svelte/lib/DotsThree';
+	import { IconDots as DotsThreeIcon } from "@tabler/icons-svelte";
 
 	let {
 		ref = $bindable(null),

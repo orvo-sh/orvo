@@ -1,6 +1,6 @@
 <script lang="ts">
+	import { IconCircleFilled as CircleIcon } from "@tabler/icons-svelte";
 	import { RadioGroup as RadioGroupPrimitive } from "bits-ui";
-	import CircleIcon from 'phosphor-svelte/lib/Circle';
 	import { cn, type WithoutChildrenOrChild } from "../../../utils.js";
 
 	let {
@@ -22,7 +22,7 @@
 	{#snippet children({ checked })}
 		<div data-slot="radio-group-indicator" class="flex size-4 items-center justify-center">
 			{#if checked}
-				<CircleIcon class="bg-primary-foreground absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full" />
+				<CircleIcon class="text-primary-foreground absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2" />
 			{/if}
 		</div>
 	{/snippet}

@@ -1,7 +1,7 @@
 <script lang="ts">
+  import { IconKey as KeyIcon, IconSettings as GearSixIcon } from "@tabler/icons-svelte";
   import { page } from "$app/state";
   import * as Sidebar from "@repo/components/ui/sidebar";
-  import { GearSixIcon, KeyIcon } from "phosphor-svelte";
   import type { Snippet } from "svelte";
 
   import PageContainer from "../_components/page-container.svelte";

@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { CopyIcon, XIcon } from 'phosphor-svelte';
+	import {
+		IconCopy as CopyIcon,
+		IconX as XIcon
+	} from "@tabler/icons-svelte";
 	import type { SpanRow } from '../../types';
 	import { formatDuration } from '../../utils';
 

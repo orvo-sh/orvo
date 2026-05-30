@@ -1,7 +1,11 @@
 <script lang="ts">
+	import {
+		IconCheck as CheckIcon,
+		IconChevronDown as CaretDownIcon,
+		IconX as XIcon
+	} from "@tabler/icons-svelte";
 	import { Input } from '@repo/components/ui/input';
 	import * as Popover from '@repo/components/ui/popover';
-	import { CaretDownIcon, CheckIcon, XIcon } from 'phosphor-svelte';
 	// `icon` is a renderable snippet passed from callers; keep flexible to avoid
 	// importing a non-existent `Snippet` type from `svelte`.
 

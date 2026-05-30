@@ -1,10 +1,10 @@
 <script lang="ts">
   import { authClient } from "$lib/auth-client";
+  import { IconSelector as CaretUpDownIcon } from "@tabler/icons-svelte";
   import * as Avatar from "@repo/components/ui/avatar";
   import { Badge } from "@repo/components/ui/badge";
   import { buttonVariants } from "@repo/components/ui/button";
   import * as Popover from "@repo/components/ui/popover";
-  import { CaretUpDownIcon } from "phosphor-svelte";
 
   type Organization = {
     id: string;

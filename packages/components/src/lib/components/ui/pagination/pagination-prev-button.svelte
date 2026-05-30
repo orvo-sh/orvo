@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Pagination as PaginationPrimitive } from "bits-ui";
-	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeft';
+	import { IconChevronLeft as CaretLeftIcon } from "@tabler/icons-svelte";
 	import { cn } from "../../../utils.js";
 	import { buttonVariants } from "../button/index.js";
 

@@ -1,8 +1,8 @@
 <script lang="ts">
+	import { IconSearch as MagnifyingGlassIcon } from "@tabler/icons-svelte";
 	import { Command as CommandPrimitive } from "bits-ui";
 	import { cn } from "../../../utils.js";
 	import * as InputGroup from "../input-group/index.js";
-	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlass';
 
 	let {
 		ref = $bindable(null),

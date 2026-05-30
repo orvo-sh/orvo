@@ -4,14 +4,14 @@
 	import { ButtonGroup } from '@repo/components/ui/button-group';
 	import * as DropdownMenu from '@repo/components/ui/dropdown-menu';
 	import {
-		ArrowsClockwiseIcon,
-		CaretDownIcon,
-		CopyIcon,
-		FloppyDiskIcon,
-		PencilSimpleIcon,
-		PlayIcon,
-		TrashIcon
-	} from 'phosphor-svelte';
+		IconChevronDown as CaretDownIcon,
+		IconCopy as CopyIcon,
+		IconDeviceFloppy as FloppyDiskIcon,
+		IconPencil as PencilSimpleIcon,
+		IconPlayerPlay as PlayIcon,
+		IconRefresh as ArrowsClockwiseIcon,
+		IconTrash as TrashIcon
+	} from "@tabler/icons-svelte";
 	import PageContainer from '../_components/page-container.svelte';
 	import TraceFilterBar from './_components/trace-filter-bar.svelte';
 	import TraceTable from './_components/trace-table.svelte';

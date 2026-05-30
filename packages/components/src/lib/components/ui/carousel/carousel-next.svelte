@@ -3,7 +3,7 @@
 	import { getEmblaContext } from "./context.js";
 	import { cn } from "../../../utils.js";
 	import { Button, type Props } from "../button/index.js";
-	import CaretRightIcon from 'phosphor-svelte/lib/CaretRight';
+	import { IconChevronRight as CaretRightIcon } from "@tabler/icons-svelte";
 
 	let {
 		ref = $bindable(null),

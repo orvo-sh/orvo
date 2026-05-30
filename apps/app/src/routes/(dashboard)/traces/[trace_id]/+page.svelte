@@ -3,15 +3,15 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { getTraceQuery } from '$lib/api/traces.remote';
+	import {
+		IconAlertCircle as WarningCircleIcon,
+		IconArrowLeft as ArrowLeftIcon,
+		IconBinaryTree2 as TreeStructureIcon,
+		IconCheck as CheckIcon,
+		IconCopy as CopyIcon
+	} from "@tabler/icons-svelte";
 	import { Button } from '@repo/components/ui/button';
 	import { Badge } from '@repo/components/ui/badge';
-	import {
-		ArrowLeftIcon,
-		CheckIcon,
-		CopyIcon,
-		TreeStructureIcon,
-		WarningCircleIcon
-	} from 'phosphor-svelte';
 	import { formatDuration } from '../utils';
 	import SpanWaterfall from './_components/span-waterfall.svelte';
 	import SpanDetailPanel from './_components/span-detail-panel.svelte';

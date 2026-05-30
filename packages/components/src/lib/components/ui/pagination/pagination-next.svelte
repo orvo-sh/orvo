@@ -2,7 +2,7 @@
 	import { Pagination as PaginationPrimitive } from "bits-ui";
 	import { cn } from "../../../utils.js";
 	import { buttonVariants } from "../button/index.js";
-	import CaretRightIcon from 'phosphor-svelte/lib/CaretRight';
+	import { IconChevronRight as CaretRightIcon } from "@tabler/icons-svelte";
 
 	let {
 		ref = $bindable(null),

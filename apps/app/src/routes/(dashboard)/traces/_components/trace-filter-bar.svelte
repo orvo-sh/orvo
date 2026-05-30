@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { Input } from '@repo/components/ui/input';
 	import {
-		CpuIcon,
-		FunnelSimpleIcon,
-		LightningIcon,
-		MagnifyingGlassIcon,
-		StackIcon
-	} from 'phosphor-svelte';
+		IconBolt as LightningIcon,
+		IconCpu as CpuIcon,
+		IconFilter as FunnelSimpleIcon,
+		IconSearch as MagnifyingGlassIcon,
+		IconStack2 as StackIcon
+	} from "@tabler/icons-svelte";
+	import { Input } from '@repo/components/ui/input';
 	import TimeRangePicker from '../../logs/[[view_slug]]/_components/time-range-picker.svelte';
 	import FilterPill from '../../logs/[[view_slug]]/_components/filter-pill.svelte';
 	import type { TraceFilters } from '../types';

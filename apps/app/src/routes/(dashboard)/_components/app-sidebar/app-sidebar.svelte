@@ -1,16 +1,16 @@
 <script lang="ts">
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
-  import * as Sidebar from "@repo/components/ui/sidebar";
   import {
-      BookOpenTextIcon,
-      ChartBarIcon,
-      GearSixIcon,
-      HouseIcon,
-      MegaphoneIcon,
-      PathIcon,
-      TerminalWindowIcon
-  } from "phosphor-svelte";
+      IconBook2 as BookOpenTextIcon,
+      IconChartBar as ChartBarIcon,
+      IconHome as HouseIcon,
+      IconRoute as PathIcon,
+      IconSettings as GearSixIcon,
+      IconSpeakerphone as MegaphoneIcon,
+      IconTerminal2 as TerminalWindowIcon
+  } from "@tabler/icons-svelte";
+  import * as Sidebar from "@repo/components/ui/sidebar";
 
   import AppSidebarOrganizationSwitcher from "./app-sidebar-organization-switcher.svelte";
   import AppSidebarUserNav from "./app-sidebar-user-nav.svelte";

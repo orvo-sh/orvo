@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { DropdownMenu as DropdownMenuPrimitive } from "bits-ui";
-	import CheckIcon from 'phosphor-svelte/lib/Check';
+	import { IconCheck as CheckIcon } from "@tabler/icons-svelte";
 	import { cn, type WithoutChild } from "../../../utils.js";
 
 	let {

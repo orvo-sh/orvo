@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { cn, type WithElementRef } from "../../../utils.js";
 	import type { HTMLSelectAttributes } from "svelte/elements";
-	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
+	import { IconChevronDown as CaretDownIcon } from "@tabler/icons-svelte";
 
 	type NativeSelectProps = Omit<WithElementRef<HTMLSelectAttributes>, "size"> & {
 		size?: "sm" | "default";

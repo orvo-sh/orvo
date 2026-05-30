@@ -10,7 +10,11 @@
 	import { Label } from '@repo/components/ui/label';
 	import * as Popover from '@repo/components/ui/popover';
 	import * as RangeCalendar from '@repo/components/ui/range-calendar';
-	import { CalendarBlankIcon, CaretDownIcon, XIcon } from 'phosphor-svelte';
+	import {
+		IconCalendar as CalendarBlankIcon,
+		IconChevronDown as CaretDownIcon,
+		IconX as XIcon
+	} from "@tabler/icons-svelte";
 
 	type Preset = {
 		label: string;

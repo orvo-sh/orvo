@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { ArrowsClockwiseIcon, TreeStructureIcon } from 'phosphor-svelte';
+	import {
+		IconBinaryTree2 as TreeStructureIcon,
+		IconRefresh as ArrowsClockwiseIcon
+	} from "@tabler/icons-svelte";
 	import TraceRow from './trace-row.svelte';
 	import type { TraceFilters, TraceRow as TraceRowType } from '../types';
 

@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { ArrowsClockwiseIcon, CheckIcon, ColumnsIcon, DatabaseIcon } from 'phosphor-svelte';
+	import {
+		IconCheck as CheckIcon,
+		IconColumns3 as ColumnsIcon,
+		IconDatabase as DatabaseIcon,
+		IconRefresh as ArrowsClockwiseIcon
+	} from "@tabler/icons-svelte";
 	import * as DropdownMenu from '@repo/components/ui/dropdown-menu';
 	import type { LogFilters, LogRecord } from '../types';
 	import LogRow from './log-row.svelte';

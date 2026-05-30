@@ -1,9 +1,9 @@
 <script lang="ts">
+    import { IconInfoCircle as InfoIcon } from "@tabler/icons-svelte";
     import { cn } from "@repo/components";
     import { buttonVariants } from "@repo/components/ui/button";
     import * as HoverCard from "@repo/components/ui/hover-card";
     import * as Sidebar from "@repo/components/ui/sidebar";
-    import { InfoIcon } from "phosphor-svelte";
     import type { Snippet } from "svelte";
 
   let {

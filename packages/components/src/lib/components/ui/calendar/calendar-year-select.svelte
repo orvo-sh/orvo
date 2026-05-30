@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Calendar as CalendarPrimitive } from "bits-ui";
 	import { cn, type WithoutChildrenOrChild } from "../../../utils.js";
-	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
+	import { IconChevronDown as CaretDownIcon } from "@tabler/icons-svelte";
 
 	let {
 		ref = $bindable(null),
