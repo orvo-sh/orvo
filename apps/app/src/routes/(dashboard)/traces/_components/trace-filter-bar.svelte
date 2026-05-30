@@ -7,8 +7,8 @@
 		IconStack2 as StackIcon
 	} from "@tabler/icons-svelte";
 	import { Input } from '@repo/components/ui/input';
-	import TimeRangePicker from '../../logs/[[view_slug]]/_components/time-range-picker.svelte';
-	import FilterPill from '../../logs/[[view_slug]]/_components/filter-pill.svelte';
+	import TimeRangePicker from '../../logs/_components/time-range-picker.svelte';
+	import FilterPill from '../../logs/_components/filter-pill.svelte';
 	import type { TraceFilters } from '../types';
 
 	const STATUS_OPTIONS = [

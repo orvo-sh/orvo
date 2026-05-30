@@ -4,38 +4,20 @@
 		getLogsQuery,
 		getLogVolumeQuery
 	} from '$lib/api/logs.remote';
-	import { Button, buttonVariants } from '@repo/components/ui/button';
-	import { ButtonGroup } from '@repo/components/ui/button-group';
-	import * as DropdownMenu from '@repo/components/ui/dropdown-menu';
+	import { Button } from '@repo/components/ui/button';
 	import {
-		IconChevronDown as CaretDownIcon,
-		IconCopy as CopyIcon,
-		IconDeviceFloppy as FloppyDiskIcon,
-		IconPencil as PencilSimpleIcon,
 		IconPlayerPlay as PlayIcon,
-		IconRefresh as ArrowsClockwiseIcon,
-		IconTrash as TrashIcon
-	} from "@tabler/icons-svelte";
-	import PageContainer from '../../_components/page-container.svelte';
+		IconRefresh as ArrowsClockwiseIcon
+	} from '@tabler/icons-svelte';
+	import PageContainer from '../_components/page-container.svelte';
 	import LogFilterBar from './_components/log-filter-bar.svelte';
 	import LogTable from './_components/log-table.svelte';
 	import LogVolumeChart from './_components/log-volume-chart.svelte';
 	import type { LogFacets, LogFilters, LogRecord, LogVolumeBucket } from './types';
 
-	let hasView = $state(true);
 	let live = $state(false);
-
-	// Default time window: last 10 hours
 	let rangeStart = $state(new Date(Date.now() - 10 * 60 * 60 * 1000));
 	let rangeEnd = $state(new Date());
-
-	$effect(() => {
-		if (!live) return;
-		const id = setInterval(() => {
-			rangeEnd = new Date();
-		}, 5000);
-		return () => clearInterval(id);
-	});
 
 	let filters = $state<LogFilters>({
 		search: '',
@@ -167,6 +149,18 @@
 	};
 
 	$effect(() => {
+		if (!live) {
+			return;
+		}
+
+		const id = setInterval(() => {
+			rangeEnd = new Date();
+		}, 5000);
+
+		return () => clearInterval(id);
+	});
+
+	$effect(() => {
 		querySignature;
 
 		const timeout = setTimeout(() => {
@@ -179,16 +173,20 @@
 	});
 </script>
 
-<PageContainer title="Logs" class="overflow-hidden">
+<PageContainer title="Logs" class="overflow-hidden" innerClass="p-0">
 	{#snippet actions()}
-		<!-- Live mode toggle -->
 		<Button
 			variant="outline"
-			onclick={() => { live = !live; if (live) rangeEnd = new Date(); }}
+			onclick={() => {
+				live = !live;
+				if (live) {
+					rangeEnd = new Date();
+				}
+			}}
 			class={live ? 'border-green-500/50 text-green-600 dark:text-green-400' : ''}
 		>
 			{#if live}
-				<span class="size-2 rounded-full bg-green-500 animate-pulse" data-slot="button-icon"></span>
+				<span class="size-2 animate-pulse rounded-full bg-green-500" data-slot="button-icon"></span>
 				Live
 			{:else}
 				<PlayIcon data-slot="button-icon" />
@@ -202,49 +200,10 @@
 				Refresh
 			</Button>
 		{/if}
-
-		<ButtonGroup>
-			<Button variant="outline">
-				<FloppyDiskIcon data-slot="button-icon" />
-				Save view
-			</Button>
-			{#if hasView}
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger
-						aria-label="Open saved view actions"
-						class={buttonVariants({ variant: 'outline', size: 'icon' })}
-					>
-						<CaretDownIcon />
-					</DropdownMenu.Trigger>
-
-					<DropdownMenu.Content align="end" class="w-52">
-						<DropdownMenu.Item variant="destructive">
-							<TrashIcon />
-							Delete view
-						</DropdownMenu.Item>
-						<DropdownMenu.Item>
-							<PencilSimpleIcon />
-							Rename view
-						</DropdownMenu.Item>
-						<DropdownMenu.Item>
-							<CopyIcon />
-							Duplicate view
-						</DropdownMenu.Item>
-						<DropdownMenu.Separator />
-						<DropdownMenu.Item>
-							<FloppyDiskIcon />
-							Save as new view
-						</DropdownMenu.Item>
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
-			{/if}
-		</ButtonGroup>
 	{/snippet}
 
-	<!-- Override the page-container inner scroll to get a sticky toolbar + full-height table -->
 	{#snippet children()}
-		<div class="flex flex-col min-h-0 flex-1 -mx-4 -my-4 md:-mx-6 md:-my-5">
-			<!-- Filter bar -->
+		<div class="flex min-h-0 flex-1 flex-col">
 			<LogFilterBar
 				bind:start={rangeStart}
 				bind:end={rangeEnd}
@@ -255,13 +214,12 @@
 			/>
 
 			{#if error}
-				<div class="border-b bg-destructive/5 px-4 py-2 text-sm text-destructive">
+				<div class="border-b border-destructive/20 bg-destructive/5 px-4 py-2 text-sm text-destructive">
 					{error}
 				</div>
 			{/if}
 
-			<!-- Volume chart -->
-			<div class="px-4 pt-3 pb-1 border-b bg-background shrink-0">
+			<div class="border-b bg-background px-4 pt-3 pb-1">
 				<LogVolumeChart
 					buckets={volumeBuckets}
 					start={rangeStart}
@@ -270,7 +228,6 @@
 				/>
 			</div>
 
-			<!-- Log table — fills remaining height -->
 			<LogTable {logs} {filters} {loading} />
 		</div>
 	{/snippet}

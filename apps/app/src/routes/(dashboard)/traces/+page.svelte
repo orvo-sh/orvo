@@ -1,16 +1,9 @@
 <script lang="ts">
 	import { getTracesQuery } from '$lib/api/traces.remote';
-	import { Button, buttonVariants } from '@repo/components/ui/button';
-	import { ButtonGroup } from '@repo/components/ui/button-group';
-	import * as DropdownMenu from '@repo/components/ui/dropdown-menu';
+	import { Button } from '@repo/components/ui/button';
 	import {
-		IconChevronDown as CaretDownIcon,
-		IconCopy as CopyIcon,
-		IconDeviceFloppy as FloppyDiskIcon,
-		IconPencil as PencilSimpleIcon,
 		IconPlayerPlay as PlayIcon,
-		IconRefresh as ArrowsClockwiseIcon,
-		IconTrash as TrashIcon
+		IconRefresh as ArrowsClockwiseIcon
 	} from "@tabler/icons-svelte";
 	import PageContainer from '../_components/page-container.svelte';
 	import TraceFilterBar from './_components/trace-filter-bar.svelte';
@@ -134,28 +127,6 @@
 				Refresh
 			</Button>
 		{/if}
-
-		<ButtonGroup>
-			<Button variant="outline">
-				<FloppyDiskIcon data-slot="button-icon" />
-				Save view
-			</Button>
-			<DropdownMenu.Root>
-				<DropdownMenu.Trigger
-					aria-label="Open saved view actions"
-					class={buttonVariants({ variant: 'outline', size: 'icon' })}
-				>
-					<CaretDownIcon />
-				</DropdownMenu.Trigger>
-				<DropdownMenu.Content align="end" class="w-52">
-					<DropdownMenu.Item variant="destructive"><TrashIcon />Delete view</DropdownMenu.Item>
-					<DropdownMenu.Item><PencilSimpleIcon />Rename view</DropdownMenu.Item>
-					<DropdownMenu.Item><CopyIcon />Duplicate view</DropdownMenu.Item>
-					<DropdownMenu.Separator />
-					<DropdownMenu.Item><FloppyDiskIcon />Save as new view</DropdownMenu.Item>
-				</DropdownMenu.Content>
-			</DropdownMenu.Root>
-		</ButtonGroup>
 	{/snippet}
 
 	<div class="flex flex-col min-h-0 flex-1 -mx-4 -my-4 md:-mx-6 md:-my-5">

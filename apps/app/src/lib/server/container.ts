@@ -3,7 +3,6 @@ import { env } from '$env/dynamic/private';
 import { createAuth, type Auth } from '$lib/server/auth';
 import { ConsoleEmail, ResendEmail } from '$lib/server/email';
 import { Logger } from '$lib/server/observability/logger';
-import { DashboardService } from '$lib/server/services/dashboard.service';
 import { IngestionKeyService } from '$lib/server/services/ingestion-key.service';
 import { LogFacetsService } from '$lib/server/services/log-facets.service';
 import { LogsService } from '$lib/server/services/logs.service';
@@ -13,7 +12,6 @@ import { getDb } from '@repo/db';
 
 export type ServerContainer = {
 	authService: Auth;
-	dashboardLogViewService: DashboardService;
 	ingestionKeyService: IngestionKeyService;
 	logsService: LogsService;
 	logFacetsService: LogFacetsService;
@@ -59,7 +57,6 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
 				}
 			}
 		}),
-		dashboardLogViewService: new DashboardService(db, logger),
 		ingestionKeyService,
 		logsService: new LogsService(clickhouse, logger),
 		logFacetsService: new LogFacetsService(clickhouse, logger),
