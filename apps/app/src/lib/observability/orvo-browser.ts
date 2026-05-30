@@ -20,6 +20,7 @@ let initialized = false;
 let browserLogger = otelLogs.getLogger('orvo-app-browser');
 let tracer = trace.getTracer('orvo-app-browser');
 
+const selfTelemetryHeader = 'X-Orvo-Self-Telemetry';
 const buildLogsUrl = (baseUrl: string) => new URL('/v1/logs', baseUrl).toString();
 const buildTracesUrl = (baseUrl: string) => new URL('/v1/traces', baseUrl).toString();
 
@@ -56,7 +57,8 @@ const ensureBrowserTelemetry = () => {
 	);
 
 	const headers = {
-		Authorization: `Bearer ${PUBLIC_ORVO_PUBLIC_INGESTION_KEY}`
+		Authorization: `Bearer ${PUBLIC_ORVO_PUBLIC_INGESTION_KEY}`,
+		[selfTelemetryHeader]: 'true'
 	};
 
 	const tracerProvider = new WebTracerProvider({

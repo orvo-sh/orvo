@@ -39,7 +39,32 @@ func (client *Client) Close() error {
 }
 
 func (client *Client) InsertLogs(ctx context.Context, rows []telemetry.LogRow) error {
-	batch, err := client.conn.PrepareBatch(ctx, "INSERT INTO logs_raw")
+	batch, err := client.conn.PrepareBatch(ctx, `
+		INSERT INTO logs_raw (
+			id,
+			organization_id,
+			ingestion_key_id,
+			received_at,
+			expires_at,
+			timestamp,
+			observed_timestamp,
+			severity_number,
+			severity_text,
+			body,
+			trace_id,
+			span_id,
+			trace_flags,
+			resource_attributes,
+			resource_schema_url,
+			scope_name,
+			scope_version,
+			scope_attributes,
+			scope_schema_url,
+			log_attributes,
+			service_name,
+			deployment_environment
+		)
+	`)
 	if err != nil {
 		return fmt.Errorf("clickhouse: prepare logs batch: %w", err)
 	}
@@ -80,7 +105,37 @@ func (client *Client) InsertLogs(ctx context.Context, rows []telemetry.LogRow) e
 }
 
 func (client *Client) InsertTraces(ctx context.Context, rows []telemetry.TraceRow) error {
-	batch, err := client.conn.PrepareBatch(ctx, "INSERT INTO traces_raw")
+	batch, err := client.conn.PrepareBatch(ctx, `
+		INSERT INTO traces_raw (
+			id,
+			organization_id,
+			ingestion_key_id,
+			received_at,
+			expires_at,
+			trace_id,
+			span_id,
+			parent_span_id,
+			trace_state,
+			name,
+			kind,
+			start_time,
+			end_time,
+			duration_ns,
+			status_code,
+			status_message,
+			resource_attributes,
+			scope_attributes,
+			span_attributes,
+			resource_schema_url,
+			scope_name,
+			scope_version,
+			scope_schema_url,
+			events_json,
+			links_json,
+			service_name,
+			deployment_environment
+		)
+	`)
 	if err != nil {
 		return fmt.Errorf("clickhouse: prepare traces batch: %w", err)
 	}
@@ -126,7 +181,39 @@ func (client *Client) InsertTraces(ctx context.Context, rows []telemetry.TraceRo
 }
 
 func (client *Client) InsertMetrics(ctx context.Context, rows []telemetry.MetricRow) error {
-	batch, err := client.conn.PrepareBatch(ctx, "INSERT INTO metrics_raw")
+	batch, err := client.conn.PrepareBatch(ctx, `
+		INSERT INTO metrics_raw (
+			id,
+			organization_id,
+			ingestion_key_id,
+			received_at,
+			expires_at,
+			metric_name,
+			metric_type,
+			metric_unit,
+			description,
+			service_name,
+			deployment_environment,
+			resource_attributes,
+			scope_name,
+			scope_version,
+			attributes,
+			start_time,
+			time,
+			value_int,
+			value_double,
+			aggregation_temporality,
+			is_monotonic,
+			histogram_count,
+			histogram_sum,
+			histogram_min,
+			histogram_max,
+			histogram_bucket_counts,
+			histogram_explicit_bounds,
+			exemplars_json,
+			flags
+		)
+	`)
 	if err != nil {
 		return fmt.Errorf("clickhouse: prepare metrics batch: %w", err)
 	}

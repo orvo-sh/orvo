@@ -9,7 +9,7 @@ test:
 	$(GO) test ./...
 
 run:
-	$(GO) run .
+	set -a; [ -f .env ] && . ./.env; set +a; $(GO) run .
 
 tidy:
 	$(GO) mod tidy

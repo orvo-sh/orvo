@@ -16,12 +16,10 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
 
-	"github.com/orvo-sh/orvo/apps/ingest/internal/config"
+	"github.com/orvo-sh/orvo/apps/telemetry-writer/internal/config"
 )
 
-const SelfTelemetryHeader = "X-Orvo-Self-Telemetry"
-
-type selfTelemetryContextKey struct{}
+const selfTelemetryHeader = "X-Orvo-Self-Telemetry"
 
 func SetupOTel(ctx context.Context, appConfig config.AppConfig, otelConfig config.OtelConfig) (func(context.Context) error, error) {
 	res, err := resource.New(
@@ -37,7 +35,6 @@ func SetupOTel(ctx context.Context, appConfig config.AppConfig, otelConfig confi
 
 	traceOptions := []sdktrace.TracerProviderOption{
 		sdktrace.WithResource(res),
-		sdktrace.WithSampler(selfTelemetrySampler{delegate: sdktrace.ParentBased(sdktrace.AlwaysSample())}),
 	}
 	var loggerProvider *sdklog.LoggerProvider
 
@@ -48,7 +45,7 @@ func SetupOTel(ctx context.Context, appConfig config.AppConfig, otelConfig confi
 		if otelConfig.IngestionKey != "" {
 			traceExporterOptions = append(traceExporterOptions, otlptracehttp.WithHeaders(map[string]string{
 				"Authorization":     "Bearer " + otelConfig.IngestionKey,
-				SelfTelemetryHeader: "true",
+				selfTelemetryHeader: "true",
 			}))
 		}
 
@@ -65,7 +62,7 @@ func SetupOTel(ctx context.Context, appConfig config.AppConfig, otelConfig confi
 		if otelConfig.IngestionKey != "" {
 			logExporterOptions = append(logExporterOptions, otlploghttp.WithHeaders(map[string]string{
 				"Authorization":     "Bearer " + otelConfig.IngestionKey,
-				SelfTelemetryHeader: "true",
+				selfTelemetryHeader: "true",
 			}))
 		}
 
@@ -76,9 +73,7 @@ func SetupOTel(ctx context.Context, appConfig config.AppConfig, otelConfig confi
 
 		loggerProvider = sdklog.NewLoggerProvider(
 			sdklog.WithResource(res),
-			sdklog.WithProcessor(selfTelemetryLogProcessor{
-				Processor: sdklog.NewBatchProcessor(logExporter),
-			}),
+			sdklog.WithProcessor(sdklog.NewBatchProcessor(logExporter)),
 		)
 		global.SetLoggerProvider(loggerProvider)
 	}
@@ -97,47 +92,6 @@ func SetupOTel(ctx context.Context, appConfig config.AppConfig, otelConfig confi
 		}
 		return shutdownErr
 	}, nil
-}
-
-func WithSelfTelemetry(ctx context.Context) context.Context {
-	return context.WithValue(ctx, selfTelemetryContextKey{}, true)
-}
-
-func IsSelfTelemetry(ctx context.Context) bool {
-	value, ok := ctx.Value(selfTelemetryContextKey{}).(bool)
-	return ok && value
-}
-
-type selfTelemetrySampler struct {
-	delegate sdktrace.Sampler
-}
-
-func (sampler selfTelemetrySampler) ShouldSample(parameters sdktrace.SamplingParameters) sdktrace.SamplingResult {
-	if IsSelfTelemetry(parameters.ParentContext) {
-		return sdktrace.SamplingResult{Decision: sdktrace.Drop}
-	}
-
-	return sampler.delegate.ShouldSample(parameters)
-}
-
-func (sampler selfTelemetrySampler) Description() string {
-	return "SelfTelemetryFilter{" + sampler.delegate.Description() + "}"
-}
-
-type selfTelemetryLogProcessor struct {
-	sdklog.Processor
-}
-
-func (processor selfTelemetryLogProcessor) Enabled(ctx context.Context, parameters sdklog.EnabledParameters) bool {
-	return !IsSelfTelemetry(ctx) && processor.Processor.Enabled(ctx, parameters)
-}
-
-func (processor selfTelemetryLogProcessor) OnEmit(ctx context.Context, record *sdklog.Record) error {
-	if IsSelfTelemetry(ctx) {
-		return nil
-	}
-
-	return processor.Processor.OnEmit(ctx, record)
 }
 
 func otlpURL(baseURL string, path string) string {

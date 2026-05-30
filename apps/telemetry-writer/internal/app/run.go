@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/orvo-sh/orvo/apps/telemetry-writer/internal/config"
 	"github.com/orvo-sh/orvo/apps/telemetry-writer/internal/entitlements"
@@ -19,7 +20,22 @@ func Run(ctx context.Context) error {
 		return err
 	}
 
-	logger := observability.NewLogger(cfg.App.Environment)
+	logger := observability.NewLogger(observability.LoggerConfig{
+		ServiceName: config.ServiceName,
+		Environment: cfg.App.Environment,
+	})
+
+	shutdownOtel, err := observability.SetupOTel(ctx, cfg.App, cfg.Otel)
+	if err != nil {
+		return logAndError(logger, "main: failed to initialize OpenTelemetry", err)
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if shutdownErr := shutdownOtel(shutdownCtx); shutdownErr != nil {
+			logger.Warn("main: failed to shutdown OpenTelemetry", slog.Any("error", shutdownErr))
+		}
+	}()
 
 	postgresDB, err := pgstorage.New(ctx, cfg.Postgres)
 	if err != nil {

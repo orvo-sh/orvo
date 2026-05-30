@@ -31,11 +31,17 @@ const (
 )
 
 type Config struct {
-	App      AppConfig      `envPrefix:"APP_"`
+	App      AppConfig `envPrefix:"APP_"`
+	Orvo     OrvoConfig
 	Postgres PostgresConfig `envPrefix:"POSTGRES_"`
 	Nats     NatsConfig     `envPrefix:"NATS_"`
 	Otel     OtelConfig     `envPrefix:"OTEL_"`
 	Ingest   IngestConfig   `envPrefix:"INGEST_"`
+}
+
+type OrvoConfig struct {
+	OTLPBaseURL         string `env:"ORVO_OTLP_BASE_URL"`
+	PrivateIngestionKey string `env:"ORVO_PRIVATE_INGESTION_KEY"`
 }
 
 type AppConfig struct {
@@ -80,6 +86,12 @@ func Load() (*Config, error) {
 func (cfg *Config) applyDefaults() {
 	if cfg.App.Environment == "" {
 		cfg.App.Environment = DefaultEnvironment
+	}
+	if cfg.Otel.Endpoint == "" {
+		cfg.Otel.Endpoint = cfg.Orvo.OTLPBaseURL
+	}
+	if cfg.Otel.IngestionKey == "" {
+		cfg.Otel.IngestionKey = cfg.Orvo.PrivateIngestionKey
 	}
 	if cfg.Nats.URL == "" {
 		cfg.Nats.URL = DefaultNATSURL

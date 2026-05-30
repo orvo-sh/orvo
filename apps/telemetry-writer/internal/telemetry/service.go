@@ -11,6 +11,9 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/orvo-sh/orvo/apps/telemetry-writer/internal/config"
 	"github.com/orvo-sh/orvo/apps/telemetry-writer/internal/entitlements"
@@ -267,7 +270,17 @@ func flushBatch[T any](ctx context.Context, batch *messageBatch[T], logger *slog
 		return
 	}
 
+	ctx, span := otel.Tracer(config.ServiceName).Start(ctx, "TelemetryWriter.FlushBatch")
+	span.SetAttributes(
+		attribute.String("telemetry.signal", signal),
+		attribute.Int("telemetry.row_count", len(batch.rows)),
+		attribute.Int("messaging.message_count", len(batch.msgs)),
+	)
+	defer span.End()
+
 	if err := insert(ctx, batch.rows); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		logger.Error("FlushBatch: failed to insert batch",
 			slog.String("signal", signal),
 			slog.Int("row_count", len(batch.rows)),
@@ -275,6 +288,7 @@ func flushBatch[T any](ctx context.Context, batch *messageBatch[T], logger *slog
 		)
 		for _, msg := range batch.msgs {
 			if nakErr := msg.Nak(); nakErr != nil {
+				span.RecordError(nakErr)
 				logger.Error("FlushBatch: failed to nak message", slog.Any("error", nakErr))
 			}
 		}
@@ -284,9 +298,12 @@ func flushBatch[T any](ctx context.Context, batch *messageBatch[T], logger *slog
 
 	for _, msg := range batch.msgs {
 		if err := msg.Ack(); err != nil {
+			span.RecordError(err)
 			logger.Error("FlushBatch: failed to ack message", slog.Any("error", err))
 		}
 	}
+
+	span.SetStatus(codes.Ok, "")
 
 	logger.Info("FlushBatch: wrote telemetry rows",
 		slog.String("signal", signal),

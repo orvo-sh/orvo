@@ -15,6 +15,7 @@ import { register } from 'node:module';
 const baseUrl = process.env.ORVO_OTLP_BASE_URL;
 const ingestionKey = process.env.ORVO_PRIVATE_INGESTION_KEY;
 const environment = process.env.NODE_ENV ?? 'development';
+const selfTelemetryHeader = 'X-Orvo-Self-Telemetry';
 
 if (baseUrl && ingestionKey) {
 	const { registerOptions } = createAddHookMessageChannel();
@@ -34,7 +35,8 @@ if (baseUrl && ingestionKey) {
 		traceExporter: new OTLPTraceExporter({
 			url: new URL('/v1/traces', baseUrl).toString(),
 			headers: {
-				Authorization: `Bearer ${ingestionKey}`
+				Authorization: `Bearer ${ingestionKey}`,
+				[selfTelemetryHeader]: 'true'
 			}
 		}),
 		instrumentations: [getNodeAutoInstrumentations()]
@@ -49,7 +51,8 @@ if (baseUrl && ingestionKey) {
 				new OTLPLogExporter({
 					url: new URL('/v1/logs', baseUrl).toString(),
 					headers: {
-						Authorization: `Bearer ${ingestionKey}`
+						Authorization: `Bearer ${ingestionKey}`,
+						[selfTelemetryHeader]: 'true'
 					}
 				}),
 				{

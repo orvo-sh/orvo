@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/orvo-sh/orvo/apps/telemetry-writer/internal/config"
@@ -14,7 +15,13 @@ type Client struct {
 }
 
 func New(ctx context.Context, cfg config.PostgresConfig) (*Client, error) {
-	pool, err := pgxpool.New(ctx, cfg.URL)
+	poolConfig, err := pgxpool.ParseConfig(cfg.URL)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: parse config: %w", err)
+	}
+	poolConfig.ConnConfig.Tracer = otelpgx.NewTracer()
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return nil, fmt.Errorf("postgres: create pool: %w", err)
 	}

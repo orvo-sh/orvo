@@ -14,6 +14,7 @@ const otlpBaseUrl = process.env.ORVO_OTLP_BASE_URL;
 const privateIngestionKey = process.env.ORVO_PRIVATE_INGESTION_KEY;
 const deploymentEnvironment = process.env.NODE_ENV ?? 'development';
 const shouldShipServerLogs = Boolean(otlpBaseUrl && privateIngestionKey);
+const selfTelemetryHeader = 'X-Orvo-Self-Telemetry';
 
 const resourceAttributes = [
 	{ key: 'service.name', value: { stringValue: 'orvo-app-server' } },
@@ -116,7 +117,8 @@ const flushServerLogs = async () => {
 			method: 'POST',
 			headers: {
 				Authorization: `Bearer ${privateIngestionKey}`,
-				'Content-Type': 'application/json'
+				'Content-Type': 'application/json',
+				[selfTelemetryHeader]: 'true'
 			},
 			body: JSON.stringify(payload)
 		});
