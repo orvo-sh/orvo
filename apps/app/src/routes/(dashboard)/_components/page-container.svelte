@@ -1,9 +1,9 @@
 <script lang="ts">
-    import { IconInfoCircle as InfoIcon } from "@tabler/icons-svelte";
     import { cn } from "@repo/components";
     import { buttonVariants } from "@repo/components/ui/button";
     import * as HoverCard from "@repo/components/ui/hover-card";
     import * as Sidebar from "@repo/components/ui/sidebar";
+    import { IconInfoCircle } from "@tabler/icons-svelte";
     import type { Snippet } from "svelte";
 
   let {
@@ -12,7 +12,8 @@
     actions,
     children,
     class: className = "",
-    innerClass
+    innerClass,
+    scrollContent = true
   }: {
     title: string;
     helper?: Snippet;
@@ -20,14 +21,15 @@
     children?: Snippet;
     class?: string;
     innerClass?: string;
+    scrollContent?: boolean;
   } = $props();
 </script>
 
 <div
-  class={cn(`flex min-h-0 flex-1 flex-col overflow-hidden bg-background`,className)}
+  class={cn(`flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background`,className)}
 >
   <header
-    class="sticky h-14 top-0 z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border/90 bg-background/95 px-4 py-3 "
+    class="sticky h-13 top-0 z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border/90 bg-background/95 p-2 px-3"
   >
     <div class="flex min-w-0 items-center gap-2">
       <div class="md:hidden">
@@ -35,7 +37,7 @@
       </div>
 
       <div class="flex min-w-0 items-center gap-0.5">
-        <h1 class="text-base font-medium tracking-tight text-foreground">
+        <h1 class="text-sm font-medium tracking-tight text-foreground">
           {title}
         </h1>
         {#if helper}
@@ -47,7 +49,7 @@
                 size: "icon-sm",
               })}
             >
-              <InfoIcon />
+              <IconInfoCircle class="opacity-75"/>
               <span class="sr-only">Page information</span>
             </HoverCard.Trigger>
             <HoverCard.Content
@@ -69,7 +71,11 @@
   </header>
 
   <div
-    class={cn("flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 md:px-6 md:py-5", innerClass)}
+    class={cn(
+      "flex min-h-0 flex-1 flex-col px-4 py-4 md:px-6 md:py-5",
+      scrollContent ? "overflow-y-auto" : "overflow-hidden",
+      innerClass
+    )}
   >
     {@render children?.()}
   </div>

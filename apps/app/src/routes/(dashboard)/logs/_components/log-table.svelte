@@ -1,11 +1,11 @@
 <script lang="ts">
-	import {
-		IconCheck as CheckIcon,
-		IconColumns3 as ColumnsIcon,
-		IconDatabase as DatabaseIcon,
-		IconRefresh as ArrowsClockwiseIcon
-	} from "@tabler/icons-svelte";
 	import * as DropdownMenu from '@repo/components/ui/dropdown-menu';
+	import {
+	    IconRefresh as ArrowsClockwiseIcon,
+	    IconCheck as CheckIcon,
+	    IconColumns3 as ColumnsIcon,
+	    IconDatabase as DatabaseIcon
+	} from "@tabler/icons-svelte";
 	import type { LogFilters, LogRecord } from '../types';
 	import LogRow from './log-row.svelte';
 
@@ -84,7 +84,7 @@
 	const tz = $derived(timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
 </script>
 
-<div class="flex flex-1 min-h-0 flex-col overflow-hidden">
+<div class="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
 	<!-- Table header -->
 	<div
 		class="flex items-center gap-0 border-b bg-muted/30 px-3 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide shrink-0"
@@ -132,7 +132,7 @@
 	</div>
 
 	<!-- Log rows -->
-	<div class="flex-1 overflow-y-auto" role="rowgroup">
+	<div class="min-h-0 flex-1 overflow-y-auto" role="rowgroup">
 		{#if loading}
 			<div class="flex flex-col items-center justify-center h-48 gap-3 text-muted-foreground">
 				<ArrowsClockwiseIcon class="size-5 animate-spin" />

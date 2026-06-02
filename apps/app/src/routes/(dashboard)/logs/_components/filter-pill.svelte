@@ -1,13 +1,16 @@
 <script lang="ts">
-	import {
-		IconCheck as CheckIcon,
-		IconChevronDown as CaretDownIcon,
-		IconX as XIcon
-	} from "@tabler/icons-svelte";
+	import { cn } from "@repo/components";
+	import { Button, buttonVariants } from "@repo/components/ui/button";
+	import * as ButtonGroup from "@repo/components/ui/button-group";
 	import { Input } from '@repo/components/ui/input';
 	import * as Popover from '@repo/components/ui/popover';
-	// `icon` is a renderable snippet passed from callers; keep flexible to avoid
-	// importing a non-existent `Snippet` type from `svelte`.
+	import {
+	    IconChevronDown as CaretDownIcon,
+	    IconCheck as CheckIcon,
+	    IconCircleX,
+	    IconSearch,
+	    IconX
+	} from "@tabler/icons-svelte";
 
 	let {
 		label,
@@ -19,7 +22,7 @@
 		label: string;
 		icon?: any;
 		values?: string[];
-		options: { value: string; label: string; color?: string }[];
+		options: { value: string; label: string; }[];
 		placeholder?: string;
 	} = $props();
 
@@ -30,71 +33,52 @@
 		options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
 	);
 
-	const hasSelection = $derived(values.length > 0);
-	const clearLabel = $derived(`Clear ${label} filter`);
-
-	function toggle(value: string) {
+	const toggle = (value: string)=> {
 		if (values.includes(value)) {
 			values = values.filter((v) => v !== value);
 		} else {
 			values = [...values, value];
 		}
 	}
-
-	function clear(e: MouseEvent) {
-		e.stopPropagation();
-		values = [];
-	}
 </script>
 
+<ButtonGroup.Root>
 <Popover.Root bind:open>
-	<Popover.Trigger>
-		{#snippet child({ props })}
-			<div
-				{...props}
-				class="inline-flex h-8 items-center gap-1 rounded-md border border-dashed px-2.5 text-sm
-					transition-colors hover:bg-muted/60
-					{hasSelection
-					? 'border-primary/40 bg-primary/5 text-foreground'
-					: 'border-border text-muted-foreground hover:text-foreground'}"
-			>
+	<Popover.Trigger class={buttonVariants({size:"sm", class:cn("items-center pr-1.5 h-6 shadow-none gap-1 border-dashed", values.length > 0 && "border-solid"), variant:"outline"})}>
 				{#if icon}
 					<span class="size-3.5">{@render icon()}</span>
 				{/if}
-				<span class="font-medium">{label}</span>
-				{#if hasSelection}
+				<span class="font-medium text-sm">{label}</span>
+				{#if values.length > 0 }
 					<span
-						class="ml-0.5 rounded bg-primary/15 px-1 py-px text-[10px] font-semibold text-primary leading-none"
+						class="rounded bg-primary/15 px-1 py-px mr-0.5 text-[10px] ml-1 font-semibold text-primary leading-none"
 					>
 						{values.length}
 					</span>
-					<button
-						type="button"
-						class="ml-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-						onclick={clear}
-						aria-label={clearLabel}
-					>
-						<XIcon class="size-3" />
-					</button>
-				{:else}
-					<CaretDownIcon class="size-3 ml-0.5" />
+				
 				{/if}
-			</div>
-		{/snippet}
+				{#if values.length == 0}
+				<CaretDownIcon class="size-3.5" />
+				{/if}
 	</Popover.Trigger>
 
-	<Popover.Content class="w-52 p-0 overflow-hidden" align="start">
-		<!-- Search -->
-		<div class="border-b px-2 py-2">
+	<Popover.Content class="w-52 p-0 gap-0 overflow-hidden" align="start">
+		<div class="border-b px-2 py-1 relative flex items-center">
+			<IconSearch
+			class="absolute left-2.5 size-3.5 text-muted-foreground pointer-events-none"
+		/>
 			<Input
 				{placeholder}
 				bind:value={search}
-				class="h-7 text-xs bg-transparent border-0 shadow-none focus-visible:ring-0 px-1"
+				class="h-7 text-xs pl-6 bg-transparent border-0 shadow-none focus-visible:ring-0"
 			/>
+			{#if search}
+			<Button class="size-6 opacity-80" size="icon-sm" variant="ghost" onclick={()=>{search = ""}}>
+				<IconCircleX />
+			</Button>
+			{/if}
 		</div>
-
-		<!-- Options -->
-		<div class="max-h-52 overflow-y-auto py-1">
+		<div class="max-h-52 overflow-y-auto">
 			{#each filtered as option}
 				{@const selected = values.includes(option.value)}
 				<button
@@ -103,34 +87,27 @@
 					onclick={() => toggle(option.value)}
 				>
 					<span
-						class="flex size-4 shrink-0 items-center justify-center rounded border border-border transition-colors
-						{selected ? 'bg-primary border-primary text-primary-foreground' : ''}"
+						class="flex size-4 shrink-0 items-center justify-center"
+					
 					>
 						{#if selected}
-							<CheckIcon class="size-2.5" />
+							<CheckIcon class="size-3" />
 						{/if}
 					</span>
-					{#if option.color}
-						<span class="size-2 rounded-full shrink-0" style="background: {option.color}"></span>
-					{/if}
 					<span class="text-foreground truncate">{option.label}</span>
 				</button>
 			{/each}
 			{#if filtered.length === 0}
-				<p class="px-3 py-2 text-xs text-muted-foreground">No results</p>
+				<p class="pl-9 py-2 text-sm text-muted-foreground">No results.</p>
 			{/if}
 		</div>
-
-		{#if hasSelection}
-			<div class="border-t px-2 py-1.5">
-				<button
-					type="button"
-					class="w-full text-xs text-muted-foreground hover:text-foreground text-center transition-colors"
-					onclick={() => (values = [])}
-				>
-					Clear selection
-				</button>
-			</div>
-		{/if}
 	</Popover.Content>
 </Popover.Root>
+{#if values.length}
+<Button class="h-6" size="icon-sm" variant="outline" onclick={()=>{
+	values = [];
+}}>
+	<IconX class="size-3" />
+</Button>
+{/if}
+</ButtonGroup.Root>

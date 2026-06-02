@@ -22,13 +22,13 @@
   });
 </script>
 
-<Sidebar.Provider>
+<Sidebar.Provider class="h-dvh max-h-dvh overflow-hidden">
   <AppSidebar
     activeOrganizationId={data.activeOrganizationId}
     organizations={data.organizations}
     user={data.user}
   />
-  <Sidebar.Inset class="min-h-svh overflow-hidden">
+  <Sidebar.Inset class="h-full min-h-0 overflow-hidden">
     {@render children()}
   </Sidebar.Inset>
 </Sidebar.Provider>

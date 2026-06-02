@@ -1,3 +1,36 @@
+type LogTimePreset =
+	| 'last_hour'
+	| 'today'
+	| 'last_24_hours'
+	| 'last_3_days'
+	| 'last_7_days'
+	| 'last_2_weeks'
+	| 'last_month';
+
+type LogTime =
+	| {
+		kind: 'preset';
+		preset: LogTimePreset;
+	}
+	| {
+		kind: 'range';
+		start: Date;
+		end: Date;
+	};
+
+type LogTimeFilter =
+	| {
+		kind: 'preset';
+		preset: LogTimePreset;
+	}
+	| {
+		kind: 'range';
+		startAtUtc: string;
+		endAtUtc: string;
+	};
+
+export type { LogTime, LogTimeFilter, LogTimePreset };
+
 export type LogRecord = {
 	id?: string;
 	organization_id?: string;

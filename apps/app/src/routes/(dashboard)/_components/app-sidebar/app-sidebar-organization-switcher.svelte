@@ -1,10 +1,10 @@
 <script lang="ts">
   import { authClient } from "$lib/auth-client";
-  import { IconSelector as CaretUpDownIcon } from "@tabler/icons-svelte";
   import * as Avatar from "@repo/components/ui/avatar";
   import { Badge } from "@repo/components/ui/badge";
   import { buttonVariants } from "@repo/components/ui/button";
   import * as Popover from "@repo/components/ui/popover";
+  import { IconSelector as CaretUpDownIcon } from "@tabler/icons-svelte";
 
   type Organization = {
     id: string;
@@ -73,7 +73,7 @@
 
 {#if selectedOrganization}
   <Popover.Root bind:open>
-    <Popover.Trigger class={buttonVariants({ variant: "ghost", class:"w-full justify-between px-1.5" })}>
+    <Popover.Trigger class={buttonVariants({ variant: "ghost", class:"w-full justify-between px-1.5 shadow-none" })}>
       <span class="flex min-w-0 items-center gap-2">
         <Avatar.Root size="xs" class="after:rounded-xs -translate-x-px">
           <Avatar.Image class="rounded-xs!" 

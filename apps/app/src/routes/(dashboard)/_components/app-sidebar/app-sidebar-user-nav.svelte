@@ -1,13 +1,13 @@
 <script lang="ts">
   import { authClient } from "$lib/auth-client";
-  import {
-    IconCreditCard as CreditCardIcon,
-    IconLogout2 as SignOutIcon,
-    IconSettings as GearIcon
-  } from "@tabler/icons-svelte";
   import * as Avatar from "@repo/components/ui/avatar";
   import * as DropdownMenu from "@repo/components/ui/dropdown-menu";
   import * as Sidebar from "@repo/components/ui/sidebar";
+  import {
+      IconCreditCard as CreditCardIcon,
+      IconSettings as GearIcon,
+      IconLogout2 as SignOutIcon
+  } from "@tabler/icons-svelte";
 
   let {
     user,
@@ -46,7 +46,7 @@
     {...props}
   >
     
-      <Avatar.Root size="xs" class="after:rounded-xs -translate-x-px">
+      <Avatar.Root size="xs" class="after:rounded-xs -translate-x-0.5">
           <Avatar.Image class="rounded-xs!" src={user.image ?? undefined} alt={user.name} />
           <Avatar.Fallback class="text-[0.7rem] rounded-xs!" id={user.id}>{getInitials(user.name)}</Avatar.Fallback>
         </Avatar.Root>

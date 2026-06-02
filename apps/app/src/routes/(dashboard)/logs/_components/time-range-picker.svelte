@@ -1,227 +1,215 @@
 <script lang="ts">
 	import {
-	    CalendarDate,
-	    type DateValue,
+	    fromDate,
 	    getLocalTimeZone,
-	    today
+	    today,
+
+	    type DateValue
 	} from '@internationalized/date';
-	import { Button } from '@repo/components/ui/button';
+	import { Button, buttonVariants } from '@repo/components/ui/button';
 	import { Input } from '@repo/components/ui/input';
 	import { Label } from '@repo/components/ui/label';
 	import * as Popover from '@repo/components/ui/popover';
 	import * as RangeCalendar from '@repo/components/ui/range-calendar';
+	import { toast } from '@repo/components/ui/sonner';
 	import {
-		IconCalendar as CalendarBlankIcon,
-		IconChevronDown as CaretDownIcon,
-		IconX as XIcon
+	    IconChevronDown as CaretDownIcon,
+	    IconCalendarWeek,
+	    IconChevronRight
 	} from "@tabler/icons-svelte";
+	import type { LogTimeFilter, LogTimePreset } from '../types';
 
-	type Preset = {
-		label: string;
-		resolve: () => { start: Date; end: Date };
-	};
-
-	type DateRange = {
-		start: DateValue | undefined;
-		end: DateValue | undefined;
-	};
-
-	const PRESETS: Preset[] = [
-		{ label: 'Last hour', resolve: () => ({ start: relative(-60), end: new Date() }) },
-		{ label: 'Today', resolve: () => ({ start: startOf('day'), end: new Date() }) },
-		{ label: 'Last 24 hours', resolve: () => ({ start: relative(-60 * 24), end: new Date() }) },
-		{ label: 'Last 3 days', resolve: () => ({ start: relative(-60 * 24 * 3), end: new Date() }) },
-		{
-			label: 'Last 7 days',
-			resolve: () => ({ start: relative(-60 * 24 * 7), end: new Date() })
-		},
-		{
-			label: 'Last 2 weeks',
-			resolve: () => ({ start: relative(-60 * 24 * 14), end: new Date() })
-		},
-		{
-			label: 'Last month',
-			resolve: () => ({ start: relative(-60 * 24 * 30), end: new Date() })
-		}
-	];
-
-	function relative(minutes: number): Date {
-		return new Date(Date.now() + minutes * 60 * 1000);
-	}
-
-	function startOf(unit: 'day'): Date {
-		const d = new Date();
-		d.setHours(0, 0, 0, 0);
-		return d;
-	}
-
-	function toCalendarDate(d: Date): CalendarDate {
-		return new CalendarDate(d.getFullYear(), d.getMonth() + 1, d.getDate());
-	}
-
-	function formatTime(d: Date): string {
-		return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
-	}
-
-	function formatLabel(start: Date, end: Date): string {
-		const fmt = (d: Date) =>
-			d.toLocaleString('en-US', {
-				month: 'short',
-				day: 'numeric',
-				year: '2-digit',
-				hour: 'numeric',
-				minute: '2-digit',
-				hour12: true
-			});
-		return `${fmt(start)} → ${fmt(end)}`;
-	}
-
-	function applyDateRange(range: DateRange, startTime: string, endTime: string): { start: Date; end: Date } | null {
-		if (!range.start || !range.end) return null;
-
-		const tz = getLocalTimeZone();
-		const startDate = range.start.toDate(tz);
-		const endDate = range.end.toDate(tz);
-
-		const [sh, sm, ss] = startTime.split(':').map(Number);
-		const [eh, em, es] = endTime.split(':').map(Number);
-
-		startDate.setHours(sh ?? 0, sm ?? 0, ss ?? 0, 0);
-		endDate.setHours(eh ?? 23, em ?? 59, es ?? 59, 999);
-
-		return { start: startDate, end: endDate };
-	}
+	const PRESET_OPTIONS = [
+		{ value: 'last_hour', label: 'Last hour' },
+		{ value: 'today', label: 'Today' },
+		{ value: 'last_24_hours', label: 'Last 24 hours' },
+		{ value: 'last_3_days', label: 'Last 3 days' },
+		{ value: 'last_7_days', label: 'Last 7 days' },
+		{ value: 'last_2_weeks', label: 'Last 2 weeks' },
+		{ value: 'last_month', label: 'Last month' }
+	] satisfies { value: LogTimePreset; label: string }[];
 
 	let {
-		start = $bindable<Date>(),
-		end = $bindable<Date>()
+		time = $bindable(),
 	}: {
-		start?: Date;
-		end?: Date;
+		time?: LogTimeFilter;
 	} = $props();
 
-	const defaultEnd = new Date();
-	const defaultStart = relative(-60 * 10);
+	let internalTime = $state<LogTimeFilter | undefined>(time);
+	let clockTime = $state<{
+		start: string;
+		end: string;
+	}>({ start: '00:00:00', end: '23:59:59' });
+	let calendarRange = $state<{
+    	start: DateValue | undefined;
+    	end: DateValue | undefined;
+	}>({start: undefined, end: undefined});
+
 
 	let open = $state(false);
 
-	let calRange = $state<DateRange>({
-		start: toCalendarDate(start ?? defaultStart),
-		end: toCalendarDate(end ?? defaultEnd)
-	});
-	let startTime = $state(formatTime(start ?? defaultStart));
-	let endTime = $state(formatTime(end ?? defaultEnd));
-	let activePreset = $state<string | null>('Last hour');
+	const isValidDate = (date: Date) => !Number.isNaN(date.getTime());
 
-	const label = $derived(formatLabel(start ?? defaultStart, end ?? defaultEnd));
+	const applyClockTime = (dateValue: DateValue, timeValue: string) => {
+		const date = dateValue.toDate(getLocalTimeZone());
+		const [hours = 0, minutes = 0, seconds = 0] = timeValue.split(':').map(Number);
+		date.setHours(hours, minutes, seconds, 0);
+		return date;
+	};
 
-	function applyPreset(preset: Preset) {
-		const { start: s, end: e } = preset.resolve();
-		calRange = { start: toCalendarDate(s), end: toCalendarDate(e) };
-		startTime = formatTime(s);
-		endTime = formatTime(e);
-		activePreset = preset.label;
-	}
+	const apply = () => {
+		if (internalTime?.kind === 'preset') {
+			time = internalTime;
+		} else if (calendarRange.start && calendarRange.end) {
+			const start = applyClockTime(calendarRange.start, clockTime.start);
+			const end = applyClockTime(calendarRange.end, clockTime.end);
 
-	function apply() {
-		const result = applyDateRange(calRange, startTime, endTime);
-		if (!result) return;
-		start = result.start;
-		end = result.end;
+			if (start >= end) {
+				toast.error('Start date and time must be earlier than end date and time.');
+				return;
+			}
+
+			time = {
+				kind: 'range',
+				startAtUtc: start.toISOString(),
+				endAtUtc: end.toISOString()
+			};
+		}
 		open = false;
-	}
+	};
 
-	function reset() {
-		applyPreset(PRESETS[0]);
-		const { start: s, end: e } = PRESETS[0].resolve();
-		start = s;
-		end = e;
-		open = false;
-	}
+	$effect(()=>{
+		if (!open) {
+			if (time?.kind === 'preset') {
+				internalTime = time;
+				calendarRange = { start: undefined, end: undefined };
+			} else if (time?.kind === 'range') {
+				const start = new Date(time.startAtUtc);
+				const end = new Date(time.endAtUtc);
 
-	$effect(() => {
-		if (!open) return;
-		calRange = {
-			start: toCalendarDate(start ?? defaultStart),
-			end: toCalendarDate(end ?? defaultEnd)
-		};
-		startTime = formatTime(start ?? defaultStart);
-		endTime = formatTime(end ?? defaultEnd);
-	});
+				internalTime = time;
+				if (isValidDate(start) && isValidDate(end)) {
+					calendarRange = {
+						start: fromDate(start, getLocalTimeZone()),
+						end: fromDate(end, getLocalTimeZone())
+					};
+					clockTime.start = start.toLocaleTimeString('en-GB', { hour12: false });
+					clockTime.end = end.toLocaleTimeString('en-GB', { hour12: false });
+				} else {
+					calendarRange = { start: undefined, end: undefined };
+					clockTime = { start: '00:00:00', end: '23:59:59' };
+				}
+			} else {
+				internalTime = undefined;
+				calendarRange = { start: undefined, end: undefined };
+				clockTime = { start: '00:00:00', end: '23:59:59' };
+			}
+		}
+	})
 </script>
 
 <Popover.Root bind:open>
-	<Popover.Trigger>
-		{#snippet child({ props })}
-			<Button variant="outline" class="gap-1.5 font-normal text-sm h-8 px-3" {...props}>
-				<CalendarBlankIcon class="size-3.5 text-muted-foreground" />
-				<span class="text-foreground">{label}</span>
-				<CaretDownIcon class="size-3 text-muted-foreground ml-0.5" />
-			</Button>
-		{/snippet}
+	<Popover.Trigger class={buttonVariants({variant:"outline",})}>
+		<IconCalendarWeek />
+		{@const t = (()=>{
+			if (time?.kind === 'preset') {
+				const p = time.preset
+				return PRESET_OPTIONS.find((option) => option.value === p)?.label ?? 'Last hour'
+			};
+		
+			const fmt = (d: Date) =>
+				d.toLocaleString('en-US', {
+					month: 'short',
+					day: 'numeric',
+					year: '2-digit',
+					hour: 'numeric',
+					minute: '2-digit',
+					hour12: true
+				});
+			const start = time ? new Date(time.startAtUtc) : null;
+			const end = time ? new Date(time.endAtUtc) : null;
+			if (!start || !end || !isValidDate(start) || !isValidDate(end)) {
+				return 'Last hour';
+			}
+			return {start:fmt(start), end: fmt(end)}
+		})()}
+		<span class="text-foreground flex items-center gap-1.5">
+			{#if typeof t == "string"}
+				{t}
+			{:else}
+				{t.start} <IconChevronRight class="size-3 text-muted-foreground"/> {t.end}
+			{/if}
+			</span>
+		<CaretDownIcon class="size-3 text-muted-foreground ml-0.5" />		
 	</Popover.Trigger>
 
 	<Popover.Content class="w-auto p-0 overflow-hidden" align="start">
 		<div class="flex">
-			<!-- Preset sidebar -->
-			<div class="flex flex-col gap-0.5 border-r px-2 py-3 min-w-36">
-				{#each PRESETS as preset}
-					<button
-						class="text-left text-sm px-2.5 py-1.5 rounded-md transition-colors
-							{activePreset === preset.label
-							? 'bg-muted text-foreground font-medium'
-							: 'text-muted-foreground hover:text-foreground hover:bg-muted/60'}"
-						onclick={() => applyPreset(preset)}
+			<div class="flex flex-col gap-0.5 border-r p-2 min-w-36">
+				{#each PRESET_OPTIONS as preset}
+					<Button
+						variant="ghost"
+						onclick={() => {
+							internalTime = { kind: 'preset', preset: preset.value };
+							calendarRange = { start: undefined, end: undefined };
+						}}
+						class="text-left justify-start
+							{internalTime?.kind === 'preset' && internalTime.preset === preset.value
+							? 'bg-muted text-foreground'
+							: 'text-muted-foreground hover:text-foreground hover:bg-muted'}"
 					>
 						{preset.label}
-					</button>
+					</Button>
 				{/each}
 			</div>
 
-			<!-- Calendar -->
 			<div class="flex flex-col">
 				<RangeCalendar.RangeCalendar
-					bind:value={calRange}
 					numberOfMonths={2}
 					maxValue={today(getLocalTimeZone())}
+					bind:value={calendarRange}
 					weekdayFormat="short"
 					class="p-3"
-					onValueChange={() => (activePreset = null)}
+					onValueChange={(e) => {
+						if (e.start && e.end)  
+						internalTime = {
+							kind: 'range',
+							startAtUtc: e.start.toDate(getLocalTimeZone()).toISOString(),
+							endAtUtc: e.end.toDate(getLocalTimeZone()).toISOString()
+						};
+					}}
 				/>
 
-				<!-- Time inputs + actions -->
-				<div class="border-t px-4 py-3 flex items-center justify-between gap-4">
-					<div class="flex items-center gap-3">
-						<div class="flex items-center gap-1.5">
-							<Label class="text-xs text-muted-foreground shrink-0">Start time</Label>
+				<div class="border-t p-3 pt-4 flex flex-col items-center justify-between gap-4">
+					<div class="flex items-center gap-3 w-full">
+						<div class="flex flex-col w-full gap-1.5">
+							<Label class="ml-1 text-secondary-foreground" >Start</Label>
 							<Input
 								type="time"
+								class="w-full"
 								step="1"
-								bind:value={startTime}
-								class="h-7 text-xs w-28 text-center [&::-webkit-calendar-picker-indicator]:hidden appearance-none"
+								bind:value={clockTime.start}
 							/>
 						</div>
-						<span class="text-muted-foreground text-xs">→</span>
-						<div class="flex items-center gap-1.5">
-							<Label class="text-xs text-muted-foreground shrink-0">End time</Label>
+						<span class="text-muted-foreground text-xs h-full items-center flex mt-5">
+							<IconChevronRight class="size-3" />
+						</span>
+						<div class="flex flex-col w-full gap-1.5">
+							<Label class="ml-1 text-secondary-foreground" >End</Label>
 							<Input
 								type="time"
+								class="w-full"
 								step="1"
-								bind:value={endTime}
-								class="h-7 text-xs w-28 text-center [&::-webkit-calendar-picker-indicator]:hidden appearance-none"
+								bind:value={clockTime.end}
 							/>
 						</div>
 					</div>
 
-					<div class="flex items-center gap-2">
-						<button
-							class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-							onclick={reset}
-						>
-							<XIcon class="size-3" />
-							Reset dates
-						</button>
-						<Button size="sm" class="h-7 text-xs px-3" onclick={apply}>Apply</Button>
+					<div class="flex justify-end gap-2 w-full">
+						<Button variant="outline" onclick={()=>{open=false}}>
+							Close
+						</Button>
+						<Button onclick={apply} >Apply</Button>
 					</div>
 				</div>
 			</div>
