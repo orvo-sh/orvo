@@ -1,7 +1,7 @@
-import type { Logger } from '$lib/server/observability/logger';
 import type { ClickHouseClient } from '@repo/clickhouse';
+import type { Logger } from '@repo/logger';
+import { err, ok } from '@repo/utils';
 import { z } from 'zod';
-import { err, ok } from '../../utils/result';
 
 class LogsService {
 	private logger: Logger;

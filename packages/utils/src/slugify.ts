@@ -1,4 +1,4 @@
-export const slugify = (value: string) =>
+const slugify = (value: string) =>
 	value
 		.toLowerCase()
 		.trim()
@@ -6,3 +6,5 @@ export const slugify = (value: string) =>
 		.replace(/^-+|-+$/g, '')
 		.slice(0, 32)
 		.replace(/-+$/g, '');
+
+export { slugify };

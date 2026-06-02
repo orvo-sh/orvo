@@ -1,13 +1,13 @@
 import { building } from '$app/environment';
 import { createServerContainer } from '$lib/server/container';
-import { Logger } from '$lib/server/observability/logger';
-import { genId } from '$lib/utils/gen-id';
-import type { Handle } from '@sveltejs/kit';
+import { loggerProvider } from './instrumentation.server';
+import { Logger } from '@repo/logger';
+import { genId } from '@repo/utils';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 
-const baseLogger = new Logger('Orvo', { pretty: !building });
+const baseLogger = new Logger('Orvo', { pretty: !building, loggerProvider });
 
-const handleBetterAuth: Handle = async ({ event, resolve }) => {
+export const handle = async ({ event, resolve }) => {
 	const startTime = Date.now();
 	const requestId = genId('req');
 	const logger = baseLogger.child('Orvo', {
@@ -42,5 +42,3 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 
 	return response;
 };
-
-export const handle: Handle = handleBetterAuth;

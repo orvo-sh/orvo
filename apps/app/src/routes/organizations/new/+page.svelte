@@ -4,9 +4,9 @@
   import { OrvoLogo } from '@repo/components/icons/orvo-logo';
   import { Input } from '@repo/components/ui/input';
 
+  import { slugify } from '@repo/utils';
   import { authClient } from '$lib/auth-client';
   import { isValidOrganizationSlug } from '$lib/organization-slug';
-  import { slugify } from '$lib/slugify';
   import { onDestroy } from 'svelte';
 
   let name = $state('');

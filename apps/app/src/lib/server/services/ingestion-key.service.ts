@@ -1,9 +1,8 @@
-import type { Logger } from '$lib/server/observability/logger';
-import { genId } from '$lib/utils/gen-id';
 import { and, desc, eq, isNull, type DB } from '@repo/db';
 import { ingestionKey } from '@repo/db/schema';
+import type { Logger } from '@repo/logger';
+import { err, genId, ok } from '@repo/utils';
 import { z } from 'zod';
-import { err, ok } from '../../utils/result';
 
 class IngestionKeyService {
 	private logger: Logger;

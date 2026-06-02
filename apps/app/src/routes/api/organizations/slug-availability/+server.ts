@@ -1,10 +1,10 @@
 import { env } from '$env/dynamic/private';
 import { eq, getDb } from '@repo/db';
+import { slugify } from '@repo/utils';
 import * as dbSchema from '@repo/db/schema';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { isValidOrganizationSlug } from '$lib/organization-slug';
-import { slugify } from '$lib/slugify';
 
 export const GET = (async ({ url }) => {
 	const slug = slugify(url.searchParams.get('slug') ?? '');
