@@ -2,16 +2,23 @@ import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { createAuth, type Auth } from '$lib/server/auth';
 import { ConsoleEmail, ResendEmail } from '$lib/server/email';
-import { Logger } from '$lib/server/observability/logger';
+import { AlertRuleService } from '$lib/server/services/alert-rule.service';
+import { AlertWebhookDestinationService } from '$lib/server/services/alert-webhook-destination.service';
+import { DashboardLogViewService } from '$lib/server/services/dashboard-log-view.service';
 import { IngestionKeyService } from '$lib/server/services/ingestion-key.service';
 import { LogFacetsService } from '$lib/server/services/log-facets.service';
 import { LogsService } from '$lib/server/services/logs.service';
 import { TracesService } from '$lib/server/services/traces.service';
 import { getClickHouseClient } from '@repo/clickhouse';
 import { getDb } from '@repo/db';
+import { Encryption } from '@repo/encryption';
+import { Logger } from '@repo/logger';
 
 export type ServerContainer = {
 	authService: Auth;
+	alertRuleService: AlertRuleService;
+	alertWebhookDestinationService: AlertWebhookDestinationService;
+	dashboardLogViewService: DashboardLogViewService;
 	ingestionKeyService: IngestionKeyService;
 	logsService: LogsService;
 	logFacetsService: LogFacetsService;
@@ -25,6 +32,15 @@ const clickhouse = getClickHouseClient({
 const resendApiKey = process.env.RESEND_API_KEY ?? env.RESEND_API_KEY;
 const resendFromEmail =
 	process.env.RESEND_FROM_EMAIL ?? env.RESEND_FROM_EMAIL ?? 'Orvo <onboarding@resend.dev>';
+const alertsEncryptionSecret =
+	process.env.ALERTS_ENCRYPTION_KEY ??
+	env.ALERTS_ENCRYPTION_KEY ??
+	process.env.BETTER_AUTH_SECRET ??
+	env.BETTER_AUTH_SECRET;
+if (!alertsEncryptionSecret) {
+	throw new Error('Missing ALERTS_ENCRYPTION_KEY');
+}
+const encryption = new Encryption(alertsEncryptionSecret);
 const email =
 	dev || !resendApiKey
 		? new ConsoleEmail()
@@ -35,6 +51,7 @@ const email =
 
 export const createServerContainer = (logger: Logger): ServerContainer => {
 	const ingestionKeyService = new IngestionKeyService(db, logger);
+	const alertRuleService = new AlertRuleService(db, logger);
 
 	return {
 		authService: createAuth({
@@ -47,7 +64,8 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
 			onOrganizationCreated: async ({ organizationId, userId }) => {
 				const results = await Promise.all([
 					ingestionKeyService.createIngestionKey({ kind: 'public' }, { organizationId, userId }),
-					ingestionKeyService.createIngestionKey({ kind: 'private' }, { organizationId, userId })
+					ingestionKeyService.createIngestionKey({ kind: 'private' }, { organizationId, userId }),
+					alertRuleService.seedDefaultAlertRules({ organizationId, userId })
 				]);
 
 				for (const result of results) {
@@ -57,6 +75,9 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
 				}
 			}
 		}),
+		alertRuleService,
+		alertWebhookDestinationService: new AlertWebhookDestinationService(db, logger, encryption),
+		dashboardLogViewService: new DashboardLogViewService(db, logger),
 		ingestionKeyService,
 		logsService: new LogsService(clickhouse, logger),
 		logFacetsService: new LogFacetsService(clickhouse, logger),

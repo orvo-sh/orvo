@@ -1,5 +1,10 @@
 import { defineConfig } from 'drizzle-kit';
 
+// quick hack lol :)
+declare const process: {
+  env: Record<string, string | undefined>;
+};
+
 const databaseUrl = process.env.POSTGRES_URL;
 
 if (!databaseUrl) {

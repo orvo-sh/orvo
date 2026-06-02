@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { IconKey as KeyIcon, IconSettings as GearSixIcon } from "@tabler/icons-svelte";
+  import {
+    IconKey as KeyIcon,
+    IconWebhook as WebhookIcon,
+    IconSettings as GearSixIcon
+  } from "@tabler/icons-svelte";
   import { page } from "$app/state";
   import * as Sidebar from "@repo/components/ui/sidebar";
   import type { Snippet } from "svelte";
@@ -26,11 +30,29 @@
             pathname.startsWith("/settings/ingest-keys"),
         },
       ],
-    },  
+    },
+    {
+      label: "Alerts",
+      items: [
+        {
+          href: "/settings/alerts/webhooks",
+          label: "Webhooks",
+          icon: WebhookIcon,
+          isActive: (pathname: string) =>
+            pathname.startsWith("/settings/alerts/webhooks"),
+        },
+      ],
+    },
   ];
+
+  const activeItem = $derived(
+    sections
+      .flatMap((section) => section.items)
+      .find((item) => item.isActive(page.url.pathname))
+  );
 </script>
 
-<PageContainer title={sections[0].items.find((i) => i.isActive(page.url.pathname))?.label || "Settings"} innerClass="p-0!">
+<PageContainer title={activeItem?.label || "Settings"} innerClass="p-0!">
   <div class="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
     <aside
       class="shrink-0 w-64 not-lg:hidden border-r"
