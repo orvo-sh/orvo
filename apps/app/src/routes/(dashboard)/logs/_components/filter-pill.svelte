@@ -44,14 +44,14 @@
 
 <ButtonGroup.Root>
 <Popover.Root bind:open>
-	<Popover.Trigger class={buttonVariants({size:"sm", class:cn("items-center pr-1.5 h-6 shadow-none gap-1 border-dashed", values.length > 0 && "border-solid"), variant:"outline"})}>
+	<Popover.Trigger class={buttonVariants({size:"default", class:cn("items-center text-secondary-foreground pr-2 shadow-none gap-1 border-dashed", values.length > 0 && "border-solid"), variant:"outline"})}>
 				{#if icon}
 					<span class="size-3.5">{@render icon()}</span>
 				{/if}
-				<span class="font-medium text-sm">{label}</span>
+				<span class="font-normal text-sm">{label}</span>
 				{#if values.length > 0 }
 					<span
-						class="rounded bg-primary/15 px-1 py-px mr-0.5 text-[10px] ml-1 font-semibold text-primary leading-none"
+						class="ml-1 mr-0.5 rounded bg-primary/15 px-1 py-px text-[10px] font-semibold leading-none text-primary"
 					>
 						{values.length}
 					</span>
@@ -104,7 +104,7 @@
 	</Popover.Content>
 </Popover.Root>
 {#if values.length}
-<Button class="h-6" size="icon-sm" variant="outline" onclick={()=>{
+<Button size="icon" variant="outline" onclick={()=>{
 	values = [];
 }}>
 	<IconX class="size-3" />

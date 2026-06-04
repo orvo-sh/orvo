@@ -85,7 +85,6 @@ export type LogFilters = {
 	search: string;
 	levels: string[];
 	services: string[];
-	scopes: string[];
 	environments: string[];
 	traceId: string;
 };

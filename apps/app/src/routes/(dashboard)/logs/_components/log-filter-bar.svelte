@@ -2,7 +2,6 @@
 	import { Input } from '@repo/components/ui/input';
 	import { Kbd } from '@repo/components/ui/kbd';
 	import {
-	    IconBrackets as BracketsCurlyIcon,
 	    IconCpu as CpuIcon,
 	    IconBolt as LightningIcon,
 	    IconSearch as MagnifyingGlassIcon,
@@ -18,19 +17,16 @@
 			search: '',
 			levels: [],
 			services: [],
-			scopes: [],
 			environments: [],
 			traceId: ''
 		}),
 		serviceOptions = [],
-		environmentOptions = [],
-		scopeOptions = []
+		environmentOptions = []
 	}: {
 		time?: LogTimeFilter;
 		filters?: LogFilters;
 		serviceOptions?: { value: string; label: string }[];
 		environmentOptions?: { value: string; label: string }[];
-		scopeOptions?: { value: string; label: string }[];
 	} = $props();
 
 	let searchDraft = $state(filters.search);
@@ -50,7 +46,7 @@
 	});
 </script>
 
-<div class="flex flex-wrap items-center gap-2 p-2 px-3 border-b">
+<div class="flex flex-wrap items-center gap-2 p-2 px-3 bg-secondary">
 	<TimeRangePicker bind:time />
 	<div class="relative flex items-center">
 		<MagnifyingGlassIcon
@@ -59,8 +55,8 @@
 		<Input
 			placeholder="Search log messages"
 			bind:value={searchDraft}
-			class="pl-8 pr-14"
-			onkeydown={(event) => {
+			class="pl-8 pr-14 bg-background"
+			onkeydown={(event:KeyboardEvent) => {
 				if (event.key === 'Enter') {
 					applySearch();
 				}
@@ -111,17 +107,6 @@
 	>
 		{#snippet icon()}
 			<StackIcon class="size-3.5" />
-		{/snippet}
-	</FilterPill>
-
-	<FilterPill
-		label="Scope"
-		bind:values={filters.scopes}
-		options={scopeOptions}
-		placeholder="Filter by scope..."
-	>
-		{#snippet icon()}
-			<BracketsCurlyIcon class="size-3.5" />
 		{/snippet}
 	</FilterPill>
 </div>

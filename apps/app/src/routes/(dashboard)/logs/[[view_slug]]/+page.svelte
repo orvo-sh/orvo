@@ -54,7 +54,6 @@
 				levels: string[];
 				services: string[];
 				environments: string[];
-				scopes: string[];
 				ingestionKeyIds: string[];
 				traceId?: string;
 				spanId?: string;
@@ -85,7 +84,6 @@
 		search: '',
 		levels: [],
 		services: [],
-		scopes: [],
 		environments: [],
 		traceId: ''
 	});
@@ -102,7 +100,6 @@
 			levels: [],
 			services: [],
 			environments: [],
-			scopes: [],
 			ingestionKeyIds: [],
 			traceId: undefined
 		},
@@ -133,7 +130,6 @@
 			levels: filters.levels,
 			services: filters.services,
 			environments: filters.environments,
-			scopes: filters.scopes,
 			ingestionKeyIds: [],
 			traceId: filters.traceId.trim() || undefined
 		},
@@ -154,7 +150,6 @@
 		search: view.definition.query.search,
 		levels: view.definition.query.levels,
 		services: view.definition.query.services,
-		scopes: view.definition.query.scopes,
 		environments: view.definition.query.environments,
 		traceId: view.definition.query.traceId ?? ''
 	});
@@ -197,10 +192,6 @@
 		if (filters.environments.length > 0) {
 			searchParams.set('environment', serializeFilterValues(filters.environments));
 		}
-		if (filters.scopes.length > 0) {
-			searchParams.set('scope', serializeFilterValues(filters.scopes));
-		}
-
 		return searchParams;
 	};
 
@@ -211,7 +202,6 @@
 	) => {
 		const levels = parseFilterValues(searchParams, 'level');
 		const services = parseFilterValues(searchParams, 'service');
-		const scopes = parseFilterValues(searchParams, 'scope');
 		const environments = parseFilterValues(searchParams, 'environment');
 		const startAtUtc = searchParams.get('start');
 		const endAtUtc = searchParams.get('end');
@@ -236,7 +226,6 @@
 				search: searchParams.get('search') ?? baseFilters.search,
 				levels: levels.length > 0 ? levels : baseFilters.levels,
 				services: services.length > 0 ? services : baseFilters.services,
-				scopes: scopes.length > 0 ? scopes : baseFilters.scopes,
 				environments: environments.length > 0 ? environments : baseFilters.environments,
 				traceId: searchParams.get('traceId') ?? baseFilters.traceId
 			}
@@ -378,7 +367,6 @@
 		levels: filters.levels,
 		services: filters.services,
 		environments: filters.environments,
-		scopes: filters.scopes,
 		ingestionKeyIds: [],
 		traceId: filters.traceId.trim() || undefined
 	});
@@ -471,7 +459,6 @@
 			search: filters.search,
 			levels: filters.levels,
 			services: filters.services,
-			scopes: filters.scopes,
 			environments: filters.environments,
 			traceId: filters.traceId
 		})
@@ -498,13 +485,6 @@
 		facets.environments.map((environment) => ({
 			value: environment.value,
 			label: environment.value
-		}))
-	);
-
-	const scopeOptions = $derived(
-		facets.scopes.map((scope) => ({
-			value: scope.value,
-			label: scope.value
 		}))
 	);
 
@@ -756,7 +736,7 @@
 			</p>
 			<p>
 				Each entry captures the log body along with metadata like severity, service,
-				environment, scope, and trace context so you can filter operational activity and
+				environment, and trace context so you can filter operational activity and
 				correlate it back to the request or trace that produced it.
 			</p>
 			<Button
@@ -828,7 +808,6 @@
 				bind:filters
 				{serviceOptions}
 				{environmentOptions}
-				{scopeOptions}
 			/>
 
 			{#if error}
