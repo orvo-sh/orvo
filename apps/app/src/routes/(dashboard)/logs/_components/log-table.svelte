@@ -2,13 +2,13 @@
   import { Label } from "@repo/components/ui/label";
   import { IconDatabase } from "@tabler/icons-svelte";
   import { tick } from "svelte";
-  import { fly } from "svelte/transition";
 
   import { normalizeSeverity } from "$lib/utils/normalize-severity";
   import { cn } from "@repo/components";
   import { Skeleton } from "@repo/components/ui/skeleton";
   import type { LogRecord, LogTimeFilter } from "../types";
   import LogDetailPanel from "./log-detail-panel.svelte";
+  import SeverityCell from "./severity-cell.svelte";
   import TimeCell from "./time-cell.svelte";
 
   let {
@@ -57,19 +57,19 @@
 
 <div class="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
   <div
-    class="flex shrink-0 items-center gap-0 border-b bg-secondary py-1.5 pt-3 pr-3 pl-4 tracking-wide text-muted-foreground"
+    class="flex shrink-0 items-center gap-0 border-b bg-secondary py-1.5 pt-3 pr-3 pl-3 tracking-wide text-muted-foreground uppercase"
     role="row"
   >
-    <Label class="mr-3 w-40 shrink-0 font-normal">Time</Label>
-    <Label class="mr-3 w-16 shrink-0 font-normal">Severity</Label>
-    <Label class="mr-3 w-40 shrink-0 font-normal">Service</Label>
-    <Label class="flex-1 font-normal">Message</Label>
+    <Label class="mr-1.5 ml-1 w-36 shrink-0 text-xs font-normal">Time</Label>
+    <Label class="mr-3 w-16 shrink-0 text-xs font-normal">Severity</Label>
+    <Label class="mr-3 w-40 shrink-0 text-xs font-normal">Service</Label>
+    <Label class="flex-1 text-xs font-normal">Message</Label>
   </div>
 
   <div class="relative min-h-0 flex-1">
     <div
       class={cn(
-        "flex h-full min-h-0 flex-col gap-1 overflow-y-auto p-2 py-1",
+        "flex h-full min-h-0 flex-col gap-0.5 overflow-y-auto p-1.5",
         loading && logs.length === 0 && "pointer-events-none",
       )}
       role="rowgroup"
@@ -79,7 +79,7 @@
       {#if loading && logs.length === 0}
         {#each Array(100) as _, i}
           <Skeleton
-            class="flex min-h-8 rounded-none {i % 2 === 0 && 'bg-background'}"
+            class="flex min-h-7 rounded-md {i % 2 === 0 && 'bg-background'}"
           />
         {/each}
       {:else if logs.length === 0}
@@ -103,7 +103,7 @@
           <div
             data-selected={selectedLog?.id === log.id}
             class={cn(
-              "group flex min-h-8 cursor-pointer items-start gap-0 rounded-md py-1.5 pr-3 pl-4 transition-colors hover:brightness-95",
+              "group flex min-h-7 cursor-pointer items-start gap-0 rounded-md py-1 pr-3 pl-3 transition-colors hover:brightness-95",
               {
                 fatal:
                   "bg-destructive/10 text-destructive data-[selected=true]:bg-destructive/20",
@@ -112,19 +112,19 @@
                 warn: "bg-amber-500/8 text-amber-500 data-[selected=true]:bg-amber-500/18",
                 info: cn(
                   "text-primary data-[selected=true]:bg-muted/70",
-                  i % 2 === 0 ? "bg-background" : "bg-muted/55",
+                  i % 2 === 0 ? "bg-background" : "bg-muted/65",
                 ),
                 debug: cn(
                   "text-muted-foreground data-[selected=true]:bg-muted/70",
-                  i % 2 === 0 ? "bg-background" : "bg-muted/55",
+                  i % 2 === 0 ? "bg-background" : "bg-muted/65",
                 ),
                 trace: cn(
                   "text-muted-foreground/60 data-[selected=true]:bg-muted/70",
-                  i % 2 === 0 ? "bg-background" : "bg-muted/55",
+                  i % 2 === 0 ? "bg-background" : "bg-muted/65",
                 ),
                 unknown: cn(
                   "text-muted-foreground data-[selected=true]:bg-muted/70",
-                  i % 2 === 0 ? "bg-background" : "bg-muted/55",
+                  i % 2 === 0 ? "bg-background" : "bg-muted/65",
                 ),
               }[severity],
             )}
@@ -140,98 +140,33 @@
             aria-selected={selectedLog === log}
           >
             <div
-              class="mt-0.5 mr-3 flex w-40 shrink-0 font-mono text-xs text-muted-foreground tabular-nums"
+              class="mt-0.5 mr-1.5 flex w-36 shrink-0 font-mono text-xs text-muted-foreground tabular-nums"
             >
-              <TimeCell
-                date={new Date(log.timestamp)}
-                range={time.kind === "range"
-                  ? {
-                      start: new Date(time.startAtUtc),
-                      end: new Date(time.endAtUtc),
-                    }
-                  : ((preset) => {
-                      const end = new Date();
-                      switch (preset) {
-                        case "last_hour":
-                          return {
-                            start: new Date(end.getTime() - 60 * 60 * 1000),
-                            end,
-                          };
-                        case "today": {
-                          const start = new Date(end);
-                          start.setHours(0, 0, 0, 0);
-                          return { start, end };
-                        }
-                        case "last_24_hours":
-                          return {
-                            start: new Date(
-                              end.getTime() - 24 * 60 * 60 * 1000,
-                            ),
-                            end,
-                          };
-                        case "last_3_days":
-                          return {
-                            start: new Date(
-                              end.getTime() - 3 * 24 * 60 * 60 * 1000,
-                            ),
-                            end,
-                          };
-                        case "last_7_days":
-                          return {
-                            start: new Date(
-                              end.getTime() - 7 * 24 * 60 * 60 * 1000,
-                            ),
-                            end,
-                          };
-                        case "last_2_weeks":
-                          return {
-                            start: new Date(
-                              end.getTime() - 14 * 24 * 60 * 60 * 1000,
-                            ),
-                            end,
-                          };
-                        case "last_month":
-                          return {
-                            start: new Date(
-                              end.getTime() - 30 * 24 * 60 * 60 * 1000,
-                            ),
-                            end,
-                          };
-                      }
-                    })(time.preset)}
-              />
+              <TimeCell date={new Date(log.timestamp)} {time} />
             </div>
 
-            <div
-              class="mt-0.5 mr-3 flex w-16 shrink-0 items-center gap-1.5 uppercase"
-            >
-              <span
-                class="w-12 shrink-0 text-xs font-normal"
-                title={log.severity_text}
-              >
-                {severity}
-              </span>
-            </div>
+            <SeverityCell
+              severityNumber={log.severity_number}
+              severityText={log.severity_text}
+            />
 
             <div class="mt-0.5 mr-3 w-40 shrink-0">
-              <span class="block truncate font-mono text-xs text-foreground">
+              <span
+                class="block truncate font-mono text-xs text-secondary-foreground"
+              >
                 {#if log.service_name}
                   {log.service_name}
                 {:else}
-                  Unknown
+                  -
                 {/if}
               </span>
             </div>
 
             <div class="flex min-w-0 flex-1 items-start gap-2">
               <span
-                class="line-clamp-1 font-mono text-xs leading-relaxed break-all text-foreground"
+                class="line-clamp-1 font-mono text-xs leading-relaxed break-all text-secondary-foreground"
               >
-                {#if log.body}
                   {log.body}
-                {:else}
-                  <em class="text-muted-foreground">(empty body)</em>
-                {/if}
               </span>
             </div>
           </div>
@@ -240,23 +175,20 @@
     </div>
 
     <div
-      class="pointer-events-none absolute inset-x-0 top-0 z-10 h-4 bg-gradient-to-b from-background via-background/90 to-transparent transition-opacity duration-150"
+      class="pointer-events-none absolute inset-x-0 top-0 z-10 h-4 bg-linear-to-b from-border/60 to-transparent transition-opacity duration-500"
       class:opacity-0={!showTopShadow}
       class:opacity-100={showTopShadow}
-      aria-hidden="true"
     ></div>
     <div
-      class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-4 bg-gradient-to-t from-background via-background/90 to-transparent transition-opacity duration-150"
+      class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-4 bg-linear-to-t from-border/60 to-transparent transition-opacity duration-500"
       class:opacity-0={!showBottomShadow}
       class:opacity-100={showBottomShadow}
-      aria-hidden="true"
     ></div>
   </div>
 
   {#if selectedLog}
     <div
-      transition:fly={{ x: 480, duration: 200 }}
-      class="absolute inset-y-0 right-0 z-20 flex w-120 flex-col border-l shadow-xl"
+      class="absolute top-[35px] inset-y-0 right-0 z-20 flex w-120 flex-col border-l shadow-xl"
     >
       <LogDetailPanel
         log={selectedLog}
