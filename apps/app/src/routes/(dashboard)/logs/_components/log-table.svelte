@@ -1,175 +1,268 @@
 <script lang="ts">
-	import * as DropdownMenu from '@repo/components/ui/dropdown-menu';
-	import {
-	    IconRefresh as ArrowsClockwiseIcon,
-	    IconCheck as CheckIcon,
-	    IconColumns3 as ColumnsIcon,
-	    IconDatabase as DatabaseIcon
-	} from "@tabler/icons-svelte";
-	import type { LogFilters, LogRecord } from '../types';
-	import LogRow from './log-row.svelte';
+  import { Label } from "@repo/components/ui/label";
+  import { IconDatabase } from "@tabler/icons-svelte";
+  import { tick } from "svelte";
+  import { fly } from "svelte/transition";
 
-	export type ColumnKey = 'environment' | 'trace_id';
+  import { normalizeSeverity } from "$lib/utils/normalize-severity";
+  import { cn } from "@repo/components";
+  import { Skeleton } from "@repo/components/ui/skeleton";
+  import type { LogRecord, LogTimeFilter } from "../types";
+  import LogDetailPanel from "./log-detail-panel.svelte";
+  import TimeCell from "./time-cell.svelte";
 
-	const OPTIONAL_COLUMNS: { key: ColumnKey; label: string }[] = [
-		{ key: 'environment', label: 'Environment' },
-		{ key: 'trace_id', label: 'Trace ID' }
-	];
+  let {
+    logs = [],
+    time,
+    timezone,
+    loading,
+  }: {
+    logs: LogRecord[];
+    time: LogTimeFilter;
+    timezone: string;
+    loading: boolean;
+  } = $props();
 
-	let {
-		logs = [],
-		filters,
-		loading = false,
-		timezone
-	}: {
-		logs?: LogRecord[];
-		filters: LogFilters;
-		loading?: boolean;
-		timezone?: string;
-	} = $props();
+  let selectedLog = $state<LogRecord | null>(null);
+  let scrollViewport = $state<HTMLDivElement | null>(null);
+  let showTopShadow = $state(false);
+  let showBottomShadow = $state(false);
 
-	let visibleCols = $state<Set<ColumnKey>>(new Set());
+  function selectLog(log: LogRecord) {
+    selectedLog = selectedLog === log ? null : log;
+  }
 
-	function toggleCol(key: ColumnKey) {
-		const next = new Set(visibleCols);
-		if (next.has(key)) next.delete(key);
-		else next.add(key);
-		visibleCols = next;
-	}
+  function updateScrollShadows() {
+    if (!scrollViewport) {
+      showTopShadow = false;
+      showBottomShadow = false;
+      return;
+    }
 
-	const filtered = $derived.by(() => {
-		let result = logs;
+    const { scrollTop, clientHeight, scrollHeight } = scrollViewport;
+    showTopShadow = scrollTop > 1;
+    showBottomShadow = scrollTop + clientHeight < scrollHeight - 1;
+  }
 
-		if (filters.levels.length > 0) {
-			result = result.filter((l) =>
-				filters.levels.some(
-					(lv) => lv.toLowerCase() === (l.severity_text ?? '').toLowerCase()
-				)
-			);
-		}
+  const tz = $derived(timezone);
 
-		if (filters.services.length > 0) {
-			result = result.filter((l) => filters.services.includes(l.service_name));
-		}
+  $effect(() => {
+    logs.length;
 
-		if (filters.scopes.length > 0) {
-			result = result.filter((l) => filters.scopes.includes(l.scope_name));
-		}
-
-		if (filters.environments.length > 0) {
-			result = result.filter((l) => filters.environments.includes(l.deployment_environment));
-		}
-
-		if (filters.search) {
-			const q = filters.search.toLowerCase();
-			result = result.filter(
-				(l) =>
-					l.body?.toLowerCase().includes(q) ||
-					l.service_name?.toLowerCase().includes(q) ||
-					l.severity_text?.toLowerCase().includes(q) ||
-					JSON.stringify(l.log_attributes).toLowerCase().includes(q) ||
-					JSON.stringify(l.resource_attributes).toLowerCase().includes(q)
-			);
-		}
-
-		if (filters.traceId) {
-			result = result.filter((l) => l.trace_id === filters.traceId);
-		}
-
-		return result.slice().sort(
-			(a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-		);
-	});
-
-	const tz = $derived(timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
+    void tick().then(() => {
+      updateScrollShadows();
+    });
+  });
 </script>
 
-<div class="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-	<!-- Table header -->
-	<div
-		class="flex items-center gap-0 border-b bg-muted/30 px-3 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide shrink-0"
-		role="row"
-	>
-		<span class="w-5 mr-1 shrink-0"></span>
-		<span class="w-44 mr-3 shrink-0">Time ({tz})</span>
-		<span class="w-28 mr-3 shrink-0">Service</span>
-		{#if visibleCols.has('environment')}
-			<span class="w-24 mr-3 shrink-0">Environment</span>
-		{/if}
-		{#if visibleCols.has('trace_id')}
-			<span class="w-28 mr-3 shrink-0">Trace ID</span>
-		{/if}
-		<span class="flex-1">Data</span>
+<div class="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+  <div
+    class="flex shrink-0 items-center gap-0 border-b bg-secondary py-1.5 pt-3 pr-3 pl-4 tracking-wide text-muted-foreground"
+    role="row"
+  >
+    <Label class="mr-3 w-40 shrink-0 font-normal">Time</Label>
+    <Label class="mr-3 w-16 shrink-0 font-normal">Severity</Label>
+    <Label class="mr-3 w-40 shrink-0 font-normal">Service</Label>
+    <Label class="flex-1 font-normal">Message</Label>
+  </div>
 
-		<!-- Column picker -->
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger
-				class="ml-2 flex items-center gap-1 rounded p-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
-				aria-label="Configure columns"
-			>
-				<ColumnsIcon class="size-3.5" />
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="end" class="w-44">
-				<DropdownMenu.Label class="text-[10px] uppercase tracking-wide text-muted-foreground">
-					Optional columns
-				</DropdownMenu.Label>
-				<DropdownMenu.Separator />
-				{#each OPTIONAL_COLUMNS as col}
-					<DropdownMenu.Item onSelect={() => toggleCol(col.key)} class="gap-2">
-						<span
-							class="flex size-4 items-center justify-center rounded border border-border transition-colors
-							{visibleCols.has(col.key) ? 'bg-primary border-primary text-primary-foreground' : ''}"
-						>
-							{#if visibleCols.has(col.key)}
-								<CheckIcon class="size-2.5" />
-							{/if}
-						</span>
-						{col.label}
-					</DropdownMenu.Item>
-				{/each}
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
-	</div>
+  <div class="relative min-h-0 flex-1">
+    <div
+      class={cn(
+        "flex h-full min-h-0 flex-col gap-1 overflow-y-auto p-2 py-1",
+        loading && logs.length === 0 && "pointer-events-none",
+      )}
+      role="rowgroup"
+      bind:this={scrollViewport}
+      onscroll={updateScrollShadows}
+    >
+      {#if loading && logs.length === 0}
+        {#each Array(100) as _, i}
+          <Skeleton
+            class="flex min-h-8 rounded-none {i % 2 === 0 && 'bg-background'}"
+          />
+        {/each}
+      {:else if logs.length === 0}
+        <div
+          class="flex h-48 flex-col items-center justify-center gap-3 text-muted-foreground"
+        >
+          <IconDatabase class="size-8 opacity-30" />
+          <div class="text-center">
+            <p class="text-sm font-medium text-foreground">
+              No logs to display
+            </p>
+            <p class="mt-0.5 text-xs">This query returned no log records.</p>
+          </div>
+        </div>
+      {:else}
+        {#each logs as log, i (log.timestamp + log.span_id + i)}
+          {@const severity = normalizeSeverity(
+            log.severity_number,
+            log.severity_text,
+          )}
+          <div
+            data-selected={selectedLog?.id === log.id}
+            class={cn(
+              "group flex min-h-8 cursor-pointer items-start gap-0 rounded-md py-1.5 pr-3 pl-4 transition-colors hover:brightness-95",
+              {
+                fatal:
+                  "bg-destructive/10 text-destructive data-[selected=true]:bg-destructive/20",
+                error:
+                  "bg-destructive/8 text-destructive data-[selected=true]:bg-destructive/18",
+                warn: "bg-amber-500/8 text-amber-500 data-[selected=true]:bg-amber-500/18",
+                info: cn(
+                  "text-primary data-[selected=true]:bg-muted/70",
+                  i % 2 === 0 ? "bg-background" : "bg-muted/55",
+                ),
+                debug: cn(
+                  "text-muted-foreground data-[selected=true]:bg-muted/70",
+                  i % 2 === 0 ? "bg-background" : "bg-muted/55",
+                ),
+                trace: cn(
+                  "text-muted-foreground/60 data-[selected=true]:bg-muted/70",
+                  i % 2 === 0 ? "bg-background" : "bg-muted/55",
+                ),
+                unknown: cn(
+                  "text-muted-foreground data-[selected=true]:bg-muted/70",
+                  i % 2 === 0 ? "bg-background" : "bg-muted/55",
+                ),
+              }[severity],
+            )}
+            onclick={() => selectLog(log)}
+            onkeydown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                selectLog(log);
+              }
+            }}
+            role="row"
+            tabindex="0"
+            aria-selected={selectedLog === log}
+          >
+            <div
+              class="mt-0.5 mr-3 flex w-40 shrink-0 font-mono text-xs text-muted-foreground tabular-nums"
+            >
+              <TimeCell
+                date={new Date(log.timestamp)}
+                range={time.kind === "range"
+                  ? {
+                      start: new Date(time.startAtUtc),
+                      end: new Date(time.endAtUtc),
+                    }
+                  : ((preset) => {
+                      const end = new Date();
+                      switch (preset) {
+                        case "last_hour":
+                          return {
+                            start: new Date(end.getTime() - 60 * 60 * 1000),
+                            end,
+                          };
+                        case "today": {
+                          const start = new Date(end);
+                          start.setHours(0, 0, 0, 0);
+                          return { start, end };
+                        }
+                        case "last_24_hours":
+                          return {
+                            start: new Date(
+                              end.getTime() - 24 * 60 * 60 * 1000,
+                            ),
+                            end,
+                          };
+                        case "last_3_days":
+                          return {
+                            start: new Date(
+                              end.getTime() - 3 * 24 * 60 * 60 * 1000,
+                            ),
+                            end,
+                          };
+                        case "last_7_days":
+                          return {
+                            start: new Date(
+                              end.getTime() - 7 * 24 * 60 * 60 * 1000,
+                            ),
+                            end,
+                          };
+                        case "last_2_weeks":
+                          return {
+                            start: new Date(
+                              end.getTime() - 14 * 24 * 60 * 60 * 1000,
+                            ),
+                            end,
+                          };
+                        case "last_month":
+                          return {
+                            start: new Date(
+                              end.getTime() - 30 * 24 * 60 * 60 * 1000,
+                            ),
+                            end,
+                          };
+                      }
+                    })(time.preset)}
+              />
+            </div>
 
-	<!-- Log rows -->
-	<div class="min-h-0 flex-1 overflow-y-auto" role="rowgroup">
-		{#if loading}
-			<div class="flex flex-col items-center justify-center h-48 gap-3 text-muted-foreground">
-				<ArrowsClockwiseIcon class="size-5 animate-spin" />
-				<span class="text-sm">Loading logs...</span>
-			</div>
-		{:else if filtered.length === 0}
-			<div class="flex flex-col items-center justify-center h-48 gap-3 text-muted-foreground">
-				<DatabaseIcon class="size-8 opacity-30" />
-				<div class="text-center">
-					<p class="text-sm font-medium text-foreground">No logs found</p>
-					<p class="text-xs mt-0.5">
-						{logs.length > 0
-							? 'Try adjusting your filters or time range.'
-							: 'No logs ingested in this time window.'}
-					</p>
-				</div>
-			</div>
-		{:else}
-			{#each filtered as log, i (log.timestamp + log.span_id + i)}
-				<LogRow {log} prevLog={filtered[i + 1]} {timezone} {visibleCols} />
-			{/each}
-		{/if}
-	</div>
+            <div
+              class="mt-0.5 mr-3 flex w-16 shrink-0 items-center gap-1.5 uppercase"
+            >
+              <span
+                class="w-12 shrink-0 text-xs font-normal"
+                title={log.severity_text}
+              >
+                {severity}
+              </span>
+            </div>
 
-	<!-- Footer count -->
-	{#if !loading && filtered.length > 0}
-		<div
-			class="shrink-0 border-t px-4 py-1.5 text-[11px] text-muted-foreground flex items-center justify-between"
-		>
-			<span>
-				Showing <strong class="text-foreground font-medium">{filtered.length}</strong>
-				{#if filtered.length !== logs.length}
-					of {logs.length}
-				{/if}
-				log{filtered.length !== 1 ? 's' : ''}
-			</span>
-			<span class="text-[10px]">Newest first</span>
-		</div>
-	{/if}
+            <div class="mt-0.5 mr-3 w-40 shrink-0">
+              <span class="block truncate font-mono text-xs text-foreground">
+                {#if log.service_name}
+                  {log.service_name}
+                {:else}
+                  Unknown
+                {/if}
+              </span>
+            </div>
+
+            <div class="flex min-w-0 flex-1 items-start gap-2">
+              <span
+                class="line-clamp-1 font-mono text-xs leading-relaxed break-all text-foreground"
+              >
+                {#if log.body}
+                  {log.body}
+                {:else}
+                  <em class="text-muted-foreground">(empty body)</em>
+                {/if}
+              </span>
+            </div>
+          </div>
+        {/each}
+      {/if}
+    </div>
+
+    <div
+      class="pointer-events-none absolute inset-x-0 top-0 z-10 h-4 bg-gradient-to-b from-background via-background/90 to-transparent transition-opacity duration-150"
+      class:opacity-0={!showTopShadow}
+      class:opacity-100={showTopShadow}
+      aria-hidden="true"
+    ></div>
+    <div
+      class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-4 bg-gradient-to-t from-background via-background/90 to-transparent transition-opacity duration-150"
+      class:opacity-0={!showBottomShadow}
+      class:opacity-100={showBottomShadow}
+      aria-hidden="true"
+    ></div>
+  </div>
+
+  {#if selectedLog}
+    <div
+      transition:fly={{ x: 480, duration: 200 }}
+      class="absolute inset-y-0 right-0 z-20 flex w-120 flex-col border-l shadow-xl"
+    >
+      <LogDetailPanel
+        log={selectedLog}
+        timezone={tz}
+        onClose={() => (selectedLog = null)}
+      />
+    </div>
+  {/if}
 </div>

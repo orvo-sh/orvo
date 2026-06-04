@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
+	import { goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import {
 	    createDashboardLogViewCommand,
@@ -25,6 +26,7 @@
 	} from '@tabler/icons-svelte';
 
 	import { cn } from '@repo/components';
+	import { onMount, untrack } from 'svelte';
 	import PageContainer from '../../_components/page-container.svelte';
 	import LogFilterBar from '../_components/log-filter-bar.svelte';
 	import LogTable from '../_components/log-table.svelte';
@@ -38,7 +40,7 @@
 	    LogVolumeBucket
 	} from '../types.js';
 
-	let {data} = $props();
+	let { data } = $props();
 
 	type DashboardLogView = {
 		id: string;
@@ -69,6 +71,15 @@
 	};
 
 	type DashboardLogViewDefinition = DashboardLogView['definition'];
+	const LOG_TIME_PRESETS: LogTimePreset[] = [
+		'last_hour',
+		'today',
+		'last_24_hours',
+		'last_3_days',
+		'last_7_days',
+		'last_2_weeks',
+		'last_month'
+	];
 
 	const createDefaultFilters = (): LogFilters => ({
 		search: '',
@@ -136,6 +147,102 @@
 		}
 	});
 
+	const getCurrentSearchParams = () =>
+		browser ? new URL(window.location.href).searchParams : page.url.searchParams;
+
+	const createViewFilters = (view: DashboardLogView): LogFilters => ({
+		search: view.definition.query.search,
+		levels: view.definition.query.levels,
+		services: view.definition.query.services,
+		scopes: view.definition.query.scopes,
+		environments: view.definition.query.environments,
+		traceId: view.definition.query.traceId ?? ''
+	});
+
+	const serializeFilterValues = (values: string[]) => values.join(',');
+
+	const parseFilterValues = (searchParams: URLSearchParams, key: string) => {
+		const values = searchParams
+			.getAll(key)
+			.flatMap((value) => value.split(','))
+			.map((value) => value.trim())
+			.filter(Boolean);
+
+		return Array.from(new Set(values));
+	};
+
+	const createLogStateSearchParams = (time: LogTimeFilter, filters: LogFilters) => {
+		const searchParams = new URLSearchParams();
+
+		if (time.kind === 'range') {
+			searchParams.set('start', time.startAtUtc);
+			searchParams.set('end', time.endAtUtc);
+		} else {
+			searchParams.set('preset', time.preset);
+		}
+
+		if (filters.search) {
+			searchParams.set('search', filters.search);
+		}
+		if (filters.traceId) {
+			searchParams.set('traceId', filters.traceId);
+		}
+
+		if (filters.levels.length > 0) {
+			searchParams.set('level', serializeFilterValues(filters.levels));
+		}
+		if (filters.services.length > 0) {
+			searchParams.set('service', serializeFilterValues(filters.services));
+		}
+		if (filters.environments.length > 0) {
+			searchParams.set('environment', serializeFilterValues(filters.environments));
+		}
+		if (filters.scopes.length > 0) {
+			searchParams.set('scope', serializeFilterValues(filters.scopes));
+		}
+
+		return searchParams;
+	};
+
+	const resolveLogStateFromSearchParams = (
+		searchParams: URLSearchParams,
+		baseTime: LogTimeFilter,
+		baseFilters: LogFilters
+	) => {
+		const levels = parseFilterValues(searchParams, 'level');
+		const services = parseFilterValues(searchParams, 'service');
+		const scopes = parseFilterValues(searchParams, 'scope');
+		const environments = parseFilterValues(searchParams, 'environment');
+		const startAtUtc = searchParams.get('start');
+		const endAtUtc = searchParams.get('end');
+		const preset = searchParams.get('preset');
+		const nextTime =
+			startAtUtc && endAtUtc
+				? {
+					kind: 'range' as const,
+					startAtUtc,
+					endAtUtc
+				}
+				: preset && LOG_TIME_PRESETS.includes(preset as LogTimePreset)
+					? {
+						kind: 'preset' as const,
+						preset: preset as LogTimePreset
+					}
+					: baseTime;
+
+		return {
+			time: nextTime,
+			filters: {
+				search: searchParams.get('search') ?? baseFilters.search,
+				levels: levels.length > 0 ? levels : baseFilters.levels,
+				services: services.length > 0 ? services : baseFilters.services,
+				scopes: scopes.length > 0 ? scopes : baseFilters.scopes,
+				environments: environments.length > 0 ? environments : baseFilters.environments,
+				traceId: searchParams.get('traceId') ?? baseFilters.traceId
+			}
+		};
+	};
+
 	const resolvePresetRange = (
 		preset: LogTimePreset
 	) => {
@@ -168,17 +275,20 @@
 	let viewsLoading = $state(false);
 	let viewsError = $state('');
 	let lastAppliedViewId = '';
+	const initialLogState = untrack(() =>
+		resolveLogStateFromSearchParams(page.url.searchParams, data.time, createDefaultFilters())
+	);
+
 	let live = $state(false);
-	let time = $state<LogTimeFilter>(data.time);
+	let time = $state<LogTimeFilter>(initialLogState.time);
 	let rangeStart = $state(new Date(initialNow.getTime() - 10 * 60 * 60 * 1000));
 	let rangeEnd = $state(initialNow);
-	let filters = $state<LogFilters>(createDefaultFilters());
+	let filters = $state<LogFilters>(initialLogState.filters);
 	let logs = $state<LogRecord[]>([]);
 	let volumeBuckets = $state<LogVolumeBucket[]>([]);
 	let loading = $state(false);
 	let error = $state('');
 	let loadRequest = 0;
-	let logVolumeChartWidth = $state(0);
 	let defaultViewDefinitionSignature = getDefinitionSignature(createDefaultViewDefinition(initialNow));
 
 	let facets = $state<LogFacets>({
@@ -191,6 +301,17 @@
 
 	const currentViewSlug = $derived(page.params.view_slug ?? '');
 	const currentView = $derived(views.find((view) => view.slug === currentViewSlug) ?? null);
+	const logTimezone = $derived(data.activeOrganizationTimezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
+	const createBaseLogState = (view: DashboardLogView | null, now = new Date()) =>
+		view
+			? {
+				time: view.definition.query.time,
+				filters: createViewFilters(view)
+			}
+			: {
+				time: createDefaultTimeFilter(now),
+				filters: createDefaultFilters()
+			};
 
 	const syncEffectiveRange = (time: LogTimeFilter) => {
 		if (time.kind === 'range') {
@@ -236,18 +357,17 @@
 			return;
 		}
 
-		const { query, display } = view.definition;
-		time = query.time;
-		syncEffectiveRange(query.time);
+		const { display } = view.definition;
+		const baseState = createBaseLogState(view);
+		const nextState = resolveLogStateFromSearchParams(
+			getCurrentSearchParams(),
+			baseState.time,
+			baseState.filters
+		);
 
-		filters = {
-			search: query.search,
-			levels: query.levels,
-			services: query.services,
-			scopes: query.scopes,
-			environments: query.environments,
-			traceId: query.traceId ?? ''
-		};
+		time = nextState.time;
+		syncEffectiveRange(nextState.time);
+		filters = nextState.filters;
 		live = display.live;
 		lastAppliedViewId = view.id;
 	};
@@ -263,47 +383,36 @@
 		traceId: filters.traceId.trim() || undefined
 	});
 
-	const CHART_BAR_GAP_PX = 2;
-	const CHART_TARGET_BAR_PX = 8;
 	const MIN_VOLUME_BUCKET_COUNT = 24;
 	const MAX_VOLUME_BUCKET_COUNT = 120;
-	const NICE_BUCKET_INTERVALS_MS = [
-		60_000,
-		5 * 60_000,
-		10 * 60_000,
-		15 * 60_000,
-		30 * 60_000,
-		60 * 60_000,
-		2 * 60 * 60_000,
-		3 * 60 * 60_000,
-		6 * 60 * 60_000,
-		12 * 60 * 60_000,
-		24 * 60 * 60_000
-	];
+	const MINUTE_MS = 60_000;
+	const HOUR_MS = 60 * MINUTE_MS;
+	const DAY_MS = 24 * HOUR_MS;
+	const DEFAULT_FALLBACK_BUCKET_COUNT = 72;
+	const AUTO_VOLUME_BUCKET_SIZES_MS = [
+		{ maxRangeMs: HOUR_MS, bucketSizeMs: MINUTE_MS },
+		{ maxRangeMs: 4 * HOUR_MS, bucketSizeMs: 2 * MINUTE_MS },
+		{ maxRangeMs: 6 * HOUR_MS, bucketSizeMs: 5 * MINUTE_MS },
+		{ maxRangeMs: 12 * HOUR_MS, bucketSizeMs: 10 * MINUTE_MS },
+		{ maxRangeMs: DAY_MS, bucketSizeMs: 20 * MINUTE_MS },
+		{ maxRangeMs: 2 * DAY_MS, bucketSizeMs: 30 * MINUTE_MS },
+		{ maxRangeMs: 7 * DAY_MS, bucketSizeMs: 2 * HOUR_MS },
+		{ maxRangeMs: 30 * DAY_MS, bucketSizeMs: 12 * HOUR_MS }
+	] as const;
 
 	const clampBucketCount = (count: number) =>
 		Math.min(MAX_VOLUME_BUCKET_COUNT, Math.max(MIN_VOLUME_BUCKET_COUNT, count));
 
-	const resolveLogVolumeBucketCount = (width: number, start: Date, end: Date) => {
-		if (width <= 0) {
-			return MIN_VOLUME_BUCKET_COUNT;
-		}
-
+	const resolveLogVolumeBucketCount = (start: Date, end: Date) => {
 		const rangeMs = Math.max(end.getTime() - start.getTime(), 1);
-		const widthBoundCount = clampBucketCount(
-			Math.floor((width + CHART_BAR_GAP_PX) / (CHART_TARGET_BAR_PX + CHART_BAR_GAP_PX))
-		);
-		const idealBucketSizeMs = rangeMs / widthBoundCount;
 		const bucketSizeMs =
-			NICE_BUCKET_INTERVALS_MS.find((intervalMs) => intervalMs >= idealBucketSizeMs) ??
-			Math.ceil(rangeMs / widthBoundCount);
+			AUTO_VOLUME_BUCKET_SIZES_MS.find(({ maxRangeMs }) => rangeMs <= maxRangeMs)
+				?.bucketSizeMs ?? Math.ceil(rangeMs / DEFAULT_FALLBACK_BUCKET_COUNT);
 
 		return clampBucketCount(Math.ceil(rangeMs / bucketSizeMs));
 	};
 
-	const logVolumeBucketCount = $derived(
-		resolveLogVolumeBucketCount(logVolumeChartWidth, rangeStart, rangeEnd)
-	);
+	const resolvedLogVolumeBucketCount = $derived(resolveLogVolumeBucketCount(rangeStart, rangeEnd));
 
 	const refreshLogs = async () => {
 		const requestId = ++loadRequest;
@@ -317,7 +426,7 @@
 			}).run(),
 			getLogVolumeQuery({
 				...createBaseLogsInput(),
-				bucketCount: logVolumeBucketCount
+				bucketCount: resolvedLogVolumeBucketCount
 			}).run(),
 			getLogFacetsQuery({
 				...createBaseLogsInput(),
@@ -353,13 +462,12 @@
 		loading = false;
 	};
 
-	const querySignature = $derived.by(() =>
+	const refreshQuerySignature = $derived.by(() =>
 		JSON.stringify({
 			viewId: currentView?.id ?? null,
 			time: time,
 			start: rangeStart.toISOString(),
 			end: rangeEnd.toISOString(),
-			bucketCount: logVolumeBucketCount,
 			search: filters.search,
 			levels: filters.levels,
 			services: filters.services,
@@ -368,6 +476,7 @@
 			traceId: filters.traceId
 		})
 	);
+	const urlStateSearch = $derived(createLogStateSearchParams(time, filters).toString());
 
 	const hasUnsavedViewChanges = $derived.by(() => {
 		const currentDefinitionSignature = getDefinitionSignature(createCurrentViewDefinition());
@@ -421,7 +530,8 @@
 	};
 
 	const goToView = async (slug: string) => {
-		await goto(slug ? `/logs/${slug}` : '/logs');
+		const search = urlStateSearch ? `?${urlStateSearch}` : '';
+		await goto(`${slug ? `/logs/${slug}` : '/logs'}${search}`);
 	};
 
 	const saveAsNewView = async (initialName = '') => {
@@ -537,9 +647,15 @@
 
 		if (!selectedView && !currentViewSlug && lastAppliedViewId) {
 			const now = new Date();
-			time = createDefaultTimeFilter(now);
-			syncEffectiveRange(time);
-			filters = createDefaultFilters();
+			const baseState = createBaseLogState(null, now);
+			const nextState = resolveLogStateFromSearchParams(
+				getCurrentSearchParams(),
+				baseState.time,
+				baseState.filters
+			);
+			time = nextState.time;
+			syncEffectiveRange(nextState.time);
+			filters = nextState.filters;
 			live = false;
 			lastAppliedViewId = '';
 			defaultViewDefinitionSignature = getDefinitionSignature(createDefaultViewDefinition(now));
@@ -580,11 +696,26 @@
 	});
 
 	$effect(() => {
-		if (logVolumeChartWidth <= 0) {
+		if (!browser) {
 			return;
 		}
 
-		querySignature;
+		const nextSearch = urlStateSearch;
+		const currentSearch = window.location.search.startsWith('?')
+			? window.location.search.slice(1)
+			: window.location.search;
+
+		if (currentSearch === nextSearch) {
+			return;
+		}
+
+		const url = new URL(window.location.href);
+		url.search = nextSearch;
+		replaceState(url, page.state);
+	});
+
+	$effect(() => {
+		refreshQuerySignature;
 
 		const timeout = setTimeout(() => {
 			void refreshLogs();
@@ -592,6 +723,26 @@
 
 		return () => {
 			clearTimeout(timeout);
+		};
+	});
+
+	onMount(() => {
+		const syncStateFromLocation = () => {
+			const baseState = createBaseLogState(currentView);
+			const nextState = resolveLogStateFromSearchParams(
+				new URL(window.location.href).searchParams,
+				baseState.time,
+				baseState.filters
+			);
+
+			time = nextState.time;
+			syncEffectiveRange(nextState.time);
+			filters = nextState.filters;
+		};
+
+		window.addEventListener('popstate', syncStateFromLocation);
+		return () => {
+			window.removeEventListener('popstate', syncStateFromLocation);
 		};
 	});
 </script>
@@ -686,23 +837,18 @@
 				</div>
 			{/if}
 
-			<div
-				class="shrink-0 border-b bg-background px-4 pt-3 pb-1"
-				bind:clientWidth={logVolumeChartWidth}
-			>
-				<LogVolumeChart
-					buckets={volumeBuckets}
-					{loading}
-					skeletonBucketCount={logVolumeBucketCount}
-					start={rangeStart}
-					end={rangeEnd}
-					{onBucketClick}
-				/>
-			</div>
+			<LogVolumeChart
+				buckets={volumeBuckets}
+				{loading}
+				skeletonBucketCount={resolvedLogVolumeBucketCount}
+				start={rangeStart}
+				end={rangeEnd}
+				{onBucketClick}
+			/>
 
-			<div class="flex min-h-0 flex-1 overflow-hidden">
-				<LogTable {logs} {filters} {loading} />
+			<div class="relative flex min-h-0 flex-1 overflow-hidden">
+				<LogTable {logs} {loading} {time} timezone={logTimezone} />
 			</div>
-		</div>
+			</div>
 	
 </PageContainer>
