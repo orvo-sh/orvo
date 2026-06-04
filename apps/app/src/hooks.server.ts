@@ -1,9 +1,9 @@
 import { building } from '$app/environment';
 import { createServerContainer } from '$lib/server/container';
-import { loggerProvider } from './instrumentation.server';
 import { Logger } from '@repo/logger';
 import { genId } from '@repo/utils';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
+import { loggerProvider } from './instrumentation.server';
 
 const baseLogger = new Logger('Orvo', { pretty: !building, loggerProvider });
 
@@ -30,6 +30,8 @@ export const handle = async ({ event, resolve }) => {
 			user: session.user,
 		};
 	}
+
+	await new Promise((resolve) => setTimeout(resolve, 500));
 
 	const response = await svelteKitHandler({ event, resolve, auth: authService, building });
 

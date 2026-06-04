@@ -9,6 +9,7 @@
 	import { Input } from '@repo/components/ui/input';
 	import TimeRangePicker from '../../logs/_components/time-range-picker.svelte';
 	import FilterPill from '../../logs/_components/filter-pill.svelte';
+	import type { LogTimeFilter } from '../../logs/types';
 	import type { TraceFilters } from '../types';
 
 	const STATUS_OPTIONS = [
@@ -35,10 +36,55 @@
 		serviceOptions?: { value: string; label: string }[];
 		environmentOptions?: { value: string; label: string }[];
 	} = $props();
+
+	let time = $state<LogTimeFilter>({
+		kind: 'range',
+		startAtUtc: start?.toISOString() ?? new Date().toISOString(),
+		endAtUtc: end?.toISOString() ?? new Date().toISOString()
+	});
+
+	$effect(() => {
+		const nextStart = start?.toISOString();
+		const nextEnd = end?.toISOString();
+
+		if (!nextStart || !nextEnd || time.kind !== 'range') {
+			return;
+		}
+
+		if (time.startAtUtc === nextStart && time.endAtUtc === nextEnd) {
+			return;
+		}
+
+		time = {
+			kind: 'range',
+			startAtUtc: nextStart,
+			endAtUtc: nextEnd
+		};
+	});
+
+	$effect(() => {
+		if (time.kind !== 'range') {
+			return;
+		}
+
+		const nextStart = new Date(time.startAtUtc);
+		const nextEnd = new Date(time.endAtUtc);
+
+		if (
+			Number.isNaN(nextStart.getTime()) ||
+			Number.isNaN(nextEnd.getTime()) ||
+			start?.toISOString() === nextStart.toISOString() && end?.toISOString() === nextEnd.toISOString()
+		) {
+			return;
+		}
+
+		start = nextStart;
+		end = nextEnd;
+	});
 </script>
 
 <div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b bg-background">
-	<TimeRangePicker bind:start bind:end />
+	<TimeRangePicker bind:time />
 
 	<span class="h-5 w-px bg-border mx-0.5"></span>
 

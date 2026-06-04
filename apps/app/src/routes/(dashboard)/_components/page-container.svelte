@@ -29,7 +29,7 @@
   class={cn(`flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background`,className)}
 >
   <header
-    class="sticky h-13 top-0 z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border/90 bg-background/95 p-2 px-3"
+    class="sticky h-13 bg-secondary top-0 z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border/90 p-2 px-3"
   >
     <div class="flex min-w-0 items-center gap-2">
       <div class="md:hidden">
