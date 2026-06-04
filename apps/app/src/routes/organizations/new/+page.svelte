@@ -7,16 +7,19 @@
   import { slugify } from '@repo/utils';
   import { authClient } from '$lib/auth-client';
   import { isValidOrganizationSlug } from '$lib/organization-slug';
-  import { onDestroy } from 'svelte';
+  import { getSupportedTimezones, normalizeTimeZone } from '$lib/timezone';
+  import { onDestroy, onMount } from 'svelte';
 
   let name = $state('');
   let slug = $state('');
+  let timezone = $state('UTC');
   let slugEdited = $state(false);
   let loading = $state(false);
   let error = $state('');
   let slugStatus = $state<'idle' | 'checking' | 'available' | 'error'>('idle');
   let slugCheckTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
   let slugCheckRequest = $state(0);
+  const timezoneOptions = getSupportedTimezones();
 
   $effect(() => {
     if (slugEdited) return;
@@ -85,6 +88,7 @@
   const handleCreateOrganization = async () => {
     const trimmedName = name.trim();
     const normalizedSlug = slugify(slug);
+    const normalizedTimezone = normalizeTimeZone(timezone);
 
     if (trimmedName.length < 2) {
       error = 'Organization name must be at least 2 characters.';
@@ -96,13 +100,21 @@
       return;
     }
 
+    if (!normalizedTimezone) {
+      error = 'Choose a valid IANA timezone.';
+      return;
+    }
+
     loading = true;
     error = '';
 
     await authClient.organization.create(
       {
         name: trimmedName,
-        slug: normalizedSlug
+        slug: normalizedSlug,
+        metadata: {
+          defaultTimezone: normalizedTimezone
+        }
       },
       {
         onSuccess: () => {
@@ -147,6 +159,13 @@
   onDestroy(() => {
     if (slugCheckTimeout) {
       clearTimeout(slugCheckTimeout);
+    }
+  });
+
+  onMount(() => {
+    const browserTimezone = normalizeTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    if (browserTimezone) {
+      timezone = browserTimezone;
     }
   });
 </script>
@@ -202,6 +221,28 @@
               <FieldError>{getSlugError()}</FieldError>
             </Field>
 
+            <Field>
+              <FieldLabel for="organization-timezone">Default timezone</FieldLabel>
+              <Input
+                id="organization-timezone"
+                bind:value={timezone}
+                list="organization-timezone-options"
+                placeholder="UTC"
+                required
+              />
+              <datalist id="organization-timezone-options">
+                {#each timezoneOptions as timezoneOption}
+                  <option value={timezoneOption}></option>
+                {/each}
+              </datalist>
+              <FieldDescription>
+                Used by default when rendering timestamps for this organization.
+              </FieldDescription>
+              <FieldError>
+                {timezone.trim() && !normalizeTimeZone(timezone) ? 'Choose a valid IANA timezone.' : ''}
+              </FieldError>
+            </Field>
+
             <FieldError>{error}</FieldError>
 
             <Field>
@@ -211,6 +252,7 @@
                   loading ||
                   name.trim().length < 2 ||
                   slug.length < 2 ||
+                  !normalizeTimeZone(timezone) ||
                   slugStatus === 'checking' ||
                   slugStatus === 'error'
                 }

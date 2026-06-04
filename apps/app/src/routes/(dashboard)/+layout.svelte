@@ -25,6 +25,7 @@
 <Sidebar.Provider class="h-dvh max-h-dvh overflow-hidden">
   <AppSidebar
     activeOrganizationId={data.activeOrganizationId}
+    logViews={data.logViews}
     organizations={data.organizations}
     user={data.user}
   />

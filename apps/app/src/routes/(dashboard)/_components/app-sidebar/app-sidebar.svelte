@@ -21,7 +21,51 @@
   import AppSidebarOrganizationSwitcher from "./app-sidebar-organization-switcher.svelte";
   import AppSidebarUserNav from "./app-sidebar-user-nav.svelte";
 
-  const navigationGroups = [
+  type NavigationItem = {
+    href: string;
+    label: string;
+    icon: typeof IconGauge;
+    shortcut: string;
+    submenu?: Array<{
+      href: string;
+      label: string;
+    }>;
+  };
+
+  type NavigationGroup = {
+    label: string;
+    items: NavigationItem[];
+  };
+
+  const settingsShortcut = "s";
+
+  let {
+    organizations,
+    activeOrganizationId,
+    logViews,
+    user,
+  }: {
+    organizations: {
+      id: string;
+      name: string;
+      slug: string;
+      logo?: string | null;
+    }[];
+    activeOrganizationId?: string;
+    logViews: {
+      id: string;
+      slug: string;
+      name: string;
+    }[];
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      image?: string | null;
+    };
+  } = $props();
+
+  const navigationGroups = $derived<NavigationGroup[]>([
     {
       label: "",
       items: [
@@ -36,7 +80,16 @@
     {
       label: "Telemetry",
       items: [
-        { href: "/logs", label: "Logs", icon: IconTerminal2, shortcut: "l" },
+        {
+          href: "/logs",
+          label: "Logs",
+          icon: IconTerminal2,
+          shortcut: "l",
+          submenu: logViews.map((view) => ({
+            href: `/logs/${view.slug}`,
+            label: view.name
+          }))
+        },
         { href: "/metrics", label: "Metrics", icon: ChartBarIcon, shortcut: "m" },
         { href: "/traces", label: "Traces", icon: PathIcon, shortcut: "t" },
       ],
@@ -45,29 +98,7 @@
       label: "Monitoring",
       items: [{ href: "/alerts", label: "Alerts", icon: BellIcon, shortcut: "a" }],
     },
-  ] as const;
-
-  const settingsShortcut = "s";
-
-  let {
-    organizations,
-    activeOrganizationId,
-    user,
-  }: {
-    organizations: {
-      id: string;
-      name: string;
-      slug: string;
-      logo?: string | null;
-    }[];
-    activeOrganizationId?: string;
-    user: {
-      id: string;
-      name: string;
-      email: string;
-      image?: string | null;
-    };
-  } = $props();
+  ]);
 
   let collapsedGroups = $state<Record<string, boolean>>({});
 
@@ -114,7 +145,7 @@
             <button
               type="button"
               {...props}
-              class={cn(props.class, "w-full justify-between pr-3")}
+              class={cn((props.class as string | undefined) ?? "", "w-full justify-between pr-3")}
               aria-expanded={!collapsedGroups[group.label]}
               onclick={() => toggleGroup(group.label)}
             >
@@ -148,6 +179,24 @@
                     </a>
                   {/snippet}
                 </Sidebar.MenuButton>
+                
+                {#if item.submenu && item.submenu.length > 0}
+                  <Sidebar.MenuSub>
+                    {#each item.submenu as subitem (subitem.href)}
+                      <Sidebar.MenuSubItem>
+                        <Sidebar.MenuSubButton
+                          isActive={page.url.pathname === subitem.href}
+                        >
+                          {#snippet child({ props })}
+                            <a href={subitem.href} {...props}>
+                              <span>{subitem.label}</span>
+                            </a>
+                          {/snippet}
+                        </Sidebar.MenuSubButton>
+                      </Sidebar.MenuSubItem>
+                    {/each}
+                  </Sidebar.MenuSub>
+                {/if}
               </Sidebar.MenuItem>
             {/each}
           </Sidebar.Menu>

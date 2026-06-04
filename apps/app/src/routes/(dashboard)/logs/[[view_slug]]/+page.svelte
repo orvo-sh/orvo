@@ -340,6 +340,10 @@
 		return result.data.views as DashboardLogView[];
 	};
 
+	$effect(() => {
+		views = (data.logViews as DashboardLogView[] | undefined) ?? [];
+	});
+
 	const applyView = (view: DashboardLogView | null) => {
 		if (!view) {
 			lastAppliedViewId = '';
