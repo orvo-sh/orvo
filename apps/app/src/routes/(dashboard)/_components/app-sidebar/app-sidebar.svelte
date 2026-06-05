@@ -42,7 +42,6 @@
   let {
     organizations,
     activeOrganizationId,
-    logViews,
     user,
   }: {
     organizations: {
@@ -52,11 +51,6 @@
       logo?: string | null;
     }[];
     activeOrganizationId?: string;
-    logViews: {
-      id: string;
-      slug: string;
-      name: string;
-    }[];
     user: {
       id: string;
       name: string;
@@ -65,12 +59,27 @@
     };
   } = $props();
 
+  type DashboardPageData = {
+    currentApp?: {
+      id: string;
+    };
+    logViews?: Array<{
+      id: string;
+      slug: string;
+      name: string;
+    }>;
+  };
+
+  const currentAppId = $derived(((page.data as DashboardPageData | undefined)?.currentApp?.id) ?? "");
+  const logViews = $derived(((page.data as DashboardPageData | undefined)?.logViews) ?? []);
+  const appPath = (suffix = "") => (currentAppId ? `/a/${currentAppId}${suffix}` : "/");
+
   const navigationGroups = $derived<NavigationGroup[]>([
     {
       label: "",
       items: [
         {
-          href: "/",
+          href: appPath(),
           label: "Overview",
           icon: IconGauge,
           shortcut: "o",
@@ -81,22 +90,22 @@
       label: "Telemetry",
       items: [
         {
-          href: "/logs",
+          href: appPath("/logs"),
           label: "Logs",
           icon: IconTerminal2,
           shortcut: "l",
           submenu: logViews.map((view) => ({
-            href: `/logs/${view.slug}`,
+            href: appPath(`/logs/${view.slug}`),
             label: view.name
           }))
         },
-        { href: "/metrics", label: "Metrics", icon: ChartBarIcon, shortcut: "m" },
-        { href: "/traces", label: "Traces", icon: PathIcon, shortcut: "t" },
+        { href: appPath("/metrics"), label: "Metrics", icon: ChartBarIcon, shortcut: "m" },
+        { href: appPath("/traces"), label: "Traces", icon: PathIcon, shortcut: "t" },
       ],
     },
     {
       label: "Monitoring",
-      items: [{ href: "/alerts", label: "Alerts", icon: BellIcon, shortcut: "a" }],
+      items: [{ href: appPath("/alerts"), label: "Alerts", icon: BellIcon, shortcut: "a" }],
     },
   ]);
 
@@ -120,7 +129,7 @@
         ])
       ),
       [settingsShortcut]: () => {
-        void goto(resolve("/settings"));
+        void goto(currentAppId ? appPath("/settings") : resolve("/"));
       },
     });
   });
@@ -167,7 +176,7 @@
                 {@const Icon = item.icon}
                 {@const href = item.href}
                 {@const isActive =
-                  href === "/"
+                  href === appPath()
                     ? page.url.pathname === href
                     : page.url.pathname.startsWith(href)}
                 <Sidebar.MenuButton class="gap-2.5 group/menu-btn" {isActive} tooltipContent={item.label}>
@@ -212,11 +221,11 @@
           <Sidebar.MenuItem>
             <Sidebar.MenuButton
               class="gap-2.5"
-              isActive={page.url.pathname.startsWith("/settings")}
+              isActive={currentAppId ? page.url.pathname.startsWith(appPath("/settings")) : false}
               tooltipContent="Settings"
             >
               {#snippet child({ props })}
-                <a href={resolve("/settings")} {...props}>
+                <a href={currentAppId ? appPath("/settings") : resolve("/")} {...props}>
                   <GearSixIcon class="opacity-75"/>
                   <span>Settings</span>
                   <Kbd class="ml-auto">{settingsShortcut}</Kbd>

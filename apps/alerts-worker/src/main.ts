@@ -179,7 +179,7 @@ class AlertsWorker {
     await this.db.transaction(async (tx) => {
       await tx.insert(alertIncident).values({
         id: incidentId,
-        organizationId: rule.organizationId,
+        appId: rule.appId,
         ruleId: rule.id,
         status: 'open',
         openedAt: now,
@@ -190,7 +190,7 @@ class AlertsWorker {
 
       await tx.insert(alertEvent).values({
         id: eventId,
-        organizationId: rule.organizationId,
+        appId: rule.appId,
         ruleId: rule.id,
         incidentId,
         eventType: 'opened',
@@ -270,7 +270,7 @@ class AlertsWorker {
         const eventId = genId('alev');
         await tx.insert(alertEvent).values({
           id: eventId,
-          organizationId: rule.organizationId,
+          appId: rule.appId,
           ruleId: rule.id,
           incidentId: incident.id,
           eventType: 'renotified',
@@ -322,7 +322,7 @@ class AlertsWorker {
 
       await tx.insert(alertEvent).values({
         id: eventId,
-        organizationId: rule.organizationId,
+        appId: rule.appId,
         ruleId: rule.id,
         incidentId: incident.id,
         eventType: 'resolved',
@@ -606,7 +606,7 @@ const buildPayload = (
 ) => ({
   type: `alert.${eventType}`,
   timestamp: new Date().toISOString(),
-  organizationId: rule.organizationId,
+  appId: rule.appId,
   rule: {
     id: rule.id,
     name: rule.name,
@@ -638,7 +638,7 @@ const buildDeliveryRows = (
 ): AlertDeliveryInsert[] =>
   destinations.map((destination) => ({
     id: genId('aldv'),
-    organizationId: rule.organizationId,
+    appId: rule.appId,
     destinationId: destination.destinationId,
     ruleId: rule.id,
     incidentId,
@@ -651,7 +651,7 @@ const buildDeliveryRows = (
 
 const buildRuleWhereClause = (rule: AlertRuleRow, windowStartAt: Date, windowEndAt: Date) => {
   const clauses = [
-    `organization_id = ${quote(rule.organizationId)}`,
+    `app_id = ${quote(rule.appId)}`,
     `start_time >= ${toDateTime64(windowStartAt)}`,
     `start_time <= ${toDateTime64(windowEndAt)}`,
     `kind IN (2, 5)`

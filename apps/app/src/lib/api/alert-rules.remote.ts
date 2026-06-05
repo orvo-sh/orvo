@@ -6,49 +6,87 @@ import {
 	setAlertRuleEnabledInputSchema,
 	updateAlertRuleInputSchema
 } from '$lib/server/services/alert-rule.service';
+import { resolveRequestAppContext } from '$lib/server/request-context';
+import { err } from '@repo/utils';
 import { z } from 'zod';
 
-export const getAlertRulesQuery = query(z.object({}), () => {
+export const getAlertRulesQuery = query(z.object({}), async () => {
 	const event = getRequestEvent();
+	const appContext = await resolveRequestAppContext(event);
+
+	if (!appContext.success) {
+		return err(appContext.error);
+	}
+
 	return event.locals.container.alertRuleService.getAlertRules({
-		organizationId: event.locals.auth!.session.activeOrganizationId!
+		appId: appContext.data.appId
 	});
 });
 
-export const getAlertRuleQuery = query(getAlertRuleInputSchema, (input) => {
+export const getAlertRuleQuery = query(getAlertRuleInputSchema, async (input) => {
 	const event = getRequestEvent();
+	const appContext = await resolveRequestAppContext(event);
+
+	if (!appContext.success) {
+		return err(appContext.error);
+	}
+
 	return event.locals.container.alertRuleService.getAlertRule(input, {
-		organizationId: event.locals.auth!.session.activeOrganizationId!
+		appId: appContext.data.appId
 	});
 });
 
-export const createAlertRuleCommand = command(createAlertRuleInputSchema, (input) => {
+export const createAlertRuleCommand = command(createAlertRuleInputSchema, async (input) => {
 	const event = getRequestEvent();
+	const appContext = await resolveRequestAppContext(event);
+
+	if (!appContext.success) {
+		return err(appContext.error);
+	}
+
 	return event.locals.container.alertRuleService.createAlertRule(input, {
-		organizationId: event.locals.auth!.session.activeOrganizationId!,
+		appId: appContext.data.appId,
 		userId: event.locals.auth!.user.id
 	});
 });
 
-export const updateAlertRuleCommand = command(updateAlertRuleInputSchema, (input) => {
+export const updateAlertRuleCommand = command(updateAlertRuleInputSchema, async (input) => {
 	const event = getRequestEvent();
+	const appContext = await resolveRequestAppContext(event);
+
+	if (!appContext.success) {
+		return err(appContext.error);
+	}
+
 	return event.locals.container.alertRuleService.updateAlertRule(input, {
-		organizationId: event.locals.auth!.session.activeOrganizationId!,
+		appId: appContext.data.appId,
 		userId: event.locals.auth!.user.id
 	});
 });
 
-export const setAlertRuleEnabledCommand = command(setAlertRuleEnabledInputSchema, (input) => {
+export const setAlertRuleEnabledCommand = command(setAlertRuleEnabledInputSchema, async (input) => {
 	const event = getRequestEvent();
+	const appContext = await resolveRequestAppContext(event);
+
+	if (!appContext.success) {
+		return err(appContext.error);
+	}
+
 	return event.locals.container.alertRuleService.setAlertRuleEnabled(input, {
-		organizationId: event.locals.auth!.session.activeOrganizationId!,
+		appId: appContext.data.appId,
 		userId: event.locals.auth!.user.id
 	});
 });
 
-export const deleteAlertRuleCommand = command(deleteAlertRuleInputSchema, (input) => {
+export const deleteAlertRuleCommand = command(deleteAlertRuleInputSchema, async (input) => {
 	const event = getRequestEvent();
+	const appContext = await resolveRequestAppContext(event);
+
+	if (!appContext.success) {
+		return err(appContext.error);
+	}
+
 	return event.locals.container.alertRuleService.deleteAlertRule(input, {
-		organizationId: event.locals.auth!.session.activeOrganizationId!
+		appId: appContext.data.appId
 	});
 });

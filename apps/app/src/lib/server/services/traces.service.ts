@@ -14,7 +14,7 @@ class TracesService {
 		this.logger = logger.child('TracesService');
 	}
 
-	async getTraces(input: z.infer<typeof getTracesInputSchema>, context: { organizationId: string }) {
+	async getTraces(input: z.infer<typeof getTracesInputSchema>, context: { appId: string }) {
 		this.logger.info('getTraces: fetching traces', { input, context });
 
 		const validated = getTracesInputSchema.safeParse(input);
@@ -24,7 +24,7 @@ class TracesService {
 
 		try {
 			const pageSize = validated.data.limit + 1;
-			const whereClause = buildWhereClause(context.organizationId, validated.data);
+			const whereClause = buildWhereClause(context.appId, validated.data);
 			const cursorClause = validated.data.cursor
 				? `WHERE (trace_start_time < ${toDateTime64(new Date(validated.data.cursor.startTime))} OR (trace_start_time = ${toDateTime64(new Date(validated.data.cursor.startTime))} AND trace_id < ${quote(validated.data.cursor.traceId)}))`
 				: '';
@@ -86,7 +86,7 @@ class TracesService {
 		}
 	}
 
-	async getTrace(input: z.infer<typeof getTraceInputSchema>, context: { organizationId: string }) {
+	async getTrace(input: z.infer<typeof getTraceInputSchema>, context: { appId: string }) {
 		this.logger.info('getTrace: fetching trace', { input, context });
 
 		const validated = getTraceInputSchema.safeParse(input);
@@ -100,7 +100,7 @@ class TracesService {
 				query: `
 					SELECT
 						id,
-						organization_id,
+						app_id,
 						ingestion_key_id,
 						received_at,
 						expires_at,
@@ -127,7 +127,7 @@ class TracesService {
 						service_name,
 						deployment_environment
 					FROM traces_raw
-					WHERE organization_id = ${quote(context.organizationId)}
+					WHERE app_id = ${quote(context.appId)}
 						AND trace_id = ${quote(validated.data.traceId)}
 					ORDER BY start_time ASC
 				`
@@ -187,7 +187,7 @@ type RawTraceRow = {
 
 type RawSpanRow = {
 	id: string;
-	organization_id: string;
+	app_id: string;
 	ingestion_key_id: string;
 	received_at: string | Date;
 	expires_at: string | Date;
@@ -234,10 +234,10 @@ const normalizeDateTime = (value: string | Date) => {
 const buildInClause = (column: string, values: string[]) =>
 	`${column} IN (${values.map((value) => quote(value)).join(', ')})`;
 
-const buildWhereClause = (organizationId: string, input: z.infer<typeof getTracesInputSchema>) => {
+const buildWhereClause = (appId: string, input: z.infer<typeof getTracesInputSchema>) => {
 	const { startAtUtc, endAtUtc } = resolveTimeRange(input.time);
 	const whereClauses = [
-		`organization_id = ${quote(organizationId)}`,
+		`app_id = ${quote(appId)}`,
 		`start_time >= ${toDateTime64(startAtUtc)}`,
 		`start_time <= ${toDateTime64(endAtUtc)}`
 	];

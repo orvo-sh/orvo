@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { authClient } from '$lib/auth-client';
-	import { getSupportedTimezones, normalizeTimeZone, withOrganizationTimezone } from '$lib/timezone';
+	import { updateAppSettingsCommand } from '$lib/api/apps.remote';
+	import { getSupportedTimezones, normalizeTimeZone } from '$lib/timezone';
 	import { Button } from '@repo/components/ui/button';
 	import {
 		Card,
@@ -15,9 +15,7 @@
 	let { data }: { data: PageData } = $props();
 
 	const timezoneOptions = getSupportedTimezones();
-	const activeOrganization = $derived(
-		data.organizations.find((organization) => organization.id === data.activeOrganizationId) ?? null
-	);
+	const currentApp = $derived(data.currentApp ?? null);
 
 	let timezone = $state('UTC');
 	let saving = $state(false);
@@ -25,11 +23,11 @@
 	let success = $state('');
 
 	$effect(() => {
-		timezone = data.activeOrganizationTimezone ?? 'UTC';
+		timezone = data.currentApp?.defaultTimezone ?? 'UTC';
 	});
 
 	const save = async () => {
-		if (!activeOrganization) {
+		if (!currentApp) {
 			return;
 		}
 
@@ -44,26 +42,20 @@
 		error = '';
 		success = '';
 
-		await authClient.organization.update(
-			{
-				organizationId: activeOrganization.id,
-				data: {
-					metadata: withOrganizationTimezone(activeOrganization.metadata ?? null, normalizedTimezone)
-				}
-			},
-			{
-				onSuccess: () => {
-					timezone = normalizedTimezone;
-					success = 'Organization settings updated.';
-					saving = false;
-					location.reload();
-				},
-				onError: (ctx) => {
-					error = ctx.error.message;
-					saving = false;
-				}
-			}
-		);
+		const result = await updateAppSettingsCommand({
+			defaultTimezone: normalizedTimezone
+		});
+
+		if (result.success === false) {
+			error = result.error;
+			saving = false;
+			return;
+		}
+
+		timezone = normalizedTimezone;
+		success = 'App settings updated.';
+		saving = false;
+		location.reload();
 	};
 </script>
 
@@ -82,30 +74,30 @@
 
 	<Card>
 		<CardHeader class="gap-1">
-			<CardTitle>Organization defaults</CardTitle>
+			<CardTitle>App defaults</CardTitle>
 			<CardDescription>
-				Choose the default timezone used when rendering timestamps across the workspace.
+				Choose the default timezone used when rendering timestamps for this app.
 			</CardDescription>
 		</CardHeader>
 		<CardContent class="grid gap-4">
 			<div class="grid gap-2">
-				<label class="text-sm font-medium text-foreground" for="organization-timezone">
+				<label class="text-sm font-medium text-foreground" for="app-timezone">
 					Default timezone
 				</label>
 				<Input
-					id="organization-timezone"
+					id="app-timezone"
 					bind:value={timezone}
-					list="organization-timezone-options"
+					list="app-timezone-options"
 					placeholder="UTC"
 				/>
-				<datalist id="organization-timezone-options">
+				<datalist id="app-timezone-options">
 					{#each timezoneOptions as timezoneOption}
 						<option value={timezoneOption}></option>
 					{/each}
 				</datalist>
 				<p class="text-sm text-muted-foreground">
-					{activeOrganization
-						? `Applies to logs for ${activeOrganization.name}.`
+					{currentApp
+						? `Applies to logs for ${currentApp.name}.`
 						: 'Choose a valid IANA timezone such as UTC or Africa/Harare.'}
 				</p>
 				{#if timezone.trim() && !normalizeTimeZone(timezone)}

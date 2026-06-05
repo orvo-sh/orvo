@@ -16,12 +16,12 @@ class DashboardLogViewService {
 		this.logger = logger.child('DashboardLogViewService');
 	}
 
-	async getDashboardLogViews(context: { organizationId: string }) {
+	async getDashboardLogViews(context: { appId: string }) {
 		this.logger.info('getDashboardLogViews: getting dashboard log views', { context });
 
 		try {
 			const views = await this.db.query.dashboardLogView.findMany({
-				where: eq(dashboardLogView.organizationId, context.organizationId),
+				where: eq(dashboardLogView.appId, context.appId),
 				orderBy: [desc(dashboardLogView.updatedAt), desc(dashboardLogView.name)]
 			});
 
@@ -34,7 +34,7 @@ class DashboardLogViewService {
 
 	async createDashboardLogView(
 		input: z.infer<typeof createDashboardLogViewInputSchema>,
-		context: { userId: string; organizationId: string }
+		context: { userId: string; appId: string }
 	) {
 		this.logger.info('createDashboardLogView: creating dashboard log view', { input, context });
 
@@ -44,12 +44,12 @@ class DashboardLogViewService {
 		}
 
 		try {
-			const slug = await this.createUniqueSlug(validated.data.name, context.organizationId);
+			const slug = await this.createUniqueSlug(validated.data.name, context.appId);
 			const id = genId('logv');
 
 			await this.db.insert(dashboardLogView).values({
 				id,
-				organizationId: context.organizationId,
+				appId: context.appId,
 				slug,
 				name: validated.data.name,
 				definition: validated.data.definition,
@@ -69,7 +69,7 @@ class DashboardLogViewService {
 
 	async updateDashboardLogView(
 		input: z.infer<typeof updateDashboardLogViewInputSchema>,
-		context: { userId: string; organizationId: string }
+		context: { userId: string; appId: string }
 	) {
 		this.logger.info('updateDashboardLogView: updating dashboard log view', { input, context });
 
@@ -82,7 +82,7 @@ class DashboardLogViewService {
 			const existing = await this.db.query.dashboardLogView.findFirst({
 				where: and(
 					eq(dashboardLogView.id, validated.data.id),
-					eq(dashboardLogView.organizationId, context.organizationId)
+					eq(dashboardLogView.appId, context.appId)
 				)
 			});
 
@@ -109,7 +109,7 @@ class DashboardLogViewService {
 		}
 	}
 
-	async deleteDashboardLogView(id: string, context: { organizationId: string }) {
+	async deleteDashboardLogView(id: string, context: { appId: string }) {
 		this.logger.info('deleteDashboardLogView: deleting dashboard log view', { id, context });
 
 		const validated = deleteDashboardLogViewInputSchema.safeParse(id);
@@ -123,7 +123,7 @@ class DashboardLogViewService {
 				.where(
 					and(
 						eq(dashboardLogView.id, validated.data),
-						eq(dashboardLogView.organizationId, context.organizationId)
+						eq(dashboardLogView.appId, context.appId)
 					)
 				);
 
@@ -137,14 +137,14 @@ class DashboardLogViewService {
 		}
 	}
 
-	private async createUniqueSlug(name: string, organizationId: string) {
+	private async createUniqueSlug(name: string, appId: string) {
 		const baseSlug = slugify(name);
 		let slug = baseSlug;
 
 		for (let attempt = 0; attempt < 21; attempt += 1) {
 			const existing = await this.db.query.dashboardLogView.findFirst({
 				where: and(
-					eq(dashboardLogView.organizationId, organizationId),
+					eq(dashboardLogView.appId, appId),
 					eq(dashboardLogView.slug, slug)
 				)
 			});

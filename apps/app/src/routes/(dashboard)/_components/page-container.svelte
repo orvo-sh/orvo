@@ -5,6 +5,7 @@
     import * as Sidebar from "@repo/components/ui/sidebar";
     import { IconInfoCircle } from "@tabler/icons-svelte";
     import type { Snippet } from "svelte";
+    import AppSwitcher from "./app-switcher.svelte";
 
   let {
     title,
@@ -37,6 +38,7 @@
       </div>
 
       <div class="flex min-w-0 items-center gap-0.5">
+        <AppSwitcher />
         <h1 class="text-sm font-medium tracking-tight text-foreground">
           {title}
         </h1>

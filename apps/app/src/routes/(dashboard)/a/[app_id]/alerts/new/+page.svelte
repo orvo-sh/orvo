@@ -4,7 +4,8 @@
 	import { createEmptyAlertRuleForm, type AlertRuleFormValue } from '$lib/alerts';
 	import { getAlertWebhookDestinationsQuery } from '$lib/api/alert-webhook-destinations.remote';
 	import AlertRuleForm from '../_components/alert-rule-form.svelte';
-	import PageContainer from '../../_components/page-container.svelte';
+	import { page } from '$app/state';
+	import PageContainer from '../../../../_components/page-container.svelte';
 	import { onMount } from 'svelte';
 
 	let loading = $state(true);
@@ -43,7 +44,7 @@
 			return;
 		}
 
-		await goto(`/alerts/${result.data.id}`);
+		await goto(`/a/${page.params.app_id}/alerts/${result.data.id}`);
 	};
 
 	onMount(() => {

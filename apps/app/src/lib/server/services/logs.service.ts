@@ -13,7 +13,7 @@ class LogsService {
 		this.logger = logger.child('LogsService');
 	}
 
-	async getLogs(input: z.infer<typeof getLogsInputSchema>, context: { organizationId: string }) {
+	async getLogs(input: z.infer<typeof getLogsInputSchema>, context: { appId: string }) {
 		this.logger.info('getLogs: fetching logs', { input, context });
 
 		const validated = getLogsInputSchema.safeParse(input);
@@ -23,7 +23,7 @@ class LogsService {
 
 		try {
 			const pageSize = validated.data.limit + 1;
-			const whereClause = buildWhereClause(context.organizationId, validated.data, {
+			const whereClause = buildWhereClause(context.appId, validated.data, {
 				cursor: validated.data.cursor
 			});
 			const result = await this.clickhouse.query({
@@ -31,7 +31,7 @@ class LogsService {
 				query: `
 					SELECT
 						id,
-						organization_id,
+						app_id,
 						ingestion_key_id,
 						received_at,
 						expires_at,
@@ -85,7 +85,7 @@ class LogsService {
 		}
 	}
 
-	async getLogVolume(input: z.infer<typeof getLogVolumeInputSchema>, context: { organizationId: string }) {
+	async getLogVolume(input: z.infer<typeof getLogVolumeInputSchema>, context: { appId: string }) {
 		this.logger.info('getLogVolume: fetching log volume', { input, context });
 
 		const validated = getLogVolumeInputSchema.safeParse(input);
@@ -98,7 +98,7 @@ class LogsService {
 			const rangeMs = Math.max(timeRange.endAtUtc.getTime() - timeRange.startAtUtc.getTime(), 1);
 			const bucketCount = validated.data.bucketCount;
 			const bucketSizeMs = Math.max(Math.ceil(rangeMs / bucketCount), 1);
-			const whereClause = buildWhereClause(context.organizationId, validated.data);
+			const whereClause = buildWhereClause(context.appId, validated.data);
 			const result = await this.clickhouse.query({
 				format: 'JSONEachRow',
 				query: `
@@ -224,7 +224,7 @@ export type LogsOmitFacet =
 
 type RawLogRow = {
 	id: string;
-	organization_id: string;
+	app_id: string;
 	ingestion_key_id: string;
 	received_at: string | Date;
 	expires_at: string | Date;
@@ -313,7 +313,7 @@ const resolveTimeRange = (time: z.infer<typeof logTimeFilterSchema>) => {
 };
 
 const buildWhereClause = (
-	organizationId: string,
+	appId: string,
 	input: z.infer<typeof logsQueryFiltersSchema>,
 	options?: {
 		omitFacet?: LogsOmitFacet;
@@ -322,7 +322,7 @@ const buildWhereClause = (
 ) => {
 	const { startAtUtc, endAtUtc } = resolveTimeRange(input.time);
 	const whereClauses = [
-		`organization_id = ${quote(organizationId)}`,
+		`app_id = ${quote(appId)}`,
 		`timestamp >= ${toDateTime64(startAtUtc)}`,
 		`timestamp <= ${toDateTime64(endAtUtc)}`
 	];

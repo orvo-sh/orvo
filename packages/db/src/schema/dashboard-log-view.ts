@@ -1,14 +1,15 @@
 import { jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
-import { organization, user } from './auth.js';
+import { app } from './app.js';
+import { user } from './auth.js';
 
 export const dashboardLogView = pgTable(
 	'dashboard_log_view',
 	{
 		id: text('id').primaryKey(),
-		organizationId: text('organization_id')
+		appId: text('app_id')
 			.notNull()
-			.references(() => organization.id, { onDelete: 'cascade' }),
+			.references(() => app.id, { onDelete: 'cascade' }),
 		slug: text('slug').notNull(),
 		name: text('name').notNull(),
 		definition: jsonb('definition').notNull(),
@@ -21,8 +22,8 @@ export const dashboardLogView = pgTable(
 			.notNull()
 	},
 	(table) => [
-		uniqueIndex('dashboard_log_view_organizationId_slug_uidx').on(
-			table.organizationId,
+		uniqueIndex('dashboard_log_view_app_id_slug_uidx').on(
+			table.appId,
 			table.slug
 		)
 	]

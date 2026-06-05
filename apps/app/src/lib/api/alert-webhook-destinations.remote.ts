@@ -5,21 +5,35 @@ import {
 	testAlertWebhookDestinationInputSchema,
 	updateAlertWebhookDestinationInputSchema
 } from '$lib/server/services/alert-webhook-destination.service';
+import { resolveRequestAppContext } from '$lib/server/request-context';
+import { err } from '@repo/utils';
 import { z } from 'zod';
 
-export const getAlertWebhookDestinationsQuery = query(z.object({}), () => {
+export const getAlertWebhookDestinationsQuery = query(z.object({}), async () => {
 	const event = getRequestEvent();
+	const appContext = await resolveRequestAppContext(event);
+
+	if (!appContext.success) {
+		return err(appContext.error);
+	}
+
 	return event.locals.container.alertWebhookDestinationService.getAlertWebhookDestinations({
-		organizationId: event.locals.auth!.session.activeOrganizationId!
+		appId: appContext.data.appId
 	});
 });
 
 export const createAlertWebhookDestinationCommand = command(
 	createAlertWebhookDestinationInputSchema,
-	(input) => {
+	async (input) => {
 		const event = getRequestEvent();
+		const appContext = await resolveRequestAppContext(event);
+
+		if (!appContext.success) {
+			return err(appContext.error);
+		}
+
 		return event.locals.container.alertWebhookDestinationService.createAlertWebhookDestination(input, {
-			organizationId: event.locals.auth!.session.activeOrganizationId!,
+			appId: appContext.data.appId,
 			userId: event.locals.auth!.user.id
 		});
 	}
@@ -27,10 +41,16 @@ export const createAlertWebhookDestinationCommand = command(
 
 export const updateAlertWebhookDestinationCommand = command(
 	updateAlertWebhookDestinationInputSchema,
-	(input) => {
+	async (input) => {
 		const event = getRequestEvent();
+		const appContext = await resolveRequestAppContext(event);
+
+		if (!appContext.success) {
+			return err(appContext.error);
+		}
+
 		return event.locals.container.alertWebhookDestinationService.updateAlertWebhookDestination(input, {
-			organizationId: event.locals.auth!.session.activeOrganizationId!,
+			appId: appContext.data.appId,
 			userId: event.locals.auth!.user.id
 		});
 	}
@@ -38,20 +58,32 @@ export const updateAlertWebhookDestinationCommand = command(
 
 export const deleteAlertWebhookDestinationCommand = command(
 	deleteAlertWebhookDestinationInputSchema,
-	(input) => {
+	async (input) => {
 		const event = getRequestEvent();
+		const appContext = await resolveRequestAppContext(event);
+
+		if (!appContext.success) {
+			return err(appContext.error);
+		}
+
 		return event.locals.container.alertWebhookDestinationService.deleteAlertWebhookDestination(input, {
-			organizationId: event.locals.auth!.session.activeOrganizationId!
+			appId: appContext.data.appId
 		});
 	}
 );
 
 export const testAlertWebhookDestinationCommand = command(
 	testAlertWebhookDestinationInputSchema,
-	(input) => {
+	async (input) => {
 		const event = getRequestEvent();
+		const appContext = await resolveRequestAppContext(event);
+
+		if (!appContext.success) {
+			return err(appContext.error);
+		}
+
 		return event.locals.container.alertWebhookDestinationService.testAlertWebhookDestination(input, {
-			organizationId: event.locals.auth!.session.activeOrganizationId!
+			appId: appContext.data.appId
 		});
 	}
 );

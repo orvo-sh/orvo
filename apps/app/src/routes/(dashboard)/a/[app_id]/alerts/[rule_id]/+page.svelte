@@ -11,7 +11,7 @@
 	import AlertRuleForm from '../_components/alert-rule-form.svelte';
 	import { Button } from '@repo/components/ui/button';
 	import { onMount } from 'svelte';
-	import PageContainer from '../../_components/page-container.svelte';
+	import PageContainer from '../../../../_components/page-container.svelte';
 
 	let loading = $state(true);
 	let submitting = $state(false);
@@ -114,7 +114,7 @@
 			return;
 		}
 
-		await goto('/alerts');
+		await goto(`/a/${page.params.app_id}/alerts`);
 	};
 
 	onMount(() => {

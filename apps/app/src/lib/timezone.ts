@@ -1,5 +1,3 @@
-const TIMEZONE_METADATA_KEY = 'defaultTimezone';
-
 const getSupportedTimezones = () => {
 	if (typeof Intl.supportedValuesOf !== 'function') {
 		return ['UTC'];
@@ -23,32 +21,4 @@ const normalizeTimeZone = (value: string) => {
 	}
 };
 
-const getOrganizationTimezone = (metadata: unknown) => {
-	if (!metadata || typeof metadata !== 'object') {
-		return null;
-	}
-
-	const value = (metadata as Record<string, unknown>)[TIMEZONE_METADATA_KEY];
-	if (typeof value !== 'string') {
-		return null;
-	}
-
-	return normalizeTimeZone(value);
-};
-
-const withOrganizationTimezone = (metadata: unknown, timezone: string) => {
-	const nextMetadata =
-		metadata && typeof metadata === 'object' && !Array.isArray(metadata)
-			? { ...(metadata as Record<string, unknown>) }
-			: {};
-
-	nextMetadata[TIMEZONE_METADATA_KEY] = timezone;
-	return nextMetadata;
-};
-
-export {
-	getOrganizationTimezone,
-	getSupportedTimezones,
-	normalizeTimeZone,
-	withOrganizationTimezone
-};
+export { getSupportedTimezones, normalizeTimeZone };

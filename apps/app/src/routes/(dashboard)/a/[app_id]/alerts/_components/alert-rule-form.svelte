@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import {
 		alertComparatorOptions,
 		alertSignalDescriptions,
@@ -256,7 +257,7 @@
 	</Card>
 
 	<div class="flex items-center justify-end gap-2">
-		<Button href="/alerts" variant="outline">Cancel</Button>
+		<Button href={`/a/${page.params.app_id}/alerts`} variant="outline">Cancel</Button>
 		<Button loading={submitting} onclick={submit}>
 			{submitLabel}
 		</Button>

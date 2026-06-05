@@ -95,7 +95,7 @@
 	<header class="shrink-0 border-b bg-background/95 backdrop-blur px-4 py-3 flex items-start gap-4">
 		<button
 			class="shrink-0 mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-			onclick={() => goto(resolve('/traces'))}
+			onclick={() => goto(resolve(`/a/${page.params.app_id}/traces`))}
 		>
 			<ArrowLeftIcon class="size-4" />
 			Traces

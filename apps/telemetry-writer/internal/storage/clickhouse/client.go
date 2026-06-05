@@ -42,7 +42,7 @@ func (client *Client) InsertLogs(ctx context.Context, rows []telemetry.LogRow) e
 	batch, err := client.conn.PrepareBatch(ctx, `
 		INSERT INTO logs_raw (
 			id,
-			organization_id,
+			app_id,
 			ingestion_key_id,
 			received_at,
 			expires_at,
@@ -72,7 +72,7 @@ func (client *Client) InsertLogs(ctx context.Context, rows []telemetry.LogRow) e
 	for _, row := range rows {
 		if err := batch.Append(
 			row.ID,
-			row.OrganizationID,
+			row.AppID,
 			row.IngestionKeyID,
 			row.ReceivedAt,
 			row.ExpiresAt,
@@ -108,7 +108,7 @@ func (client *Client) InsertTraces(ctx context.Context, rows []telemetry.TraceRo
 	batch, err := client.conn.PrepareBatch(ctx, `
 		INSERT INTO traces_raw (
 			id,
-			organization_id,
+			app_id,
 			ingestion_key_id,
 			received_at,
 			expires_at,
@@ -143,7 +143,7 @@ func (client *Client) InsertTraces(ctx context.Context, rows []telemetry.TraceRo
 	for _, row := range rows {
 		if err := batch.Append(
 			row.ID,
-			row.OrganizationID,
+			row.AppID,
 			row.IngestionKeyID,
 			row.ReceivedAt,
 			row.ExpiresAt,
@@ -184,7 +184,7 @@ func (client *Client) InsertMetrics(ctx context.Context, rows []telemetry.Metric
 	batch, err := client.conn.PrepareBatch(ctx, `
 		INSERT INTO metrics_raw (
 			id,
-			organization_id,
+			app_id,
 			ingestion_key_id,
 			received_at,
 			expires_at,
@@ -221,7 +221,7 @@ func (client *Client) InsertMetrics(ctx context.Context, rows []telemetry.Metric
 	for _, row := range rows {
 		if err := batch.Append(
 			row.ID,
-			row.OrganizationID,
+			row.AppID,
 			row.IngestionKeyID,
 			row.ReceivedAt,
 			row.ExpiresAt,

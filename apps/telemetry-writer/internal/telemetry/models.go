@@ -5,7 +5,7 @@ import "time"
 type MessageMeta struct {
 	Version        string    `json:"version"`
 	Signal         string    `json:"signal"`
-	OrganizationID string    `json:"organization_id"`
+	AppID          string    `json:"app_id"`
 	IngestionKeyID string    `json:"ingestion_key_id"`
 	ReceivedAt     time.Time `json:"received_at"`
 }
@@ -119,7 +119,7 @@ type MetricsMessage struct {
 
 type LogRow struct {
 	ID                    string
-	OrganizationID        string
+	AppID                 string
 	IngestionKeyID        string
 	ReceivedAt            time.Time
 	ExpiresAt             time.Time
@@ -144,7 +144,7 @@ type LogRow struct {
 
 type TraceRow struct {
 	ID                    string
-	OrganizationID        string
+	AppID                 string
 	IngestionKeyID        string
 	ReceivedAt            time.Time
 	ExpiresAt             time.Time
@@ -174,7 +174,7 @@ type TraceRow struct {
 
 type MetricRow struct {
 	ID                      string
-	OrganizationID          string
+	AppID                   string
 	IngestionKeyID          string
 	ReceivedAt              time.Time
 	ExpiresAt               time.Time

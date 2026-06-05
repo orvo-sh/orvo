@@ -20,12 +20,12 @@ class AlertRuleService {
 		this.logger = logger.child('AlertRuleService');
 	}
 
-	async getAlertRules(context: { organizationId: string }) {
+	async getAlertRules(context: { appId: string }) {
 		this.logger.info('getAlertRules: getting alert rules', { context });
 
 		try {
 			const rules = await this.db.query.alertRule.findMany({
-				where: eq(alertRule.organizationId, context.organizationId),
+				where: eq(alertRule.appId, context.appId),
 				orderBy: [desc(alertRule.updatedAt)]
 			});
 
@@ -40,7 +40,7 @@ class AlertRuleService {
 				}),
 				this.db.query.alertIncident.findMany({
 					where: and(
-						eq(alertIncident.organizationId, context.organizationId),
+						eq(alertIncident.appId, context.appId),
 						eq(alertIncident.status, 'open')
 					),
 					orderBy: [desc(alertIncident.openedAt)]
@@ -69,7 +69,7 @@ class AlertRuleService {
 		}
 	}
 
-	async getAlertRule(input: z.infer<typeof getAlertRuleInputSchema>, context: { organizationId: string }) {
+	async getAlertRule(input: z.infer<typeof getAlertRuleInputSchema>, context: { appId: string }) {
 		this.logger.info('getAlertRule: getting alert rule', { input, context });
 
 		const validated = getAlertRuleInputSchema.safeParse(input);
@@ -81,7 +81,7 @@ class AlertRuleService {
 			const rule = await this.db.query.alertRule.findFirst({
 				where: and(
 					eq(alertRule.id, validated.data),
-					eq(alertRule.organizationId, context.organizationId)
+					eq(alertRule.appId, context.appId)
 				)
 			});
 
@@ -108,7 +108,7 @@ class AlertRuleService {
 
 	async createAlertRule(
 		input: z.infer<typeof createAlertRuleInputSchema>,
-		context: { organizationId: string; userId: string }
+		context: { appId: string; userId: string }
 	) {
 		this.logger.info('createAlertRule: creating alert rule', { input, context });
 
@@ -129,7 +129,7 @@ class AlertRuleService {
 					? []
 					: await this.db.query.alertWebhookDestination.findMany({
 							where: and(
-								eq(alertWebhookDestination.organizationId, context.organizationId),
+								eq(alertWebhookDestination.appId, context.appId),
 								inArray(alertWebhookDestination.id, destinationIds)
 							),
 							orderBy: [asc(alertWebhookDestination.name)]
@@ -144,7 +144,7 @@ class AlertRuleService {
 			await this.db.transaction(async (tx) => {
 				await tx.insert(alertRule).values({
 					id,
-					organizationId: context.organizationId,
+					appId: context.appId,
 					name: validated.data.name,
 					signalType: validated.data.signalType,
 					comparator: validated.data.comparator,
@@ -183,7 +183,7 @@ class AlertRuleService {
 
 	async updateAlertRule(
 		input: z.infer<typeof updateAlertRuleInputSchema>,
-		context: { organizationId: string; userId: string }
+		context: { appId: string; userId: string }
 	) {
 		this.logger.info('updateAlertRule: updating alert rule', { input, context });
 
@@ -201,7 +201,7 @@ class AlertRuleService {
 			const existing = await this.db.query.alertRule.findFirst({
 				where: and(
 					eq(alertRule.id, validated.data.id),
-					eq(alertRule.organizationId, context.organizationId)
+					eq(alertRule.appId, context.appId)
 				)
 			});
 
@@ -215,7 +215,7 @@ class AlertRuleService {
 					? []
 					: await this.db.query.alertWebhookDestination.findMany({
 							where: and(
-								eq(alertWebhookDestination.organizationId, context.organizationId),
+								eq(alertWebhookDestination.appId, context.appId),
 								inArray(alertWebhookDestination.id, destinationIds)
 							),
 							orderBy: [asc(alertWebhookDestination.name)]
@@ -272,7 +272,7 @@ class AlertRuleService {
 
 	async setAlertRuleEnabled(
 		input: z.infer<typeof setAlertRuleEnabledInputSchema>,
-		context: { organizationId: string; userId: string }
+		context: { appId: string; userId: string }
 	) {
 		this.logger.info('setAlertRuleEnabled: updating alert rule enabled state', { input, context });
 
@@ -285,7 +285,7 @@ class AlertRuleService {
 			const existing = await this.db.query.alertRule.findFirst({
 				where: and(
 					eq(alertRule.id, validated.data.id),
-					eq(alertRule.organizationId, context.organizationId)
+					eq(alertRule.appId, context.appId)
 				)
 			});
 
@@ -315,7 +315,7 @@ class AlertRuleService {
 						.where(
 							and(
 								eq(alertIncident.ruleId, existing.id),
-								eq(alertIncident.organizationId, context.organizationId),
+								eq(alertIncident.appId, context.appId),
 								eq(alertIncident.status, 'open')
 							)
 						);
@@ -329,7 +329,7 @@ class AlertRuleService {
 		}
 	}
 
-	async deleteAlertRule(input: z.infer<typeof deleteAlertRuleInputSchema>, context: { organizationId: string }) {
+	async deleteAlertRule(input: z.infer<typeof deleteAlertRuleInputSchema>, context: { appId: string }) {
 		this.logger.info('deleteAlertRule: deleting alert rule', { input, context });
 
 		const validated = deleteAlertRuleInputSchema.safeParse(input);
@@ -343,7 +343,7 @@ class AlertRuleService {
 				.where(
 					and(
 						eq(alertRule.id, validated.data),
-						eq(alertRule.organizationId, context.organizationId)
+						eq(alertRule.appId, context.appId)
 					)
 				);
 
@@ -354,12 +354,12 @@ class AlertRuleService {
 		}
 	}
 
-	async seedDefaultAlertRules(context: { organizationId: string; userId: string }) {
+	async seedDefaultAlertRules(context: { appId: string; userId: string }) {
 		this.logger.info('seedDefaultAlertRules: seeding default alert rules', { context });
 
 		try {
 			const existingRule = await this.db.query.alertRule.findFirst({
-				where: eq(alertRule.organizationId, context.organizationId)
+				where: eq(alertRule.appId, context.appId)
 			});
 
 			if (existingRule) {
@@ -369,7 +369,7 @@ class AlertRuleService {
 			await this.db.insert(alertRule).values(
 				defaultAlertRules.map((rule) => ({
 					id: genId('alrt'),
-					organizationId: context.organizationId,
+					appId: context.appId,
 					name: rule.name,
 					signalType: rule.signalType,
 					comparator: rule.comparator,

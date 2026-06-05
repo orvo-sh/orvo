@@ -17,12 +17,12 @@ class AlertWebhookDestinationService {
 		this.logger = logger.child('AlertWebhookDestinationService');
 	}
 
-	async getAlertWebhookDestinations(context: { organizationId: string }) {
+	async getAlertWebhookDestinations(context: { appId: string }) {
 		this.logger.info('getAlertWebhookDestinations: getting alert webhook destinations', { context });
 
 		try {
 			const destinations = await this.db.query.alertWebhookDestination.findMany({
-				where: eq(alertWebhookDestination.organizationId, context.organizationId),
+				where: eq(alertWebhookDestination.appId, context.appId),
 				orderBy: [asc(alertWebhookDestination.name)]
 			});
 
@@ -43,7 +43,7 @@ class AlertWebhookDestinationService {
 
 	async createAlertWebhookDestination(
 		input: z.infer<typeof createAlertWebhookDestinationInputSchema>,
-		context: { organizationId: string; userId: string }
+		context: { appId: string; userId: string }
 	) {
 		this.logger.info('createAlertWebhookDestination: creating alert webhook destination', {
 			input,
@@ -60,7 +60,7 @@ class AlertWebhookDestinationService {
 
 			await this.db.insert(alertWebhookDestination).values({
 				id,
-				organizationId: context.organizationId,
+				appId: context.appId,
 				name: validated.data.name,
 				url: validated.data.url,
 				headersEncrypted: this.encryption.encrypt(JSON.stringify(validated.data.headers)),
@@ -81,7 +81,7 @@ class AlertWebhookDestinationService {
 
 	async updateAlertWebhookDestination(
 		input: z.infer<typeof updateAlertWebhookDestinationInputSchema>,
-		context: { organizationId: string; userId: string }
+		context: { appId: string; userId: string }
 	) {
 		this.logger.info('updateAlertWebhookDestination: updating alert webhook destination', {
 			input,
@@ -97,7 +97,7 @@ class AlertWebhookDestinationService {
 			const existing = await this.db.query.alertWebhookDestination.findFirst({
 				where: and(
 					eq(alertWebhookDestination.id, validated.data.id),
-					eq(alertWebhookDestination.organizationId, context.organizationId)
+					eq(alertWebhookDestination.appId, context.appId)
 				)
 			});
 
@@ -128,7 +128,7 @@ class AlertWebhookDestinationService {
 
 	async deleteAlertWebhookDestination(
 		input: z.infer<typeof deleteAlertWebhookDestinationInputSchema>,
-		context: { organizationId: string }
+		context: { appId: string }
 	) {
 		this.logger.info('deleteAlertWebhookDestination: deleting alert webhook destination', {
 			input,
@@ -146,7 +146,7 @@ class AlertWebhookDestinationService {
 				.where(
 					and(
 						eq(alertWebhookDestination.id, validated.data),
-						eq(alertWebhookDestination.organizationId, context.organizationId)
+						eq(alertWebhookDestination.appId, context.appId)
 					)
 				);
 
@@ -162,7 +162,7 @@ class AlertWebhookDestinationService {
 
 	async testAlertWebhookDestination(
 		input: z.infer<typeof testAlertWebhookDestinationInputSchema>,
-		context: { organizationId: string }
+		context: { appId: string }
 	) {
 		this.logger.info('testAlertWebhookDestination: testing alert webhook destination', {
 			input,
@@ -178,7 +178,7 @@ class AlertWebhookDestinationService {
 			const destination = await this.db.query.alertWebhookDestination.findFirst({
 				where: and(
 					eq(alertWebhookDestination.id, validated.data),
-					eq(alertWebhookDestination.organizationId, context.organizationId)
+					eq(alertWebhookDestination.appId, context.appId)
 				)
 			});
 
@@ -189,7 +189,7 @@ class AlertWebhookDestinationService {
 			const payload = {
 				type: 'alert.test',
 				timestamp: new Date().toISOString(),
-				organizationId: context.organizationId,
+				appId: context.appId,
 				destination: {
 					id: destination.id,
 					name: destination.name
@@ -214,7 +214,7 @@ class AlertWebhookDestinationService {
 			await this.db.transaction(async (tx) => {
 				await tx.insert(alertDeliveryAttempt).values({
 					id: deliveryId,
-					organizationId: context.organizationId,
+					appId: context.appId,
 					destinationId: destination.id,
 					eventType: 'test',
 					payload,

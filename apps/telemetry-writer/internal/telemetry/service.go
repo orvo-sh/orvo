@@ -320,7 +320,7 @@ func (service *Service) decodeLogs(ctx context.Context, payload []byte) ([]LogRo
 		return nil, fmt.Errorf("unmarshal logs message: %w", err)
 	}
 
-	policy, err := service.entitlements.Get(ctx, message.OrganizationID)
+	policy, err := service.entitlements.Get(ctx, message.AppID)
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +340,7 @@ func (service *Service) decodeLogs(ctx context.Context, payload []byte) ([]LogRo
 		}
 		rows = append(rows, LogRow{
 			ID:                    GenerateID("log"),
-			OrganizationID:        message.OrganizationID,
+			AppID:                 message.AppID,
 			IngestionKeyID:        message.IngestionKeyID,
 			ReceivedAt:            receivedAt,
 			ExpiresAt:             expiresAt,
@@ -373,7 +373,7 @@ func (service *Service) decodeTraces(ctx context.Context, payload []byte) ([]Tra
 		return nil, fmt.Errorf("unmarshal traces message: %w", err)
 	}
 
-	policy, err := service.entitlements.Get(ctx, message.OrganizationID)
+	policy, err := service.entitlements.Get(ctx, message.AppID)
 	if err != nil {
 		return nil, err
 	}
@@ -393,7 +393,7 @@ func (service *Service) decodeTraces(ctx context.Context, payload []byte) ([]Tra
 		}
 		rows = append(rows, TraceRow{
 			ID:                    GenerateID("trc"),
-			OrganizationID:        message.OrganizationID,
+			AppID:                 message.AppID,
 			IngestionKeyID:        message.IngestionKeyID,
 			ReceivedAt:            receivedAt,
 			ExpiresAt:             expiresAt,
@@ -431,7 +431,7 @@ func (service *Service) decodeMetrics(ctx context.Context, payload []byte) ([]Me
 		return nil, fmt.Errorf("unmarshal metrics message: %w", err)
 	}
 
-	policy, err := service.entitlements.Get(ctx, message.OrganizationID)
+	policy, err := service.entitlements.Get(ctx, message.AppID)
 	if err != nil {
 		return nil, err
 	}
@@ -451,7 +451,7 @@ func (service *Service) decodeMetrics(ctx context.Context, payload []byte) ([]Me
 		}
 		rows = append(rows, MetricRow{
 			ID:                      GenerateID("met"),
-			OrganizationID:          message.OrganizationID,
+			AppID:                   message.AppID,
 			IngestionKeyID:          message.IngestionKeyID,
 			ReceivedAt:              receivedAt,
 			ExpiresAt:               expiresAt,

@@ -33,7 +33,7 @@ export type { LogTime, LogTimeFilter, LogTimePreset };
 
 export type LogRecord = {
 	id?: string;
-	organization_id?: string;
+	app_id?: string;
 	ingestion_key_id?: string;
 	received_at?: string;
 	expires_at?: string;

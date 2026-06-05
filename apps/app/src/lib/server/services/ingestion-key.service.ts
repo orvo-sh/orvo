@@ -16,7 +16,7 @@ class IngestionKeyService {
 
 	async getIngestionKey(
 		input: z.infer<typeof getIngestionKeyInputSchema>,
-		context: { organizationId: string }
+		context: { appId: string }
 	) {
 		this.logger.info('getIngestionKey: getting ingestion key', { input, context });
 
@@ -28,7 +28,7 @@ class IngestionKeyService {
 		try {
 			const key = await this.db.query.ingestionKey.findFirst({
 				where: and(
-					eq(ingestionKey.organizationId, context.organizationId),
+					eq(ingestionKey.appId, context.appId),
 					eq(ingestionKey.kind, validated.data.kind),
 					isNull(ingestionKey.revokedAt)
 				),
@@ -44,7 +44,7 @@ class IngestionKeyService {
 
 	async createIngestionKey(
 		input: z.infer<typeof createIngestionKeyInputSchema>,
-		context: { organizationId: string; userId: string }
+		context: { appId: string; userId: string }
 	) {
 		this.logger.info('createIngestionKey: creating ingestion key', { input, context });
 
@@ -56,7 +56,7 @@ class IngestionKeyService {
 		try {
 			const activeKey = await this.db.query.ingestionKey.findFirst({
 				where: and(
-					eq(ingestionKey.organizationId, context.organizationId),
+					eq(ingestionKey.appId, context.appId),
 					eq(ingestionKey.kind, validated.data.kind),
 					isNull(ingestionKey.revokedAt)
 				)
@@ -73,7 +73,7 @@ class IngestionKeyService {
 				.insert(ingestionKey)
 				.values({
 					id,
-					organizationId: context.organizationId,
+					appId: context.appId,
 					kind: validated.data.kind,
 					key,
 					createdBy: context.userId
@@ -89,7 +89,7 @@ class IngestionKeyService {
 
 	async rotateIngestionKey(
 		input: z.infer<typeof rotateIngestionKeyInputSchema>,
-		context: { organizationId: string; userId: string }
+		context: { appId: string; userId: string }
 	) {
 		this.logger.info('rotateIngestionKey: rotating ingestion key', { input, context });
 
@@ -101,7 +101,7 @@ class IngestionKeyService {
 		try {
 			const activeKey = await this.db.query.ingestionKey.findFirst({
 				where: and(
-					eq(ingestionKey.organizationId, context.organizationId),
+					eq(ingestionKey.appId, context.appId),
 					eq(ingestionKey.kind, validated.data.kind),
 					isNull(ingestionKey.revokedAt)
 				)
@@ -122,7 +122,7 @@ class IngestionKeyService {
 				.insert(ingestionKey)
 				.values({
 					id,
-					organizationId: context.organizationId,
+					appId: context.appId,
 					kind: validated.data.kind,
 					key,
 					createdBy: context.userId

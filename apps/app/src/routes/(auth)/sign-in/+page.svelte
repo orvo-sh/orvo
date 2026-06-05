@@ -1,5 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { GitHubIcon } from '@repo/components/icons/github';
+  import { OrvoLogo } from '@repo/components/icons/orvo-logo';
   import { Button } from '@repo/components/ui/button';
   import {
       Field,
@@ -9,8 +11,6 @@
       FieldLabel,
       FieldSeparator
   } from '@repo/components/ui/field';
-  import { GitHubIcon } from '@repo/components/icons/github';
-  import { OrvoLogo } from '@repo/components/icons/orvo-logo';
   import { Input } from '@repo/components/ui/input';
 
   import { authClient, getFriendlyErrorMessage } from '$lib/auth-client';
@@ -67,10 +67,10 @@
   >
     <FieldGroup>
       <div class="flex flex-col items-center gap-3 text-center">
-        <OrvoLogo class="size-12" />
+        <OrvoLogo class="size-14" />
         <div class="space-y-1">
           <h1 class="text-xl font-semibold">Welcome back</h1>
-          <FieldDescription>Sign in to continue to your Orvo workspace.</FieldDescription>
+          <FieldDescription>Don't have an account? <a href="/sign-up">Get started</a></FieldDescription>
         </div>
       </div>
 
@@ -120,10 +120,6 @@
           </Button>
         </Field>
       </div>
-
-      <FieldDescription class="text-center">
-        Don&apos;t have an account? <a href="/sign-up">Sign up</a>
-      </FieldDescription>
     </FieldGroup>
   </form>
 </div>

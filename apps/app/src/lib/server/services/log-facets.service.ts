@@ -16,7 +16,7 @@ class LogFacetsService {
 
 	async getLogFacets(
 		input: z.infer<typeof getLogFacetsInputSchema>,
-		context: { organizationId: string }
+		context: { appId: string }
 	) {
 		this.logger.info('getLogFacets: fetching log facets', { input, context });
 
@@ -28,7 +28,7 @@ class LogFacetsService {
 		try {
 			const entries = await Promise.all(
 				Object.entries(facetColumns).map(async ([facetKey, facetConfig]) => {
-					const whereClause = buildWhereClause(context.organizationId, validated.data, {
+					const whereClause = buildWhereClause(context.appId, validated.data, {
 						omitFacet: facetConfig.omitFacet
 					});
 					const result = await this.clickhouse.query({

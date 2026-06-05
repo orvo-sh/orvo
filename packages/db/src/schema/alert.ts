@@ -12,7 +12,8 @@ import {
 	timestamp,
 	uniqueIndex
 } from 'drizzle-orm/pg-core';
-import { organization, user } from './auth.js';
+import { app } from './app.js';
+import { user } from './auth.js';
 
 const emptyTextArray = sql`'{}'::text[]`;
 
@@ -37,9 +38,9 @@ const alertWebhookDestination = pgTable(
 	'alert_webhook_destination',
 	{
 		id: text('id').primaryKey(),
-		organizationId: text('organization_id')
+		appId: text('app_id')
 			.notNull()
-			.references(() => organization.id, { onDelete: 'cascade' }),
+			.references(() => app.id, { onDelete: 'cascade' }),
 		name: text('name').notNull(),
 		url: text('url').notNull(),
 		headersEncrypted: text('headers_encrypted').notNull(),
@@ -54,7 +55,7 @@ const alertWebhookDestination = pgTable(
 			.notNull()
 	},
 	(table) => [
-		index('alert_webhook_destination_organization_id_idx').on(table.organizationId),
+		index('alert_webhook_destination_app_id_idx').on(table.appId),
 		index('alert_webhook_destination_created_by_idx').on(table.createdBy)
 	]
 );
@@ -63,9 +64,9 @@ const alertRule = pgTable(
 	'alert_rule',
 	{
 		id: text('id').primaryKey(),
-		organizationId: text('organization_id')
+		appId: text('app_id')
 			.notNull()
-			.references(() => organization.id, { onDelete: 'cascade' }),
+			.references(() => app.id, { onDelete: 'cascade' }),
 		name: text('name').notNull(),
 		signalType: alertSignalType('signal_type').notNull(),
 		comparator: alertComparator('comparator').notNull(),
@@ -103,7 +104,7 @@ const alertRule = pgTable(
 			.notNull()
 	},
 	(table) => [
-		index('alert_rule_organization_id_idx').on(table.organizationId),
+		index('alert_rule_app_id_idx').on(table.appId),
 		index('alert_rule_next_evaluation_at_idx').on(table.nextEvaluationAt),
 		index('alert_rule_enabled_next_evaluation_at_idx').on(table.isEnabled, table.nextEvaluationAt)
 	]
@@ -130,9 +131,9 @@ const alertIncident = pgTable(
 	'alert_incident',
 	{
 		id: text('id').primaryKey(),
-		organizationId: text('organization_id')
+		appId: text('app_id')
 			.notNull()
-			.references(() => organization.id, { onDelete: 'cascade' }),
+			.references(() => app.id, { onDelete: 'cascade' }),
 		ruleId: text('rule_id')
 			.notNull()
 			.references(() => alertRule.id, { onDelete: 'cascade' }),
@@ -150,7 +151,7 @@ const alertIncident = pgTable(
 			.notNull()
 	},
 	(table) => [
-		index('alert_incident_organization_id_idx').on(table.organizationId),
+		index('alert_incident_app_id_idx').on(table.appId),
 		index('alert_incident_rule_id_idx').on(table.ruleId),
 		uniqueIndex('alert_incident_one_open_per_rule_uidx')
 			.on(table.ruleId)
@@ -162,9 +163,9 @@ const alertEvent = pgTable(
 	'alert_event',
 	{
 		id: text('id').primaryKey(),
-		organizationId: text('organization_id')
+		appId: text('app_id')
 			.notNull()
-			.references(() => organization.id, { onDelete: 'cascade' }),
+			.references(() => app.id, { onDelete: 'cascade' }),
 		ruleId: text('rule_id').references(() => alertRule.id, { onDelete: 'cascade' }),
 		incidentId: text('incident_id').references(() => alertIncident.id, { onDelete: 'cascade' }),
 		eventType: alertEventType('event_type').notNull(),
@@ -174,7 +175,7 @@ const alertEvent = pgTable(
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
 	(table) => [
-		index('alert_event_organization_id_idx').on(table.organizationId),
+		index('alert_event_app_id_idx').on(table.appId),
 		index('alert_event_rule_id_idx').on(table.ruleId),
 		index('alert_event_incident_id_idx').on(table.incidentId)
 	]
@@ -184,9 +185,9 @@ const alertDeliveryAttempt = pgTable(
 	'alert_delivery_attempt',
 	{
 		id: text('id').primaryKey(),
-		organizationId: text('organization_id')
+		appId: text('app_id')
 			.notNull()
-			.references(() => organization.id, { onDelete: 'cascade' }),
+			.references(() => app.id, { onDelete: 'cascade' }),
 		destinationId: text('destination_id')
 			.notNull()
 			.references(() => alertWebhookDestination.id, { onDelete: 'cascade' }),
@@ -209,7 +210,7 @@ const alertDeliveryAttempt = pgTable(
 			.notNull()
 	},
 	(table) => [
-		index('alert_delivery_attempt_organization_id_idx').on(table.organizationId),
+		index('alert_delivery_attempt_app_id_idx').on(table.appId),
 		index('alert_delivery_attempt_destination_id_idx').on(table.destinationId),
 		index('alert_delivery_attempt_status_next_attempt_at_idx').on(table.status, table.nextAttemptAt)
 	]

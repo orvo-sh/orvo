@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Badge } from '@repo/components/ui/badge';
 	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import type { TraceRow } from '../types';
 
 	export function formatDuration(ns: number | string): string {
@@ -32,12 +32,13 @@
 
 	const hasErrors = $derived(Number(trace.error_count) > 0);
 	const borderClass = $derived(hasErrors ? 'border-l-destructive' : 'border-l-border');
+	const traceHref = $derived(`/a/${page.params.app_id}/traces/${trace.trace_id}`);
 </script>
 
 <div
 	class="group flex items-center border-l-2 {borderClass} hover:bg-muted/30 transition-colors cursor-pointer min-h-9 px-3 py-1.5 gap-0 border-b border-b-border/40"
-	onclick={() => goto(resolve(`/traces/${trace.trace_id}` as `/traces/${string}`))}
-	onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && goto(resolve(`/traces/${trace.trace_id}` as `/traces/${string}`))}
+	onclick={() => goto(traceHref)}
+	onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && goto(traceHref)}
 	role="row"
 	tabindex="0"
 >

@@ -27,7 +27,7 @@
 
 	import { cn } from '@repo/components';
 	import { onMount, untrack } from 'svelte';
-	import PageContainer from '../../_components/page-container.svelte';
+	import PageContainer from '../../../../_components/page-container.svelte';
 	import LogFilterBar from '../_components/log-filter-bar.svelte';
 	import LogTable from '../_components/log-table.svelte';
 	import LogVolumeChart from '../_components/log-volume-chart.svelte';
@@ -290,7 +290,7 @@
 
 	const currentViewSlug = $derived(page.params.view_slug ?? '');
 	const currentView = $derived(views.find((view) => view.slug === currentViewSlug) ?? null);
-	const logTimezone = $derived(data.activeOrganizationTimezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
+	const logTimezone = $derived(data.currentApp?.defaultTimezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
 	const createBaseLogState = (view: DashboardLogView | null, now = new Date()) =>
 		view
 			? {
@@ -515,7 +515,10 @@
 
 	const goToView = async (slug: string) => {
 		const search = urlStateSearch ? `?${urlStateSearch}` : '';
-		await goto(`${slug ? `/logs/${slug}` : '/logs'}${search}`);
+		const basePath = slug
+			? `/a/${page.params.app_id}/logs/${slug}`
+			: `/a/${page.params.app_id}/logs`;
+		await goto(`${basePath}${search}`);
 	};
 
 	const saveAsNewView = async (initialName = '') => {

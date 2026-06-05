@@ -5,7 +5,7 @@
 		IconPlayerPlay as PlayIcon,
 		IconRefresh as ArrowsClockwiseIcon
 	} from "@tabler/icons-svelte";
-	import PageContainer from '../_components/page-container.svelte';
+	import PageContainer from '../../../_components/page-container.svelte';
 	import TraceFilterBar from './_components/trace-filter-bar.svelte';
 	import TraceTable from './_components/trace-table.svelte';
 	import type { TraceFilters, TraceRow } from './types';

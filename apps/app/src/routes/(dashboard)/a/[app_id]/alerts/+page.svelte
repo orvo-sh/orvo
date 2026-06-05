@@ -4,6 +4,7 @@
 		getAlertRulesQuery,
 		setAlertRuleEnabledCommand
 	} from '$lib/api/alert-rules.remote';
+	import { page } from '$app/state';
 	import { alertSignalOptions } from '$lib/alerts';
 	import { Badge } from '@repo/components/ui/badge';
 	import { Button } from '@repo/components/ui/button';
@@ -21,7 +22,7 @@
 		IconTrendingUp
 	} from '@tabler/icons-svelte';
 	import { onMount } from 'svelte';
-	import PageContainer from '../_components/page-container.svelte';
+	import PageContainer from '../../../_components/page-container.svelte';
 
 	type AlertRule = {
 		id: string;
@@ -160,7 +161,7 @@
 
 <PageContainer title="Alerts">
 	{#snippet actions()}
-		<Button href="/alerts/new">
+		<Button href={`/a/${page.params.app_id}/alerts/new`}>
 			<IconPlus data-slot="button-icon" />
 			New rule
 		</Button>
@@ -265,7 +266,7 @@
 						Create a rule to get notified when a signal crosses a threshold.
 					</p>
 				</div>
-				<Button href="/alerts/new" variant="outline">
+				<Button href={`/a/${page.params.app_id}/alerts/new`} variant="outline">
 					<IconPlus data-slot="button-icon" />
 					New rule
 				</Button>
@@ -347,7 +348,7 @@
 								{/if}
 							</div>
 							<div class="flex shrink-0 items-center gap-1.5">
-								<Button href={`/alerts/${rule.id}`} variant="outline" size="sm">
+								<Button href={`/a/${page.params.app_id}/alerts/${rule.id}`} variant="outline" size="sm">
 									<IconPencil data-slot="button-icon" />
 									Edit
 								</Button>
