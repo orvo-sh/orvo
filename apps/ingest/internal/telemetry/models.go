@@ -13,7 +13,7 @@ import (
 type MessageMeta struct {
 	Version        string    `json:"version"`
 	Signal         string    `json:"signal"`
-	OrganizationID string    `json:"organization_id"`
+	AppID          string    `json:"app_id"`
 	IngestionKeyID string    `json:"ingestion_key_id"`
 	ReceivedAt     time.Time `json:"received_at"`
 }
@@ -168,17 +168,20 @@ type MetricsMessage struct {
 type LogsInput struct {
 	ResolvedIngestionKey auth.ResolvedIngestionKey
 	Meta                 MessageMeta
+	AcceptedBytes        int
 	ResourceLogs         []*logspb.ResourceLogs
 }
 
 type TracesInput struct {
 	ResolvedIngestionKey auth.ResolvedIngestionKey
 	Meta                 MessageMeta
+	AcceptedBytes        int
 	ResourceSpans        []*tracepb.ResourceSpans
 }
 
 type MetricsInput struct {
 	ResolvedIngestionKey auth.ResolvedIngestionKey
 	Meta                 MessageMeta
+	AcceptedBytes        int
 	ResourceMetrics      []*metricspb.ResourceMetrics
 }

@@ -20,6 +20,7 @@ import (
 type IngestionKey struct {
 	ID             string
 	OrganizationID string
+	AppID          string
 	Key            string
 	Kind           string
 	LastUsedAt     *time.Time
@@ -29,6 +30,7 @@ type IngestionKey struct {
 
 type ResolvedIngestionKey struct {
 	OrganizationID string
+	AppID          string
 	IngestionKeyID string
 	Kind           string
 }
@@ -79,6 +81,7 @@ func (service *Service) ResolveIngestionKey(ctx context.Context, rawKey string) 
 
 	resolved := ResolvedIngestionKey{
 		OrganizationID: ingestionKey.OrganizationID,
+		AppID:          ingestionKey.AppID,
 		IngestionKeyID: ingestionKey.ID,
 		Kind:           ingestionKey.Kind,
 	}
@@ -127,16 +130,18 @@ func (service *Service) ResolveRequest(request *http.Request) (*ResolvedIngestio
 
 func (service *Service) getIngestionKey(ctx context.Context, rawKey string) (*IngestionKey, error) {
 	const query = `
-SELECT id, organization_id, key, kind, last_used_at, created_at, revoked_at
+SELECT ingestion_key.id, app.organization_id, ingestion_key.app_id, ingestion_key.key, ingestion_key.kind, ingestion_key.last_used_at, ingestion_key.created_at, ingestion_key.revoked_at
 FROM ingestion_key
+JOIN app ON app.id = ingestion_key.app_id
 WHERE key = $1
-  AND revoked_at IS NULL
+  AND ingestion_key.revoked_at IS NULL
 `
 
 	var ingestionKey IngestionKey
 	if err := service.store.Pool().QueryRow(ctx, query, rawKey).Scan(
 		&ingestionKey.ID,
 		&ingestionKey.OrganizationID,
+		&ingestionKey.AppID,
 		&ingestionKey.Key,
 		&ingestionKey.Kind,
 		&ingestionKey.LastUsedAt,

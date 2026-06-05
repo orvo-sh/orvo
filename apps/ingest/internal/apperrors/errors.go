@@ -35,4 +35,6 @@ var (
 	ErrUnsupportedContentEncoding = New(415, "unsupported_content_encoding")
 	ErrPayloadTooLarge            = New(413, "payload_too_large")
 	ErrQueueUnavailable           = New(503, "queue_unavailable")
+	ErrBillingRequired            = New(402, "billing_required")
+	ErrBillingQuotaExceeded       = New(402, "billing_quota_exceeded")
 )

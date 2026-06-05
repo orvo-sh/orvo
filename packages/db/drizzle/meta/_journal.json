@@ -50,6 +50,20 @@
       "when": 1780500000000,
       "tag": "0006_add_dashboard_log_views",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1780600000000,
+      "tag": "0007_introduce_apps",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1780656441000,
+      "tag": "0008_add_billing",
+      "breakpoints": true
     }
   ]
 }

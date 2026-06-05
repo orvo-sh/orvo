@@ -7,6 +7,7 @@ import (
 
 	"github.com/orvo-sh/orvo/apps/ingest/internal/auth"
 	"github.com/orvo-sh/orvo/apps/ingest/internal/background"
+	"github.com/orvo-sh/orvo/apps/ingest/internal/billing"
 	"github.com/orvo-sh/orvo/apps/ingest/internal/config"
 	"github.com/orvo-sh/orvo/apps/ingest/internal/httpapi"
 	"github.com/orvo-sh/orvo/apps/ingest/internal/observability"
@@ -58,7 +59,8 @@ func Run(ctx context.Context) error {
 	})
 
 	authService := auth.New(postgresDB, logger, backgroundManager, cfg.Ingest.IngestionKeyCacheTTL)
-	ingestService := telemetry.NewService(natsClient, logger)
+	billingService := billing.New(postgresDB, logger)
+	ingestService := telemetry.NewService(natsClient, billingService, logger)
 
 	server, err := httpapi.New(authService, ingestService, logger, cfg.Ingest)
 	if err != nil {

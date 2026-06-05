@@ -25,6 +25,10 @@
     window.location.href = "/sign-in";
   };
 
+  const handleBillingNavigation = () => {
+    window.location.href = "/settings/billing";
+  };
+
   const getInitials = (value: string) =>
     value
       .split(/\s+/)
@@ -82,7 +86,7 @@
         Account settings
       </DropdownMenu.Item>
 
-      <DropdownMenu.Item>
+      <DropdownMenu.Item onSelect={handleBillingNavigation}>
         <CreditCardIcon />
         Billing
       </DropdownMenu.Item>

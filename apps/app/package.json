@@ -21,6 +21,7 @@
     "auth:schema": "better-auth generate --config src/lib/server/auth.ts --output ../../packages/db/src/schema/auth.schema.ts --yes"
   },
   "dependencies": {
+    "@better-auth/stripe": "^1.6.14",
     "@internationalized/date": "^3.12.0",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/api-logs": "^0.218.0",
@@ -41,14 +42,15 @@
     "@repo/logger": "workspace:*",
     "@repo/utils": "workspace:*",
     "@tabler/icons-svelte": "^3.44.0",
-    "better-auth": "~1.4.21",
+    "better-auth": "~1.6.14",
     "drizzle-orm": "^0.45.2",
     "import-in-the-middle": "^3.0.1",
     "postgres": "^3.4.9",
+    "stripe": "^22.2.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@better-auth/cli": "~1.4.21",
+    "@better-auth/cli": "~1.4.22",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@sveltejs/adapter-node": "^5.5.4",
