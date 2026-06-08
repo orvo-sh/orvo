@@ -1,169 +1,186 @@
 <script lang="ts">
-  import { Button } from '@repo/components/ui/button';
-  import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@repo/components/ui/field';
-  import { OrvoLogo } from '@repo/components/icons/orvo-logo';
-  import { Input } from '@repo/components/ui/input';
+  import {
+      createOrganizationLogoUploadUrlCommand,
+  } from "$lib/api/organizations.remote";
+  import { authClient } from "$lib/auth-client";
+  import { MAX_UPLOAD_FILE_SIZE_BYTES } from "$lib/constants";
+  import { OrvoLogo } from "@repo/components/icons/orvo-logo";
+  import * as Avatar from "@repo/components/ui/avatar";
+  import { Button } from "@repo/components/ui/button";
+  import {
+      Field,
+      FieldDescription,
+      FieldError,
+      FieldGroup,
+      FieldLabel,
+  } from "@repo/components/ui/field";
+  import { Input } from "@repo/components/ui/input";
+  import { generateRandomString, slugify } from "@repo/utils";
+  import { IconBuildingStore, IconUpload, IconX } from "@tabler/icons-svelte";
+  import { onDestroy } from "svelte";
 
-  import { slugify } from '@repo/utils';
-  import { authClient } from '$lib/auth-client';
-  import { isValidOrganizationSlug } from '$lib/organization-slug';
-  import { onDestroy } from 'svelte';
-
-  let name = $state('');
-  let slug = $state('');
-  let slugEdited = $state(false);
+  let name = $state("");
+  let logo = $state<string | null>(null);
+  let logoPreviewUrl = $state<string | null>(null);
+  let logoInput = $state<HTMLInputElement | null>(null);
   let loading = $state(false);
-  let error = $state('');
-  let slugStatus = $state<'idle' | 'checking' | 'available' | 'error'>('idle');
-  let slugCheckTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
-  let slugCheckRequest = $state(0);
+  let uploadingLogo = $state(false);
+  let error = $state("");
+  let logoError = $state("");
 
-  $effect(() => {
-    if (slugEdited) return;
-    slug = slugify(name);
-  });
+  const revokeLogoPreviewUrl = () => {
+    if (logoPreviewUrl) {
+      URL.revokeObjectURL(logoPreviewUrl);
+    }
 
-  $effect(() => {
-    slug;
-    error = '';
-    scheduleSlugCheck();
-  });
+    logoPreviewUrl = null;
+  };
 
-  const checkSlugAvailability = async (value: string) => {
-    const normalizedSlug = slugify(value);
+  const clearLogo = () => {
+    if (logoPreviewUrl) URL.revokeObjectURL(logoPreviewUrl);
+    logoPreviewUrl = null;
+    logo = null;
+    logoError = "";
 
-    if (!normalizedSlug || !isValidOrganizationSlug(normalizedSlug)) {
-      slugStatus = 'error';
+    if (logoInput) {
+      logoInput.value = "";
+    }
+  };
+
+  const uploadLogo = async (file: File) => {
+    const uploadUrlResult = await createOrganizationLogoUploadUrlCommand({
+      contentType: file.type,
+      fileSizeBytes: file.size,
+    });
+
+    if (uploadUrlResult.success === false) {
+      logoError = uploadUrlResult.error;
       return false;
     }
 
-    slugStatus = 'checking';
+    const uploadResponse = await fetch(uploadUrlResult.data.presignedUrl, {
+      method: "PUT",
+      body: file,
+      headers: {
+        "Content-Type": file.type,
+      },
+    });
+
+    if (!uploadResponse.ok) {
+      logoError = `Logo upload failed with status ${uploadResponse.status}.`;
+      return false;
+    }
+
+    logo = uploadUrlResult.data.url;
+    return true;
+  };
+
+  const handleLogoInput = async (event: Event) => {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    error = "";
+    logoError = "";
+
+    if (!file.type.startsWith("image/")) {
+      logoError = "Please upload an image file.";
+      input.value = "";
+      return;
+    }
+
+    if (file.size > MAX_UPLOAD_FILE_SIZE_BYTES) {
+      logoError = "Please upload an image smaller than 10 MB.";
+      input.value = "";
+      return;
+    }
+
+    revokeLogoPreviewUrl();
+    logoPreviewUrl = URL.createObjectURL(file);
+    uploadingLogo = true;
 
     try {
-      const response = await fetch(
-        `/api/organizations/slug-availability?slug=${encodeURIComponent(normalizedSlug)}`
-      );
-
-      if (!response.ok) {
-        slugStatus = 'error';
-        return false;
+      const uploaded = await uploadLogo(file);
+      if (!uploaded) {
+        revokeLogoPreviewUrl();
+        logo = null;
       }
-
-      const result = (await response.json()) as { available?: boolean };
-      slugStatus = result.available ? 'available' : 'error';
-      return result.available === true;
-    } catch {
-      slugStatus = 'error';
-      return false;
+    } catch (uploadError) {
+      revokeLogoPreviewUrl();
+      logo = null;
+      logoError =
+        uploadError instanceof Error
+          ? uploadError.message
+          : "Failed to upload logo.";
+    } finally {
+      uploadingLogo = false;
+      input.value = "";
     }
   };
 
-  const scheduleSlugCheck = () => {
-    if (slugCheckTimeout) {
-      clearTimeout(slugCheckTimeout);
-    }
-
-    const normalizedSlug = slugify(slug);
-    slugCheckRequest += 1;
-    const requestId = slugCheckRequest;
-
-    if (!normalizedSlug || !isValidOrganizationSlug(normalizedSlug)) {
-      slugStatus = normalizedSlug.length === 0 ? 'idle' : 'error';
+  const submit = async () => {
+    if (name.trim().length < 2) {
+      error = "Organization name must be at least 2 characters.";
       return;
     }
 
-    slugStatus = 'checking';
-    slugCheckTimeout = setTimeout(async () => {
-      if (requestId !== slugCheckRequest) {
-        return;
-      }
-
-      await checkSlugAvailability(normalizedSlug);
-    }, 250);
-  };
-
-  const handleCreateOrganization = async () => {
-    const trimmedName = name.trim();
-    const normalizedSlug = slugify(slug);
-
-    if (trimmedName.length < 2) {
-      error = 'Organization name must be at least 2 characters.';
-      return;
-    }
-
-    if (!(await checkSlugAvailability(normalizedSlug))) {
-      error = 'Choose an available slug with only lowercase letters, numbers, and hyphens.';
+    if (uploadingLogo) {
+      error = "Wait for the logo upload to finish.";
       return;
     }
 
     loading = true;
-    error = '';
+    error = "";
 
-    await authClient.organization.create(
-      {
-        name: trimmedName,
-        slug: normalizedSlug
-      },
+    const result = await authClient.organization.create({
+      name: name.trim(),
+      slug: `${slugify(name.trim())}-${generateRandomString(6)}`,
+      logo: logo ?? undefined,
+    });
+
+    if (result.error) {
+      error = result.error.message || "Failed to create organization";
+      loading = false;
+      return;
+    }
+
+    await authClient.organization.setActive(
+      { organizationId: result.data.id },
       {
         onSuccess: () => {
-          location.href = '/settings/billing?onboarding=1';
+          window.location.href = "/organizations/plan";
         },
         onError: (ctx) => {
           error = ctx.error.message;
           loading = false;
-        }
-      }
+        },
+      },
     );
   };
 
-  const getSlugHelpText = () => {
-    if (slugStatus === 'checking') {
-      return 'Checking slug availability...';
-    }
-
-    if (slugStatus === 'available') {
-      return 'This slug is available.';
-    }
-
-    return 'Your workspace URL will use this slug.';
-  };
-
-  const getSlugError = () => {
-    if (slugStatus !== 'error') {
-      return '';
-    }
-
-    if (!slug || slug.length < 2) {
-      return 'Slug must be at least 2 characters.';
-    }
-
-    if (!isValidOrganizationSlug(slug)) {
-      return 'Use lowercase letters, numbers, and hyphens. Reserved slugs are not allowed.';
-    }
-
-    return 'That slug is already taken.';
-  };
-
   onDestroy(() => {
-    if (slugCheckTimeout) {
-      clearTimeout(slugCheckTimeout);
-    }
+    revokeLogoPreviewUrl();
   });
-
 </script>
 
-<div class="flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-  <div class="w-full max-w-sm">
+<div
+  class="flex min-h-svh flex-col items-center gap-6 p-6 not-sm:pt-20 sm:justify-center md:p-10"
+>
+  <div class="w-full max-w-md">
     <div class="flex flex-col gap-6">
       <form
+        id="create-organization-form"
         onsubmit={(event) => {
           event.preventDefault();
-          handleCreateOrganization();
+          void submit();
         }}
       >
         <FieldGroup>
-          <div class="flex flex-col items-center gap-2 text-center">
-            <OrvoLogo class="size-12" />
+          <div class="flex flex-col items-center gap-3 text-center">
+            <OrvoLogo class="size-14" />
             <div class="space-y-1">
               <h1 class="text-xl font-semibold">Create your organization</h1>
               <FieldDescription>
@@ -173,6 +190,64 @@
           </div>
 
           <div class="grid gap-3">
+            <Field>
+              <FieldLabel>Organization logo</FieldLabel>
+              <div class="flex items-center gap-4">
+                <Avatar.Root class="size-16 rounded-sm border after:hidden">
+                  <Avatar.Image
+                    src={logoPreviewUrl ?? logo ?? undefined}
+                    alt={name.trim() || "Organization logo"}
+                    class="object-cover rounded-sm"
+                  />
+                  <Avatar.Fallback class="rounded-sm">
+                    <IconBuildingStore/>
+                  </Avatar.Fallback>
+                </Avatar.Root>
+
+                <div class="min-w-0 flex-1 space-y-1">
+                  <div class="flex items-center gap-2">
+                    <Button
+                      id="upload-organization-logo-button"
+                      type="button"
+                      variant="outline"
+                      loading={uploadingLogo}
+                      disabled={loading}
+                      onclick={() => logoInput?.click()}
+                    >
+                      <IconUpload data-slot="button-icon" />
+                      {logo ? "Change logo" : "Upload logo"}
+                    </Button>
+
+                    {#if (logo || logoPreviewUrl) && !uploadingLogo }
+                      <Button
+                        id="remove-organization-logo-button"
+                        type="button"
+                        variant="ghost"
+                        disabled={loading || uploadingLogo}
+                        onclick={clearLogo}
+                      >
+                        <IconX data-slot="button-icon" />
+                        Remove
+                      </Button>
+                    {/if}
+                  </div>
+                  <FieldDescription class="text-sm">
+                    PNG, JPG, GIF, SVG, or WebP up to 10 MB.
+                  </FieldDescription>
+                </div>
+              </div>
+
+              <input
+                bind:this={logoInput}
+                type="file"
+                accept="image/*"
+                class="hidden"
+                onchange={(event) => {
+                  void handleLogoInput(event);
+                }}
+              />
+              <FieldError>{logoError}</FieldError>
+            </Field>
             <Field>
               <FieldLabel for="organization-name">Organization name</FieldLabel>
               <Input
@@ -184,44 +259,21 @@
                 required
               />
             </Field>
-
-            <Field>
-              <FieldLabel for="organization-slug">Workspace slug</FieldLabel>
-              <Input
-                id="organization-slug"
-                value={slug}
-                minlength={2}
-                maxlength={64}
-                placeholder="acme"
-                oninput={(event) => {
-                  slugEdited = true;
-                  slug = slugify((event.currentTarget as HTMLInputElement).value);
-                }}
-                required
-              />
-              <FieldDescription>{getSlugHelpText()}</FieldDescription>
-              <FieldError>{getSlugError()}</FieldError>
-            </Field>
-
-            <FieldError>{error}</FieldError>
-
-            <Field>
-              <Button
-                type="submit"
-                disabled={
-                  loading ||
-                  name.trim().length < 2 ||
-                  slug.length < 2 ||
-                  slugStatus === 'checking' ||
-                  slugStatus === 'error'
-                }
-                loading={loading}
-                class="w-full"
-              >
-                Create organization
-              </Button>
-            </Field>
           </div>
+
+          <FieldError>{error}</FieldError>
+
+          <Field>
+            <Button
+              id="create-organization-submit-button"
+              type="submit"
+              {loading}
+              disabled={loading || uploadingLogo || name.trim().length < 2}
+              class="w-full"
+            >
+              Create organization
+            </Button>
+          </Field>
         </FieldGroup>
       </form>
     </div>

@@ -1,21 +1,10 @@
-import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad } from "./$types";
 
 export const load = (async (event) => {
-  if (!event.locals.auth) {
-    throw redirect(302, '/sign-in');
-  }
-
-  const organizations = await event.locals.container.authService.api.listOrganizations({
-    headers: event.request.headers
-  });
-
-  if (organizations.length === 0) {
-    throw redirect(302, '/organizations/new');
-  }
+  const { organizations, user } = await event.parent();
 
   return {
     organizations,
-    user: event.locals.auth.user
+    user,
   };
 }) satisfies PageServerLoad;
