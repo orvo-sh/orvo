@@ -1,14 +1,14 @@
 <script lang="ts">
-  import {
-    IconKey as KeyIcon,
-    IconWebhook as WebhookIcon,
-    IconSettings as GearSixIcon
-  } from "@tabler/icons-svelte";
   import { page } from "$app/state";
   import * as Sidebar from "@repo/components/ui/sidebar";
+  import {
+      IconSettings as GearSixIcon,
+      IconKey as KeyIcon,
+      IconWebhook as WebhookIcon
+  } from "@tabler/icons-svelte";
   import type { Snippet } from "svelte";
 
-  import PageContainer from "../../../_components/page-container.svelte";
+  import PageContainer from "../../../_components/page-container/page-container.svelte";
 
   let { children }: { children?: Snippet } = $props();
 

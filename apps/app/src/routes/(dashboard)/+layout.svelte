@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import * as Sidebar from "@repo/components/ui/sidebar";
-  import { onMount } from "svelte";
   import type { LayoutData } from "./$types";
+  import AssistantSidebar from "./_components/assistant/assistant-sidebar.svelte";
   import { AppSidebar } from "./_components/app-sidebar";
 
   let {
@@ -11,24 +12,22 @@
     children: import("svelte").Snippet;
     data: LayoutData;
   } = $props();
-
-  onMount(() => {
-    window.sey?.identify({
-      id: data.user.id,
-      name: data.user.name,
-      email: data.user.email,
-      image: data.user.image ?? undefined,
-    });
-  });
 </script>
 
 <Sidebar.Provider class="h-dvh max-h-dvh overflow-hidden">
   <AppSidebar
+    level={page.params.app_id ? "app" : "organization"}
     activeOrganizationId={data.activeOrganizationId}
     organizations={data.organizations}
     user={data.user}
   />
-  <Sidebar.Inset class="h-full min-h-0 overflow-hidden">
-    {@render children()}
+  <Sidebar.Inset class="h-full min-h-0 overflow-hidden flex flex-row">
+    <div class="flex-1 min-w-0 flex flex-col h-full min-h-0">
+      {@render children()}
+    </div>
+    <AssistantSidebar
+      appId={page.params.app_id}
+      hidden={page.url.pathname.endsWith("/chat")}
+    />
   </Sidebar.Inset>
 </Sidebar.Provider>

@@ -8,7 +8,7 @@
 
 	const items = [
 		{
-			href: '/settings/billing',
+			href: '/settings/billing',../_components/page-container/page-container.svelte
 			label: 'Billing',
 			isActive: (pathname: string) => pathname.startsWith('/settings/billing')
 		}

@@ -1,53 +1,30 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import { kbdShortcut } from "$lib/utils/kbd-shortcut";
   import { Kbd } from "@repo/components/ui/kbd";
   import * as Sidebar from "@repo/components/ui/sidebar";
   import {
-      IconBell as BellIcon,
       IconBook2 as BookOpenTextIcon,
-      IconChartBar as ChartBarIcon,
       IconSettings as GearSixIcon,
       IconCaretRightFilled,
-      IconGauge,
-      IconTerminal2,
-      IconSpeakerphone as MegaphoneIcon,
-      IconRoute as PathIcon
+      IconChartPie2,
   } from "@tabler/icons-svelte";
 
   import { cn } from "@repo/components";
+  import { generateAppNavigationGroups, generateOrganizationNavigationGroups } from "./app-sidebar-naviagation-groups";
   import AppSidebarOrganizationSwitcher from "./app-sidebar-organization-switcher.svelte";
   import AppSidebarUserNav from "./app-sidebar-user-nav.svelte";
-
-  type NavigationItem = {
-    href: string;
-    label: string;
-    icon: typeof IconGauge;
-    shortcut: string;
-    submenu?: Array<{
-      href: string;
-      label: string;
-    }>;
-  };
-
-  type NavigationGroup = {
-    label: string;
-    items: NavigationItem[];
-  };
-
-  const settingsShortcut = "s";
 
   let {
     organizations,
     activeOrganizationId,
     user,
-  }: {
+    level,
+  }: ({
     organizations: {
       id: string;
       name: string;
-      slug: string;
       logo?: string | null;
     }[];
     activeOrganizationId?: string;
@@ -57,7 +34,8 @@
       email: string;
       image?: string | null;
     };
-  } = $props();
+    level:"app" | "organization";
+  }) = $props();
 
   type DashboardPageData = {
     currentApp?: {
@@ -70,45 +48,18 @@
     }>;
   };
 
-  const currentAppId = $derived(((page.data as DashboardPageData | undefined)?.currentApp?.id) ?? "");
-  const logViews = $derived(((page.data as DashboardPageData | undefined)?.logViews) ?? []);
-  const appPath = (suffix = "") => (currentAppId ? `/a/${currentAppId}${suffix}` : "/");
+   const currentAppId = $derived(
+    (page.data as DashboardPageData | undefined)?.currentApp?.id ?? "",
+  );
+  const logViews = $derived(
+    (page.data as DashboardPageData | undefined)?.logViews ?? [],
+  );
 
-  const navigationGroups = $derived<NavigationGroup[]>([
-    {
-      label: "",
-      items: [
-        {
-          href: appPath(),
-          label: "Overview",
-          icon: IconGauge,
-          shortcut: "o",
-        },
-      ],
-    },
-    {
-      label: "Telemetry",
-      items: [
-        {
-          href: appPath("/logs"),
-          label: "Logs",
-          icon: IconTerminal2,
-          shortcut: "l",
-          submenu: logViews.map((view) => ({
-            href: appPath(`/logs/${view.slug}`),
-            label: view.name
-          }))
-        },
-        { href: appPath("/metrics"), label: "Metrics", icon: ChartBarIcon, shortcut: "m" },
-        { href: appPath("/traces"), label: "Traces", icon: PathIcon, shortcut: "t" },
-      ],
-    },
-    {
-      label: "Monitoring",
-      items: [{ href: appPath("/alerts"), label: "Alerts", icon: BellIcon, shortcut: "a" }],
-    },
-  ]);
-
+  const navigationGroups = $derived({
+    "app":generateAppNavigationGroups(currentAppId, logViews),
+    "organization":generateOrganizationNavigationGroups()
+  }[level])
+  
   let collapsedGroups = $state<Record<string, boolean>>({});
 
   const toggleGroup = (label: string) => {
@@ -121,74 +72,93 @@
   $effect(() => {
     return kbdShortcut({
       ...Object.fromEntries(
-        navigationGroups.flatMap((group) => group.items).map((item) => [
-          item.shortcut,
-          () => {
-            void goto(item.href);
-          },
-        ])
+        navigationGroups
+          .flatMap((group) => group.items)
+          .filter((item:any) => item?.shortcut)
+          .map((item:any) => [
+            item.shortcut,
+            () => {
+              void goto(item.href);
+            },
+          ]),
       ),
-      [settingsShortcut]: () => {
-        void goto(currentAppId ? appPath("/settings") : resolve("/"));
+      s: () => {
+        void goto("/settings");
       },
+      u: ()=> {
+        void goto("/usage")
+      }
     });
   });
 </script>
 
 <Sidebar.Root
   collapsible="offcanvas"
-  class="border-sidebar-border/80 border-e bg-sidebar"
+  class="border-e border-sidebar-border/80 bg-sidebar"
 >
   <Sidebar.Header
-    class="justify-center h-13 gap-0 border-b border-sidebar-border/80 px-1.5 py-3"
+    class="h-13 justify-center gap-0 border-b border-sidebar-border/80 px-1.5 py-3"
   >
     <AppSidebarOrganizationSwitcher {organizations} {activeOrganizationId} />
   </Sidebar.Header>
 
-  <Sidebar.Content class="py-2 gap-1">
+  <Sidebar.Content class="gap-1 py-2">
     {#each navigationGroups as group (group.label)}
       <Sidebar.Group class="py-0!">
         {#if group.label}
-        <Sidebar.GroupLabel>
-          {#snippet child({ props })}
-            <button
-              type="button"
-              {...props}
-              class={cn((props.class as string | undefined) ?? "", "w-full justify-between pr-3")}
-              aria-expanded={!collapsedGroups[group.label]}
-              onclick={() => toggleGroup(group.label)}
-            >
-              <span>{group.label}</span>
-              <IconCaretRightFilled
+          <Sidebar.GroupLabel>
+            {#snippet child({ props }:any)}
+              <button
+                type="button"
+                {...props}
                 class={cn(
-                  "size-3.5! opacity-70 transition-transform",
-                  collapsedGroups[group.label] ? "" : "rotate-90"
+                  (props.class as string | undefined) ?? "",
+                  "w-full justify-between pr-3",
                 )}
-              />
-            </button>
-          {/snippet}
-        </Sidebar.GroupLabel>
+                aria-expanded={!collapsedGroups[group.label]}
+                onclick={() => toggleGroup(group.label)}
+              >
+                <span>{group.label}</span>
+                <IconCaretRightFilled
+                  class={cn(
+                    "size-3.5! opacity-70 transition-transform",
+                    collapsedGroups[group.label] ? "" : "rotate-90",
+                  )}
+                />
+              </button>
+            {/snippet}
+          </Sidebar.GroupLabel>
         {/if}
-        <Sidebar.GroupContent class={group.label && collapsedGroups[group.label] ? "hidden" : ""}>
+        <Sidebar.GroupContent
+          class={group.label && collapsedGroups[group.label] ? "hidden" : ""}
+        >
           <Sidebar.Menu class="gap-0.5">
             {#each group.items as item (item.href)}
-              <Sidebar.MenuItem >
+              <Sidebar.MenuItem>
                 {@const Icon = item.icon}
                 {@const href = item.href}
-                {@const isActive =
-                  href === appPath()
-                    ? page.url.pathname === href
-                    : page.url.pathname.startsWith(href)}
-                <Sidebar.MenuButton class="gap-2.5 group/menu-btn" {isActive} tooltipContent={item.label}>
-                  {#snippet child({ props })}
+                {@const isActive = page.url.pathname == href}
+                <Sidebar.MenuButton
+                  class="group/menu-btn gap-2.5"
+                  {isActive}
+                  tooltipContent={item.label}
+                >
+                  {#snippet child({ props }:any)}
                     <a {href} {...props}>
-                      <Icon class="opacity-60" />
+                      <Icon class="opacity-80" />
                       <span>{item.label}</span>
-                      <Kbd class={cn("ml-auto", isActive ? "border-muted-foreground/40" :"opacity-70 group-hover/menu-btn:opacity-100 group-hover/menu-btn:border-muted-foreground/40")}>{item.shortcut}</Kbd>
+                      <Kbd
+                        class={cn(
+                          "ml-auto",
+                          isActive
+                            ? "border-muted-foreground/40"
+                            : "opacity-70 group-hover/menu-btn:border-muted-foreground/40 group-hover/menu-btn:opacity-100",
+                        )}>{item.shortcut}</Kbd
+                      >
                     </a>
                   {/snippet}
                 </Sidebar.MenuButton>
-                
+
                 {#if item.submenu && item.submenu.length > 0}
                   <Sidebar.MenuSub>
                     {#each item.submenu as subitem (subitem.href)}
@@ -196,7 +166,7 @@
                         <Sidebar.MenuSubButton
                           isActive={page.url.pathname === subitem.href}
                         >
-                          {#snippet child({ props })}
+                          {#snippet child({ props }:any)}
                             <a href={subitem.href} {...props}>
                               <span>{subitem.label}</span>
                             </a>
@@ -218,38 +188,48 @@
     <Sidebar.Group>
       <Sidebar.GroupContent>
         <Sidebar.Menu class="gap-0.5">
+        <Sidebar.MenuItem>
+            <Sidebar.MenuButton
+              class="gap-2.5"
+              isActive={page.url.pathname.startsWith("/usage")}
+              tooltipContent="Usage"
+            >
+              {#snippet child({ props }:any)}
+                <a href="/usage" {...props}>
+                  <IconChartPie2 class="opacity-75" />
+                  <span>Usage</span>
+                  <Kbd class="ml-auto">u</Kbd>
+                </a>
+              {/snippet}
+            </Sidebar.MenuButton>
+          </Sidebar.MenuItem>
+
           <Sidebar.MenuItem>
             <Sidebar.MenuButton
               class="gap-2.5"
-              isActive={currentAppId ? page.url.pathname.startsWith(appPath("/settings")) : false}
+              isActive={page.url.pathname.startsWith("/settings")}
               tooltipContent="Settings"
             >
-              {#snippet child({ props })}
-                <a href={currentAppId ? appPath("/settings") : resolve("/")} {...props}>
-                  <GearSixIcon class="opacity-75"/>
+              {#snippet child({ props }:any)}
+                <a
+                  href={"/settings"}
+                  {...props}
+                >
+                  <GearSixIcon class="opacity-75" />
                   <span>Settings</span>
-                  <Kbd class="ml-auto">{settingsShortcut}</Kbd>
+                  <Kbd class="ml-auto">s</Kbd>
                 </a>
               {/snippet}
             </Sidebar.MenuButton>
           </Sidebar.MenuItem>
+          
           <Sidebar.MenuItem>
             <Sidebar.MenuButton class="gap-2.5" tooltipContent="Documentation">
-              {#snippet child({ props })}
+              {#snippet child({ props }:any)}
                 <a href="https://orvo.sh/docs" {...props}>
-                  <BookOpenTextIcon class="opacity-75"/>
+                  <BookOpenTextIcon class="opacity-75" />
                   <span>Documentation</span>
                 </a>
-              {/snippet}
-            </Sidebar.MenuButton>
-          </Sidebar.MenuItem>
-          <Sidebar.MenuItem>
-            <Sidebar.MenuButton class="gap-2.5" tooltipContent="Give feedback">
-              {#snippet child({ props })}
-                <button data-sey-feedback {...props}>
-                  <MegaphoneIcon class="opacity-75"/>
-                  <span>Got feedback?</span>
-                </button>
               {/snippet}
             </Sidebar.MenuButton>
           </Sidebar.MenuItem>
@@ -257,6 +237,5 @@
         </Sidebar.Menu>
       </Sidebar.GroupContent>
     </Sidebar.Group>
-
   </Sidebar.Footer>
 </Sidebar.Root>

@@ -9,7 +9,6 @@
   type Organization = {
     id: string;
     name: string;
-    slug: string;
     logo?: string | null;
   };
 
@@ -29,7 +28,9 @@
   $effect(() => {
     if (
       !selectedOrganizationId ||
-      !organizations.some((organization) => organization.id === selectedOrganizationId)
+      !organizations.some(
+        (organization) => organization.id === selectedOrganizationId,
+      )
     ) {
       selectedOrganizationId =
         activeOrganizationId ?? organizations[0]?.id ?? "";
@@ -37,8 +38,9 @@
   });
 
   const selectedOrganization = $derived(
-    organizations.find((organization) => organization.id === selectedOrganizationId) ??
-      organizations[0],
+    organizations.find(
+      (organization) => organization.id === selectedOrganizationId,
+    ) ?? organizations[0],
   );
 
   const selectOrganization = async (organizationId: string) => {
@@ -66,21 +68,30 @@
     );
   };
 
-
   const organizationButtonClass = (isActive: boolean) =>
     `${buttonVariants({ variant: isActive ? "secondary" : "ghost" })} h-auto w-full justify-start gap-3 px-2 py-2`;
 </script>
 
 {#if selectedOrganization}
   <Popover.Root bind:open>
-    <Popover.Trigger class={buttonVariants({ variant: "ghost", class:"w-full justify-between px-1.5 shadow-none" })}>
+    <Popover.Trigger
+      class={buttonVariants({
+        variant: "ghost",
+        class: "w-full justify-between px-1.5 shadow-none",
+      })}
+    >
       <span class="flex min-w-0 items-center gap-2">
-        <Avatar.Root size="xs" class="after:rounded-xs -translate-x-px">
-          <Avatar.Image class="rounded-xs!" 
+        <Avatar.Root size="xs" class="-translate-x-px after:rounded-xs">
+          <Avatar.Image
+            class="rounded-xs!"
             src={selectedOrganization.logo ?? undefined}
             alt={selectedOrganization.name}
-           />
-          <Avatar.Fallback class="text-[0.7rem] rounded-xs!" id={selectedOrganization.id} name={selectedOrganization.name}/>
+          />
+          <Avatar.Fallback
+            class="rounded-xs! text-[0.7rem]"
+            id={selectedOrganization.id}
+            name={selectedOrganization.name}
+          />
         </Avatar.Root>
         <span class="min-w-0 text-left">
           <span class="block truncate text-sm font-medium">
@@ -89,7 +100,7 @@
         </span>
       </span>
 
-      <CaretUpDownIcon class="text-muted-foreground size-4 shrink-0" />
+      <CaretUpDownIcon class="size-4 shrink-0 text-muted-foreground" />
     </Popover.Trigger>
 
     <Popover.Content align="start" class="w-80 p-0">
@@ -115,7 +126,7 @@
                 src={organization.logo ?? undefined}
                 alt={organization.name}
               />
-              <Avatar.Fallback  id={organization.id} name={organization.name}/>
+              <Avatar.Fallback id={organization.id} name={organization.name} />
             </Avatar.Root>
 
             <span class="min-w-0 flex-1 text-left">
@@ -128,10 +139,6 @@
                   <Badge variant="secondary">Current</Badge>
                 {/if}
               </span>
-
-              <span class="text-muted-foreground block truncate text-xs">
-                {organization.slug}
-              </span>
             </span>
           </button>
         {/each}
@@ -139,7 +146,7 @@
 
       {#if error}
         <div class="border-t px-4 py-3">
-          <p class="text-destructive text-xs">{error}</p>
+          <p class="text-xs text-destructive">{error}</p>
         </div>
       {/if}
     </Popover.Content>
