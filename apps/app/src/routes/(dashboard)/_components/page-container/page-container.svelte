@@ -1,13 +1,13 @@
 <script lang="ts">
+    import { page } from "$app/state";
+    import { assistantSidebarState } from "$lib/stores/assistant-sidebar.svelte";
     import { cn } from "@repo/components";
     import { Button, buttonVariants } from "@repo/components/ui/button";
     import * as HoverCard from "@repo/components/ui/hover-card";
     import * as Sidebar from "@repo/components/ui/sidebar";
-    import { IconInfoCircle, IconSparkles } from "@tabler/icons-svelte";
+    import { IconInfoCircle, IconSparkle } from "@tabler/icons-svelte";
     import type { Snippet } from "svelte";
     import AppSwitcher from "./page-container-app-switcher.svelte";
-    import { page } from "$app/state";
-    import { assistantSidebarState } from "$lib/stores/assistant-sidebar.svelte";
 
   let {
     title,
@@ -80,11 +80,11 @@
               {#if page.params.app_id && !page.url.pathname.endsWith("/chat")}
                 <Button
                   variant={assistantSidebarState.open ? "secondary" : "ghost"}
-                  size="icon-sm"
                   onclick={() => assistantSidebarState.open = !assistantSidebarState.open}
                   aria-label="Toggle Ask Orvo"
                 >
-                  <IconSparkles data-slot="button-icon" class="size-4" />
+                  <IconSparkle data-slot="button-icon" class="size-4" />
+                  
                 </Button>
               {/if}
             </div>
@@ -93,7 +93,7 @@
 
   <div
     class={cn(
-      "flex min-h-0 flex-1 flex-col px-4 py-4 md:px-6 md:py-5",
+      "flex min-h-0 flex-1 flex-col px-3 py-3",
       scrollContent ? "overflow-y-auto" : "overflow-hidden",
       innerClass
     )}

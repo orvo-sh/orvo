@@ -1,12 +1,44 @@
+import { logTimePresetSchema } from "$lib/server/services/logs.service";
 import type { PageServerLoad } from "./$types";
 
-export const load = (async ({ locals, params, parent }) => {
+const timePresetToBuckets: Record<string, number> = {
+  last_30_minutes: 30,
+  last_hour: 60,
+  last_4_hours: 48,
+  last_24_hours: 48,
+  last_7_days: 56,
+};
+
+export const load = (async ({ url, locals, params, parent }) => {
   const parentData = await parent();
   const appId = parentData.currentApp?.id ?? params.app_id;
   const appName = parentData.currentApp?.name ?? "App";
 
+  const rawPreset = url.searchParams.get("t");
+  const parsedPreset = logTimePresetSchema.safeParse(rawPreset);
+  const timePreset = parsedPreset.success ? parsedPreset.data : "last_hour";
+  const timeFilter = { kind: "preset" as const, preset: timePreset };
+
+  const bucketCount = timePresetToBuckets[timePreset] ?? 48;
+  const serviceBuckets = Math.min(Math.max(Math.ceil(bucketCount / 4), 8), 24);
+
   const now = new Date();
-  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+  const rangeStart = new Date(
+    now.getTime() -
+      {
+        last_30_minutes: 30,
+        last_hour: 60,
+        last_4_hours: 240,
+        last_24_hours: 1440,
+        last_7_days: 10080,
+        last_3_days: 4320,
+        last_2_weeks: 20160,
+        last_month: 43200,
+        today: 0,
+      }[timePreset] *
+        60 *
+        1000,
+  );
 
   const [
     logVolumeResult,
@@ -19,20 +51,20 @@ export const load = (async ({ locals, params, parent }) => {
   ] = await Promise.allSettled([
     locals.container.logsService.getLogVolume(
       {
-        time: { kind: "preset", preset: "last_hour" },
+        time: timeFilter,
         search: "",
         levels: [],
         services: [],
         environments: [],
         scopes: [],
         ingestionKeyIds: [],
-        bucketCount: 60,
+        bucketCount,
       },
       { appId },
     ),
     locals.container.tracesService.getTraceSummary(
       {
-        time: { kind: "preset", preset: "last_hour" },
+        time: timeFilter,
         search: "",
         services: [],
         environments: [],
@@ -44,29 +76,27 @@ export const load = (async ({ locals, params, parent }) => {
     ),
     locals.container.alertRuleService.getAlertRules({ appId }),
     locals.container.deploymentService.listDeployments(
-      { limit: 5, startAtUtc: oneHourAgo.toISOString() },
+      { limit: 5, startAtUtc: rangeStart.toISOString() },
       { appId },
     ),
     locals.container.logsService.getLogServiceSummary(
-      { time: { kind: "preset", preset: "last_hour" } },
+      { time: timeFilter },
       { appId },
     ),
     locals.container.tracesService.getTraceServiceSummary(
-      {
-        time: { kind: "preset", preset: "last_hour" },
-      },
+      { time: timeFilter },
       { appId },
     ),
     locals.container.logsService.getLogServiceVolume(
       {
-        time: { kind: "preset", preset: "last_hour" },
+        time: timeFilter,
         search: "",
         levels: [],
         services: [],
         environments: [],
         scopes: [],
         ingestionKeyIds: [],
-        bucketCount: 16,
+        bucketCount: serviceBuckets,
       },
       { appId },
     ),
@@ -121,6 +151,7 @@ export const load = (async ({ locals, params, parent }) => {
 
   return {
     appName,
+    timePreset,
     logVolume:
       logVolumeResult.status === "fulfilled" && logVolumeResult.value.success
         ? logVolumeResult.value.data

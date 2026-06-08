@@ -2,6 +2,7 @@
   import { page } from "$app/state";
   import { Badge } from "@repo/components/ui/badge";
   import { Button } from "@repo/components/ui/button";
+  import { Input } from "@repo/components/ui/input";
   import * as Card from "@repo/components/ui/card";
   import {
     IconBell,
@@ -10,11 +11,13 @@
     IconDots,
     IconGitCommit,
     IconRoute,
+    IconSearch,
     IconSparkles,
     IconTerminal2,
     IconTriangle,
+    IconX,
   } from "@tabler/icons-svelte";
-  import { onMount, tick } from "svelte";
+  import { onMount } from "svelte";
 
   import PageContainer from "../../../_components/page-container/page-container.svelte";
 
@@ -31,6 +34,7 @@
 
   type PageData = {
     appName: string;
+    timePreset: string;
     logVolume: {
       buckets: Array<{
         startAtUtc: string;
@@ -74,13 +78,35 @@
     services: ServiceRow[];
   };
 
+  const timeOptions = [
+    { label: "30m", preset: "last_30_minutes" },
+    { label: "1h", preset: "last_hour" },
+    { label: "4h", preset: "last_4_hours" },
+    { label: "24h", preset: "last_24_hours" },
+    { label: "7d", preset: "last_7_days" },
+  ];
+
   const data = $derived(page.data as PageData);
   const appName = $derived(data.appName);
+  const timePreset = $derived(data.timePreset ?? "last_hour");
   const logVolume = $derived(data.logVolume);
   const traceSummary = $derived(data.traceSummary);
   const alertRules = $derived(data.alerts?.rules ?? []);
   const deployments = $derived(data.deployments?.deployments ?? []);
   const services = $derived(data.services ?? []);
+
+  let serviceSearch = $state("");
+  let openMenu = $state<string | null>(null);
+  let menuRef = $state<HTMLElement | null>(null);
+  let insightsOpen = $state(false);
+
+  const filteredServices = $derived(
+    serviceSearch.length > 0
+      ? services.filter((s) =>
+          s.name.toLowerCase().includes(serviceSearch.toLowerCase()),
+        )
+      : services,
+  );
 
   const totalLogs = $derived(
     logVolume?.buckets.reduce((sum, b) => sum + b.total, 0) ?? 0,
@@ -129,7 +155,6 @@
           ? "bg-amber-500"
           : "bg-green-500",
   );
-
   const statusBorderClass = $derived(
     !hasData
       ? ""
@@ -139,7 +164,6 @@
           ? "border-amber-500/30"
           : "border-green-500/30",
   );
-
   const statusTextClass = $derived(
     !hasData
       ? ""
@@ -152,7 +176,7 @@
 
   const summaryText = $derived(
     !hasData
-      ? "No telemetry received in the last hour."
+      ? "No telemetry received in the selected window."
       : errorRate > 5
         ? `Error rate is elevated at ${errorRate.toFixed(1)}%. Check recent deployments and alert rules.`
         : errorRate > 1
@@ -163,11 +187,8 @@
   const timeLabel = $derived(
     traceSummary?.startAtUtc
       ? formatTimeWindow(traceSummary.startAtUtc, traceSummary.endAtUtc)
-      : "Last 1h",
+      : (timeOptions.find((o) => o.preset === timePreset)?.label ?? "1h"),
   );
-
-  let insightsOpen = $state(false);
-  let openMenu = $state<string | null>(null);
 
   const insights = $derived(
     services.length > 0
@@ -213,13 +234,17 @@
     return `/a/${appId}/logs?services=${encodeURIComponent(serviceName)}`;
   }
 
-  const appId = $derived(page.params.app_id);
+  function setTimePreset(preset: string) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("t", preset);
+    window.history.pushState({}, "", url.toString());
+    window.location.reload();
+  }
 
+  const appId = $derived(page.params.app_id);
   const maxBucket = $derived(
     Math.max(...(logVolume?.buckets.map((b) => b.total) ?? [1]), 1),
   );
-
-  let menuRef = $state<HTMLElement | null>(null);
 
   onMount(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -240,14 +265,21 @@
           App health
         </Card.Title>
         <Card.Action>
-          <Button href={`/a/${appId}/chat`} variant="outline">
-            <IconSparkles data-slot="button-icon" />
-            Ask Orvo
-          </Button>
-          <Button href={`/a/${appId}/logs`}>
-            <IconTerminal2 data-slot="button-icon" />
-            Investigate
-          </Button>
+          <div class="flex items-center gap-1">
+            {#each timeOptions as opt}
+              <button
+                class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors {opt.preset ===
+                timePreset
+                  ? 'text-primary'
+                  : 'text-muted-foreground hover:text-foreground'}"
+                class:border-b-2={opt.preset === timePreset}
+                class:border-primary={opt.preset === timePreset}
+                onclick={() => setTimePreset(opt.preset)}
+              >
+                {opt.label}
+              </button>
+            {/each}
+          </div>
         </Card.Action>
       </Card.Header>
 
@@ -351,9 +383,7 @@
                   class="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
                 />
                 <div>
-                  <p class="text-sm">
-                    Active alerts: {activeAlerts}
-                  </p>
+                  <p class="text-sm">Active alerts: {activeAlerts}</p>
                 </div>
               </div>
             </div>
@@ -362,14 +392,33 @@
 
         {#if logVolume && hasData}
           <div class="mt-6">
-            <div class="flex h-20 items-end gap-px">
-              {#each logVolume.buckets as bucket, i}
-                <div
-                  class="flex-1 rounded-sm bg-primary/60"
-                  style={`height: ${Math.max((bucket.total / maxBucket) * 100, 2)}%`}
-                ></div>
-              {/each}
-            </div>
+            <svg
+              class="h-16 w-full"
+              viewBox="0 0 {logVolume.buckets.length} 100"
+              preserveAspectRatio="none"
+            >
+              <defs>
+                <linearGradient id="volGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="hsl(var(--primary) / 0.3)" />
+                  <stop offset="100%" stop-color="hsl(var(--primary) / 0.02)" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M{logVolume.buckets
+                  .map((b, i) => `${i} ${100 - (b.total / maxBucket) * 95}`)
+                  .join(' L')} L{logVolume.buckets.length - 1} 100 L0 100 Z"
+                fill="url(#volGrad)"
+              />
+              <path
+                d="M{logVolume.buckets
+                  .map((b, i) => `${i} ${100 - (b.total / maxBucket) * 95}`)
+                  .join(' L')}"
+                fill="none"
+                stroke="hsl(var(--primary) / 0.7)"
+                stroke-width="1.5"
+                vector-effect="non-scaling-stroke"
+              />
+            </svg>
           </div>
         {/if}
       </div>
@@ -415,157 +464,215 @@
 
     {#if services.length > 0}
       <section class="space-y-3">
-        <div class="flex items-center justify-between">
+        <div
+          class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        >
           <h2 class="text-lg font-semibold tracking-tight">Services</h2>
           <div class="flex items-center gap-2">
+            <div class="relative">
+              <IconSearch
+                class="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                type="text"
+                placeholder="Search services..."
+                bind:value={serviceSearch}
+                class="h-8 w-48 rounded-lg pl-8 text-sm"
+              />
+              {#if serviceSearch.length > 0}
+                <button
+                  class="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  onclick={() => (serviceSearch = "")}
+                >
+                  <IconX class="size-3.5" />
+                </button>
+              {/if}
+            </div>
             <Button href={`/a/${appId}/logs`} variant="outline" size="sm">
               <IconTerminal2 data-slot="button-icon" />
-              View all logs
-            </Button>
-            <Button href={`/a/${appId}/traces`} variant="outline" size="sm">
-              <IconRoute data-slot="button-icon" />
-              View traces
+              View logs
             </Button>
           </div>
         </div>
 
-        <div class="overflow-hidden rounded-xl border bg-background">
+        {#if filteredServices.length === 0}
           <div
-            class="hidden grid-cols-[minmax(180px,1.2fr)_1fr_1fr_1fr_1fr_140px_40px] items-center gap-4 border-b border-border/70 px-4 py-2.5 text-xs font-medium text-muted-foreground md:grid"
+            class="flex items-center justify-center rounded-xl border bg-background py-12"
           >
-            <span>Service</span>
-            <span>Volume</span>
-            <span>Error rate</span>
-            <span>P95 latency</span>
-            <span>Trend</span>
-            <span>Last seen</span>
-            <span></span>
+            <p class="text-sm text-muted-foreground">
+              No services match "{serviceSearch}".
+            </p>
           </div>
+        {:else}
+          <div class="overflow-hidden rounded-xl border bg-background">
+            <div
+              class="hidden grid-cols-[minmax(180px,1.2fr)_1fr_1fr_1fr_1fr_140px_40px] items-center gap-4 border-b border-border/70 px-4 py-2.5 text-xs font-medium text-muted-foreground md:grid"
+            >
+              <span>Service</span>
+              <span>Volume</span>
+              <span>Error rate</span>
+              <span>P95 latency</span>
+              <span>Trend</span>
+              <span>Last seen</span>
+              <span></span>
+            </div>
 
-          <div class="divide-y divide-border/70">
-            {#each services as service (service.name)}
-              {@const svcErrorColor =
-                service.errorRate > 0.05
-                  ? "text-red-600 dark:text-red-400"
-                  : service.errorRate > 0.01
-                    ? "text-amber-600 dark:text-amber-400"
-                    : "text-green-600 dark:text-green-400"}
-              {@const svcDotColor =
-                service.errorRate > 0.05
-                  ? "bg-red-500"
-                  : service.errorRate > 0.01
-                    ? "bg-amber-500"
-                    : "bg-green-500"}
-              {@const maxSvcVol = Math.max(
-                ...service.volumeBuckets.map((b) => b.total),
-                1,
-              )}
-              {@const svcErrorBarClass = (bucket: {
-                errors: number;
-                total: number;
-              }) =>
-                bucket.errors > 0 && bucket.errors / bucket.total > 0.05
-                  ? "w-full rounded-[1px] bg-red-400/60"
-                  : "w-full rounded-[1px] bg-primary/40"}
-              <div
-                class="grid gap-2 px-4 py-3 md:grid-cols-[minmax(180px,1.2fr)_1fr_1fr_1fr_1fr_140px_40px] md:items-center md:gap-4"
-              >
-                <div class="flex min-w-0 items-center gap-3">
-                  <span class="size-2 shrink-0 rounded-full {svcDotColor}"
-                  ></span>
-                  <div class="min-w-0">
-                    <p class="truncate text-sm font-medium">{service.name}</p>
-                    <p class="text-xs text-muted-foreground md:hidden">
-                      {formatNumber(service.logs + service.traces)} requests · {service.errorRate >
-                      0
-                        ? `${(service.errorRate * 100).toFixed(1)}% errors`
-                        : "0% errors"}
-                    </p>
-                  </div>
-                </div>
-
-                <div class="flex items-center gap-4">
-                  <div class="hidden min-w-0 flex-1 md:block">
-                    <div class="flex h-8 items-end gap-px">
-                      {#each service.volumeBuckets as bucket, i}
-                        <div
-                          class="w-full rounded-[1px] bg-primary/50"
-                          style={`height: ${Math.max((bucket.total / maxSvcVol) * 100, 2)}%`}
-                        ></div>
-                      {/each}
+            <div class="divide-y divide-border/70">
+              {#each filteredServices as service (service.name)}
+                {@const svcErrorColor =
+                  service.errorRate > 0.05
+                    ? "text-red-600 dark:text-red-400"
+                    : service.errorRate > 0.01
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-green-600 dark:text-green-400"}
+                {@const svcDotColor =
+                  service.errorRate > 0.05
+                    ? "bg-red-500"
+                    : service.errorRate > 0.01
+                      ? "bg-amber-500"
+                      : "bg-green-500"}
+                {@const maxSvcVol = Math.max(
+                  ...service.volumeBuckets.map((b) => b.total),
+                  1,
+                )}
+                {@const linePath = service.volumeBuckets
+                  .map(
+                    (b, i) =>
+                      `${(i / Math.max(service.volumeBuckets.length - 1, 1)) * 100} ${100 - (b.total / maxSvcVol) * 90}`,
+                  )
+                  .join(" ")}
+                {@const errorLinePath = service.volumeBuckets
+                  .map(
+                    (b, i) =>
+                      `${(i / Math.max(service.volumeBuckets.length - 1, 1)) * 100} ${100 - (b.errors / maxSvcVol) * 90}`,
+                  )
+                  .join(" ")}
+                <div
+                  class="grid gap-2 px-4 py-3 md:grid-cols-[minmax(180px,1.2fr)_1fr_1fr_1fr_1fr_140px_40px] md:items-center md:gap-4"
+                >
+                  <div class="flex min-w-0 items-center gap-3">
+                    <span class="size-2 shrink-0 rounded-full {svcDotColor}"
+                    ></span>
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-medium">
+                        {service.name}
+                      </p>
+                      <p class="text-xs text-muted-foreground md:hidden">
+                        {formatNumber(service.logs + service.traces)} requests ·
+                        {service.errorRate > 0
+                          ? `${(service.errorRate * 100).toFixed(1)}% errors`
+                          : "0% errors"}
+                      </p>
                     </div>
                   </div>
-                  <div class="text-sm tabular-nums">
-                    {formatNumber(service.logs + service.traces)}
-                  </div>
-                </div>
 
-                <p class="text-sm tabular-nums {svcErrorColor}">
-                  {(service.errorRate * 100).toFixed(1)}%
-                </p>
-
-                <p class="text-sm text-muted-foreground tabular-nums">
-                  {service.p95LatencyMs > 0
-                    ? `${Math.round(service.p95LatencyMs)}ms`
-                    : "—"}
-                </p>
-
-                <div class="hidden items-center gap-3 md:flex">
-                  <div class="flex-1">
-                    <div class="flex h-6 items-end gap-px">
-                      {#each service.volumeBuckets as bucket, i}
-                        <div
-                          class={svcErrorBarClass(bucket)}
-                          style={`height: ${Math.max((bucket.total / maxSvcVol) * 100, 1)}%`}
-                        ></div>
-                      {/each}
+                  <div class="flex items-center gap-4">
+                    <div class="hidden min-w-0 flex-1 md:block">
+                      <svg
+                        class="h-8 w-full"
+                        viewBox="0 0 100 100"
+                        preserveAspectRatio="none"
+                      >
+                        <polyline
+                          points={linePath}
+                          fill="none"
+                          stroke="hsl(var(--primary) / 0.6)"
+                          stroke-width="2"
+                          vector-effect="non-scaling-stroke"
+                        />
+                      </svg>
+                    </div>
+                    <div class="text-sm tabular-nums">
+                      {formatNumber(service.logs + service.traces)}
                     </div>
                   </div>
-                </div>
 
-                <p class="hidden text-sm text-muted-foreground md:block">—</p>
+                  <p class="text-sm tabular-nums {svcErrorColor}">
+                    {(service.errorRate * 100).toFixed(1)}%
+                  </p>
 
-                <div class="relative hidden justify-end md:flex">
-                  <button
-                    class="rounded-md p-1 transition-colors hover:bg-muted"
-                    onclick={(e) => {
-                      e.stopPropagation();
-                      openMenu =
-                        openMenu === service.name ? null : service.name;
-                    }}
-                    aria-label={`Open ${service.name} actions`}
-                  >
-                    <IconDots class="size-4 text-muted-foreground" />
-                  </button>
+                  <p class="text-sm text-muted-foreground tabular-nums">
+                    {service.p95LatencyMs > 0
+                      ? `${Math.round(service.p95LatencyMs)}ms`
+                      : "—"}
+                  </p>
 
-                  {#if openMenu === service.name}
-                    <div
-                      class="absolute top-full right-0 z-50 mt-1 w-40 rounded-lg border bg-popover p-1 shadow-md"
-                      bind:this={menuRef}
+                  <div class="hidden md:block">
+                    <svg
+                      class="h-6 w-full"
+                      viewBox="0 0 100 100"
+                      preserveAspectRatio="none"
                     >
-                      <a
-                        href={logFilterUrl(service.name)}
-                        class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted"
-                        onmousedown={() => (openMenu = null)}
+                      <polyline
+                        points={linePath}
+                        fill="none"
+                        stroke={service.errorRate > 0.05
+                          ? "hsl(var(--red) / 0.6)"
+                          : service.errorRate > 0.01
+                            ? "hsl(var(--amber) / 0.5)"
+                            : "hsl(var(--primary) / 0.4)"}
+                        stroke-width="2"
+                        vector-effect="non-scaling-stroke"
+                      />
+                      {#if service.volumeBuckets.some((b) => b.errors > 0)}
+                        <polyline
+                          points={errorLinePath}
+                          fill="none"
+                          stroke="hsl(var(--red) / 0.5)"
+                          stroke-width="1.5"
+                          vector-effect="non-scaling-stroke"
+                          stroke-dasharray="2 2"
+                        />
+                      {/if}
+                    </svg>
+                  </div>
+
+                  <p class="hidden text-sm text-muted-foreground md:block">—</p>
+
+                  <div class="relative hidden justify-end md:flex">
+                    <button
+                      class="rounded-md p-1 transition-colors hover:bg-muted"
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        openMenu =
+                          openMenu === service.name ? null : service.name;
+                      }}
+                      aria-label={`Open ${service.name} actions`}
+                    >
+                      <IconDots class="size-4 text-muted-foreground" />
+                    </button>
+
+                    {#if openMenu === service.name}
+                      <div
+                        class="absolute top-full right-0 z-50 mt-1 w-40 rounded-lg border bg-popover p-1 shadow-md"
+                        bind:this={menuRef}
                       >
-                        <IconTerminal2 class="size-3.5 text-muted-foreground" />
-                        View logs
-                      </a>
-                      <a
-                        href={`/a/${appId}/traces?services=${encodeURIComponent(service.name)}`}
-                        class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted"
-                        onmousedown={() => (openMenu = null)}
-                      >
-                        <IconRoute class="size-3.5 text-muted-foreground" />
-                        View traces
-                      </a>
-                    </div>
-                  {/if}
+                        <a
+                          href={logFilterUrl(service.name)}
+                          class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted"
+                          onmousedown={() => (openMenu = null)}
+                        >
+                          <IconTerminal2
+                            class="size-3.5 text-muted-foreground"
+                          />
+                          View logs
+                        </a>
+                        <a
+                          href={`/a/${appId}/traces?services=${encodeURIComponent(service.name)}`}
+                          class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted"
+                          onmousedown={() => (openMenu = null)}
+                        >
+                          <IconRoute class="size-3.5 text-muted-foreground" />
+                          View traces
+                        </a>
+                      </div>
+                    {/if}
+                  </div>
                 </div>
-              </div>
-            {/each}
+              {/each}
+            </div>
           </div>
-        </div>
+        {/if}
       </section>
     {/if}
 

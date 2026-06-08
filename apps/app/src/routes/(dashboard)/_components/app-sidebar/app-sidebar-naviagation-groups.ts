@@ -1,4 +1,4 @@
-import { IconAlertHexagon, IconBox, IconChartBar, IconGauge, IconRocket, IconRoute, IconSparkle, IconSphere2, IconTerminal2 } from "@tabler/icons-svelte";
+import { IconAlertHexagon, IconBox, IconChartBar, IconGauge, IconLayoutGrid, IconRocket, IconRoute, IconSparkle, IconTerminal2 } from "@tabler/icons-svelte";
 
 
   type NavigationGroup = {
@@ -27,7 +27,7 @@ const generateAppNavigationGroups = (appId:string, logViews:{
         {
           href: `/a/${appId}/overview`,
           label: "Overview",
-          icon: IconSphere2,
+          icon: IconLayoutGrid,
           shortcut: "o",
         },
         {

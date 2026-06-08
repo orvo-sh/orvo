@@ -2,13 +2,13 @@
 	import { page } from '$app/state';
 	import * as Sidebar from '@repo/components/ui/sidebar';
 
-	import PageContainer from '../_components/page-container.svelte';
+	import { PageContainer } from '../_components/page-container';
 
 	let { children }: { children?: import('svelte').Snippet } = $props();
 
 	const items = [
 		{
-			href: '/settings/billing',../_components/page-container/page-container.svelte
+			href: '/settings/billing',
 			label: 'Billing',
 			isActive: (pathname: string) => pathname.startsWith('/settings/billing')
 		}
