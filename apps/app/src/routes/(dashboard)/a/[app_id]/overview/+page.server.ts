@@ -13,7 +13,9 @@ export const load = (async ({ locals, params, parent }) => {
     traceSummaryResult,
     alertsResult,
     deploymentsResult,
-    servicesResult,
+    logServiceSummaryResult,
+    traceServiceSummaryResult,
+    logServiceVolumeResult,
   ] = await Promise.allSettled([
     locals.container.logsService.getLogVolume(
       {
@@ -49,7 +51,73 @@ export const load = (async ({ locals, params, parent }) => {
       { time: { kind: "preset", preset: "last_hour" } },
       { appId },
     ),
+    locals.container.tracesService.getTraceServiceSummary(
+      {
+        time: { kind: "preset", preset: "last_hour" },
+      },
+      { appId },
+    ),
+    locals.container.logsService.getLogServiceVolume(
+      {
+        time: { kind: "preset", preset: "last_hour" },
+        search: "",
+        levels: [],
+        services: [],
+        environments: [],
+        scopes: [],
+        ingestionKeyIds: [],
+        bucketCount: 16,
+      },
+      { appId },
+    ),
   ]);
+
+  const logServiceData =
+    logServiceSummaryResult.status === "fulfilled" &&
+    logServiceSummaryResult.value.success
+      ? logServiceSummaryResult.value.data
+      : null;
+  const traceServiceData =
+    traceServiceSummaryResult.status === "fulfilled" &&
+    traceServiceSummaryResult.value.success
+      ? traceServiceSummaryResult.value.data
+      : null;
+  const logServiceVolumeData =
+    logServiceVolumeResult.status === "fulfilled" &&
+    logServiceVolumeResult.value.success
+      ? logServiceVolumeResult.value.data
+      : null;
+
+  const serviceNames = new Set([
+    ...(logServiceData?.services.map((s) => s.name) ?? []),
+    ...(traceServiceData?.services.map((s) => s.name) ?? []),
+  ]);
+
+  const services = Array.from(serviceNames).map((name) => {
+    const logEntry = logServiceData?.services.find((s) => s.name === name);
+    const traceEntry = traceServiceData?.services.find((s) => s.name === name);
+    const volumeEntry = logServiceVolumeData?.services.find(
+      (s) => s.name === name,
+    );
+
+    return {
+      name,
+      logs: logEntry?.total ?? 0,
+      logErrors: logEntry?.errors ?? 0,
+      traces: traceEntry?.total ?? 0,
+      traceErrors: traceEntry?.errors ?? 0,
+      errorRate:
+        traceEntry != null
+          ? traceEntry.errorRate
+          : logEntry != null
+            ? logEntry.total > 0
+              ? logEntry.errors / logEntry.total
+              : 0
+            : 0,
+      p95LatencyMs: traceEntry?.p95LatencyMs ?? 0,
+      volumeBuckets: volumeEntry?.buckets ?? [],
+    };
+  });
 
   return {
     appName,
@@ -71,9 +139,6 @@ export const load = (async ({ locals, params, parent }) => {
       deploymentsResult.value.success
         ? deploymentsResult.value.data
         : null,
-    services:
-      servicesResult.status === "fulfilled" && servicesResult.value.success
-        ? servicesResult.value.data
-        : null,
+    services,
   };
 }) satisfies PageServerLoad;

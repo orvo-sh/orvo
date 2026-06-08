@@ -144,6 +144,66 @@ class TracesService {
     }
   }
 
+  async getTraceServiceSummary(
+    input: z.infer<typeof getTraceServiceSummaryInputSchema>,
+    context: { appId: string },
+  ) {
+    this.logger.info("getTraceServiceSummary: fetching service summary", {
+      input,
+      context,
+    });
+
+    const validated = getTraceServiceSummaryInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
+
+    try {
+      const { startAtUtc, endAtUtc } = resolveTimeRange(validated.data.time);
+      const whereClauses = [
+        `app_id = ${quote(context.appId)}`,
+        `start_time >= ${toDateTime64(startAtUtc)}`,
+        `start_time <= ${toDateTime64(endAtUtc)}`,
+      ];
+      const result = await this.clickhouse.query({
+        format: "JSONEachRow",
+        query: `
+					SELECT
+						service_name,
+						count() AS total,
+						countIf(status_code = 2) AS errors,
+						quantile(0.95)(duration_ns / 1000000) AS p95_latency_ms
+					FROM traces_raw
+					WHERE ${whereClauses.join(" AND ")}
+					GROUP BY service_name
+					ORDER BY total DESC
+					LIMIT 20
+				`,
+      });
+      const rows =
+        (await result.json()) as unknown as RawTraceServiceSummaryRow[];
+
+      return ok({
+        services: rows.map((row) => ({
+          name: row.service_name,
+          total: Number(row.total),
+          errors: Number(row.errors),
+          errorRate:
+            Number(row.total) > 0 ? Number(row.errors) / Number(row.total) : 0,
+          p95LatencyMs: Number(row.p95_latency_ms ?? 0),
+        })),
+        startAtUtc: startAtUtc.toISOString(),
+        endAtUtc: endAtUtc.toISOString(),
+      });
+    } catch (error) {
+      this.logger.error(
+        "getTraceServiceSummary: failed to fetch service summary",
+        error as Error,
+      );
+      return err("Failed to fetch service summary.");
+    }
+  }
+
   async getTrace(
     input: z.infer<typeof getTraceInputSchema>,
     context: { appId: string },
@@ -251,6 +311,17 @@ export const getTraceSummaryInputSchema = z.object({
   ingestionKeyIds: stringArrayFilterSchema,
   statusCodes: statusCodeFilterSchema,
 });
+
+export const getTraceServiceSummaryInputSchema = z.object({
+  time: logTimeFilterSchema,
+});
+
+type RawTraceServiceSummaryRow = {
+  service_name: string;
+  total: number | string;
+  errors: number | string;
+  p95_latency_ms: number | string;
+};
 
 type RawTraceSummaryRow = {
   total: number | string;

@@ -171,6 +171,85 @@ class LogsService {
     }
   }
 
+  async getLogServiceVolume(
+    input: z.infer<typeof getLogServiceVolumeInputSchema>,
+    context: { appId: string },
+  ) {
+    this.logger.info("getLogServiceVolume: fetching service volume", {
+      input,
+      context,
+    });
+
+    const validated = getLogServiceVolumeInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
+
+    try {
+      const timeRange = resolveTimeRange(validated.data.time);
+      const rangeMs = Math.max(
+        timeRange.endAtUtc.getTime() - timeRange.startAtUtc.getTime(),
+        1,
+      );
+      const bucketCount = validated.data.bucketCount;
+      const bucketSizeMs = Math.max(Math.ceil(rangeMs / bucketCount), 1);
+      const whereClause = buildWhereClause(context.appId, validated.data);
+      const result = await this.clickhouse.query({
+        format: "JSONEachRow",
+        query: `
+					WITH
+						${timeRange.startAtUtc.getTime()} AS start_ms,
+						${bucketSizeMs} AS bucket_ms
+					SELECT
+						service_name,
+						least(toInt32(intDiv(toUnixTimestamp64Milli(timestamp) - start_ms, bucket_ms)), ${bucketCount - 1}) AS bucket_index,
+						count() AS total,
+						countIf(lowerUTF8(severity_text) = 'fatal' OR lowerUTF8(severity_text) = 'error' OR positionCaseInsensitiveUTF8(severity_text, 'err') > 0) AS errors
+					FROM logs_raw
+					WHERE ${whereClause}
+					GROUP BY service_name, bucket_index
+					ORDER BY service_name, bucket_index ASC
+				`,
+      });
+      const rows = (await result.json()) as unknown as RawServiceVolumeRow[];
+
+      const serviceMap = new Map<string, Map<number, RawServiceVolumeRow>>();
+      for (const row of rows) {
+        if (!serviceMap.has(row.service_name)) {
+          serviceMap.set(row.service_name, new Map());
+        }
+        serviceMap.get(row.service_name)!.set(row.bucket_index, row);
+      }
+
+      const services = Array.from(serviceMap.entries()).map(
+        ([name, bucketMap]) => {
+          const buckets = Array.from({ length: bucketCount }, (_, index) => {
+            const bucketStart = new Date(
+              timeRange.startAtUtc.getTime() + index * bucketSizeMs,
+            );
+            const row = bucketMap.get(index);
+
+            return {
+              startAtUtc: bucketStart.toISOString(),
+              total: row?.total ?? 0,
+              errors: row?.errors ?? 0,
+            };
+          });
+
+          return { name, buckets };
+        },
+      );
+
+      return ok({ services });
+    } catch (error) {
+      this.logger.error(
+        "getLogServiceVolume: failed to fetch service volume",
+        error as Error,
+      );
+      return err("Failed to fetch service volume.");
+    }
+  }
+
   async getLogServiceSummary(
     input: z.infer<typeof getLogServiceSummaryInputSchema>,
     context: { appId: string },
@@ -302,6 +381,10 @@ export const getLogServiceSummaryInputSchema = z.object({
   time: logTimeFilterSchema,
 });
 
+export const getLogServiceVolumeInputSchema = logsQueryFiltersSchema.extend({
+  bucketCount: z.number().int().min(5).max(240).default(20),
+});
+
 export type LogsOmitFacet =
   | "levels"
   | "services"
@@ -350,6 +433,13 @@ type RawServiceSummaryRow = {
   total: number | string;
   errors: number | string;
   last_seen: string | Date;
+};
+
+type RawServiceVolumeRow = {
+  service_name: string;
+  bucket_index: number;
+  total: number;
+  errors: number;
 };
 
 const quote = (value: string) =>
