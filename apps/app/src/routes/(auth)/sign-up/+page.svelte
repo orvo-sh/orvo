@@ -1,67 +1,77 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { GitHubIcon } from '@repo/components/icons/github';
-  import { OrvoLogo } from '@repo/components/icons/orvo-logo';
-  import { Button } from '@repo/components/ui/button';
+  import { goto } from "$app/navigation";
+  import { GitHubIcon } from "@repo/components/icons/github";
+  import { OrvoLogo } from "@repo/components/icons/orvo-logo";
+  import { Button } from "@repo/components/ui/button";
   import {
       Field,
       FieldDescription,
       FieldError,
       FieldGroup,
       FieldLabel,
-      FieldSeparator
-  } from '@repo/components/ui/field';
-  import { Input } from '@repo/components/ui/input';
+      FieldSeparator,
+  } from "@repo/components/ui/field";
+  import { Input } from "@repo/components/ui/input";
 
-  import { authClient, getFriendlyErrorMessage } from '$lib/auth-client';
+  import { authClient, getFriendlyErrorMessage } from "$lib/auth-client";
+  import type { PageData } from "./$types";
 
-  let name = $state('');
-  let email = $state('');
-  let password = $state('');
-  let error = $state('');
+  let { data }: { data: PageData } = $props();
+
+  let name = $state("");
+  let email = $state("");
+  let password = $state("");
+  let error = $state((() => data.error)());
   let loading = $state(false);
   let githubLoading = $state(false);
 
   const handleSubmit = async () => {
     loading = true;
-    error = '';
+    error = "";
 
-    await authClient.signUp.email(
-      {
-        name,
-        email,
-        password
-      },
-      {
-        onSuccess: async () => {
-          await goto(`/verify-email?email=${encodeURIComponent(email)}`);
+    await authClient.signUp
+      .email(
+        {
+          name,
+          email,
+          password,
         },
-        onError: (ctx) => {
-          error = getFriendlyErrorMessage(ctx.error.code) ?? ctx.error.message;
-          loading = false;
-        }
-      }
-    ).catch(() => {
-      error = 'An unexpected error occurred. Please try again.';
-      loading = false;
-    });
+        {
+          onSuccess: async () => {
+            await goto(`/verify-email?email=${encodeURIComponent(email)}`);
+          },
+          onError: (ctx) => {
+            error =
+              getFriendlyErrorMessage(ctx.error.code) ?? ctx.error.message;
+            loading = false;
+          },
+        },
+      )
+      .catch(() => {
+        error = "An unexpected error occurred. Please try again.";
+        loading = false;
+      });
   };
   const handleGithubSignIn = async () => {
     githubLoading = true;
-    error = '';
+    error = "";
 
-    await authClient.signIn.social({
-      provider: 'github',
-      callbackURL: '/'
-    }).catch(() => {
-      error = 'Unable to continue with GitHub right now. Please try again.';
-      githubLoading = false;
-    });
+    await authClient.signIn
+      .social({
+        provider: "github",
+        callbackURL: "/",
+        errorCallbackURL: "/sign-up",
+      })
+      .catch(() => {
+        error = "Unable to continue with GitHub right now. Please try again.";
+        githubLoading = false;
+      });
   };
 </script>
 
 <div class="flex flex-col gap-6">
   <form
+    id="sign-up-form"
     onsubmit={(event) => {
       event.preventDefault();
       handleSubmit();
@@ -73,13 +83,14 @@
         <div class="space-y-1">
           <h1 class="text-xl font-semibold">Create your account</h1>
           <FieldDescription>
-            Already have an account? <a href="/sign-in">Sign in</a>
+            Already have an account? <a href="/sign-in" class="text-primary">Sign in</a>
           </FieldDescription>
         </div>
       </div>
 
       <Field>
         <Button
+          id="sign-up-github-button"
           type="button"
           variant="outline"
           class="w-full"
@@ -130,7 +141,13 @@
         <FieldError>{error}</FieldError>
 
         <Field>
-          <Button type="submit" disabled={githubLoading} loading={loading} class="w-full">
+          <Button
+            id="sign-up-submit-button"
+            type="submit"
+            disabled={githubLoading}
+            {loading}
+            class="w-full"
+          >
             Sign up
           </Button>
         </Field>
