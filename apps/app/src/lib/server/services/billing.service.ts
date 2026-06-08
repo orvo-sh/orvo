@@ -1,499 +1,809 @@
-import { billingPlanConfig, billingSignals, billingStatusHasAccess, getIncludedBytesForPlan } from '$lib/billing';
-import type { Auth } from '$lib/server/auth';
-import type { DB } from '@repo/db';
+import type { Auth } from "$lib/server/auth";
+import type { Email } from "$lib/server/email";
+import type { DB } from "@repo/db";
 import {
-	entitlement,
-	member,
-	organization,
-	organizationBillingNotification,
-	organizationBillingProfile,
-	organizationBillingUsage,
-	subscription,
-	user
-} from '@repo/db/schema';
-import type { Logger } from '@repo/logger';
-import { err, genId, ok } from '@repo/utils';
-import { and, desc, eq, isNotNull } from 'drizzle-orm';
-import Stripe from 'stripe';
-import { z } from 'zod';
+  member,
+  organization,
+  organizationUsage,
+  subscription,
+  user,
+} from "@repo/db/schema";
+import type { Logger } from "@repo/logger";
+import { err, genId, ok } from "@repo/utils";
+import { and, desc, eq } from "drizzle-orm";
+import Stripe from "stripe";
+import { z } from "zod";
+
+const BYTES_PER_GB = 1_000_000_000;
+const billingSignals = ["logs", "metrics", "traces"] as const;
+const billingStatusesWithAccess = ["active", "trialing"] as const;
+
+type BillingSignal = (typeof billingSignals)[number];
+type BillingPlanKey = "none" | "starter" | "pro" | "enterprise";
+type BillingAccessStatus = (typeof billingStatusesWithAccess)[number];
+type BillingPlan = {
+  key: BillingPlanKey;
+  name: string;
+  priceLabel: string | null;
+  retentionDays: Record<BillingSignal, number>;
+  includedGbPerSignal: Record<BillingSignal, number>;
+  overagePricePerGb: number | null;
+};
 
 class BillingService {
-	private logger: Logger;
+  private static plans = {
+    none: {
+      key: "none",
+      name: "No plan",
+      priceLabel: null,
+      retentionDays: {
+        logs: 0,
+        metrics: 0,
+        traces: 0,
+      },
+      includedGbPerSignal: {
+        logs: 0,
+        metrics: 0,
+        traces: 0,
+      },
+      overagePricePerGb: null,
+    },
+    starter: {
+      key: "starter",
+      name: "Starter",
+      priceLabel: "$19 / month",
+      retentionDays: {
+        logs: 14,
+        metrics: 14,
+        traces: 14,
+      },
+      includedGbPerSignal: {
+        logs: 50,
+        metrics: 50,
+        traces: 50,
+      },
+      overagePricePerGb: null,
+    },
+    pro: {
+      key: "pro",
+      name: "Pro",
+      priceLabel: "$49 / month",
+      retentionDays: {
+        logs: 30,
+        metrics: 30,
+        traces: 30,
+      },
+      includedGbPerSignal: {
+        logs: 150,
+        metrics: 150,
+        traces: 150,
+      },
+      overagePricePerGb: 0.32,
+    },
+    enterprise: {
+      key: "enterprise",
+      name: "Enterprise",
+      priceLabel: "Custom",
+      retentionDays: {
+        logs: 30,
+        metrics: 30,
+        traces: 30,
+      },
+      includedGbPerSignal: {
+        logs: 0,
+        metrics: 0,
+        traces: 0,
+      },
+      overagePricePerGb: null,
+    },
+  } as const satisfies Record<BillingPlanKey, BillingPlan>;
 
-	constructor(
-		private db: DB,
-		logger: Logger,
-		private stripeClient: Stripe | null,
-		private salesEmail: string
-	) {
-		this.logger = logger.child('BillingService');
-	}
+  private static getIncludedBytesForPlan(
+    planKey: BillingPlanKey,
+    signal: BillingSignal,
+  ) {
+    return (
+      BillingService.plans[planKey].includedGbPerSignal[signal] * BYTES_PER_GB
+    );
+  }
 
-	async getBillingState(context: { organizationId: string; userId: string }) {
-		this.logger.info('getBillingState: fetching billing state', { context });
+  private logger: Logger;
 
-		try {
-			const [isOwner, profile, currentSubscription, currentEntitlement] = await Promise.all([
-				this.isOrganizationOwner(context.organizationId, context.userId),
-				this.db.query.organizationBillingProfile.findFirst({
-					where: eq(organizationBillingProfile.organizationId, context.organizationId)
-				}),
-				this.getCurrentSubscription(context.organizationId),
-				this.db.query.entitlement.findFirst({
-					where: eq(entitlement.organizationId, context.organizationId)
-				})
-			]);
+  constructor(
+    private db: DB,
+    logger: Logger,
+    private email: Email,
+    private stripeClient: Stripe,
+    private salesEmail: string,
+  ) {
+    this.logger = logger.child("BillingService");
+  }
 
-			const usageRows =
-				currentSubscription?.periodStart && currentSubscription?.periodEnd
-					? await this.db.query.organizationBillingUsage.findMany({
-							where: and(
-								eq(organizationBillingUsage.organizationId, context.organizationId),
-								eq(organizationBillingUsage.periodStart, currentSubscription.periodStart),
-								eq(organizationBillingUsage.periodEnd, currentSubscription.periodEnd)
-							)
-						})
-					: [];
+  getPlans() {
+    return ok([
+      BillingService.plans.starter,
+      BillingService.plans.pro,
+      BillingService.plans.enterprise,
+    ]);
+  }
 
-			const planKey = resolvePlanKey(currentSubscription?.plan, currentSubscription?.status);
-			const usage = billingSignals.map((signal) => {
-				const row = usageRows.find((candidate) => candidate.signal === signal);
-				const includedBytes = row?.includedBytes ?? getIncludedBytesForPlan(planKey, signal);
-				const usedBytes = row?.usedBytes ?? 0;
-				const overageBytes = row?.overageBytes ?? 0;
-				const usagePercent =
-					includedBytes > 0 ? Math.min(Math.round((usedBytes / includedBytes) * 100), 100) : 0;
+  async getBillingState(context: { organizationId: string; userId: string }) {
+    this.logger.info("getBillingState: fetching billing state", { context });
 
-				return {
-					signal,
-					includedBytes,
-					usedBytes,
-					overageBytes,
-					usagePercent
-				};
-			});
+    try {
+      const [isOwner, currentOrganization, currentSubscription, currentUsage] =
+        await Promise.all([
+          this.isOrganizationOwner(context.organizationId, context.userId),
+          this.db.query.organization.findFirst({
+            where: eq(organization.id, context.organizationId),
+          }),
+          this.getCurrentSubscription(context.organizationId),
+          this.db.query.organizationUsage.findFirst({
+            where: eq(organizationUsage.organizationId, context.organizationId),
+          }),
+        ]);
 
-			return ok({
-				isOwner,
-				salesEmail: this.salesEmail,
-				billingEmail: profile?.billingEmail ?? null,
-				subscription: currentSubscription
-					? {
-							plan: currentSubscription.plan,
-							status: currentSubscription.status,
-							trialStart: currentSubscription.trialStart,
-							trialEnd: currentSubscription.trialEnd,
-							periodStart: currentSubscription.periodStart,
-							periodEnd: currentSubscription.periodEnd,
-							cancelAtPeriodEnd: currentSubscription.cancelAtPeriodEnd
-						}
-					: null,
-				entitlements: {
-					planKey: currentEntitlement?.planKey ?? 'none',
-					source: currentEntitlement?.source ?? 'default'
-				},
-				plans: [billingPlanConfig.starter, billingPlanConfig.pro, billingPlanConfig.enterprise],
-				usage
-			});
-		} catch (error) {
-			this.logger.error('getBillingState: failed to fetch billing state', error as Error);
-			return err('Failed to load billing state.');
-		}
-	}
+      const planKey = resolvePlanKey(
+        currentOrganization?.billingPlan ?? currentSubscription?.plan,
+        currentOrganization?.billingStatus ?? currentSubscription?.status,
+      );
+      const totalIncludedBytes =
+        currentUsage?.ingestLimitBytes ??
+        billingSignals.reduce(
+          (total, signal) =>
+            total + BillingService.getIncludedBytesForPlan(planKey, signal),
+          0,
+      );
+      const usage = billingSignals.map((signal) => {
+        const usedBytes = readUsageBytes(currentUsage, signal);
+        const includedBytes =
+          currentUsage?.ingestLimitBytes ??
+          BillingService.getIncludedBytesForPlan(planKey, signal);
+        const overageBytes = Math.max(usedBytes - includedBytes, 0);
+        const usagePercent =
+          includedBytes > 0
+            ? Math.min(Math.round((usedBytes / includedBytes) * 100), 100)
+            : 0;
 
-	async getOrganizationAccessState(context: { organizationId: string }) {
-		this.logger.info('getOrganizationAccessState: checking organization access', { context });
+        return {
+          signal,
+          includedBytes,
+          usedBytes,
+          overageBytes,
+          usagePercent,
+          retentionDays: readRetentionDays(currentUsage, signal),
+        };
+      });
+      const totalUsedBytes = usage.reduce(
+        (total, item) => total + item.usedBytes,
+        0,
+      );
+      const totalOverageBytes = Math.max(totalUsedBytes - totalIncludedBytes, 0);
+      const totalUsagePercent =
+        totalIncludedBytes > 0
+          ? Math.min(Math.round((totalUsedBytes / totalIncludedBytes) * 100), 100)
+          : 0;
 
-		try {
-			const currentSubscription = await this.getCurrentSubscription(context.organizationId);
+      return ok({
+        isOwner,
+        salesEmail: this.salesEmail,
+        billingEmail: currentOrganization?.billingEmail ?? null,
+        subscription: currentSubscription
+          ? {
+              plan: currentSubscription.plan,
+              status: currentSubscription.status,
+              trialStart: currentSubscription.trialStart,
+              trialEnd: currentSubscription.trialEnd,
+              periodStart: currentSubscription.periodStart,
+              periodEnd: currentSubscription.periodEnd,
+              cancelAtPeriodEnd: currentSubscription.cancelAtPeriodEnd,
+            }
+          : null,
+        entitlements: {
+          planKey,
+          source: currentOrganization?.billingPlan ? "billing" : "default",
+        },
+        currentPeriod: currentUsage
+          ? {
+              start: currentUsage.currentPeriodStart,
+              end: currentUsage.currentPeriodEnd,
+            }
+          : null,
+        allowance: {
+          includedBytes: totalIncludedBytes,
+          usedBytes: totalUsedBytes,
+          overageBytes: totalOverageBytes,
+          usagePercent: totalUsagePercent,
+        },
+        plans: [
+          BillingService.plans.starter,
+          BillingService.plans.pro,
+          BillingService.plans.enterprise,
+        ],
+        usage,
+      });
+    } catch (error) {
+      this.logger.error(
+        "getBillingState: failed to fetch billing state",
+        error as Error,
+      );
+      return err("Failed to load billing state.");
+    }
+  }
 
-			return ok({
-				hasAccess: billingStatusHasAccess(currentSubscription?.status),
-				subscription: currentSubscription
-			});
-		} catch (error) {
-			this.logger.error(
-				'getOrganizationAccessState: failed to check organization access',
-				error as Error
-			);
-			return err('Failed to check billing access.');
-		}
-	}
+  async getOrganizationAccessState(context: { organizationId: string }) {
+    this.logger.info(
+      "getOrganizationAccessState: checking organization access",
+      { context },
+    );
 
-	async startOrganizationTrial(
-		input: z.infer<typeof startOrganizationTrialInputSchema>,
-		context: {
-			organizationId: string;
-			userId: string;
-			headers: Headers;
-			origin: string;
-			authService: Auth;
-		}
-	) {
-		this.logger.info('startOrganizationTrial: starting organization trial', { input, context });
+    try {
+      const [currentOrganization, currentSubscription] = await Promise.all([
+        this.db.query.organization.findFirst({
+          where: eq(organization.id, context.organizationId),
+        }),
+        this.getCurrentSubscription(context.organizationId),
+      ]);
 
-		const validated = startOrganizationTrialInputSchema.safeParse(input);
-		if (!validated.success) {
-			return err(validated.error.message);
-		}
+      return ok({
+        hasAccess: billingStatusHasAccess(
+          currentOrganization?.billingStatus ?? currentSubscription?.status,
+        ),
+        subscription: currentSubscription,
+      });
+    } catch (error) {
+      this.logger.error(
+        "getOrganizationAccessState: failed to check organization access",
+        error as Error,
+      );
+      return err("Failed to check billing access.");
+    }
+  }
 
-		try {
-			if (!(await this.isOrganizationOwner(context.organizationId, context.userId))) {
-				return err('Only organization owners can manage billing.');
-			}
+  async createBillingPortalSession(
+    _contextInput: z.infer<typeof createBillingPortalInputSchema>,
+    context: {
+      organizationId: string;
+      userId: string;
+      headers: Headers;
+      origin: string;
+      authService: Auth;
+    },
+  ) {
+    this.logger.info(
+      "createBillingPortalSession: creating billing portal session",
+      { context },
+    );
 
-			const currentSubscription = await this.getCurrentSubscription(context.organizationId);
-			if (currentSubscription && billingStatusHasAccess(currentSubscription.status)) {
-				return err('This organization already has an active subscription.');
-			}
+    try {
+      if (
+        !(await this.isOrganizationOwner(
+          context.organizationId,
+          context.userId,
+        ))
+      ) {
+        return err("Only organization owners can manage billing.");
+      }
 
-			if (await this.hasUserConsumedTrial(context.userId)) {
-				return err('You have already used your free trial.');
-			}
+      const returnUrl = new URL("/settings/billing", context.origin).toString();
+      const result = await (context.authService.api as any).createBillingPortal(
+        {
+          body: {
+            customerType: "organization",
+            referenceId: context.organizationId,
+            returnUrl,
+            disableRedirect: true,
+          },
+          headers: context.headers,
+        },
+      );
 
-			const successUrl = new URL('/settings/billing?checkout=success', context.origin).toString();
-			const cancelUrl = new URL('/settings/billing?checkout=cancelled', context.origin).toString();
-			const returnUrl = new URL('/settings/billing', context.origin).toString();
+      const portalUrl = readRedirectUrl(result);
+      if (!portalUrl) {
+        return err("Failed to open billing management.");
+      }
 
-			const result = await (context.authService.api as any).upgradeSubscription({
-				body: {
-					plan: validated.data.plan,
-					customerType: 'organization',
-					referenceId: context.organizationId,
-					successUrl,
-					cancelUrl,
-					returnUrl,
-					disableRedirect: true
-				},
-				headers: context.headers
-			});
+      return ok({ url: portalUrl });
+    } catch (error) {
+      this.logger.error(
+        "createBillingPortalSession: failed to create billing portal session",
+        error as Error,
+      );
+      return err("Failed to open billing management.");
+    }
+  }
 
-			const checkoutUrl = readRedirectUrl(result);
-			if (!checkoutUrl) {
-				return err('Failed to start the free trial.');
-			}
+  async onTrialExpired(context: { organizationId: string }) {
+    //TODO: send an email to the owners telling them to bill. Change plan-status over to overdue too
+  }
 
-			return ok({ url: checkoutUrl });
-		} catch (error) {
-			this.logger.error('startOrganizationTrial: failed to start organization trial', error as Error);
-			return err('Failed to start the free trial.');
-		}
-	}
+  async onSubscriptionCompleted(context: { organizationId: string }) {
+    // TODO: send an email thanking the user and update the usage, reset any usage and set entitlements according to plan
+    // use stripe client to check if indeed the org there actually completed the transaction. We dont trust webhooks.
+  }
 
-	async createBillingPortalSession(
-		_contextInput: z.infer<typeof createBillingPortalInputSchema>,
-		context: {
-			organizationId: string;
-			userId: string;
-			headers: Headers;
-			origin: string;
-			authService: Auth;
-		}
-	) {
-		this.logger.info('createBillingPortalSession: creating billing portal session', { context });
+  async onSubscriptonChanged(context: { organizationId: string }) {
+    //TODO: get from stripe what the new subscription is and change whatever needs to change
+    // reset limits
+  }
 
-		try {
-			if (!(await this.isOrganizationOwner(context.organizationId, context.userId))) {
-				return err('Only organization owners can manage billing.');
-			}
+  async onSubscriptionDeleted(context: { organizationId: string }) {
+    //TODO: do the things
+  }
 
-			const returnUrl = new URL('/settings/billing', context.origin).toString();
-			const result = await (context.authService.api as any).createBillingPortal({
-				body: {
-					customerType: 'organization',
-					referenceId: context.organizationId,
-					returnUrl,
-					disableRedirect: true
-				},
-				headers: context.headers
-			});
+  async updateBillingEmail(
+    input: z.infer<typeof updateBillingEmailInputSchema>,
+    context: { organizationId: string; userId: string },
+  ) {
+    this.logger.info("updateBillingEmail: updating billing email", {
+      input,
+      context,
+    });
 
-			const portalUrl = readRedirectUrl(result);
-			if (!portalUrl) {
-				return err('Failed to open billing management.');
-			}
+    const validated = updateBillingEmailInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
 
-			return ok({ url: portalUrl });
-		} catch (error) {
-			this.logger.error(
-				'createBillingPortalSession: failed to create billing portal session',
-				error as Error
-			);
-			return err('Failed to open billing management.');
-		}
-	}
+    try {
+      if (
+        !(await this.isOrganizationOwner(
+          context.organizationId,
+          context.userId,
+        ))
+      ) {
+        return err("Only organization owners can manage billing.");
+      }
 
-	async updateBillingEmail(
-		input: z.infer<typeof updateBillingEmailInputSchema>,
-		context: { organizationId: string; userId: string }
-	) {
-		this.logger.info('updateBillingEmail: updating billing email', { input, context });
+      const currentOrganization = await this.db.query.organization.findFirst({
+        where: eq(organization.id, context.organizationId),
+      });
+      if (!currentOrganization) {
+        return err("Organization not found.");
+      }
 
-		const validated = updateBillingEmailInputSchema.safeParse(input);
-		if (!validated.success) {
-			return err(validated.error.message);
-		}
+      await this.db
+        .update(organization)
+        .set({
+          billingEmail: validated.data.billingEmail,
+        })
+        .where(eq(organization.id, context.organizationId));
 
-		try {
-			if (!(await this.isOrganizationOwner(context.organizationId, context.userId))) {
-				return err('Only organization owners can manage billing.');
-			}
+      if (this.stripeClient && currentOrganization.stripeCustomerId) {
+        await this.stripeClient.customers.update(
+          currentOrganization.stripeCustomerId,
+          {
+            email: validated.data.billingEmail,
+          },
+        );
+      }
 
-			const currentOrganization = await this.db.query.organization.findFirst({
-				where: eq(organization.id, context.organizationId)
-			});
-			if (!currentOrganization) {
-				return err('Organization not found.');
-			}
+      return ok(undefined);
+    } catch (error) {
+      this.logger.error(
+        "updateBillingEmail: failed to update billing email",
+        error as Error,
+      );
+      return err("Failed to update billing email.");
+    }
+  }
 
-			await this.db
-				.insert(organizationBillingProfile)
-				.values({
-					organizationId: context.organizationId,
-					billingEmail: validated.data.billingEmail
-				})
-				.onConflictDoUpdate({
-					target: organizationBillingProfile.organizationId,
-					set: {
-						billingEmail: validated.data.billingEmail
-					}
-				});
+  async bootstrapOrganizationBillingState(context: {
+    organizationId: string;
+    userId: string;
+  }) {
+    this.logger.info(
+      "bootstrapOrganizationBillingState: bootstrapping billing state",
+      { context },
+    );
 
-			if (this.stripeClient && currentOrganization.stripeCustomerId) {
-				await this.stripeClient.customers.update(currentOrganization.stripeCustomerId, {
-					email: validated.data.billingEmail
-				});
-			}
+    try {
+      const [createdOrganization, createdByUser] = await Promise.all([
+        this.db.query.organization.findFirst({
+          where: eq(organization.id, context.organizationId),
+        }),
+        this.db.query.user.findFirst({
+          where: eq(user.id, context.userId),
+        }),
+      ]);
 
-			return ok(undefined);
-		} catch (error) {
-			this.logger.error('updateBillingEmail: failed to update billing email', error as Error);
-			return err('Failed to update billing email.');
-		}
-	}
+      if (!createdOrganization || !createdByUser) return;
 
-	async handleOrganizationCreated(context: { organizationId: string; userId: string }) {
-		this.logger.info('handleOrganizationCreated: bootstrapping billing state', { context });
+      await this.db
+        .update(organization)
+        .set({
+          billingEmail: createdByUser.email,
+        })
+        .where(eq(organization.id, context.organizationId));
 
-		try {
-			const [createdOrganization, createdByUser] = await Promise.all([
-				this.db.query.organization.findFirst({
-					where: eq(organization.id, context.organizationId)
-				}),
-				this.db.query.user.findFirst({
-					where: eq(user.id, context.userId)
-				})
-			]);
+      await this.syncOrganizationUsageLimits({
+        organizationId: context.organizationId,
+        plan: "none",
+        status: "inactive",
+      });
 
-			if (!createdOrganization || !createdByUser) {
-				return;
-			}
+      if (createdOrganization.stripeCustomerId) return;
 
-			await this.db
-				.insert(organizationBillingProfile)
-				.values({
-					organizationId: context.organizationId,
-					billingEmail: createdByUser.email
-				})
-				.onConflictDoNothing();
+      const stripeCustomer = await this.stripeClient.customers.create({
+        name: createdOrganization.name,
+        email: createdByUser.email,
+        metadata: {
+          organizationId: createdOrganization.id,
+        },
+      });
 
-			await this.syncEntitlementsForOrganization({
-				organizationId: context.organizationId,
-				plan: 'none',
-				status: 'inactive'
-			});
+      await this.db
+        .update(organization)
+        .set({
+          stripeCustomerId: stripeCustomer.id,
+        })
+        .where(eq(organization.id, createdOrganization.id));
+    } catch (error) {
+      this.logger.error(
+        "bootstrapOrganizationBillingState: failed to bootstrap billing state",
+        error as Error,
+      );
+      throw error;
+    }
+  }
 
-			if (!this.stripeClient || createdOrganization.stripeCustomerId) {
-				return;
-			}
+  async syncOrganizationUsageLimits(input: {
+    organizationId: string;
+    plan: string | null | undefined;
+    status: string | null | undefined;
+  }) {
+    this.logger.info(
+      "syncOrganizationUsageLimits: syncing organization usage limits",
+      { input },
+    );
 
-			const stripeCustomer = await this.stripeClient.customers.create({
-				name: createdOrganization.name,
-				email: createdByUser.email,
-				metadata: {
-					organizationId: createdOrganization.id
-				}
-			});
+    try {
+      const planKey = resolvePlanKey(input.plan, input.status);
+      const plan = BillingService.plans[planKey];
+      const currentSubscription = await this.getCurrentSubscription(
+        input.organizationId,
+      );
+      const currentPeriodStart = currentSubscription?.periodStart ?? new Date();
+      const currentPeriodEnd =
+        currentSubscription?.periodEnd ??
+        currentSubscription?.trialEnd ??
+        addDays(currentPeriodStart, 30);
+      const ingestLimitBytes = billingSignals.reduce(
+        (total, signal) =>
+          total + BillingService.getIncludedBytesForPlan(planKey, signal),
+        0,
+      );
 
-			await this.db
-				.update(organization)
-				.set({
-					stripeCustomerId: stripeCustomer.id
-				})
-				.where(eq(organization.id, createdOrganization.id));
-		} catch (error) {
-			this.logger.error(
-				'handleOrganizationCreated: failed to bootstrap billing state',
-				error as Error
-			);
-			throw error;
-		}
-	}
+      await this.db
+        .update(organization)
+        .set({
+          billingPlan: planKey === "none" ? null : planKey,
+          billingStatus: resolveOrganizationBillingStatus(input.status),
+        })
+        .where(eq(organization.id, input.organizationId));
 
-	async syncEntitlementsForOrganization(input: {
-		organizationId: string;
-		plan: string | null | undefined;
-		status: string | null | undefined;
-	}) {
-		this.logger.info('syncEntitlementsForOrganization: syncing entitlements', { input });
+      await this.db
+        .insert(organizationUsage)
+        .values({
+          id: genId("orgu"),
+          organizationId: input.organizationId,
+          logsRetentionDays: plan.retentionDays.logs,
+          tracesRetentionDays: plan.retentionDays.traces,
+          metricsRetentionDays: plan.retentionDays.metrics,
+          currentPeriodStart,
+          currentPeriodEnd,
+          ingestLimitBytes,
+        })
+        .onConflictDoUpdate({
+          target: organizationUsage.organizationId,
+          set: {
+            logsRetentionDays: plan.retentionDays.logs,
+            tracesRetentionDays: plan.retentionDays.traces,
+            metricsRetentionDays: plan.retentionDays.metrics,
+            currentPeriodStart,
+            currentPeriodEnd,
+            ingestLimitBytes,
+          },
+        });
+    } catch (error) {
+      this.logger.error(
+        "syncOrganizationUsageLimits: failed to sync organization usage limits",
+        error as Error,
+      );
+      throw error;
+    }
+  }
 
-		try {
-			const planKey = resolvePlanKey(input.plan, input.status);
-			const plan = billingPlanConfig[planKey];
+  async queueNotification(
+    input: z.infer<typeof queueBillingNotificationInputSchema>,
+    context: { organizationId: string },
+  ) {
+    this.logger.info("queueNotification: sending billing notification", {
+      input,
+      context,
+    });
 
-			await this.db
-				.insert(entitlement)
-				.values({
-					organizationId: input.organizationId,
-					planKey,
-					source: 'billing',
-					logsRetentionDays: plan.retentionDays.logs,
-					tracesRetentionDays: plan.retentionDays.traces,
-					metricsRetentionDays: plan.retentionDays.metrics,
-					logsMaxIngestBytesPerPeriod: getIncludedBytesForPlan(planKey, 'logs'),
-					tracesMaxIngestBytesPerPeriod: getIncludedBytesForPlan(planKey, 'traces'),
-					metricsMaxIngestBytesPerPeriod: getIncludedBytesForPlan(planKey, 'metrics')
-				})
-				.onConflictDoUpdate({
-					target: entitlement.organizationId,
-					set: {
-						planKey,
-						source: 'billing',
-						logsRetentionDays: plan.retentionDays.logs,
-						tracesRetentionDays: plan.retentionDays.traces,
-						metricsRetentionDays: plan.retentionDays.metrics,
-						logsMaxIngestBytesPerPeriod: getIncludedBytesForPlan(planKey, 'logs'),
-						tracesMaxIngestBytesPerPeriod: getIncludedBytesForPlan(planKey, 'traces'),
-						metricsMaxIngestBytesPerPeriod: getIncludedBytesForPlan(planKey, 'metrics')
-					}
-				});
-		} catch (error) {
-			this.logger.error(
-				'syncEntitlementsForOrganization: failed to sync entitlements',
-				error as Error
-			);
-			throw error;
-		}
-	}
+    const validated = queueBillingNotificationInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
 
-	async queueNotification(
-		input: z.infer<typeof queueBillingNotificationInputSchema>,
-		context: { organizationId: string }
-	) {
-		this.logger.info('queueNotification: queuing billing notification', { input, context });
+    try {
+      await this.sendBillingNotificationEmail(
+        validated.data.kind,
+        validated.data.payload,
+        context,
+      );
 
-		const validated = queueBillingNotificationInputSchema.safeParse(input);
-		if (!validated.success) {
-			return err(validated.error.message);
-		}
+      return ok(undefined);
+    } catch (error) {
+      this.logger.error(
+        "queueNotification: failed to send billing notification",
+        error as Error,
+      );
+      return err("Failed to send billing notification.");
+    }
+  }
 
-		try {
-			await this.db.insert(organizationBillingNotification).values({
-				id: genId('bntf'),
-				organizationId: context.organizationId,
-				kind: validated.data.kind,
-				payload: JSON.stringify(validated.data.payload)
-			});
+  private async isOrganizationOwner(organizationId: string, userId: string) {
+    const currentMember = await this.db.query.member.findFirst({
+      where: and(
+        eq(member.organizationId, organizationId),
+        eq(member.userId, userId),
+      ),
+    });
 
-			return ok(undefined);
-		} catch (error) {
-			this.logger.error('queueNotification: failed to queue billing notification', error as Error);
-			return err('Failed to queue billing notification.');
-		}
-	}
+    return currentMember?.role === "owner";
+  }
 
-	private async isOrganizationOwner(organizationId: string, userId: string) {
-		const currentMember = await this.db.query.member.findFirst({
-			where: and(eq(member.organizationId, organizationId), eq(member.userId, userId))
-		});
+  private async getCurrentSubscription(organizationId: string) {
+    const subscriptions = await this.db.query.subscription.findMany({
+      where: eq(subscription.referenceId, organizationId),
+      orderBy: [desc(subscription.periodEnd), desc(subscription.trialEnd)],
+    });
 
-		return currentMember?.role === 'owner';
-	}
+    return (
+      subscriptions.find((candidate) =>
+        [
+          "active",
+          "trialing",
+          "paused",
+          "past_due",
+          "unpaid",
+          "incomplete",
+        ].includes(candidate.status),
+      ) ??
+      subscriptions[0] ??
+      null
+    );
+  }
 
-	private async getCurrentSubscription(organizationId: string) {
-		const subscriptions = await this.db.query.subscription.findMany({
-			where: eq(subscription.referenceId, organizationId),
-			orderBy: [desc(subscription.periodEnd), desc(subscription.trialEnd)]
-		});
+  private async sendBillingNotificationEmail(
+    kind: string,
+    payload: Record<string, string>,
+    context: { organizationId: string },
+  ) {
+    const [currentOrganization, owners] = await Promise.all([
+      this.db.query.organization.findFirst({
+        where: eq(organization.id, context.organizationId),
+      }),
+      this.db
+        .select({
+          email: user.email,
+        })
+        .from(member)
+        .innerJoin(user, eq(member.userId, user.id))
+        .where(
+          and(
+            eq(member.organizationId, context.organizationId),
+            eq(member.role, "owner"),
+          ),
+        ),
+    ]);
 
-		return (
-			subscriptions.find((candidate) =>
-				['active', 'trialing', 'paused', 'past_due', 'unpaid', 'incomplete'].includes(
-					candidate.status
-				)
-			) ??
-			subscriptions[0] ??
-			null
-		);
-	}
+    if (!currentOrganization) {
+      return;
+    }
 
-	private async hasUserConsumedTrial(userId: string) {
-		const existingTrial = await this.db
-			.select({ subscriptionId: subscription.id })
-			.from(subscription)
-			.innerJoin(member, eq(member.organizationId, subscription.referenceId))
-			.where(and(eq(member.userId, userId), isNotNull(subscription.trialStart)))
-			.limit(1);
+    const recipients = new Set<string>();
+    if (currentOrganization.billingEmail) {
+      recipients.add(currentOrganization.billingEmail);
+    }
+    for (const owner of owners) {
+      recipients.add(owner.email);
+    }
 
-		return existingTrial.length > 0;
-	}
+    if (recipients.size === 0) {
+      return;
+    }
+
+    const emailPayload = buildBillingEmail(
+      kind,
+      payload,
+      currentOrganization.name,
+    );
+    if (!emailPayload) {
+      return;
+    }
+
+    for (const recipient of recipients) {
+      const { subject, ...templateInput } = emailPayload;
+      await this.email.sendEmail({
+        to: recipient,
+        subject,
+        ...templateInput,
+      });
+    }
+  }
 }
 
 const getBillingStateInputSchema = z.object({});
 
-const startOrganizationTrialInputSchema = z.object({
-	plan: z.enum(['starter', 'pro'])
-});
-
 const createBillingPortalInputSchema = z.object({});
 
 const updateBillingEmailInputSchema = z.object({
-	billingEmail: z.string().trim().email().max(255)
+  billingEmail: z.string().trim().email().max(255),
 });
 
 const queueBillingNotificationInputSchema = z.object({
-	kind: z.string().trim().min(1).max(64),
-	payload: z.record(z.string(), z.string())
+  kind: z.string().trim().min(1).max(64),
+  payload: z.record(z.string(), z.string()),
 });
 
 const resolvePlanKey = (
-	plan: string | null | undefined,
-	status: string | null | undefined
-): 'none' | 'starter' | 'pro' => {
-	if (!billingStatusHasAccess(status)) {
-		return 'none';
-	}
+  plan: string | null | undefined,
+  status: string | null | undefined,
+): BillingPlanKey => {
+  if (!billingStatusHasAccess(status)) {
+    return "none";
+  }
 
-	return plan === 'pro' ? 'pro' : plan === 'starter' ? 'starter' : 'none';
+  return plan === "enterprise"
+    ? "enterprise"
+    : plan === "pro"
+      ? "pro"
+      : plan === "starter"
+        ? "starter"
+        : "none";
+};
+
+const resolveOrganizationBillingStatus = (
+  status: string | null | undefined,
+): "trialing" | "active" | "past_due" | null => {
+  if (status === "trialing" || status === "active" || status === "past_due") {
+    return status;
+  }
+
+  return null;
+};
+
+const billingStatusHasAccess = (
+  status: string | null | undefined,
+): status is BillingAccessStatus =>
+  typeof status === "string" &&
+  (billingStatusesWithAccess as readonly string[]).includes(status);
+
+const readUsageBytes = (
+  usage: Awaited<ReturnType<DB["query"]["organizationUsage"]["findFirst"]>>,
+  signal: BillingSignal,
+) => {
+  if (!usage) return 0;
+  if (signal === "logs") return usage.logsIngestedBytes;
+  if (signal === "metrics") return usage.metricsIngestedBytes;
+  return usage.tracesIngestedBytes;
+};
+
+const readRetentionDays = (
+  usage: Awaited<ReturnType<DB["query"]["organizationUsage"]["findFirst"]>>,
+  signal: BillingSignal,
+) => {
+  if (!usage) return 0;
+  if (signal === "logs") return usage.logsRetentionDays;
+  if (signal === "metrics") return usage.metricsRetentionDays;
+  return usage.tracesRetentionDays;
+};
+
+const addDays = (date: Date, days: number) => {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
 };
 
 const readRedirectUrl = (result: unknown) => {
-	if (typeof result !== 'object' || result === null) {
-		return null;
-	}
+  if (typeof result !== "object" || result === null) {
+    return null;
+  }
 
-	if ('url' in result && typeof result.url === 'string') {
-		return result.url;
-	}
+  if ("url" in result && typeof result.url === "string") {
+    return result.url;
+  }
 
-	if (
-		'data' in result &&
-		typeof result.data === 'object' &&
-		result.data !== null &&
-		'url' in result.data &&
-		typeof result.data.url === 'string'
-	) {
-		return result.data.url;
-	}
+  if (
+    "data" in result &&
+    typeof result.data === "object" &&
+    result.data !== null &&
+    "url" in result.data &&
+    typeof result.data.url === "string"
+  ) {
+    return result.data.url;
+  }
 
-	return null;
+  return null;
+};
+
+const buildBillingEmail = (
+  kind: string,
+  payload: Record<string, string>,
+  organizationName: string,
+):
+  | {
+      subject: string;
+      template: "billing-trial-started";
+      props: {
+        organizationName: string;
+        trialEnd: string;
+      };
+    }
+  | {
+      subject: string;
+      template: "billing-trial-will-end";
+      props: {
+        organizationName: string;
+        trialEnd: string;
+      };
+    }
+  | {
+      subject: string;
+      template: "billing-trial-expired";
+      props: {
+        organizationName: string;
+      };
+    }
+  | null => {
+  switch (kind) {
+    case "trial_started":
+      return {
+        subject: `${organizationName} trial started`,
+        template: "billing-trial-started" as const,
+        props: {
+          organizationName,
+          trialEnd: formatDate(payload.trialEnd),
+        },
+      };
+    case "trial_will_end":
+      return {
+        subject: `${organizationName} trial ends soon`,
+        template: "billing-trial-will-end" as const,
+        props: {
+          organizationName,
+          trialEnd: formatDate(payload.trialEnd),
+        },
+      };
+    case "trial_expired":
+      return {
+        subject: `${organizationName} trial ended`,
+        template: "billing-trial-expired" as const,
+        props: {
+          organizationName,
+        },
+      };
+    default:
+      return null;
+  }
+};
+
+const formatDate = (value: string | undefined) => {
+  if (!value) {
+    return "Unknown";
+  }
+
+  return new Date(value).toLocaleDateString();
 };
 
 export {
-	BillingService,
-	getBillingStateInputSchema,
-	createBillingPortalInputSchema,
-	queueBillingNotificationInputSchema,
-	startOrganizationTrialInputSchema,
-	updateBillingEmailInputSchema
+  BillingService,
+  createBillingPortalInputSchema,
+  getBillingStateInputSchema,
+  queueBillingNotificationInputSchema,
+  updateBillingEmailInputSchema,
 };

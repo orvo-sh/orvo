@@ -6,11 +6,11 @@ type EmailInput = {
 	from?: string;
 } & Template;
 
-interface IEmail {
+interface Email {
 	sendEmail: (input: EmailInput) => Promise<string>;
 }
 
-class ResendEmail implements IEmail {
+class ResendEmail implements Email {
 	private readonly resendApiKey: string;
 	private readonly defaultFrom: string;
 
@@ -20,7 +20,7 @@ class ResendEmail implements IEmail {
 	}
 
 	sendEmail = async (input: EmailInput): Promise<string> => {
-		const html = templates[input.template](input.props);
+		const html = renderTemplate(input);
 
 		const response = await fetch('https://api.resend.com/emails', {
 			method: 'POST',
@@ -46,11 +46,24 @@ class ResendEmail implements IEmail {
 	};
 }
 
-class ConsoleEmail implements IEmail {
+class ConsoleEmail implements Email {
 	sendEmail = async (input: EmailInput): Promise<string> => {
 		console.info(`Sending email '${input.template}' to: ${input.to}, subject: ${input.subject}`, input.props);
 		return 'email-id';
 	};
 }
 
-export { ConsoleEmail, ResendEmail, type IEmail };
+const renderTemplate = (input: EmailInput) => {
+	switch (input.template) {
+		case 'billing-trial-expired':
+			return templates['billing-trial-expired'](input.props);
+		case 'billing-trial-started':
+			return templates['billing-trial-started'](input.props);
+		case 'billing-trial-will-end':
+			return templates['billing-trial-will-end'](input.props);
+		case 'otp':
+			return templates.otp(input.props);
+	}
+};
+
+export { ConsoleEmail, ResendEmail, type Email };
