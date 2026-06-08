@@ -392,33 +392,14 @@
 
         {#if logVolume && hasData}
           <div class="mt-6">
-            <svg
-              class="h-16 w-full"
-              viewBox="0 0 {logVolume.buckets.length} 100"
-              preserveAspectRatio="none"
-            >
-              <defs>
-                <linearGradient id="volGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="hsl(var(--primary) / 0.3)" />
-                  <stop offset="100%" stop-color="hsl(var(--primary) / 0.02)" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M{logVolume.buckets
-                  .map((b, i) => `${i} ${100 - (b.total / maxBucket) * 95}`)
-                  .join(' L')} L{logVolume.buckets.length - 1} 100 L0 100 Z"
-                fill="url(#volGrad)"
-              />
-              <path
-                d="M{logVolume.buckets
-                  .map((b, i) => `${i} ${100 - (b.total / maxBucket) * 95}`)
-                  .join(' L')}"
-                fill="none"
-                stroke="hsl(var(--primary) / 0.7)"
-                stroke-width="1.5"
-                vector-effect="non-scaling-stroke"
-              />
-            </svg>
+            <div class="flex h-20 items-end gap-px">
+              {#each logVolume.buckets as bucket, i}
+                <div
+                  class="flex-1 rounded-sm bg-primary/60"
+                  style={`height: ${Math.max((bucket.total / maxBucket) * 100, 2)}%`}
+                ></div>
+              {/each}
+            </div>
           </div>
         {/if}
       </div>
