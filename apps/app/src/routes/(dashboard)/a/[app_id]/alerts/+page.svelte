@@ -1,28 +1,26 @@
 <script lang="ts">
-	import {
-		deleteAlertRuleCommand,
-		getAlertRulesQuery,
-		setAlertRuleEnabledCommand
-	} from '$lib/api/alert-rules.remote';
+	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { alertSignalOptions } from '$lib/alerts';
+	import { deleteAlertRuleCommand, setAlertRuleEnabledCommand } from '$lib/api/alert-rules.remote';
 	import { Badge } from '@repo/components/ui/badge';
 	import { Button } from '@repo/components/ui/button';
 	import { Input } from '@repo/components/ui/input';
 	import {
-		IconActivity,
-		IconAlertTriangle,
-		IconBell,
-		IconClock,
-		IconGauge,
-		IconPencil,
-		IconPlus,
-		IconSearch,
-		IconTrash,
-		IconTrendingUp
+	    IconActivity,
+	    IconAlertTriangle,
+	    IconBell,
+	    IconClock,
+	    IconGauge,
+	    IconPencil,
+	    IconPlus,
+	    IconSearch,
+	    IconTrash,
+	    IconTrendingUp
 	} from '@tabler/icons-svelte';
-	import { onMount } from 'svelte';
-	import PageContainer from '../../../_components/page-container.svelte';
+	import PageContainer from '../../../_components/page-container/page-container.svelte';
+
+	let { data } = $props();
 
 	type AlertRule = {
 		id: string;
@@ -42,13 +40,19 @@
 		destinationCount: number;
 	};
 
-	let loading = $state(true);
+	let loading = $state(false);
 	let error = $state('');
 	let togglingRuleId = $state('');
 	let deletingRuleId = $state('');
 	let rules = $state<AlertRule[]>([]);
 	let search = $state('');
 	let statusFilter = $state<'all' | 'incident' | 'healthy' | 'disabled'>('all');
+
+	$effect(() => {
+		error = data.alertRulesResult.success ? '' : data.alertRulesResult.error;
+		rules = data.alertRulesResult.success ? data.alertRulesResult.data.rules : [];
+		loading = false;
+	});
 
 	const signalLabels = Object.fromEntries(alertSignalOptions.map((o) => [o.value, o.label]));
 
@@ -114,19 +118,6 @@
 		});
 	});
 
-	const loadRules = async () => {
-		loading = true;
-		error = '';
-		const result = await getAlertRulesQuery({}).run();
-		if (result.success === false) {
-			error = result.error;
-			loading = false;
-			return;
-		}
-		rules = result.data.rules;
-		loading = false;
-	};
-
 	const toggleRule = async (ruleId: string, isEnabled: boolean) => {
 		togglingRuleId = ruleId;
 		error = '';
@@ -136,7 +127,7 @@
 			togglingRuleId = '';
 			return;
 		}
-		await loadRules();
+		await invalidateAll();
 		togglingRuleId = '';
 	};
 
@@ -150,13 +141,9 @@
 			deletingRuleId = '';
 			return;
 		}
-		await loadRules();
+		await invalidateAll();
 		deletingRuleId = '';
 	};
-
-	onMount(() => {
-		void loadRules();
-	});
 </script>
 
 <PageContainer title="Alerts">

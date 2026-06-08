@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PageContainer from '../../../_components/page-container.svelte';
+	import PageContainer from '../../../_components/page-container/page-container.svelte';
 </script>
 
 <PageContainer title="Metrics">

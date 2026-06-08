@@ -3,15 +3,15 @@
 	import { page } from '$app/state';
 	import { createEmptyAlertRuleForm, type AlertRuleFormValue } from '$lib/alerts';
 	import {
-		deleteAlertRuleCommand,
-		getAlertRuleQuery,
-		updateAlertRuleCommand
+	    deleteAlertRuleCommand,
+	    getAlertRuleQuery,
+	    updateAlertRuleCommand
 	} from '$lib/api/alert-rules.remote';
 	import { getAlertWebhookDestinationsQuery } from '$lib/api/alert-webhook-destinations.remote';
-	import AlertRuleForm from '../_components/alert-rule-form.svelte';
 	import { Button } from '@repo/components/ui/button';
 	import { onMount } from 'svelte';
-	import PageContainer from '../../../../_components/page-container.svelte';
+	import PageContainer from '../../../../_components/page-container/page-container.svelte';
+	import AlertRuleForm from '../_components/alert-rule-form.svelte';
 
 	let loading = $state(true);
 	let submitting = $state(false);

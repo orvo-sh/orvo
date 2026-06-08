@@ -27,7 +27,7 @@
 
 	import { cn } from '@repo/components';
 	import { onMount, untrack } from 'svelte';
-	import PageContainer from '../../../../_components/page-container.svelte';
+	import PageContainer from '../../../../_components/page-container/page-container.svelte';
 	import LogFilterBar from '../_components/log-filter-bar.svelte';
 	import LogTable from '../_components/log-table.svelte';
 	import LogVolumeChart from '../_components/log-volume-chart.svelte';

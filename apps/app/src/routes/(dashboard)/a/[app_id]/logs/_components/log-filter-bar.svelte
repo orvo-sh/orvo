@@ -3,12 +3,12 @@
 	import { Kbd } from '@repo/components/ui/kbd';
 	import {
 	    IconCpu as CpuIcon,
-	    IconBolt as LightningIcon,
 	    IconSearch as MagnifyingGlassIcon,
 	    IconStack2 as StackIcon
 	} from "@tabler/icons-svelte";
 	import type { LogFilters, LogTimeFilter } from '../types';
 	import FilterPill from './filter-pill.svelte';
+	import LevelFilterPill from './level-filter-pill.svelte';
 	import TimeRangePicker from './time-range-picker.svelte';
 
 	let {
@@ -70,23 +70,18 @@
 	</div>
 	<span class="h-5 w-px bg-border mx-1"></span>
 
-	<FilterPill
+	<LevelFilterPill
 		label="Level"
 		bind:values={filters.levels}
 		options={[
-			{ value: 'FATAL', label: 'Fatal'},
-			{ value: 'ERROR', label: 'Error'},
-			{ value: 'WARN', label: 'Warn'},
-			{ value: 'INFO', label: 'Info'},
-			{ value: 'DEBUG', label: 'Debug'},
-			{ value: 'TRACE', label: 'Trace'}
+			{ value: 'FATAL', label: 'Fatal', colorClass: 'bg-destructive' },
+			{ value: 'ERROR', label: 'Error', colorClass: 'bg-destructive' },
+			{ value: 'WARN', label: 'Warn', colorClass: 'bg-amber-500' },
+			{ value: 'INFO', label: 'Info', colorClass: 'bg-primary' },
+			{ value: 'DEBUG', label: 'Debug', colorClass: 'bg-muted-foreground/70' },
+			{ value: 'TRACE', label: 'Trace', colorClass: 'bg-muted-foreground/50' }
 		]}
-		placeholder="Filter by level..."
-	>
-		{#snippet icon()}
-			<LightningIcon class="size-3.5" />
-		{/snippet}
-	</FilterPill>
+	/>
 
 	<FilterPill
 		label="Service"

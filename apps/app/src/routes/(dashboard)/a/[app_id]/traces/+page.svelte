@@ -2,10 +2,10 @@
 	import { getTracesQuery } from '$lib/api/traces.remote';
 	import { Button } from '@repo/components/ui/button';
 	import {
-		IconPlayerPlay as PlayIcon,
-		IconRefresh as ArrowsClockwiseIcon
+	    IconRefresh as ArrowsClockwiseIcon,
+	    IconPlayerPlay as PlayIcon
 	} from "@tabler/icons-svelte";
-	import PageContainer from '../../../_components/page-container.svelte';
+	import PageContainer from '../../../_components/page-container/page-container.svelte';
 	import TraceFilterBar from './_components/trace-filter-bar.svelte';
 	import TraceTable from './_components/trace-table.svelte';
 	import type { TraceFilters, TraceRow } from './types';
