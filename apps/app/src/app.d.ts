@@ -15,6 +15,8 @@ declare global {
 		};
 	}
 
+	type Nullable<T> = T | null;
+
 	namespace App {
 		interface Locals {
 			container: ServerContainer;

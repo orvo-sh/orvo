@@ -3,7 +3,6 @@ package billing
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -36,7 +35,6 @@ type usageRow struct {
 	ID            string
 	UsedBytes     int64
 	IncludedBytes int64
-	OverageBytes  int64
 	Notified70At  sql.NullTime
 	Notified85At  sql.NullTime
 	Notified100At sql.NullTime
@@ -72,7 +70,12 @@ func (service *Service) ReserveSignalUsage(ctx context.Context, organizationID s
 		}, nil
 	}
 
-	state, err := service.getBillingState(ctx, organizationID, signal)
+	usageColumn, ok := usageColumnForSignal(signal)
+	if !ok {
+		return nil, apperrors.ErrBillingRequired
+	}
+
+	state, err := service.getBillingState(ctx, organizationID)
 	if err != nil {
 		service.logger.ErrorContext(ctx, "ReserveSignalUsage: failed to load billing state", slog.Any("error", err))
 		return nil, apperrors.ErrInternal
@@ -103,9 +106,7 @@ func (service *Service) ReserveSignalUsage(ctx context.Context, organizationID s
 		return nil, apperrors.ErrBillingQuotaExceeded
 	}
 
-	newOverageBytes := maxInt64(newUsedBytes-row.IncludedBytes, 0)
 	now := time.Now().UTC()
-	notificationRows := make([]queuedNotification, 0, 3)
 
 	notified70At := row.Notified70At
 	notified85At := row.Notified85At
@@ -133,55 +134,30 @@ func (service *Service) ReserveSignalUsage(ctx context.Context, organizationID s
 			}
 			notified100At = sql.NullTime{Time: now, Valid: true}
 		}
-
-		notificationRows = append(notificationRows, queuedNotification{
-			Kind: "usage_threshold",
-			Payload: map[string]any{
-				"signal":        signal,
-				"threshold":     threshold,
-				"plan":          state.PlanKey,
-				"usedBytes":     newUsedBytes,
-				"includedBytes": row.IncludedBytes,
-				"overageBytes":  newOverageBytes,
-				"periodStart":   state.PeriodStart.Format(time.RFC3339),
-				"periodEnd":     state.PeriodEnd.Format(time.RFC3339),
-			},
-		})
 	}
 
 	if _, err := tx.Exec(
 		ctx,
-		`
-UPDATE organization_billing_usage
-SET used_bytes = $5,
-    included_bytes = $6,
-    overage_bytes = $7,
-    notified_70_at = $8,
-    notified_85_at = $9,
-    notified_100_at = $10,
+		fmt.Sprintf(`
+UPDATE organization_usage
+SET %s = $3,
+    ingest_limit_bytes = $4,
+    notified_70_at = $5,
+    notified_85_at = $6,
+    notified_100_at = $7,
     updated_at = NOW()
 WHERE id = $1
   AND organization_id = $2
-  AND signal = $3
-  AND period_start = $4
-`,
+`, usageColumn),
 		row.ID,
 		organizationID,
-		signal,
-		state.PeriodStart,
 		newUsedBytes,
 		row.IncludedBytes,
-		newOverageBytes,
 		nullTimeValue(notified70At),
 		nullTimeValue(notified85At),
 		nullTimeValue(notified100At),
 	); err != nil {
 		service.logger.ErrorContext(ctx, "ReserveSignalUsage: failed to update usage row", slog.Any("error", err))
-		return nil, apperrors.ErrInternal
-	}
-
-	if err := service.insertNotifications(ctx, tx, organizationID, notificationRows); err != nil {
-		service.logger.ErrorContext(ctx, "ReserveSignalUsage: failed to queue threshold notifications", slog.Any("error", err))
 		return nil, apperrors.ErrInternal
 	}
 
@@ -210,22 +186,20 @@ func (service *Service) ReleaseSignalUsage(ctx context.Context, reservation *Res
 		slog.Int64("bytes", reservation.ReservedBytes),
 	)
 
+	usageColumn, ok := usageColumnForSignal(reservation.Signal)
+	if !ok {
+		return nil
+	}
+
 	if _, err := service.store.Pool().Exec(
 		ctx,
-		`
-UPDATE organization_billing_usage
-SET used_bytes = GREATEST(used_bytes - $5, 0),
-    overage_bytes = GREATEST((used_bytes - $5) - included_bytes, 0),
+		fmt.Sprintf(`
+UPDATE organization_usage
+SET %s = GREATEST(%s - $2, 0),
     updated_at = NOW()
 WHERE organization_id = $1
-  AND signal = $2
-  AND period_start = $3
-  AND period_end = $4
-`,
+`, usageColumn, usageColumn),
 		reservation.OrganizationID,
-		reservation.Signal,
-		reservation.PeriodStart,
-		reservation.PeriodEnd,
 		reservation.ReservedBytes,
 	); err != nil {
 		return fmt.Errorf("postgres: release signal usage: %w", err)
@@ -234,20 +208,16 @@ WHERE organization_id = $1
 	return nil
 }
 
-func (service *Service) getBillingState(ctx context.Context, organizationID string, signal string) (*billingState, error) {
+func (service *Service) getBillingState(ctx context.Context, organizationID string) (*billingState, error) {
 	const query = `
 SELECT
-  COALESCE(entitlements.plan_key, 'none'),
-  COALESCE(current_subscription.status, 'inactive'),
-  CASE
-    WHEN $2 = 'logs' THEN COALESCE(entitlements.logs_max_ingest_bytes_per_period, 0)
-    WHEN $2 = 'traces' THEN COALESCE(entitlements.traces_max_ingest_bytes_per_period, 0)
-    WHEN $2 = 'metrics' THEN COALESCE(entitlements.metrics_max_ingest_bytes_per_period, 0)
-    ELSE 0
-  END,
-  current_subscription.period_start,
-  current_subscription.period_end
-FROM entitlements
+  COALESCE(organization.billing_plan::text, current_subscription.plan, 'none'),
+  COALESCE(organization.billing_status::text, current_subscription.status, 'inactive'),
+  COALESCE(organization_usage.ingest_limit_bytes, 0),
+  COALESCE(organization_usage.current_period_start, current_subscription.period_start),
+  COALESCE(organization_usage.current_period_end, current_subscription.period_end)
+FROM organization
+LEFT JOIN organization_usage ON organization_usage.organization_id = organization.id
 LEFT JOIN LATERAL (
   SELECT plan, status, period_start, period_end
   FROM subscription
@@ -265,7 +235,7 @@ LEFT JOIN LATERAL (
     period_end DESC
   LIMIT 1
 ) AS current_subscription ON TRUE
-WHERE entitlements.organization_id = $1
+WHERE organization.id = $1
 `
 
 	state := &billingState{}
@@ -273,7 +243,7 @@ WHERE entitlements.organization_id = $1
 	var periodStart sql.NullTime
 	var periodEnd sql.NullTime
 
-	err := service.store.Pool().QueryRow(ctx, query, organizationID, signal).Scan(
+	err := service.store.Pool().QueryRow(ctx, query, organizationID).Scan(
 		&state.PlanKey,
 		&state.Status,
 		&includedBytes,
@@ -297,45 +267,48 @@ WHERE entitlements.organization_id = $1
 	if periodEnd.Valid {
 		state.PeriodEnd = periodEnd.Time
 	}
+	if state.PeriodStart.IsZero() {
+		state.PeriodStart = time.Now().UTC()
+	}
+	if state.PeriodEnd.IsZero() {
+		state.PeriodEnd = state.PeriodStart.AddDate(0, 0, 30)
+	}
 
 	return state, nil
 }
 
 func (service *Service) ensureUsageRow(ctx context.Context, tx pgx.Tx, organizationID string, signal string, state billingState) (*usageRow, error) {
 	const insertQuery = `
-INSERT INTO organization_billing_usage (
+INSERT INTO organization_usage (
   id,
   organization_id,
-  signal,
-  period_start,
-  period_end,
-  used_bytes,
-  included_bytes,
-  overage_bytes
+  logs_retention_days,
+  traces_retention_days,
+  metrics_retention_days,
+  current_period_start,
+  current_period_end,
+  ingest_limit_bytes
 )
-VALUES ($1, $2, $3, $4, $5, 0, $6, 0)
-ON CONFLICT (organization_id, signal, period_start, period_end) DO NOTHING
+VALUES ($1, $2, 30, 30, 30, $3, $4, $5)
+ON CONFLICT (organization_id) DO NOTHING
 `
-	if _, err := tx.Exec(ctx, insertQuery, generateID("busg"), organizationID, signal, state.PeriodStart, state.PeriodEnd, state.IncludedBytes); err != nil {
+	if _, err := tx.Exec(ctx, insertQuery, generateID("orgu"), organizationID, state.PeriodStart, state.PeriodEnd, state.IncludedBytes); err != nil {
 		return nil, fmt.Errorf("postgres: insert usage row: %w", err)
 	}
 
+	usageColumn, _ := usageColumnForSignal(signal)
 	const selectQuery = `
-SELECT id, used_bytes, included_bytes, overage_bytes, notified_70_at, notified_85_at, notified_100_at
-FROM organization_billing_usage
+SELECT id, %s, ingest_limit_bytes, notified_70_at, notified_85_at, notified_100_at
+FROM organization_usage
 WHERE organization_id = $1
-  AND signal = $2
-  AND period_start = $3
-  AND period_end = $4
 FOR UPDATE
 `
 
 	row := &usageRow{}
-	if err := tx.QueryRow(ctx, selectQuery, organizationID, signal, state.PeriodStart, state.PeriodEnd).Scan(
+	if err := tx.QueryRow(ctx, fmt.Sprintf(selectQuery, usageColumn), organizationID).Scan(
 		&row.ID,
 		&row.UsedBytes,
 		&row.IncludedBytes,
-		&row.OverageBytes,
 		&row.Notified70At,
 		&row.Notified85At,
 		&row.Notified100At,
@@ -346,50 +319,25 @@ FOR UPDATE
 	return row, nil
 }
 
-type queuedNotification struct {
-	Kind    string
-	Payload map[string]any
-}
-
-func (service *Service) insertNotifications(ctx context.Context, tx pgx.Tx, organizationID string, notifications []queuedNotification) error {
-	for _, notification := range notifications {
-		payload, err := json.Marshal(notification.Payload)
-		if err != nil {
-			return fmt.Errorf("marshal billing notification payload: %w", err)
-		}
-
-		if _, err := tx.Exec(
-			ctx,
-			`
-INSERT INTO organization_billing_notification (
-  id,
-  organization_id,
-  kind,
-  status,
-  payload,
-  attempt_count,
-  next_attempt_at
-)
-VALUES ($1, $2, $3, 'pending', $4, 0, NOW())
-`,
-			generateID("bntf"),
-			organizationID,
-			notification.Kind,
-			string(payload),
-		); err != nil {
-			return fmt.Errorf("insert billing notification: %w", err)
-		}
-	}
-
-	return nil
-}
-
 func statusHasAccess(status string) bool {
 	switch status {
 	case "active", "trialing":
 		return true
 	default:
 		return false
+	}
+}
+
+func usageColumnForSignal(signal string) (string, bool) {
+	switch signal {
+	case "logs":
+		return "logs_ingested_bytes", true
+	case "traces":
+		return "traces_ingested_bytes", true
+	case "metrics":
+		return "metrics_ingested_bytes", true
+	default:
+		return "", false
 	}
 }
 
@@ -416,12 +364,4 @@ func generateID(prefix string) string {
 	}
 
 	return strings.ToLower(prefix + "_" + ulid.Make().String())
-}
-
-func maxInt64(left int64, right int64) int64 {
-	if left > right {
-		return left
-	}
-
-	return right
 }

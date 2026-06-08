@@ -15,6 +15,10 @@ export const createAppCommand = command(createAppInputSchema, (input) => {
 		return err('No active organization selected.');
 	}
 
+	if (!event.locals.container.billingService) {
+		return err('Billing is not configured.');
+	}
+
 	return event.locals.container.billingService
 		.getOrganizationAccessState({ organizationId })
 		.then((accessResult) => {

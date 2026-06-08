@@ -104,11 +104,21 @@ func (cache *Cache) Get(ctx context.Context, appID string) (Policy, error) {
 
 func (cache *Cache) load(ctx context.Context, appID string) (Policy, error) {
 	const query = `
-SELECT organization_id, COALESCE(plan_key, ''), source, logs_retention_days, traces_retention_days, metrics_retention_days,
-       logs_max_ingest_bytes_per_period, traces_max_ingest_bytes_per_period, metrics_max_ingest_bytes_per_period,
-       max_stored_bytes, max_telemetry_events_monthly
-FROM entitlements
-JOIN app ON app.organization_id = entitlements.organization_id
+SELECT
+  app.organization_id,
+  COALESCE(organization.billing_plan::text, ''),
+  CASE WHEN organization.billing_plan IS NULL THEN 'default' ELSE 'billing' END,
+  COALESCE(organization_usage.logs_retention_days, $2),
+  COALESCE(organization_usage.traces_retention_days, $3),
+  COALESCE(organization_usage.metrics_retention_days, $4),
+  organization_usage.ingest_limit_bytes,
+  organization_usage.ingest_limit_bytes,
+  organization_usage.ingest_limit_bytes,
+  NULL::bigint,
+  NULL::bigint
+FROM app
+JOIN organization ON organization.id = app.organization_id
+LEFT JOIN organization_usage ON organization_usage.organization_id = organization.id
 WHERE app.id = $1
 `
 
@@ -119,7 +129,14 @@ WHERE app.id = $1
 	var maxStoredBytes sql.NullInt64
 	var maxTelemetryEventsMonthly sql.NullInt64
 
-	err := cache.db.Pool.QueryRow(ctx, query, appID).Scan(
+	err := cache.db.Pool.QueryRow(
+		ctx,
+		query,
+		appID,
+		config.DefaultLogsRetentionDays,
+		config.DefaultTracesRetentionDays,
+		config.DefaultMetricsRetentionDays,
+	).Scan(
 		&policy.OrganizationID,
 		&policy.PlanKey,
 		&policy.Source,

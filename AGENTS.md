@@ -78,6 +78,14 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - Prefer TypeScript tooling scripts run through `vite-node` over package-local `.mjs` maintenance scripts.
 - When a package has internal sync or codegen scripts, keep the `package.json` script entry aligned with the `vite-node` pattern.
 
+## Testing philosophy
+
+- Prefer happy-path tests first, especially for the main product spine like auth, onboarding, organization selection, billing access, and app creation.
+- Default to broad integration coverage that exercises the real stack end to end before adding many narrow unit tests.
+- A good early test should cover as much real behavior as possible: UI, route guards, auth, DB writes, redirects, and request-scoped wiring in one flow.
+- Add targeted unit or service tests when a branch-heavy rule, edge case, or failure path is too awkward, slow, or brittle to prove through the main happy-path flows.
+- For app UI tests, add stable selectors up front so Playwright tests stay easy to read and durable as the interface evolves.
+
 ## Layout and page design
 
 - Build pages with clear hierarchy, obvious spacing, and strong alignment.

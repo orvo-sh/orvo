@@ -14,9 +14,6 @@
 	html {
 		@apply font-sans;
 	}
-	a {
-		@apply text-blue-600 hover:text-blue-700;
-	}
 }
 
 :root {
@@ -33,7 +30,7 @@
 
 	--popover-foreground: oklch(0.145 0 0);
 
-	--primary: oklch(0.488 0.243 264.376);
+	--primary: oklch(0.488 0.243 240);
 
 	--primary-foreground: oklch(0.97 0.014 254.604);
 
@@ -71,7 +68,7 @@
 
 	--sidebar: oklch(0.983 0 0);
 
-	--sidebar-foreground: oklch(0.145 0 0);
+	--sidebar-foreground: oklch(0.35 0.006 285.885);
 
 	--sidebar-primary: oklch(0.546 0.245 262.881);
 

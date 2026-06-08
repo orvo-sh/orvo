@@ -25,7 +25,12 @@ class DashboardLogViewService {
 				orderBy: [desc(dashboardLogView.updatedAt), desc(dashboardLogView.name)]
 			});
 
-			return ok({ views });
+			return ok({
+				views: views.map((view) => ({
+					...view,
+					definition: dashboardLogViewDefinitionSchema.parse(view.definition)
+				}))
+			});
 		} catch (error) {
 			this.logger.error('getDashboardLogViews: failed to get dashboard log views', error as Error);
 			return err('Failed to get dashboard log views.');
