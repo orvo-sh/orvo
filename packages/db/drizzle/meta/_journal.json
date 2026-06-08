@@ -64,6 +64,41 @@
       "when": 1780656441000,
       "tag": "0008_add_billing",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1780662000000,
+      "tag": "0009_simplify_billing",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1780678980952,
+      "tag": "0010_fluffy_ser_duncan",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1780683471327,
+      "tag": "0011_wandering_triathlon",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1780718400000,
+      "tag": "0012_add_deployments",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1780722000000,
+      "tag": "0013_add_assistant_chat",
+      "breakpoints": true
     }
   ]
 }

@@ -1,8 +1,11 @@
 import { relations } from 'drizzle-orm';
-import { pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgEnum, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 import { invitation } from './invitation.schema.js';
 import { member } from './member.schema.js';
+
+const billingPlan = pgEnum('billing_plan', [ "starter", 'pro', 'enterprise']);
+const billingStatus = pgEnum('billing_status', ['trialing', 'active', 'past_due']);
 
 const organization = pgTable(
   'organization',
@@ -12,8 +15,13 @@ const organization = pgTable(
     slug: text('slug').notNull().unique(),
     logo: text('logo'),
     stripeCustomerId: text('stripe_customer_id'),
-    createdAt: timestamp('created_at').notNull(),
-    metadata: text('metadata')
+    billingEmail: text('billing_email'),
+    billingPlan: billingPlan('billing_plan'),
+    billingStatus: billingStatus('billing_status'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => new Date())
+      .notNull()
   },
   (table) => [uniqueIndex('organization_slug_uidx').on(table.slug)]
 );
@@ -23,4 +31,4 @@ const organizationRelations = relations(organization, ({ many }) => ({
   invitations: many(invitation)
 }));
 
-export { organization, organizationRelations };
+export { billingPlan, billingStatus, organization, organizationRelations };
