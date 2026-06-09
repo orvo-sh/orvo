@@ -515,7 +515,7 @@ class InsightsService {
       query: `
         SELECT
           service_name,
-          trimBoth(both ' ' from substring(
+          trimBoth(substring(
             replaceRegexpAll(
               replaceRegexpAll(
                 replaceRegexpAll(body, '[0-9a-fA-F]{32,}', '<HASH>'),
