@@ -48,6 +48,7 @@ export const load = (async ({ url, locals, params, parent }) => {
     logServiceSummaryResult,
     traceServiceSummaryResult,
     logServiceVolumeResult,
+    insightsResult,
   ] = await Promise.allSettled([
     locals.container.logsService.getLogVolume(
       {
@@ -98,6 +99,10 @@ export const load = (async ({ url, locals, params, parent }) => {
         ingestionKeyIds: [],
         bucketCount: serviceBuckets,
       },
+      { appId },
+    ),
+    locals.container.insightsService.getInsights(
+      { time: timeFilter },
       { appId },
     ),
   ]);
@@ -170,6 +175,10 @@ export const load = (async ({ url, locals, params, parent }) => {
       deploymentsResult.value.success
         ? deploymentsResult.value.data
         : null,
+    insights:
+      insightsResult.status === "fulfilled" && insightsResult.value.success
+        ? insightsResult.value.data.insights
+        : [],
     services,
   };
 }) satisfies PageServerLoad;

@@ -10,6 +10,7 @@ import { ChatService } from "$lib/server/services/chat.service";
 import { DashboardLogViewService } from "$lib/server/services/dashboard-log-view.service";
 import { DeploymentService } from "$lib/server/services/deployment.service";
 import { IngestionKeyService } from "$lib/server/services/ingestion-key.service";
+import { InsightsService } from "$lib/server/services/insights.service";
 import { LogFacetsService } from "$lib/server/services/log-facets.service";
 import { LogsService } from "$lib/server/services/logs.service";
 import { TracesService } from "$lib/server/services/traces.service";
@@ -32,6 +33,7 @@ export type ServerContainer = {
   dashboardLogViewService: DashboardLogViewService;
   deploymentService: DeploymentService;
   ingestionKeyService: IngestionKeyService;
+  insightsService: InsightsService;
   logsService: LogsService;
   logFacetsService: LogFacetsService;
   tracesService: TracesService;
@@ -108,23 +110,24 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
     ingestionKeyService,
     alertRuleService,
   );
-  const billingService = stripeClient? new BillingService(
-    db,
-    logger,
-    email,
-    stripeClient,
-    billingSalesEmail,
-  ):null;
+  const billingService = stripeClient
+    ? new BillingService(db, logger, email, stripeClient, billingSalesEmail)
+    : null;
   const githubClientId = process.env.GITHUB_CLIENT_ID ?? env.GITHUB_CLIENT_ID;
-  const githubClientSecret = process.env.GITHUB_CLIENT_SECRET ?? env.GITHUB_CLIENT_SECRET;
+  const githubClientSecret =
+    process.env.GITHUB_CLIENT_SECRET ?? env.GITHUB_CLIENT_SECRET;
 
   const authService = createAuth(db, email, billingService, {
-    secret: (process.env.BETTER_AUTH_SECRET ?? env.BETTER_AUTH_SECRET) as string,
+    secret: (process.env.BETTER_AUTH_SECRET ??
+      env.BETTER_AUTH_SECRET) as string,
     baseUrl: (process.env.ORIGIN ?? env.ORIGIN) as string,
-    github: githubClientId && githubClientSecret ? {
-      clientId: githubClientId,
-      clientSecret: githubClientSecret,
-    } : undefined,
+    github:
+      githubClientId && githubClientSecret
+        ? {
+            clientId: githubClientId,
+            clientSecret: githubClientSecret,
+          }
+        : undefined,
     stripe:
       stripeClient &&
       stripeWebhookSecret &&
@@ -147,6 +150,7 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
   const logsService = new LogsService(clickhouse, logger);
   const logFacetsService = new LogFacetsService(clickhouse, logger);
   const tracesService = new TracesService(clickhouse, logger);
+  const insightsService = new InsightsService(clickhouse, db, logger);
 
   return {
     authService,
@@ -163,6 +167,7 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
     dashboardLogViewService: new DashboardLogViewService(db, logger),
     deploymentService: new DeploymentService(db, clickhouse, logger),
     ingestionKeyService,
+    insightsService,
     logsService,
     logFacetsService,
     tracesService,
