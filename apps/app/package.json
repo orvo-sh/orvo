@@ -48,6 +48,8 @@
     "@tabler/icons-svelte": "^3.44.0",
     "ai": "^6.0.197",
     "better-auth": "~1.6.14",
+    "d3-force": "^3.0.0",
+    "d3-scale": "^4.0.2",
     "drizzle-orm": "^0.45.2",
     "import-in-the-middle": "^3.0.1",
     "postgres": "^3.4.9",

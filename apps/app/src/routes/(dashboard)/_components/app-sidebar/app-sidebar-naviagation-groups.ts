@@ -1,9 +1,19 @@
-import { IconAlertHexagon, IconBox, IconChartBar, IconGauge, IconLayoutGrid, IconRocket, IconRoute, IconSparkle, IconTerminal2 } from "@tabler/icons-svelte";
+import {
+  IconAlertHexagon,
+  IconBox,
+  IconChartBar,
+  IconGauge,
+  IconLayoutGrid,
+  IconMap,
+  IconRocket,
+  IconRoute,
+  IconSparkle,
+  IconTerminal2,
+} from "@tabler/icons-svelte";
 
-
-  type NavigationGroup = {
-    label: string;
-    items: {
+type NavigationGroup = {
+  label: string;
+  items: {
     href: string;
     label: string;
     icon: typeof IconGauge;
@@ -13,14 +23,17 @@ import { IconAlertHexagon, IconBox, IconChartBar, IconGauge, IconLayoutGrid, Ico
       label: string;
     }>;
   }[];
-  };
+};
 
-const generateAppNavigationGroups = (appId:string, logViews:{
+const generateAppNavigationGroups = (
+  appId: string,
+  logViews: {
     id: string;
     slug: string;
     name: string;
-}[]):NavigationGroup[] => {
-    return [
+  }[],
+): NavigationGroup[] => {
+  return [
     {
       label: "",
       items: [
@@ -63,6 +76,12 @@ const generateAppNavigationGroups = (appId:string, logViews:{
           icon: IconRoute,
           shortcut: "t",
         },
+        {
+          href: `/a/${appId}/service-map`,
+          label: "Service map",
+          icon: IconMap,
+          shortcut: "g",
+        },
       ],
     },
     {
@@ -82,21 +101,23 @@ const generateAppNavigationGroups = (appId:string, logViews:{
         },
       ],
     },
-  ]
-}
+  ];
+};
 
 const generateOrganizationNavigationGroups = (): NavigationGroup[] => {
-    return [
+  return [
+    {
+      label: "",
+      items: [
         {
-            label: "",
-            items: [
-                {
-                    href: `/apps`,
-                    label: "Apps",
-                    shortcut: "a",
-                    icon: IconBox,
-                }]
-        }]
-}
+          href: `/apps`,
+          label: "Apps",
+          shortcut: "a",
+          icon: IconBox,
+        },
+      ],
+    },
+  ];
+};
 
 export { generateAppNavigationGroups, generateOrganizationNavigationGroups };

@@ -204,6 +204,100 @@ class TracesService {
     }
   }
 
+  async getServiceGraph(
+    input: z.infer<typeof getServiceGraphInputSchema>,
+    context: { appId: string },
+  ) {
+    this.logger.info("getServiceGraph: fetching service graph", {
+      input,
+      context,
+    });
+
+    const validated = getServiceGraphInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
+
+    try {
+      const { startAtUtc, endAtUtc } = resolveTimeRange(validated.data.time);
+      const whereClauses = [
+        `app_id = ${quote(context.appId)}`,
+        `start_time >= ${toDateTime64(startAtUtc)}`,
+        `start_time <= ${toDateTime64(endAtUtc)}`,
+      ];
+
+      const edgesResult = await this.clickhouse.query({
+        format: "JSONEachRow",
+        query: `
+          SELECT
+            a.service_name AS source,
+            b.service_name AS target,
+            count() AS total,
+            countIf(b.status_code = 2) AS errors
+          FROM traces_raw AS a
+          INNER JOIN traces_raw AS b
+            ON a.trace_id = b.trace_id AND a.span_id = b.parent_span_id
+          WHERE ${whereClauses.join(" AND ")}
+            AND a.service_name != b.service_name
+          GROUP BY source, target
+          ORDER BY total DESC
+          LIMIT 100
+        `,
+      });
+      const edgeRows =
+        (await edgesResult.json()) as unknown as RawServiceGraphEdgeRow[];
+
+      const nodesResult = await this.clickhouse.query({
+        format: "JSONEachRow",
+        query: `
+          SELECT
+            service_name,
+            count() AS total,
+            countIf(status_code = 2) AS errors,
+            quantile(0.95)(duration_ns / 1000000) AS p95_latency_ms
+          FROM traces_raw
+          WHERE ${whereClauses.join(" AND ")}
+          GROUP BY service_name
+          ORDER BY total DESC
+          LIMIT 50
+        `,
+      });
+      const nodeRows =
+        (await nodesResult.json()) as unknown as RawServiceGraphNodeRow[];
+
+      const nodes = nodeRows.map((row) => ({
+        name: row.service_name,
+        total: Number(row.total),
+        errors: Number(row.errors),
+        errorRate:
+          Number(row.total) > 0 ? Number(row.errors) / Number(row.total) : 0,
+        p95LatencyMs: Number(row.p95_latency_ms ?? 0),
+      }));
+
+      const edges = edgeRows.map((row) => ({
+        source: row.source,
+        target: row.target,
+        total: Number(row.total),
+        errors: Number(row.errors),
+        errorRate:
+          Number(row.total) > 0 ? Number(row.errors) / Number(row.total) : 0,
+      }));
+
+      return ok({
+        nodes,
+        edges,
+        startAtUtc: startAtUtc.toISOString(),
+        endAtUtc: endAtUtc.toISOString(),
+      });
+    } catch (error) {
+      this.logger.error(
+        "getServiceGraph: failed to fetch service graph",
+        error as Error,
+      );
+      return err("Failed to fetch service graph.");
+    }
+  }
+
   async getTrace(
     input: z.infer<typeof getTraceInputSchema>,
     context: { appId: string },
@@ -315,6 +409,24 @@ export const getTraceSummaryInputSchema = z.object({
 export const getTraceServiceSummaryInputSchema = z.object({
   time: logTimeFilterSchema,
 });
+
+export const getServiceGraphInputSchema = z.object({
+  time: logTimeFilterSchema,
+});
+
+type RawServiceGraphEdgeRow = {
+  source: string;
+  target: string;
+  total: number | string;
+  errors: number | string;
+};
+
+type RawServiceGraphNodeRow = {
+  service_name: string;
+  total: number | string;
+  errors: number | string;
+  p95_latency_ms: number | string;
+};
 
 type RawTraceServiceSummaryRow = {
   service_name: string;
