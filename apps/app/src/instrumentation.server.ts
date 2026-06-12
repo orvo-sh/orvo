@@ -1,5 +1,5 @@
 import { dev } from '$app/environment';
-import { ORVO_OTLP_BASE_URL, ORVO_PRIVATE_INGESTION_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
@@ -14,8 +14,11 @@ import { createAddHookMessageChannel } from 'import-in-the-middle';
 import { register } from 'node:module';
 
 let loggerProvider: LoggerProvider | null = null;
+const orvoOtlpBaseUrl = process.env.ORVO_OTLP_BASE_URL ?? env.ORVO_OTLP_BASE_URL;
+const orvoPrivateIngestionKey =
+	process.env.ORVO_PRIVATE_INGESTION_KEY ?? env.ORVO_PRIVATE_INGESTION_KEY;
 
-if (ORVO_OTLP_BASE_URL && ORVO_PRIVATE_INGESTION_KEY) {
+if (orvoOtlpBaseUrl && orvoPrivateIngestionKey) {
 	const { registerOptions } = createAddHookMessageChannel();
 
 	register('import-in-the-middle/hook.mjs', import.meta.url, registerOptions);
@@ -31,9 +34,9 @@ if (ORVO_OTLP_BASE_URL && ORVO_PRIVATE_INGESTION_KEY) {
 		serviceName: 'orvo-app-server',
 		resource,
 		traceExporter: new OTLPTraceExporter({
-			url: new URL('/v1/traces', ORVO_OTLP_BASE_URL).toString(),
+			url: new URL('/v1/traces', orvoOtlpBaseUrl).toString(),
 			headers: {
-				Authorization: `Bearer ${ORVO_PRIVATE_INGESTION_KEY}`,
+				Authorization: `Bearer ${orvoPrivateIngestionKey}`,
 				'X-Orvo-Self-Telemetry': 'true'
 			}
 		}),
@@ -47,9 +50,9 @@ if (ORVO_OTLP_BASE_URL && ORVO_PRIVATE_INGESTION_KEY) {
 		processors: [
 			new BatchLogRecordProcessor(
 				new OTLPLogExporter({
-					url: new URL('/v1/logs', ORVO_OTLP_BASE_URL).toString(),
+					url: new URL('/v1/logs', orvoOtlpBaseUrl).toString(),
 					headers: {
-						Authorization: `Bearer ${ORVO_PRIVATE_INGESTION_KEY}`,
+						Authorization: `Bearer ${orvoPrivateIngestionKey}`,
 						'X-Orvo-Self-Telemetry': 'true'
 					}
 				}),
