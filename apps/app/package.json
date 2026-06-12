@@ -52,9 +52,10 @@
     "d3-force": "^3.0.0",
     "d3-scale": "^4.0.2",
     "drizzle-orm": "^0.45.2",
-    "layerchart": "2.0.0-next.48",
     "import-in-the-middle": "^3.0.1",
+    "layerchart": "2.0.0-next.48",
     "postgres": "^3.4.9",
+    "resend": "^6.12.4",
     "stripe": "^22.2.0",
     "zod": "^4.4.3"
   },

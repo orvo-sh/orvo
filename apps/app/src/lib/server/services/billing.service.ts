@@ -114,7 +114,6 @@ class BillingService {
     logger: Logger,
     private email: Email,
     private stripeClient: Stripe,
-    private salesEmail: string,
   ) {
     this.logger = logger.child("BillingService");
   }
@@ -153,7 +152,7 @@ class BillingService {
           (total, signal) =>
             total + BillingService.getIncludedBytesForPlan(planKey, signal),
           0,
-      );
+        );
       const usage = billingSignals.map((signal) => {
         const usedBytes = readUsageBytes(currentUsage, signal);
         const includedBytes =
@@ -186,18 +185,18 @@ class BillingService {
 
       return ok({
         isOwner,
-        salesEmail: this.salesEmail,
+        salesEmail: "team@orvo.sh",
         billingEmail: currentOrganization?.billingEmail ?? null,
         subscription: currentSubscription
           ? {
-              plan: currentSubscription.plan,
-              status: currentSubscription.status,
-              trialStart: currentSubscription.trialStart,
-              trialEnd: currentSubscription.trialEnd,
-              periodStart: currentSubscription.periodStart,
-              periodEnd: currentSubscription.periodEnd,
-              cancelAtPeriodEnd: currentSubscription.cancelAtPeriodEnd,
-            }
+            plan: currentSubscription.plan,
+            status: currentSubscription.status,
+            trialStart: currentSubscription.trialStart,
+            trialEnd: currentSubscription.trialEnd,
+            periodStart: currentSubscription.periodStart,
+            periodEnd: currentSubscription.periodEnd,
+            cancelAtPeriodEnd: currentSubscription.cancelAtPeriodEnd,
+          }
           : null,
         entitlements: {
           planKey,
@@ -205,9 +204,9 @@ class BillingService {
         },
         currentPeriod: currentUsage
           ? {
-              start: currentUsage.currentPeriodStart,
-              end: currentUsage.currentPeriodEnd,
-            }
+            start: currentUsage.currentPeriodStart,
+            end: currentUsage.currentPeriodEnd,
+          }
           : null,
         allowance: {
           includedBytes: totalIncludedBytes,
@@ -737,28 +736,28 @@ const buildBillingEmail = (
   organizationName: string,
 ):
   | {
-      subject: string;
-      template: "billing-trial-started";
-      props: {
-        organizationName: string;
-        trialEnd: string;
-      };
-    }
+    subject: string;
+    template: "billing-trial-started";
+    props: {
+      organizationName: string;
+      trialEnd: string;
+    };
+  }
   | {
-      subject: string;
-      template: "billing-trial-will-end";
-      props: {
-        organizationName: string;
-        trialEnd: string;
-      };
-    }
+    subject: string;
+    template: "billing-trial-will-end";
+    props: {
+      organizationName: string;
+      trialEnd: string;
+    };
+  }
   | {
-      subject: string;
-      template: "billing-trial-expired";
-      props: {
-        organizationName: string;
-      };
-    }
+    subject: string;
+    template: "billing-trial-expired";
+    props: {
+      organizationName: string;
+    };
+  }
   | null => {
   switch (kind) {
     case "trial_started":
@@ -805,5 +804,6 @@ export {
   createBillingPortalInputSchema,
   getBillingStateInputSchema,
   queueBillingNotificationInputSchema,
-  updateBillingEmailInputSchema,
+  updateBillingEmailInputSchema
 };
+

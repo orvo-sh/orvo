@@ -105,11 +105,25 @@ type Template = {
 	};
 }[keyof TemplateMap];
 
+const renderTemplate = (input: Template): string => {
+	switch (input.template) {
+		case "billing-trial-expired":
+			return renderBillingTrialExpiredEmail(input.props);
+		case "billing-trial-started":
+			return renderBillingTrialStartedEmail(input.props);
+		case "billing-trial-will-end":
+			return renderBillingTrialWillEndEmail(input.props);
+		case "otp":
+			return renderOtpEmail(input.props);
+	}
+};
+
 export {
 	renderBillingTrialExpiredEmail,
 	renderBillingTrialStartedEmail,
 	renderBillingTrialWillEndEmail,
 	renderOtpEmail,
+	renderTemplate,
 	templates,
 };
 
