@@ -201,5 +201,5 @@ jobs:
           docker compose -f docker-compose.prod.yml --env-file .env pull
           docker compose -f docker-compose.prod.yml --env-file .env run -T --rm --no-deps app sh -lc 'pnpm --filter @repo/db db:migrate'
           docker compose -f docker-compose.prod.yml --env-file .env run -T --rm --no-deps app sh -lc 'pnpm --filter @repo/clickhouse run db:migrate'
-          docker compose -f docker-compose.prod.yml --env-file .env up -d --remove-orphans
+          docker compose -f docker-compose.prod.yml --env-file .env up -d --force-recreate --remove-orphans
           EOF
