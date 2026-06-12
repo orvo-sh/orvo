@@ -3,14 +3,8 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
 class Encryption {
 	private key: Buffer;
 
-	constructor(secret: string) {
-		const trimmedSecret = secret.trim();
-
-		if (!trimmedSecret) {
-			throw new Error('Missing encryption secret');
-		}
-
-		this.key = createHash('sha256').update(trimmedSecret).digest();
+	constructor(config: { secret: string }) {
+		this.key = createHash('sha256').update(config.secret.trim()).digest();
 	}
 
 	encrypt = (value: string) => {

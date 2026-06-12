@@ -28,29 +28,29 @@ const maxDeliveriesPerCycle = 50;
 const deliveryRetryMinutes = [1, 5, 15];
 
 class AlertsWorker {
-	private logger: Logger;
+  private logger: Logger;
 
-	constructor(
-		private db: DB,
-		private clickhouse: ClickHouse,
-		private encryption: Encryption,
-		logger: Logger
-	) {
-		this.logger = logger.child('AlertsWorker');
-	}
+  constructor(
+    private db: DB,
+    private clickhouse: ClickHouse,
+    private encryption: Encryption,
+    logger: Logger
+  ) {
+    this.logger = logger.child('AlertsWorker');
+  }
 
-	run = async () => {
-		for (;;) {
-			try {
-				await this.processDueRules();
-				await this.processDueDeliveries();
-			} catch (error) {
-				this.logger.error('run: cycle failed', error);
-			}
+  run = async () => {
+    for (;;) {
+      try {
+        await this.processDueRules();
+        await this.processDueDeliveries();
+      } catch (error) {
+        this.logger.error('run: cycle failed', error);
+      }
 
-			await sleep(sleepIntervalMs);
-		}
-	};
+      await sleep(sleepIntervalMs);
+    }
+  };
 
   private processDueRules = async () => {
     const now = new Date();
@@ -66,17 +66,17 @@ class AlertsWorker {
         continue;
       }
 
-			try {
-				await this.evaluateRule(claimed);
-			} catch (error) {
-				this.logger.error('processDueRules: failed to evaluate rule', {
-					error,
-					ruleId: rule.id
-				});
-				await this.releaseRule(rule.id);
-			}
-		}
-	};
+      try {
+        await this.evaluateRule(claimed);
+      } catch (error) {
+        this.logger.error('processDueRules: failed to evaluate rule', {
+          error,
+          ruleId: rule.id
+        });
+        await this.releaseRule(rule.id);
+      }
+    }
+  };
 
   private claimRule = async (ruleId: string) => {
     const now = new Date();
@@ -423,63 +423,63 @@ class AlertsWorker {
       return;
     }
 
-		let headers: Array<{ key: string; value: string }>;
+    let headers: Array<{ key: string; value: string }>;
 
-		try {
-			headers = JSON.parse(this.encryption.decrypt(destination.headersEncrypted));
-		} catch (error) {
-			await this.db
-				.update(alertDeliveryAttempt)
-				.set({
-					status: 'failed',
-					attemptNumber,
-					lastAttemptAt: now,
-					errorMessage: 'Failed to decrypt destination headers.'
-				})
-				.where(eq(alertDeliveryAttempt.id, delivery.id));
-			this.logger.error('sendDelivery: failed to decrypt destination headers', {
-				destinationId: destination.id,
-				error
-			});
-			return;
-		}
+    try {
+      headers = JSON.parse(this.encryption.decrypt(destination.headersEncrypted));
+    } catch (error) {
+      await this.db
+        .update(alertDeliveryAttempt)
+        .set({
+          status: 'failed',
+          attemptNumber,
+          lastAttemptAt: now,
+          errorMessage: 'Failed to decrypt destination headers.'
+        })
+        .where(eq(alertDeliveryAttempt.id, delivery.id));
+      this.logger.error('sendDelivery: failed to decrypt destination headers', {
+        destinationId: destination.id,
+        error
+      });
+      return;
+    }
 
-		try {
-			const response = await fetch(destination.url, {
-				method: 'POST',
-				headers: {
-					'content-type': 'application/json',
-					...Object.fromEntries(headers.map((header) => [header.key, header.value]))
-				},
-				body: JSON.stringify(delivery.payload)
-			});
-			const body = await response.text().catch(() => '');
+    try {
+      const response = await fetch(destination.url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...Object.fromEntries(headers.map((header) => [header.key, header.value]))
+        },
+        body: JSON.stringify(delivery.payload)
+      });
+      const body = await response.text().catch(() => '');
 
-			if (response.ok) {
-				await this.db
-					.update(alertDeliveryAttempt)
-					.set({
-						status: 'succeeded',
-						attemptNumber,
-						lastAttemptAt: now,
-						deliveredAt: now,
-						httpStatus: response.status,
-						errorMessage: null
-					})
-					.where(eq(alertDeliveryAttempt.id, delivery.id));
-				return;
-			}
+      if (response.ok) {
+        await this.db
+          .update(alertDeliveryAttempt)
+          .set({
+            status: 'succeeded',
+            attemptNumber,
+            lastAttemptAt: now,
+            deliveredAt: now,
+            httpStatus: response.status,
+            errorMessage: null
+          })
+          .where(eq(alertDeliveryAttempt.id, delivery.id));
+        return;
+      }
 
-			await this.rescheduleDelivery(delivery.id, attemptNumber, response.status, body);
-		} catch (error) {
-			await this.rescheduleDelivery(
-				delivery.id,
-				attemptNumber,
-				null,
-				error instanceof Error ? error.message : 'Request failed'
-			);
-		}
-	};
+      await this.rescheduleDelivery(delivery.id, attemptNumber, response.status, body);
+    } catch (error) {
+      await this.rescheduleDelivery(
+        delivery.id,
+        attemptNumber,
+        null,
+        error instanceof Error ? error.message : 'Request failed'
+      );
+    }
+  };
 
   private rescheduleDelivery = async (
     deliveryId: string,
@@ -695,71 +695,73 @@ const quote = (value: string) => `'${value.replaceAll('\\', '\\\\').replaceAll("
 const toDateTime64 = (value: Date) => `parseDateTime64BestEffort(${quote(value.toISOString())})`;
 
 const main = async () => {
-	const postgresUrl = process.env.POSTGRES_URL;
-	const clickhouseUrl = process.env.CLICKHOUSE_URL;
-	const encryptionSecret = process.env.ALERTS_ENCRYPTION_KEY ?? process.env.BETTER_AUTH_SECRET;
-	const otlpBaseUrl = process.env.ORVO_OTLP_BASE_URL;
-	const otlpIngestionKey = process.env.ORVO_PRIVATE_INGESTION_KEY;
+  const postgresUrl = process.env.POSTGRES_URL;
+  const clickhouseUrl = process.env.CLICKHOUSE_URL;
+  const encryptionSecret =
+    process.env.ALERTS_ENCRYPTION_KEY ??
+    process.env.BETTER_AUTH_SECRET ??
+    process.env.ENCRYPTION_SECRET;
+  const otlpBaseUrl = process.env.ORVO_OTLP_BASE_URL;
+  const otlpIngestionKey = process.env.ORVO_PRIVATE_INGESTION_KEY;
 
-	if (!postgresUrl) {
-		throw new Error('Missing POSTGRES_URL');
-	}
+  if (!postgresUrl) {
+    throw new Error('Missing POSTGRES_URL');
+  }
 
-	if (!clickhouseUrl) {
-		throw new Error('Missing CLICKHOUSE_URL');
-	}
+  if (!clickhouseUrl) {
+    throw new Error('Missing CLICKHOUSE_URL');
+  }
 
-	if (!encryptionSecret) {
-		throw new Error('Missing ALERTS_ENCRYPTION_KEY');
-	}
+  if (!encryptionSecret) {
+    throw new Error('Missing ALERTS_ENCRYPTION_KEY');
+  }
 
-	const logger = new Logger('alerts-worker', {
-		pretty: process.env.NODE_ENV !== 'production',
-		loggerProvider:
-			otlpBaseUrl && otlpIngestionKey
-				? new LoggerProvider({
-						resource: defaultResource().merge(
-							resourceFromAttributes({
-								[ATTR_SERVICE_NAME]: 'orvo-alerts-worker',
-								[ATTR_DEPLOYMENT_ENVIRONMENT_NAME]:
-									process.env.NODE_ENV ?? 'development'
-							})
-						),
-						processors: [
-							new BatchLogRecordProcessor(
-								new OTLPLogExporter({
-									url: new URL('/v1/logs', otlpBaseUrl).toString(),
-									headers: {
-										Authorization: `Bearer ${otlpIngestionKey}`,
-										'X-Orvo-Self-Telemetry': 'true'
-									}
-								}),
-								{
-									scheduledDelayMillis: 1000,
-									maxExportBatchSize: 64,
-									maxQueueSize: 512
-								}
-							)
-						]
-					})
-				: null
-	});
-	const worker = new AlertsWorker(
-		getDb(postgresUrl),
-		getClickHouseClient({ url: clickhouseUrl }),
-		new Encryption(encryptionSecret),
-		logger
-	);
+  const logger = new Logger('alerts-worker', {
+    pretty: process.env.NODE_ENV !== 'production',
+    loggerProvider:
+      otlpBaseUrl && otlpIngestionKey
+        ? new LoggerProvider({
+            resource: defaultResource().merge(
+              resourceFromAttributes({
+                [ATTR_SERVICE_NAME]: 'orvo-alerts-worker',
+                [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]: process.env.NODE_ENV ?? 'development'
+              })
+            ),
+            processors: [
+              new BatchLogRecordProcessor(
+                new OTLPLogExporter({
+                  url: new URL('/v1/logs', otlpBaseUrl).toString(),
+                  headers: {
+                    Authorization: `Bearer ${otlpIngestionKey}`,
+                    'X-Orvo-Self-Telemetry': 'true'
+                  }
+                }),
+                {
+                  scheduledDelayMillis: 1000,
+                  maxExportBatchSize: 64,
+                  maxQueueSize: 512
+                }
+              )
+            ]
+          })
+        : null
+  });
+  const worker = new AlertsWorker(
+    getDb(postgresUrl),
+    getClickHouseClient({ url: clickhouseUrl }),
+    new Encryption({ secret: encryptionSecret }),
+    logger
+  );
 
-	logger.info('main: starting alerts worker');
-	await worker.run();
+  logger.info('main: starting alerts worker');
+  await worker.run();
 };
 
 void main().catch((error) => {
-	const logger = new Logger('alerts-worker', {
-		pretty: process.env.NODE_ENV !== 'production'
-	});
+  const logger = new Logger('alerts-worker', {
+    pretty: process.env.NODE_ENV !== 'production'
+  });
 
-	logger.error('main: worker crashed', error);
-	process.exitCode = 1;
+  logger.error('main: worker crashed', error);
+  process.exitCode = 1;
 });

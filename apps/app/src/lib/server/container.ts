@@ -1,7 +1,6 @@
-import { dev } from "$app/environment";
 import { env } from "$env/dynamic/private";
+import { MAX_UPLOAD_FILE_SIZE_BYTES } from "$lib/constants";
 import { createAuth, type Auth } from "$lib/server/auth";
-import { createEmail } from "$lib/server/email";
 import { AlertRuleService } from "$lib/server/services/alert-rule.service";
 import { AlertWebhookDestinationService } from "$lib/server/services/alert-webhook-destination.service";
 import { AppService } from "$lib/server/services/app.service";
@@ -16,13 +15,14 @@ import { LogsService } from "$lib/server/services/logs.service";
 import { MetricsService } from "$lib/server/services/metrics.service";
 import { TracesService } from "$lib/server/services/traces.service";
 import { UploadService } from "$lib/server/services/upload.service";
-import { AiClient } from "@repo/ai";
+import { AI } from "@repo/ai";
 import { getClickHouseClient } from "@repo/clickhouse";
 import { getDb } from "@repo/db";
 import { Encryption } from "@repo/encryption";
 import { Logger } from "@repo/logger";
 import { Storage } from "@repo/storage";
 import Stripe from "stripe";
+import { Email } from "./email";
 
 export type ServerContainer = {
   authService: Auth;
@@ -42,32 +42,42 @@ export type ServerContainer = {
   tracesService: TracesService;
 };
 
-const db = getDb(process.env.POSTGRES_URL ?? env.POSTGRES_URL);
-const clickhouse = getClickHouseClient({
-  url: process.env.CLICKHOUSE_URL ?? env.CLICKHOUSE_URL,
-});
-const resendApiKey = process.env.RESEND_API_KEY ?? env.RESEND_API_KEY;
-const resendFromEmail =
-  process.env.RESEND_FROM_EMAIL ??
-  env.RESEND_FROM_EMAIL ??
-  "Orvo <onboarding@resend.dev>";
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY ?? env.STRIPE_SECRET_KEY;
+const db = getDb(env.POSTGRES_URL);
+const clickhouse = getClickHouseClient({ url: env.CLICKHOUSE_URL });
+const storage =
+  env.SELF_HOSTED == "false"
+    ? new Storage({
+        accessKeyId: env.S3_ACCESS_KEY_ID,
+        secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+        endpoint: env.S3_ENDPOINT,
+        region: env.S3_REGION,
+        bucket: env.S3_BUCKET_NAME,
+      })
+    : null;
+
+const stripe =
+  env.SELF_HOSTED == "false"
+    ? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: "2026-05-27.dahlia" })
+    : null;
+const email =
+  env.SELF_HOSTED == "false"
+    ? new Email({ resendApiKey: env.RESEND_API_KEY })
+    : null;
+const ai =
+  env.SELF_HOSTED == "false"
+    ? new AI({ geminiApiKey: env.GEMINI_API_KEY })
+    : null;
+const encryption = new Encryption({ secret: env.ENCRYPTION_SECRET });
+
 const stripeWebhookSecret =
   process.env.STRIPE_WEBHOOK_SECRET ?? env.STRIPE_WEBHOOK_SECRET;
 const stripeStarterPriceId =
   process.env.STRIPE_STARTER_PRICE_ID ?? env.STRIPE_STARTER_PRICE_ID;
 const stripeProPriceId =
   process.env.STRIPE_PRO_PRICE_ID ?? env.STRIPE_PRO_PRICE_ID;
-const billingSalesEmail =
-  process.env.BILLING_SALES_EMAIL ?? env.BILLING_SALES_EMAIL ?? "team@orvo.sh";
-const s3AccessKeyId = process.env.S3_ACCESS_KEY_ID ?? env.S3_ACCESS_KEY_ID;
-const s3SecretAccessKey =
-  process.env.S3_SECRET_ACCESS_KEY ?? env.S3_SECRET_ACCESS_KEY;
-const s3Endpoint = process.env.S3_ENDPOINT ?? env.S3_ENDPOINT;
-const s3Region = process.env.S3_REGION ?? env.S3_REGION;
-const s3BucketName = process.env.S3_BUCKET_NAME ?? env.S3_BUCKET_NAME;
+
 const cdnBaseUrl = process.env.CDN_BASE_URL ?? env.CDN_BASE_URL;
-const geminiApiKey = process.env.GEMINI_API_KEY ?? env.GEMINI_API_KEY;
+
 const maxUploadSizeBytes = Number(
   process.env.MAX_UPLOAD_SIZE_BYTES ??
     env.MAX_UPLOAD_SIZE_BYTES ??
@@ -76,94 +86,71 @@ const maxUploadSizeBytes = Number(
 const alertsEncryptionSecret =
   process.env.ALERTS_ENCRYPTION_KEY ??
   env.ALERTS_ENCRYPTION_KEY ??
-  process.env.BETTER_AUTH_SECRET ??
-  env.BETTER_AUTH_SECRET;
+  process.env.ENCRYPTION_SECRET ??
+  env.ENCRYPTION_SECRET;
 if (!alertsEncryptionSecret) {
   throw new Error("Missing ALERTS_ENCRYPTION_KEY");
 }
-const encryption = new Encryption(alertsEncryptionSecret);
-const email = createEmail({
-  resendApiKey: dev ? null : resendApiKey,
-  from: resendFromEmail,
-});
-const stripeClient = stripeSecretKey
-  ? new Stripe(stripeSecretKey, {
-      apiVersion: "2026-05-27.dahlia",
-    })
-  : null;
-const aiClient = geminiApiKey ? new AiClient({ geminiApiKey }) : null;
-const storage =
-  s3AccessKeyId && s3SecretAccessKey && s3Endpoint && s3Region && s3BucketName
-    ? new Storage({
-        accessKeyId: s3AccessKeyId,
-        secretAccessKey: s3SecretAccessKey,
-        endpoint: s3Endpoint,
-        region: s3Region,
-        bucket: s3BucketName,
-      })
-    : null;
 
 export const createServerContainer = (logger: Logger): ServerContainer => {
   const ingestionKeyService = new IngestionKeyService(db, logger);
   const alertRuleService = new AlertRuleService(db, logger);
+  const alertWebhookDestinationService = new AlertWebhookDestinationService(
+    db,
+    logger,
+    encryption,
+  );
   const logsService = new LogsService(clickhouse, logger);
   const logFacetsService = new LogFacetsService(clickhouse, logger);
+  const dashboardLogViewService = new DashboardLogViewService(db, logger);
   const tracesService = new TracesService(clickhouse, logger);
   const insightsService = new InsightsService(clickhouse, db, logger);
   const metricsService = new MetricsService(clickhouse, logger);
+  const deploymentService = new DeploymentService(db, clickhouse, logger);
   const appService = new AppService(
     db,
     logger,
     ingestionKeyService,
     alertRuleService,
   );
-  const billingService = stripeClient
-    ? new BillingService(db, logger, email, stripeClient, billingSalesEmail)
-    : null;
-  const githubClientId = process.env.GITHUB_CLIENT_ID ?? env.GITHUB_CLIENT_ID;
-  const githubClientSecret =
-    process.env.GITHUB_CLIENT_SECRET ?? env.GITHUB_CLIENT_SECRET;
-
-  const authService = createAuth(db, email, billingService, {
-    secret: (process.env.BETTER_AUTH_SECRET ??
-      env.BETTER_AUTH_SECRET) as string,
-    baseUrl: (process.env.ORIGIN ?? env.ORIGIN) as string,
-    github:
-      githubClientId && githubClientSecret
-        ? {
-            clientId: githubClientId,
-            clientSecret: githubClientSecret,
-          }
-        : undefined,
-    stripe:
-      stripeClient &&
-      stripeWebhookSecret &&
-      stripeStarterPriceId &&
-      stripeProPriceId
-        ? {
-            client: stripeClient,
-            webhookSecret: stripeWebhookSecret,
-            starterPriceId: stripeStarterPriceId,
-            proPriceId: stripeProPriceId,
-          }
-        : undefined,
-  });
+  const billingService =
+    env.SELF_HOSTED == "false"
+      ? new BillingService(db, logger, email!, stripe!)
+      : null;
   const uploadService = new UploadService(logger, storage, {
-    cdnBaseUrl,
-    maxUploadSizeBytes: Number.isFinite(maxUploadSizeBytes)
-      ? maxUploadSizeBytes
-      : 10 * 1024 * 1024,
+    cdnBaseUrl: env.CDN_BASE_URL,
+    maxUploadSizeBytes: MAX_UPLOAD_FILE_SIZE_BYTES,
   });
   const chatService = new ChatService(
     db,
     logger,
-    aiClient,
+    ai,
     appService,
     logsService,
     tracesService,
     alertRuleService,
     insightsService,
   );
+  const authService = createAuth(db, email, billingService, {
+    secret: env.ENCRYPTION_SECRET,
+    baseUrl: env.ORIGIN,
+    github:
+      env.SELF_HOSTED == "false"
+        ? {
+            clientId: env.GITHUB_CLIENT_ID,
+            clientSecret: env.GITHUB_CLIENT_SECRET,
+          }
+        : undefined,
+    stripe:
+      env.SELF_HOSTED == "false"
+        ? {
+            client: stripe!,
+            webhookSecret: env.STRIPE_WEBHOOK_SECRET,
+            starterPriceId: env.STRIPE_STARTER_PRICE_ID,
+            proPriceId: env.STRIPE_PRO_PRICE_ID,
+          }
+        : undefined,
+  });
 
   return {
     authService,
@@ -172,13 +159,9 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
     appService,
     chatService,
     alertRuleService,
-    alertWebhookDestinationService: new AlertWebhookDestinationService(
-      db,
-      logger,
-      encryption,
-    ),
-    dashboardLogViewService: new DashboardLogViewService(db, logger),
-    deploymentService: new DeploymentService(db, clickhouse, logger),
+    alertWebhookDestinationService,
+    dashboardLogViewService,
+    deploymentService,
     ingestionKeyService,
     insightsService,
     logsService,
