@@ -1,7 +1,7 @@
 import { dev } from "$app/environment";
 import { env } from "$env/dynamic/private";
 import { createAuth, type Auth } from "$lib/server/auth";
-import { ConsoleEmail, ResendEmail } from "$lib/server/email";
+import { createEmail } from "$lib/server/email";
 import { AlertRuleService } from "$lib/server/services/alert-rule.service";
 import { AlertWebhookDestinationService } from "$lib/server/services/alert-webhook-destination.service";
 import { AppService } from "$lib/server/services/app.service";
@@ -16,6 +16,7 @@ import { LogsService } from "$lib/server/services/logs.service";
 import { MetricsService } from "$lib/server/services/metrics.service";
 import { TracesService } from "$lib/server/services/traces.service";
 import { UploadService } from "$lib/server/services/upload.service";
+import { AiClient } from "@repo/ai";
 import { getClickHouseClient } from "@repo/clickhouse";
 import { getDb } from "@repo/db";
 import { Encryption } from "@repo/encryption";
@@ -66,6 +67,7 @@ const s3Endpoint = process.env.S3_ENDPOINT ?? env.S3_ENDPOINT;
 const s3Region = process.env.S3_REGION ?? env.S3_REGION;
 const s3BucketName = process.env.S3_BUCKET_NAME ?? env.S3_BUCKET_NAME;
 const cdnBaseUrl = process.env.CDN_BASE_URL ?? env.CDN_BASE_URL;
+const geminiApiKey = process.env.GEMINI_API_KEY ?? env.GEMINI_API_KEY;
 const maxUploadSizeBytes = Number(
   process.env.MAX_UPLOAD_SIZE_BYTES ??
     env.MAX_UPLOAD_SIZE_BYTES ??
@@ -80,18 +82,16 @@ if (!alertsEncryptionSecret) {
   throw new Error("Missing ALERTS_ENCRYPTION_KEY");
 }
 const encryption = new Encryption(alertsEncryptionSecret);
-const email =
-  dev || !resendApiKey
-    ? new ConsoleEmail()
-    : new ResendEmail({
-        resendApiKey,
-        from: resendFromEmail,
-      });
+const email = createEmail({
+  resendApiKey: dev ? null : resendApiKey,
+  from: resendFromEmail,
+});
 const stripeClient = stripeSecretKey
   ? new Stripe(stripeSecretKey, {
       apiVersion: "2026-05-27.dahlia",
     })
   : null;
+const aiClient = geminiApiKey ? new AiClient({ geminiApiKey }) : null;
 const storage =
   s3AccessKeyId && s3SecretAccessKey && s3Endpoint && s3Region && s3BucketName
     ? new Storage({
@@ -106,6 +106,11 @@ const storage =
 export const createServerContainer = (logger: Logger): ServerContainer => {
   const ingestionKeyService = new IngestionKeyService(db, logger);
   const alertRuleService = new AlertRuleService(db, logger);
+  const logsService = new LogsService(clickhouse, logger);
+  const logFacetsService = new LogFacetsService(clickhouse, logger);
+  const tracesService = new TracesService(clickhouse, logger);
+  const insightsService = new InsightsService(clickhouse, db, logger);
+  const metricsService = new MetricsService(clickhouse, logger);
   const appService = new AppService(
     db,
     logger,
@@ -149,18 +154,23 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
       ? maxUploadSizeBytes
       : 10 * 1024 * 1024,
   });
-  const logsService = new LogsService(clickhouse, logger);
-  const logFacetsService = new LogFacetsService(clickhouse, logger);
-  const tracesService = new TracesService(clickhouse, logger);
-  const insightsService = new InsightsService(clickhouse, db, logger);
-  const metricsService = new MetricsService(clickhouse, logger);
+  const chatService = new ChatService(
+    db,
+    logger,
+    aiClient,
+    appService,
+    logsService,
+    tracesService,
+    alertRuleService,
+    insightsService,
+  );
 
   return {
     authService,
     uploadService,
     billingService,
     appService,
-    chatService: new ChatService(db, logger),
+    chatService,
     alertRuleService,
     alertWebhookDestinationService: new AlertWebhookDestinationService(
       db,
