@@ -118,7 +118,15 @@ export const load = (async ({ url, locals, params, parent }) => {
       return right.total - left.total;
     })
     .slice(0, 5)
-    .map(({ score: _, ...service }) => service);
+    .map(({ score: _, severity, ...service }) => ({
+      name: service.name,
+      total: service.total,
+      errors: service.errors,
+      errorRate: service.errorRate,
+      p95LatencyMs: service.p95LatencyMs,
+      buckets: service.buckets,
+      severity,
+    }));
 
   return {
     time,
