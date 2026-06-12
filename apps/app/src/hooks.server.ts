@@ -1,11 +1,11 @@
-import { building } from '$app/environment';
+import { building, dev } from '$app/environment';
 import { createServerContainer } from '$lib/server/container';
 import { Logger } from '@repo/logger';
 import { genId } from '@repo/utils';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { loggerProvider } from './instrumentation.server';
 
-const baseLogger = new Logger('Orvo', { pretty: !building, loggerProvider });
+const baseLogger = new Logger('Orvo', { pretty: dev, loggerProvider });
 
 export const handle = async ({ event, resolve }) => {
 	const startTime = Date.now();

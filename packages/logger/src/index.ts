@@ -1,6 +1,24 @@
 import { logs as otelLogs } from '@opentelemetry/api-logs';
 import { type LoggerProvider } from '@opentelemetry/sdk-logs';
+import { createRequire } from 'node:module';
 import pino from 'pino';
+
+const require = createRequire(import.meta.url);
+
+const getPrettyTransport = () => {
+	try {
+		return {
+			target: require.resolve('pino-pretty'),
+			options: {
+				colorize: true,
+				translateTime: 'SYS:standard',
+				ignore: 'hostname,pid'
+			}
+		};
+	} catch {
+		return undefined;
+	}
+};
 
 class Logger {
 	private logger: pino.Logger;
@@ -22,16 +40,7 @@ class Logger {
 				level: 'debug',
 				base: { context, ...options?.meta },
 				timestamp: pino.stdTimeFunctions.isoTime,
-				transport: options?.pretty
-					? {
-							target: 'pino-pretty',
-							options: {
-								colorize: true,
-								translateTime: 'SYS:standard',
-								ignore: 'hostname,pid'
-							}
-						}
-					: undefined
+				transport: options?.pretty ? getPrettyTransport() : undefined
 			});
 		this.loggerProvider = options?.loggerProvider ?? null;
 		this.otelLogger = this.loggerProvider?.getLogger('orvo-server-logger') ?? null;

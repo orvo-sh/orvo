@@ -48,6 +48,8 @@ services:
     restart: unless-stopped
     env_file:
       - ./env/telemetry-writer.env
+    volumes:
+      - ./certs:/opt/orvo/certs:ro
     depends_on:
       - nats
 
@@ -56,6 +58,8 @@ services:
     restart: unless-stopped
     env_file:
       - ./env/alerts-worker.env
+    volumes:
+      - ./certs:/opt/orvo/certs:ro
 
 volumes:
   caddy_data:
