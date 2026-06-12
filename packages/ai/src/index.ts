@@ -2,14 +2,14 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import {
   consumeStream,
   convertToModelMessages,
-  stepCountIs,
   streamText as createTextStream,
+  stepCountIs,
   tool,
   type ToolSet,
   type UIMessage
 } from 'ai';
 
-class AiClient {
+class AI {
   private geminiModel;
 
   constructor(config: { geminiApiKey: string }) {
@@ -26,5 +26,6 @@ class AiClient {
   }) => createTextStream({ ...input, model: this.geminiModel });
 }
 
-export { AiClient, consumeStream, convertToModelMessages, stepCountIs, tool };
+export { AI, consumeStream, convertToModelMessages, stepCountIs, tool };
 export type { ToolSet, UIMessage };
+
