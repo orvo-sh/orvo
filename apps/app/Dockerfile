@@ -14,6 +14,7 @@ COPY apps/app/package.json apps/app/package.json
 COPY packages/components/package.json packages/components/package.json
 COPY packages/clickhouse/package.json packages/clickhouse/package.json
 COPY packages/db/package.json packages/db/package.json
+COPY packages/ai/package.json packages/ai/package.json
 COPY packages/encryption/package.json packages/encryption/package.json
 COPY packages/eslint-config/package.json packages/eslint-config/package.json
 COPY packages/logger/package.json packages/logger/package.json
