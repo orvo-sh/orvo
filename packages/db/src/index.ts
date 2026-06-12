@@ -14,6 +14,15 @@ export type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 const clients = new Map<string, Sql>();
 const databases = new Map<string, Database>();
 
+const getPostgresConnectionString = (databaseUrl: string) => {
+  const url = new URL(databaseUrl);
+
+  url.searchParams.delete('sslrootcert');
+  url.searchParams.delete('sslmode');
+
+  return url.toString();
+};
+
 const getPostgresOptions = (databaseUrl: string): Options<Record<string, PostgresType>> => {
   const url = new URL(databaseUrl);
   const sslRootCertPath = url.searchParams.get('sslrootcert');
@@ -36,7 +45,10 @@ export const getDbClient = (databaseUrl: string) => {
   let client = clients.get(databaseUrl);
 
   if (!client) {
-    client = postgres(databaseUrl, getPostgresOptions(databaseUrl));
+    client = postgres(
+      getPostgresConnectionString(databaseUrl),
+      getPostgresOptions(databaseUrl)
+    );
     clients.set(databaseUrl, client);
   }
 
