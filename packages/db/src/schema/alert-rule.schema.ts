@@ -19,7 +19,14 @@ const alertSignalType = pgEnum('alert_signal_type', [
   'latency_p99_ms',
   'apdex',
   'throughput_per_min',
-  'availability_percent'
+  'availability_percent',
+  'host_cpu_utilization',
+  'host_memory_utilization',
+  'host_filesystem_utilization',
+  'host_reporting_stale',
+  'container_cpu_utilization',
+  'container_memory_utilization',
+  'container_reporting_stale'
 ]);
 
 const alertComparator = pgEnum('alert_comparator', ['gt', 'gte', 'lt', 'lte']);
@@ -67,6 +74,22 @@ const alertRule = pgTable(
       .notNull()
       .default(sql`'{}'::text[]`),
     scopeScopesExclude: text('scope_scopes_exclude')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    scopeHostNamesInclude: text('scope_host_names_include')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    scopeHostNamesExclude: text('scope_host_names_exclude')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    scopeContainerNamesInclude: text('scope_container_names_include')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    scopeContainerNamesExclude: text('scope_container_names_exclude')
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),

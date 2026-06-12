@@ -5,11 +5,11 @@
   import * as Dialog from "@repo/components/ui/dialog";
   import { formatNumber } from "@repo/utils";
   import {
-      IconChartBar,
-      IconChevronRight,
-      IconRoute,
-      IconSparkles,
-      IconTerminal2,
+    IconChartBar,
+    IconChevronRight,
+    IconRoute,
+    IconSparkles,
+    IconTerminal2,
   } from "@tabler/icons-svelte";
 
   import { getInsightsQuery } from "$lib/api/insights.remote";
@@ -211,7 +211,15 @@
     />
 
     <ServicesSection
-      services={data.servicesNeedingAttention ?? []}
+      services={(data.servicesNeedingAttention ?? []) as Array<{
+        name: string;
+        total: number;
+        errors: number;
+        errorRate: number;
+        p95LatencyMs: number;
+        severity: "critical" | "warning" | "info";
+        buckets: number[];
+      }>}
       {time}
       {loading}
     />

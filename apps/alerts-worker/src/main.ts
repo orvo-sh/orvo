@@ -18,7 +18,7 @@ import {
 import { Encryption } from '@repo/encryption';
 import { Logger } from '@repo/logger';
 import { genId } from '@repo/utils';
-import { and, asc, eq, inArray, isNull, lt, lte, or } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, lt, lte, or } from 'drizzle-orm';
 
 const evaluationIntervalMs = 60_000;
 const leaseDurationMs = 60_000;
@@ -118,56 +118,92 @@ class AlertsWorker {
   private evaluateRule = async (rule: typeof alertRule.$inferSelect) => {
     const windowEndAt = new Date();
     const windowStartAt = new Date(windowEndAt.getTime() - rule.windowMinutes * 60_000);
-    const signal = await this.queryRuleSignal(rule, windowStartAt, windowEndAt);
-    const openIncident = await this.db.query.alertIncident.findFirst({
-      where: and(eq(alertIncident.ruleId, rule.id), eq(alertIncident.status, 'open'))
-    });
+    const [signals, openIncidents, destinations] = await Promise.all([
+      this.queryRuleSignals(rule, windowStartAt, windowEndAt),
+      this.db.query.alertIncident.findMany({
+        where: and(eq(alertIncident.ruleId, rule.id), eq(alertIncident.status, 'open')),
+        orderBy: [desc(alertIncident.openedAt)]
+      }),
+      this.db.query.alertRuleDestination.findMany({
+        where: eq(alertRuleDestination.ruleId, rule.id)
+      })
+    ]);
+    const openIncidentByEntityKey = new Map(
+      openIncidents.map((incident) => [buildEntityKey(incident.entityType, incident.entityId), incident])
+    );
+    const touchedEntityKeys = new Set<string>();
+    let didMutate = false;
 
-    if (signal.status === 'no_data') {
+    for (const signal of signals) {
+      const entityKey = buildEntityKey(signal.entityType, signal.entityId);
+      const openIncident = openIncidentByEntityKey.get(entityKey) ?? null;
+
+      touchedEntityKeys.add(entityKey);
+
+      if (signal.status === 'no_data') {
+        continue;
+      }
+
+      const shouldTrigger = compareValues(signal.value, rule.comparator, rule.threshold);
+
+      if (shouldTrigger && !openIncident) {
+        await this.openIncident(rule, signal, windowStartAt, windowEndAt, destinations);
+        didMutate = true;
+        continue;
+      }
+
+      if (shouldTrigger && openIncident) {
+        await this.renotifyIncident(
+          rule,
+          openIncident,
+          signal.value,
+          windowStartAt,
+          windowEndAt,
+          destinations
+        );
+        didMutate = true;
+        continue;
+      }
+
+      if (!shouldTrigger && openIncident) {
+        await this.resolveIncident(
+          rule,
+          openIncident,
+          signal.value,
+          windowStartAt,
+          windowEndAt,
+          destinations
+        );
+        didMutate = true;
+      }
+    }
+
+    if (isEntityScopedSignal(rule.signalType)) {
+      for (const incident of openIncidents) {
+        if (touchedEntityKeys.has(buildEntityKey(incident.entityType, incident.entityId))) {
+          continue;
+        }
+
+        await this.resolveIncident(
+          rule,
+          incident,
+          null,
+          windowStartAt,
+          windowEndAt,
+          destinations
+        );
+        didMutate = true;
+      }
+    }
+
+    if (!didMutate) {
       await this.finishRuleEvaluation(rule.id);
-      return;
     }
-
-    const shouldTrigger = compareValues(signal.value, rule.comparator, rule.threshold);
-    const destinations = await this.db.query.alertRuleDestination.findMany({
-      where: eq(alertRuleDestination.ruleId, rule.id)
-    });
-
-    if (shouldTrigger && !openIncident) {
-      await this.openIncident(rule, signal.value, windowStartAt, windowEndAt, destinations);
-      return;
-    }
-
-    if (shouldTrigger && openIncident) {
-      await this.renotifyIncident(
-        rule,
-        openIncident,
-        signal.value,
-        windowStartAt,
-        windowEndAt,
-        destinations
-      );
-      return;
-    }
-
-    if (!shouldTrigger && openIncident) {
-      await this.resolveIncident(
-        rule,
-        openIncident,
-        signal.value,
-        windowStartAt,
-        windowEndAt,
-        destinations
-      );
-      return;
-    }
-
-    await this.finishRuleEvaluation(rule.id);
   };
 
   private openIncident = async (
     rule: typeof alertRule.$inferSelect,
-    value: number,
+    signal: EvaluatedSignal & { status: 'ok'; value: number },
     windowStartAt: Date,
     windowEndAt: Date,
     destinations: Array<typeof alertRuleDestination.$inferSelect>
@@ -181,10 +217,13 @@ class AlertsWorker {
         id: incidentId,
         appId: rule.appId,
         ruleId: rule.id,
+        entityType: signal.entityType,
+        entityId: signal.entityId,
+        entityName: signal.entityName,
         status: 'open',
         openedAt: now,
         lastObservedAt: windowEndAt,
-        lastObservedValue: value,
+        lastObservedValue: signal.value,
         lastNotifiedAt: destinations.length > 0 ? now : null
       });
 
@@ -196,7 +235,7 @@ class AlertsWorker {
         eventType: 'opened',
         windowStartAt,
         windowEndAt,
-        observedValue: value
+        observedValue: signal.value
       });
 
       await tx
@@ -219,7 +258,10 @@ class AlertsWorker {
               rule,
               incidentId,
               eventId,
-              value,
+              signal.entityType,
+              signal.entityId,
+              signal.entityName,
+              signal.value,
               windowStartAt,
               windowEndAt,
               destinations,
@@ -233,7 +275,7 @@ class AlertsWorker {
   private renotifyIncident = async (
     rule: typeof alertRule.$inferSelect,
     incident: typeof alertIncident.$inferSelect,
-    value: number,
+    value: number | null,
     windowStartAt: Date,
     windowEndAt: Date,
     destinations: Array<typeof alertRuleDestination.$inferSelect>
@@ -287,6 +329,9 @@ class AlertsWorker {
               rule,
               incident.id,
               eventId,
+              incident.entityType,
+              incident.entityId,
+              incident.entityName,
               value,
               windowStartAt,
               windowEndAt,
@@ -301,7 +346,7 @@ class AlertsWorker {
   private resolveIncident = async (
     rule: typeof alertRule.$inferSelect,
     incident: typeof alertIncident.$inferSelect,
-    value: number,
+    value: number | null,
     windowStartAt: Date,
     windowEndAt: Date,
     destinations: Array<typeof alertRuleDestination.$inferSelect>
@@ -351,6 +396,9 @@ class AlertsWorker {
               rule,
               incident.id,
               eventId,
+              incident.entityType,
+              incident.entityId,
+              incident.entityName,
               value,
               windowStartAt,
               windowEndAt,
@@ -503,12 +551,13 @@ class AlertsWorker {
       .where(eq(alertDeliveryAttempt.id, deliveryId));
   };
 
-  private queryRuleSignal = async (
+  private queryRuleSignals = async (
     rule: typeof alertRule.$inferSelect,
     windowStartAt: Date,
     windowEndAt: Date
-  ) => {
-    const query = `
+  ): Promise<EvaluatedSignal[]> => {
+    if (isTraceSignal(rule.signalType)) {
+      const query = `
 			SELECT
 				count() AS total_count,
 				countIf(status_code = 2) AS error_count,
@@ -517,57 +566,131 @@ class AlertsWorker {
 				countIf(duration_ns <= ${rule.apdexTargetMs ? rule.apdexTargetMs * 1_000_000 : 0} AND status_code != 2) AS satisfied_count,
 				countIf(duration_ns > ${rule.apdexTargetMs ? rule.apdexTargetMs * 1_000_000 : 0} AND duration_ns <= ${rule.apdexTargetMs ? rule.apdexTargetMs * 4_000_000 : 0} AND status_code != 2) AS tolerated_count
 			FROM traces_raw
-			WHERE ${buildRuleWhereClause(rule, windowStartAt, windowEndAt)}
+			WHERE ${buildTraceRuleWhereClause(rule, windowStartAt, windowEndAt)}
 		`;
+      const result = await this.clickhouse.query({
+        format: 'JSONEachRow',
+        query
+      });
+      const row = (
+        (await result.json()) as unknown as Array<{
+          total_count: number | string;
+          error_count: number | string;
+          p95_ms: number | string;
+          p99_ms: number | string;
+          satisfied_count: number | string;
+          tolerated_count: number | string;
+        }>
+      )[0];
+      const totalCount = Number(row?.total_count ?? 0);
+      const errorCount = Number(row?.error_count ?? 0);
+      const p95Ms = Number(row?.p95_ms ?? 0);
+      const p99Ms = Number(row?.p99_ms ?? 0);
+      const satisfiedCount = Number(row?.satisfied_count ?? 0);
+      const toleratedCount = Number(row?.tolerated_count ?? 0);
+
+      if (rule.signalType === 'throughput_per_min') {
+        return [
+          {
+            entityType: 'app',
+            entityId: rule.appId,
+            entityName: null,
+            status: 'ok',
+            value: totalCount / Math.max(rule.windowMinutes, 1)
+          },
+        ];
+      }
+
+      if (totalCount === 0) {
+        return [
+          {
+            entityType: 'app',
+            entityId: rule.appId,
+            entityName: null,
+            status: 'no_data'
+          },
+        ];
+      }
+
+      switch (rule.signalType) {
+        case 'error_rate':
+          return [
+            {
+              entityType: 'app',
+              entityId: rule.appId,
+              entityName: null,
+              status: 'ok',
+              value: (errorCount / totalCount) * 100
+            },
+          ];
+        case 'availability_percent':
+          return [
+            {
+              entityType: 'app',
+              entityId: rule.appId,
+              entityName: null,
+              status: 'ok',
+              value: 100 - (errorCount / totalCount) * 100
+            },
+          ];
+        case 'latency_p95_ms':
+          return [
+            {
+              entityType: 'app',
+              entityId: rule.appId,
+              entityName: null,
+              status: 'ok',
+              value: p95Ms
+            },
+          ];
+        case 'latency_p99_ms':
+          return [
+            {
+              entityType: 'app',
+              entityId: rule.appId,
+              entityName: null,
+              status: 'ok',
+              value: p99Ms
+            },
+          ];
+        case 'apdex':
+          return [
+            {
+              entityType: 'app',
+              entityId: rule.appId,
+              entityName: null,
+              status: 'ok',
+              value: (satisfiedCount + toleratedCount / 2) / totalCount
+            },
+          ];
+      }
+
+      throw new Error(`Unsupported trace alert signal: ${rule.signalType}`);
+    }
+
+    const metricQuery = buildMetricSignalQuery(rule, windowStartAt, windowEndAt);
     const result = await this.clickhouse.query({
       format: 'JSONEachRow',
-      query
+      query: metricQuery
     });
-    const row = (
-      (await result.json()) as unknown as Array<{
-        total_count: number | string;
-        error_count: number | string;
-        p95_ms: number | string;
-        p99_ms: number | string;
-        satisfied_count: number | string;
-        tolerated_count: number | string;
-      }>
-    )[0];
-    const totalCount = Number(row?.total_count ?? 0);
-    const errorCount = Number(row?.error_count ?? 0);
-    const p95Ms = Number(row?.p95_ms ?? 0);
-    const p99Ms = Number(row?.p99_ms ?? 0);
-    const satisfiedCount = Number(row?.satisfied_count ?? 0);
-    const toleratedCount = Number(row?.tolerated_count ?? 0);
+    const rows = (await result.json()) as unknown as Array<{
+      entity_id: string;
+      entity_name: string | null;
+      value: number | string | null;
+    }>;
 
-    if (rule.signalType === 'throughput_per_min') {
-      return {
+    return rows
+      .map((row) => ({
+        entityType: resolveEntityType(rule.signalType),
+        entityId: row.entity_id,
+        entityName: row.entity_name,
         status: 'ok' as const,
-        value: totalCount / Math.max(rule.windowMinutes, 1)
-      };
-    }
-
-    if (totalCount === 0) {
-      return {
-        status: 'no_data' as const
-      };
-    }
-
-    switch (rule.signalType) {
-      case 'error_rate':
-        return { status: 'ok' as const, value: (errorCount / totalCount) * 100 };
-      case 'availability_percent':
-        return { status: 'ok' as const, value: 100 - (errorCount / totalCount) * 100 };
-      case 'latency_p95_ms':
-        return { status: 'ok' as const, value: p95Ms };
-      case 'latency_p99_ms':
-        return { status: 'ok' as const, value: p99Ms };
-      case 'apdex':
-        return {
-          status: 'ok' as const,
-          value: (satisfiedCount + toleratedCount / 2) / totalCount
-        };
-    }
+        value: row.value === null ? null : Number(row.value)
+      }))
+      .filter(
+        (row): row is EvaluatedSignal & { status: 'ok'; value: number } =>
+          row.entityId.length > 0 && row.value !== null && Number.isFinite(row.value)
+      );
   };
 }
 
@@ -595,12 +718,31 @@ type AlertIncidentRow = typeof alertIncident.$inferSelect;
 type AlertRuleDestinationRow = typeof alertRuleDestination.$inferSelect;
 type AlertDeliveryInsert = typeof alertDeliveryAttempt.$inferInsert;
 type AlertEventName = 'opened' | 'renotified' | 'resolved';
+type AlertEntityType = typeof alertIncident.$inferSelect['entityType'];
+type AlertSignalType = typeof alertRule.$inferSelect['signalType'];
+type EvaluatedSignal =
+  | {
+      entityType: AlertEntityType;
+      entityId: string;
+      entityName: string | null;
+      status: 'ok';
+      value: number;
+    }
+  | {
+      entityType: AlertEntityType;
+      entityId: string;
+      entityName: string | null;
+      status: 'no_data';
+    };
 
 const buildPayload = (
   eventType: AlertEventName,
   rule: AlertRuleRow,
   incidentId: string,
-  value: number,
+  entityType: AlertEntityType,
+  entityId: string,
+  entityName: string | null,
+  value: number | null,
   windowStartAt: Date,
   windowEndAt: Date
 ) => ({
@@ -616,7 +758,12 @@ const buildPayload = (
     windowMinutes: rule.windowMinutes
   },
   incident: {
-    id: incidentId
+    id: incidentId,
+    entity: {
+      type: entityType,
+      id: entityId,
+      name: entityName
+    }
   },
   evaluation: {
     windowStartAt: windowStartAt.toISOString(),
@@ -630,7 +777,10 @@ const buildDeliveryRows = (
   rule: AlertRuleRow,
   incidentId: string,
   eventId: string,
-  value: number,
+  entityType: AlertEntityType,
+  entityId: string,
+  entityName: string | null,
+  value: number | null,
   windowStartAt: Date,
   windowEndAt: Date,
   destinations: AlertRuleDestinationRow[],
@@ -644,12 +794,57 @@ const buildDeliveryRows = (
     incidentId,
     eventId,
     eventType,
-    payload: buildPayload(eventType, rule, incidentId, value, windowStartAt, windowEndAt),
+    payload: buildPayload(
+      eventType,
+      rule,
+      incidentId,
+      entityType,
+      entityId,
+      entityName,
+      value,
+      windowStartAt,
+      windowEndAt
+    ),
     status: 'pending',
     nextAttemptAt: now
   }));
 
-const buildRuleWhereClause = (rule: AlertRuleRow, windowStartAt: Date, windowEndAt: Date) => {
+const buildEntityKey = (entityType: AlertEntityType, entityId: string) =>
+  `${entityType}:${entityId}`;
+
+const isTraceSignal = (signalType: AlertSignalType) =>
+  [
+    'error_rate',
+    'latency_p95_ms',
+    'latency_p99_ms',
+    'apdex',
+    'throughput_per_min',
+    'availability_percent'
+  ].includes(signalType);
+
+const isEntityScopedSignal = (signalType: AlertSignalType) =>
+  [
+    'host_cpu_utilization',
+    'host_memory_utilization',
+    'host_filesystem_utilization',
+    'host_reporting_stale',
+    'container_cpu_utilization',
+    'container_memory_utilization',
+    'container_reporting_stale'
+  ].includes(signalType);
+
+const resolveEntityType = (signalType: AlertSignalType): AlertEntityType =>
+  signalType.startsWith('host_')
+    ? 'host'
+    : signalType.startsWith('container_')
+      ? 'container'
+      : 'app';
+
+const buildTraceRuleWhereClause = (
+  rule: AlertRuleRow,
+  windowStartAt: Date,
+  windowEndAt: Date
+) => {
   const clauses = [
     `app_id = ${quote(rule.appId)}`,
     `start_time >= ${toDateTime64(windowStartAt)}`,
@@ -673,6 +868,171 @@ const buildRuleWhereClause = (rule: AlertRuleRow, windowStartAt: Date, windowEnd
   appendInclusionClauses(clauses, 'scope_name', rule.scopeScopesInclude, rule.scopeScopesExclude);
 
   return clauses.join(' AND ');
+};
+
+const buildMetricSignalQuery = (
+  rule: AlertRuleRow,
+  windowStartAt: Date,
+  windowEndAt: Date
+) => {
+  const baseClauses = buildMetricScopeClauses(rule, windowStartAt, windowEndAt);
+
+  switch (rule.signalType) {
+    case 'host_cpu_utilization':
+    case 'host_memory_utilization':
+      return `
+        SELECT
+          host_id AS entity_id,
+          argMax(host_name, time) AS entity_name,
+          avg(coalesce(value_double, toFloat64(value_int))) * 100 AS value
+        FROM metrics_raw
+        WHERE ${[...baseClauses, `metric_name = ${quote(
+          rule.signalType === 'host_cpu_utilization'
+            ? 'system.cpu.utilization'
+            : 'system.memory.utilization'
+        )}`].join(' AND ')}
+        GROUP BY host_id
+      `;
+    case 'host_filesystem_utilization':
+      return `
+        SELECT
+          host_id AS entity_id,
+          argMax(host_name, time) AS entity_name,
+          max(coalesce(value_double, toFloat64(value_int))) * 100 AS value
+        FROM metrics_raw
+        WHERE ${[...baseClauses, `metric_name = ${quote('system.filesystem.utilization')}`].join(
+          ' AND '
+        )}
+        GROUP BY host_id
+      `;
+    case 'host_reporting_stale': {
+      const discoveryStartAt = new Date(windowEndAt.getTime() - 24 * 60 * 60_000);
+
+      return `
+        SELECT
+          host_id AS entity_id,
+          argMax(host_name, time) AS entity_name,
+          greatest(dateDiff('second', max(time), now()), 0) / 60.0 AS value
+        FROM metrics_raw
+        WHERE ${[
+          `app_id = ${quote(rule.appId)}`,
+          `entity_kind = 'host'`,
+          `host_id != ''`,
+          `time >= ${toDateTime64(discoveryStartAt)}`,
+          `time <= ${toDateTime64(windowEndAt)}`,
+          ...buildHostScopeClauses(rule)
+        ].join(' AND ')}
+        GROUP BY host_id
+      `;
+    }
+    case 'container_cpu_utilization':
+      return `
+        SELECT
+          container_id AS entity_id,
+          argMax(container_name, time) AS entity_name,
+          avg(coalesce(value_double, toFloat64(value_int))) * 100 AS value
+        FROM metrics_raw
+        WHERE ${[
+          ...baseClauses,
+          `metric_name = ${quote('container.cpu.utilization')}`,
+          `container_id != ''`
+        ].join(' AND ')}
+        GROUP BY container_id
+      `;
+    case 'container_memory_utilization':
+      return `
+        SELECT
+          container_id AS entity_id,
+          argMax(container_name, time) AS entity_name,
+          avgIf(toFloat64(value_int), metric_name = ${quote('container.memory.usage.total')}) AS usage_total,
+          avgIf(toFloat64(value_int), metric_name = ${quote('container.memory.usage.limit')}) AS usage_limit,
+          if(usage_limit > 0, (usage_total / usage_limit) * 100, null) AS value
+        FROM metrics_raw
+        WHERE ${[
+          ...baseClauses,
+          `metric_name IN (${quote('container.memory.usage.total')}, ${quote(
+            'container.memory.usage.limit'
+          )})`,
+          `container_id != ''`
+        ].join(' AND ')}
+        GROUP BY container_id
+        HAVING usage_limit > 0
+      `;
+    case 'container_reporting_stale': {
+      const discoveryStartAt = new Date(windowEndAt.getTime() - 24 * 60 * 60_000);
+
+      return `
+        SELECT
+          container_id AS entity_id,
+          argMax(container_name, time) AS entity_name,
+          greatest(dateDiff('second', max(time), now()), 0) / 60.0 AS value
+        FROM metrics_raw
+        WHERE ${[
+          `app_id = ${quote(rule.appId)}`,
+          `entity_kind = 'container'`,
+          `container_id != ''`,
+          `time >= ${toDateTime64(discoveryStartAt)}`,
+          `time <= ${toDateTime64(windowEndAt)}`,
+          ...buildHostScopeClauses(rule),
+          ...buildContainerScopeClauses(rule)
+        ].join(' AND ')}
+        GROUP BY container_id
+      `;
+    }
+  }
+
+  throw new Error(`Unsupported metric alert signal: ${rule.signalType}`);
+};
+
+const buildMetricScopeClauses = (
+  rule: AlertRuleRow,
+  windowStartAt: Date,
+  windowEndAt: Date
+) => {
+  const clauses = [
+    `app_id = ${quote(rule.appId)}`,
+    `time >= ${toDateTime64(windowStartAt)}`,
+    `time <= ${toDateTime64(windowEndAt)}`
+  ];
+
+  if (rule.signalType.startsWith('host_')) {
+    clauses.push(`entity_kind = 'host'`, `host_id != ''`, ...buildHostScopeClauses(rule));
+  }
+
+  if (rule.signalType.startsWith('container_')) {
+    clauses.push(
+      `entity_kind = 'container'`,
+      `container_id != ''`,
+      ...buildHostScopeClauses(rule),
+      ...buildContainerScopeClauses(rule)
+    );
+  }
+
+  return clauses;
+};
+
+const buildHostScopeClauses = (rule: AlertRuleRow) => {
+  const clauses: string[] = [];
+  appendInclusionClauses(
+    clauses,
+    'host_name',
+    rule.scopeHostNamesInclude,
+    rule.scopeHostNamesExclude
+  );
+
+  return clauses;
+};
+
+const buildContainerScopeClauses = (rule: AlertRuleRow) => {
+  const clauses: string[] = [];
+  appendInclusionClauses(
+    clauses,
+    'container_name',
+    rule.scopeContainerNamesInclude,
+    rule.scopeContainerNamesExclude
+  );
+
+  return clauses;
 };
 
 const appendInclusionClauses = (

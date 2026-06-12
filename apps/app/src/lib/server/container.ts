@@ -13,6 +13,7 @@ import { InsightsService } from "$lib/server/services/insights.service";
 import { LogFacetsService } from "$lib/server/services/log-facets.service";
 import { LogsService } from "$lib/server/services/logs.service";
 import { MetricsService } from "$lib/server/services/metrics.service";
+import { HostMonitoringService } from "$lib/server/services/host-monitoring.service";
 import { TracesService } from "$lib/server/services/traces.service";
 import { UploadService } from "$lib/server/services/upload.service";
 import { AI } from "@repo/ai";
@@ -39,6 +40,7 @@ export type ServerContainer = {
   logsService: LogsService;
   logFacetsService: LogFacetsService;
   metricsService: MetricsService;
+  hostMonitoringService: HostMonitoringService;
   tracesService: TracesService;
 };
 
@@ -77,6 +79,10 @@ const stripeProPriceId =
   process.env.STRIPE_PRO_PRICE_ID ?? env.STRIPE_PRO_PRICE_ID;
 
 const cdnBaseUrl = process.env.CDN_BASE_URL ?? env.CDN_BASE_URL;
+const publicOtlpBaseUrl =
+  process.env.PUBLIC_ORVO_OTLP_BASE_URL ??
+  env.PUBLIC_ORVO_OTLP_BASE_URL ??
+  env.ORIGIN;
 
 const maxUploadSizeBytes = Number(
   process.env.MAX_UPLOAD_SIZE_BYTES ??
@@ -107,6 +113,18 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
   const insightsService = new InsightsService(clickhouse, db, logger);
   const metricsService = new MetricsService(clickhouse, logger);
   const deploymentService = new DeploymentService(db, clickhouse, logger);
+  const hostMonitoringService = new HostMonitoringService(
+    db,
+    clickhouse,
+    encryption,
+    logger,
+    ingestionKeyService,
+    {
+      appBaseUrl: process.env.ORIGIN ?? env.ORIGIN,
+      cdnBaseUrl,
+      otlpBaseUrl: publicOtlpBaseUrl,
+    },
+  );
   const appService = new AppService(
     db,
     logger,
@@ -167,6 +185,7 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
     logsService,
     logFacetsService,
     metricsService,
+    hostMonitoringService,
     tracesService,
   };
 };

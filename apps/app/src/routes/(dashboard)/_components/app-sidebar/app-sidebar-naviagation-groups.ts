@@ -7,7 +7,8 @@ import {
   IconMap,
   IconRocket,
   IconRoute,
-  IconTerminal2
+  IconServer,
+  IconTerminal2,
 } from "@tabler/icons-svelte";
 
 type NavigationGroup = {
@@ -41,7 +42,7 @@ const generateAppNavigationGroups = (
           label: "Overview",
           icon: IconLayoutGrid,
           shortcut: "o",
-        }
+        },
       ],
     },
     {
@@ -85,6 +86,12 @@ const generateAppNavigationGroups = (
           label: "Deployments",
           icon: IconRocket,
           shortcut: "d",
+        },
+        {
+          href: `/a/${appId}/hosts`,
+          label: "Hosts",
+          icon: IconServer,
+          shortcut: "h",
         },
         {
           href: `/a/${appId}/alerts`,

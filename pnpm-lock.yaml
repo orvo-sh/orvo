@@ -129,6 +129,9 @@ importers:
       '@repo/encryption':
         specifier: workspace:*
         version: link:../../packages/encryption
+      '@repo/host-agent':
+        specifier: workspace:*
+        version: link:../../packages/host-agent
       '@repo/logger':
         specifier: workspace:*
         version: link:../../packages/logger
@@ -586,6 +589,27 @@ importers:
       typescript-eslint:
         specifier: ^8.57.1
         version: 8.57.1(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3)
+
+  packages/host-agent:
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^24.12.0
+        version: 24.12.0
+      eslint:
+        specifier: ^9.39.4
+        version: 9.39.4(jiti@2.7.0)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vite-node:
+        specifier: ^5.2.0
+        version: 5.3.0(@types/node@24.12.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
 
   packages/logger:
     dependencies:

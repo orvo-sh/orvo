@@ -178,6 +178,14 @@ type MetricRow struct {
 	IngestionKeyID          string
 	ReceivedAt              time.Time
 	ExpiresAt               time.Time
+	EntityKind              string
+	HostID                  string
+	HostName                string
+	HostArch                string
+	OSType                  string
+	ContainerID             string
+	ContainerName           string
+	ContainerImageName      string
 	MetricName              string
 	MetricType              string
 	MetricUnit              string

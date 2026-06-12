@@ -449,12 +449,21 @@ func (service *Service) decodeMetrics(ctx context.Context, payload []byte) ([]Me
 		if !expiresAt.After(receivedAt) {
 			continue
 		}
+		identity := ResolveMetricIdentity(point)
 		rows = append(rows, MetricRow{
 			ID:                      GenerateID("met"),
 			AppID:                   message.AppID,
 			IngestionKeyID:          message.IngestionKeyID,
 			ReceivedAt:              receivedAt,
 			ExpiresAt:               expiresAt,
+			EntityKind:              identity.EntityKind,
+			HostID:                  identity.HostID,
+			HostName:                identity.HostName,
+			HostArch:                identity.HostArch,
+			OSType:                  identity.OSType,
+			ContainerID:             identity.ContainerID,
+			ContainerName:           identity.ContainerName,
+			ContainerImageName:      identity.ContainerImageName,
 			MetricName:              point.MetricName,
 			MetricType:              point.MetricType,
 			MetricUnit:              point.MetricUnit,

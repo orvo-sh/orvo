@@ -47,9 +47,11 @@ class AlertRuleService {
         }),
       ]);
       const destinationCountByRuleId = new Map<string, number>();
-      const openIncidentByRuleId = new Map(
-        openIncidents.map((incident) => [incident.ruleId, incident]),
-      );
+      const openIncidentByRuleId = new Map<
+        string,
+        (typeof openIncidents)[number]
+      >();
+      const openIncidentCountByRuleId = new Map<string, number>();
 
       for (const destination of ruleDestinations) {
         destinationCountByRuleId.set(
@@ -58,11 +60,23 @@ class AlertRuleService {
         );
       }
 
+      for (const incident of openIncidents) {
+        if (!openIncidentByRuleId.has(incident.ruleId)) {
+          openIncidentByRuleId.set(incident.ruleId, incident);
+        }
+
+        openIncidentCountByRuleId.set(
+          incident.ruleId,
+          (openIncidentCountByRuleId.get(incident.ruleId) ?? 0) + 1,
+        );
+      }
+
       return ok({
         rules: rules.map((rule) => ({
           ...rule,
           destinationCount: destinationCountByRuleId.get(rule.id) ?? 0,
           openIncident: openIncidentByRuleId.get(rule.id) ?? null,
+          openIncidentCount: openIncidentCountByRuleId.get(rule.id) ?? 0,
         })),
       });
     } catch (error) {
@@ -170,6 +184,12 @@ class AlertRuleService {
           scopeEnvironmentsExclude: validated.data.scope.environments.exclude,
           scopeScopesInclude: validated.data.scope.scopes.include,
           scopeScopesExclude: validated.data.scope.scopes.exclude,
+          scopeHostNamesInclude: validated.data.scope.hostNames.include,
+          scopeHostNamesExclude: validated.data.scope.hostNames.exclude,
+          scopeContainerNamesInclude:
+            validated.data.scope.containerNames.include,
+          scopeContainerNamesExclude:
+            validated.data.scope.containerNames.exclude,
           createdBy: context.userId,
           updatedBy: context.userId,
         });
@@ -257,6 +277,12 @@ class AlertRuleService {
             scopeEnvironmentsExclude: validated.data.scope.environments.exclude,
             scopeScopesInclude: validated.data.scope.scopes.include,
             scopeScopesExclude: validated.data.scope.scopes.exclude,
+            scopeHostNamesInclude: validated.data.scope.hostNames.include,
+            scopeHostNamesExclude: validated.data.scope.hostNames.exclude,
+            scopeContainerNamesInclude:
+              validated.data.scope.containerNames.include,
+            scopeContainerNamesExclude:
+              validated.data.scope.containerNames.exclude,
             updatedBy: context.userId,
             nextEvaluationAt: new Date(),
             evaluationLeaseToken: null,
@@ -420,6 +446,10 @@ class AlertRuleService {
           scopeEnvironmentsExclude: [],
           scopeScopesInclude: [],
           scopeScopesExclude: [],
+          scopeHostNamesInclude: [],
+          scopeHostNamesExclude: [],
+          scopeContainerNamesInclude: [],
+          scopeContainerNamesExclude: [],
           createdBy: context.userId,
           updatedBy: context.userId,
         })),
@@ -468,6 +498,18 @@ const alertScopeInputSchema = z.object({
       exclude: alertScopeArraySchema,
     })
     .default({ include: [], exclude: [] }),
+  hostNames: z
+    .object({
+      include: alertScopeArraySchema,
+      exclude: alertScopeArraySchema,
+    })
+    .default({ include: [], exclude: [] }),
+  containerNames: z
+    .object({
+      include: alertScopeArraySchema,
+      exclude: alertScopeArraySchema,
+    })
+    .default({ include: [], exclude: [] }),
 });
 
 const alertRuleInputSchema = z.object({
@@ -479,6 +521,13 @@ const alertRuleInputSchema = z.object({
     "apdex",
     "throughput_per_min",
     "availability_percent",
+    "host_cpu_utilization",
+    "host_memory_utilization",
+    "host_filesystem_utilization",
+    "host_reporting_stale",
+    "container_cpu_utilization",
+    "container_memory_utilization",
+    "container_reporting_stale",
   ]),
   comparator: z.enum(["gt", "gte", "lt", "lte"]),
   threshold: z.number().finite(),
@@ -516,7 +565,12 @@ const validateRuleConfig = (input: z.infer<typeof alertRuleInputSchema>) => {
   if (
     (input.signalType === "error_rate" ||
       input.signalType === "availability_percent" ||
-      input.signalType === "apdex") &&
+      input.signalType === "apdex" ||
+      input.signalType === "host_cpu_utilization" ||
+      input.signalType === "host_memory_utilization" ||
+      input.signalType === "host_filesystem_utilization" ||
+      input.signalType === "container_cpu_utilization" ||
+      input.signalType === "container_memory_utilization") &&
     (input.threshold < 0 || input.threshold > 100)
   ) {
     return "This signal expects a threshold between 0 and 100.";

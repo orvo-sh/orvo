@@ -8,6 +8,13 @@
       "when": 1781224956600,
       "tag": "0000_initial_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781286439360,
+      "tag": "0001_ancient_iron_patriot",
+      "breakpoints": true
     }
   ]
 }
