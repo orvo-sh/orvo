@@ -75,26 +75,22 @@ jobs:
           ALERTS_WORKER_IMAGE: ghcr.io/${{ github.repository_owner }}/orvo-alerts-worker:sha-${{ github.sha }}
           PROD_POSTGRES_URL: ${{ secrets.PROD_POSTGRES_URL }}
           PROD_CLICKHOUSE_URL: ${{ secrets.PROD_CLICKHOUSE_URL }}
-          PROD_BETTER_AUTH_SECRET: ${{ secrets.PROD_BETTER_AUTH_SECRET }}
+          PROD_ENCRYPTION_SECRET: ${{ secrets.PROD_ENCRYPTION_SECRET }}
+          PROD_NATS_URL: ${{ secrets.PROD_NATS_URL }}
           PROD_POSTGRES_CA_CERT: ${{ secrets.PROD_POSTGRES_CA_CERT }}
           PROD_GITHUB_CLIENT_ID: ${{ secrets.PROD_GITHUB_CLIENT_ID }}
           PROD_GITHUB_CLIENT_SECRET: ${{ secrets.PROD_GITHUB_CLIENT_SECRET }}
           PROD_RESEND_API_KEY: ${{ secrets.PROD_RESEND_API_KEY }}
-          PROD_RESEND_FROM_EMAIL: ${{ secrets.PROD_RESEND_FROM_EMAIL }}
           PROD_STRIPE_SECRET_KEY: ${{ secrets.PROD_STRIPE_SECRET_KEY }}
           PROD_STRIPE_WEBHOOK_SECRET: ${{ secrets.PROD_STRIPE_WEBHOOK_SECRET }}
           PROD_STRIPE_STARTER_PRICE_ID: ${{ secrets.PROD_STRIPE_STARTER_PRICE_ID }}
           PROD_STRIPE_PRO_PRICE_ID: ${{ secrets.PROD_STRIPE_PRO_PRICE_ID }}
-          PROD_BILLING_SALES_EMAIL: ${{ secrets.PROD_BILLING_SALES_EMAIL }}
-          PROD_ORVO_PUBLIC_INGESTION_KEY: ${{ secrets.PROD_ORVO_PUBLIC_INGESTION_KEY }}
-          PROD_ORVO_PRIVATE_INGESTION_KEY: ${{ secrets.PROD_ORVO_PRIVATE_INGESTION_KEY }}
           PROD_S3_ACCESS_KEY_ID: ${{ secrets.PROD_S3_ACCESS_KEY_ID }}
           PROD_S3_SECRET_ACCESS_KEY: ${{ secrets.PROD_S3_SECRET_ACCESS_KEY }}
           PROD_S3_ENDPOINT: ${{ secrets.PROD_S3_ENDPOINT }}
           PROD_S3_REGION: ${{ secrets.PROD_S3_REGION }}
           PROD_S3_BUCKET_NAME: ${{ secrets.PROD_S3_BUCKET_NAME }}
           PROD_CDN_BASE_URL: ${{ secrets.PROD_CDN_BASE_URL }}
-          PROD_MAX_UPLOAD_SIZE_BYTES: ${{ secrets.PROD_MAX_UPLOAD_SIZE_BYTES }}
           PROD_GEMINI_API_KEY: ${{ secrets.PROD_GEMINI_API_KEY }}
         run: |
           mkdir -p deploy/env deploy/certs
@@ -107,34 +103,29 @@ jobs:
           EOF
 
           cat <<EOF > deploy/env/app.env
+          SELF_HOSTED=false
           NODE_ENV=production
           HOST=0.0.0.0
           PORT=3000
           ORIGIN=https://app.orvo.sh
           POSTGRES_URL=${PROD_POSTGRES_URL}
           CLICKHOUSE_URL=${PROD_CLICKHOUSE_URL}
-          BETTER_AUTH_SECRET=${PROD_BETTER_AUTH_SECRET}
+          ENCRYPTION_SECRET=${PROD_ENCRYPTION_SECRET}
           GITHUB_CLIENT_ID=${PROD_GITHUB_CLIENT_ID}
           GITHUB_CLIENT_SECRET=${PROD_GITHUB_CLIENT_SECRET}
           RESEND_API_KEY=${PROD_RESEND_API_KEY}
-          RESEND_FROM_EMAIL=${PROD_RESEND_FROM_EMAIL}
           STRIPE_SECRET_KEY=${PROD_STRIPE_SECRET_KEY}
           STRIPE_WEBHOOK_SECRET=${PROD_STRIPE_WEBHOOK_SECRET}
           STRIPE_STARTER_PRICE_ID=${PROD_STRIPE_STARTER_PRICE_ID}
           STRIPE_PRO_PRICE_ID=${PROD_STRIPE_PRO_PRICE_ID}
-          BILLING_SALES_EMAIL=${PROD_BILLING_SALES_EMAIL}
           PUBLIC_ORVO_OTLP_BASE_URL=https://ingest.orvo.sh
-          PUBLIC_ORVO_PUBLIC_INGESTION_KEY=${PROD_ORVO_PUBLIC_INGESTION_KEY}
           ORVO_OTLP_BASE_URL=http://ingest:4318
-          ORVO_PRIVATE_INGESTION_KEY=${PROD_ORVO_PRIVATE_INGESTION_KEY}
           S3_ACCESS_KEY_ID=${PROD_S3_ACCESS_KEY_ID}
           S3_SECRET_ACCESS_KEY=${PROD_S3_SECRET_ACCESS_KEY}
           S3_ENDPOINT=${PROD_S3_ENDPOINT}
           S3_REGION=${PROD_S3_REGION}
           S3_BUCKET_NAME=${PROD_S3_BUCKET_NAME}
           CDN_BASE_URL=${PROD_CDN_BASE_URL}
-          MAX_UPLOAD_SIZE_BYTES=${PROD_MAX_UPLOAD_SIZE_BYTES}
-          ALERTS_ENCRYPTION_KEY=${PROD_BETTER_AUTH_SECRET}
           GEMINI_API_KEY=${PROD_GEMINI_API_KEY}
           EOF
 
@@ -142,29 +133,26 @@ jobs:
           APP_ENVIRONMENT=production
           POSTGRES_URL=${PROD_POSTGRES_URL}
           CLICKHOUSE_URL=${PROD_CLICKHOUSE_URL}
-          NATS_URL=nats://nats:4222
+          NATS_URL=${PROD_NATS_URL}
           INGEST_HTTP_HOST=0.0.0.0
           INGEST_HTTP_PORT=4318
           ORVO_OTLP_BASE_URL=http://ingest:4318
-          ORVO_PRIVATE_INGESTION_KEY=${PROD_ORVO_PRIVATE_INGESTION_KEY}
           EOF
 
           cat <<EOF > deploy/env/telemetry-writer.env
           APP_ENVIRONMENT=production
           POSTGRES_URL=${PROD_POSTGRES_URL}
           CLICKHOUSE_URL=${PROD_CLICKHOUSE_URL}
-          NATS_URL=nats://nats:4222
+          NATS_URL=${PROD_NATS_URL}
           ORVO_OTLP_BASE_URL=http://ingest:4318
-          ORVO_PRIVATE_INGESTION_KEY=${PROD_ORVO_PRIVATE_INGESTION_KEY}
           EOF
 
           cat <<EOF > deploy/env/alerts-worker.env
           NODE_ENV=production
           POSTGRES_URL=${PROD_POSTGRES_URL}
           CLICKHOUSE_URL=${PROD_CLICKHOUSE_URL}
-          ALERTS_ENCRYPTION_KEY=${PROD_BETTER_AUTH_SECRET}
+          ALERTS_ENCRYPTION_KEY=${PROD_ENCRYPTION_SECRET}
           ORVO_OTLP_BASE_URL=http://ingest:4318
-          ORVO_PRIVATE_INGESTION_KEY=${PROD_ORVO_PRIVATE_INGESTION_KEY}
           EOF
 
           printf '%s' "${PROD_POSTGRES_CA_CERT}" | base64 --decode > deploy/certs/do-postgres-ca.crt
