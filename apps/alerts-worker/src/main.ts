@@ -129,7 +129,10 @@ class AlertsWorker {
       })
     ]);
     const openIncidentByEntityKey = new Map(
-      openIncidents.map((incident) => [buildEntityKey(incident.entityType, incident.entityId), incident])
+      openIncidents.map((incident) => [
+        buildEntityKey(incident.entityType, incident.entityId),
+        incident
+      ])
     );
     const touchedEntityKeys = new Set<string>();
     let didMutate = false;
@@ -184,14 +187,7 @@ class AlertsWorker {
           continue;
         }
 
-        await this.resolveIncident(
-          rule,
-          incident,
-          null,
-          windowStartAt,
-          windowEndAt,
-          destinations
-        );
+        await this.resolveIncident(rule, incident, null, windowStartAt, windowEndAt, destinations);
         didMutate = true;
       }
     }
@@ -597,7 +593,7 @@ class AlertsWorker {
             entityName: null,
             status: 'ok',
             value: totalCount / Math.max(rule.windowMinutes, 1)
-          },
+          }
         ];
       }
 
@@ -608,7 +604,7 @@ class AlertsWorker {
             entityId: rule.appId,
             entityName: null,
             status: 'no_data'
-          },
+          }
         ];
       }
 
@@ -621,7 +617,7 @@ class AlertsWorker {
               entityName: null,
               status: 'ok',
               value: (errorCount / totalCount) * 100
-            },
+            }
           ];
         case 'availability_percent':
           return [
@@ -631,7 +627,7 @@ class AlertsWorker {
               entityName: null,
               status: 'ok',
               value: 100 - (errorCount / totalCount) * 100
-            },
+            }
           ];
         case 'latency_p95_ms':
           return [
@@ -641,7 +637,7 @@ class AlertsWorker {
               entityName: null,
               status: 'ok',
               value: p95Ms
-            },
+            }
           ];
         case 'latency_p99_ms':
           return [
@@ -651,7 +647,7 @@ class AlertsWorker {
               entityName: null,
               status: 'ok',
               value: p99Ms
-            },
+            }
           ];
         case 'apdex':
           return [
@@ -661,7 +657,7 @@ class AlertsWorker {
               entityName: null,
               status: 'ok',
               value: (satisfiedCount + toleratedCount / 2) / totalCount
-            },
+            }
           ];
       }
 
@@ -718,8 +714,8 @@ type AlertIncidentRow = typeof alertIncident.$inferSelect;
 type AlertRuleDestinationRow = typeof alertRuleDestination.$inferSelect;
 type AlertDeliveryInsert = typeof alertDeliveryAttempt.$inferInsert;
 type AlertEventName = 'opened' | 'renotified' | 'resolved';
-type AlertEntityType = typeof alertIncident.$inferSelect['entityType'];
-type AlertSignalType = typeof alertRule.$inferSelect['signalType'];
+type AlertEntityType = (typeof alertIncident.$inferSelect)['entityType'];
+type AlertSignalType = (typeof alertRule.$inferSelect)['signalType'];
 type EvaluatedSignal =
   | {
       entityType: AlertEntityType;
@@ -840,11 +836,7 @@ const resolveEntityType = (signalType: AlertSignalType): AlertEntityType =>
       ? 'container'
       : 'app';
 
-const buildTraceRuleWhereClause = (
-  rule: AlertRuleRow,
-  windowStartAt: Date,
-  windowEndAt: Date
-) => {
+const buildTraceRuleWhereClause = (rule: AlertRuleRow, windowStartAt: Date, windowEndAt: Date) => {
   const clauses = [
     `app_id = ${quote(rule.appId)}`,
     `start_time >= ${toDateTime64(windowStartAt)}`,
@@ -870,11 +862,7 @@ const buildTraceRuleWhereClause = (
   return clauses.join(' AND ');
 };
 
-const buildMetricSignalQuery = (
-  rule: AlertRuleRow,
-  windowStartAt: Date,
-  windowEndAt: Date
-) => {
+const buildMetricSignalQuery = (rule: AlertRuleRow, windowStartAt: Date, windowEndAt: Date) => {
   const baseClauses = buildMetricScopeClauses(rule, windowStartAt, windowEndAt);
 
   switch (rule.signalType) {
@@ -886,11 +874,14 @@ const buildMetricSignalQuery = (
           argMax(host_name, time) AS entity_name,
           avg(coalesce(value_double, toFloat64(value_int))) * 100 AS value
         FROM metrics_raw
-        WHERE ${[...baseClauses, `metric_name = ${quote(
-          rule.signalType === 'host_cpu_utilization'
-            ? 'system.cpu.utilization'
-            : 'system.memory.utilization'
-        )}`].join(' AND ')}
+        WHERE ${[
+          ...baseClauses,
+          `metric_name = ${quote(
+            rule.signalType === 'host_cpu_utilization'
+              ? 'system.cpu.utilization'
+              : 'system.memory.utilization'
+          )}`
+        ].join(' AND ')}
         GROUP BY host_id
       `;
     case 'host_filesystem_utilization':
@@ -984,11 +975,7 @@ const buildMetricSignalQuery = (
   throw new Error(`Unsupported metric alert signal: ${rule.signalType}`);
 };
 
-const buildMetricScopeClauses = (
-  rule: AlertRuleRow,
-  windowStartAt: Date,
-  windowEndAt: Date
-) => {
+const buildMetricScopeClauses = (rule: AlertRuleRow, windowStartAt: Date, windowEndAt: Date) => {
   const clauses = [
     `app_id = ${quote(rule.appId)}`,
     `time >= ${toDateTime64(windowStartAt)}`,
@@ -1061,8 +1048,8 @@ const main = async () => {
     process.env.ALERTS_ENCRYPTION_KEY ??
     process.env.BETTER_AUTH_SECRET ??
     process.env.ENCRYPTION_SECRET;
-  const otlpBaseUrl = process.env.ORVO_OTLP_BASE_URL;
-  const otlpIngestionKey = process.env.ORVO_PRIVATE_INGESTION_KEY;
+  const otlpBaseUrl = process.env.PROD_OTEL_BASE_URL;
+  const otlpIngestionKey = process.env.PROD_OTEL_INGEST_KEY;
 
   if (!postgresUrl) {
     throw new Error('Missing POSTGRES_URL');

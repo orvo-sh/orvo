@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 
-import { execFile } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import os from "node:os";
-import { promisify } from "node:util";
+import { execFile } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import os from 'node:os';
+import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
-const envFiles = [".env.local", ".env", "apps/app/.env.local", "apps/app/.env"];
+const envFiles = ['.env.local', '.env', 'apps/app/.env.local', 'apps/app/.env'];
 
 for (const file of envFiles) {
   if (!existsSync(file)) continue;
 
-  for (const line of readFileSync(file, "utf8").split("\n")) {
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
+    if (!trimmed || trimmed.startsWith('#')) continue;
 
     const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
     if (!match) continue;
@@ -24,8 +24,8 @@ for (const file of envFiles) {
 
     process.env[key] = rawValue
       .trim()
-      .replace(/^['"]|['"]$/g, "")
-      .replaceAll("\\n", "\n");
+      .replace(/^['"]|['"]$/g, '')
+      .replaceAll('\\n', '\n');
   }
 }
 
@@ -33,21 +33,20 @@ const args = new Set(process.argv.slice(2));
 const endpoint = (
   process.env.ORVO_INGEST_ENDPOINT ??
   process.env.OTEL_EXPORTER_OTLP_ENDPOINT ??
-  "https://ingest.orvo.sh"
-).replace(/\/$/, "");
+  'https://ingest.orvo.sh'
+).replace(/\/$/, '');
 const ingestionKey =
   process.env.ORVO_INGESTION_KEY ??
+  process.env.PROD_OTEL_INGEST_KEY ??
   process.env.ORVO_PRIVATE_INGESTION_KEY ??
   process.env.INGESTION_KEY ??
   process.env.OTEL_EXPORTER_OTLP_HEADERS?.match(/(?:^|,)x-ingestion-key=([^,]+)/)?.[1];
-const serviceName = process.env.ORVO_SERVICE_NAME ?? "local-workstation";
-const environment = process.env.ORVO_DEPLOYMENT_ENVIRONMENT ?? "local";
+const serviceName = process.env.ORVO_SERVICE_NAME ?? 'local-workstation';
+const environment = process.env.ORVO_DEPLOYMENT_ENVIRONMENT ?? 'local';
 const intervalMs = Number(process.env.ORVO_METRICS_INTERVAL_MS ?? 10_000);
 
 if (!ingestionKey) {
-  console.error(
-    "Missing ingestion key. Set ORVO_INGESTION_KEY=sk_... before running this script.",
-  );
+  console.error('Missing ingestion key. Set ORVO_INGESTION_KEY=sk_... before running this script.');
   process.exit(1);
 }
 
@@ -79,15 +78,10 @@ const cpuSnapshot = () =>
       acc.system += cpu.times.sys;
       acc.idle += cpu.times.idle;
       acc.irq += cpu.times.irq;
-      acc.total +=
-        cpu.times.user +
-        cpu.times.nice +
-        cpu.times.sys +
-        cpu.times.idle +
-        cpu.times.irq;
+      acc.total += cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.idle + cpu.times.irq;
       return acc;
     },
-    { user: 0, nice: 0, system: 0, idle: 0, irq: 0, total: 0 },
+    { user: 0, nice: 0, system: 0, idle: 0, irq: 0, total: 0 }
   );
 
 const cpuUtilization = async () => {
@@ -105,14 +99,14 @@ const cpuUtilization = async () => {
     system: (end.system - start.system) / total,
     idle: (end.idle - start.idle) / total,
     nice: (end.nice - start.nice) / total,
-    irq: (end.irq - start.irq) / total,
+    irq: (end.irq - start.irq) / total
   };
 };
 
 const rootFilesystem = async () => {
   try {
-    const { stdout } = await execFileAsync("/bin/df", ["-k", "/"]);
-    const [, row] = stdout.trim().split("\n");
+    const { stdout } = await execFileAsync('/bin/df', ['-k', '/']);
+    const [, row] = stdout.trim().split('\n');
     const columns = row.trim().split(/\s+/);
     const total = Number(columns[1]) * 1024;
     const used = Number(columns[2]) * 1024;
@@ -128,13 +122,13 @@ const rootFilesystem = async () => {
 
 const attr = (key, value) => ({
   key,
-  value: { stringValue: String(value) },
+  value: { stringValue: String(value) }
 });
 
 const point = (timeUnixNano, value, attributes = []) => ({
   timeUnixNano,
   asDouble: Number(value),
-  attributes,
+  attributes
 });
 
 const gauge = (name, description, unit, dataPoints) => ({
@@ -142,8 +136,8 @@ const gauge = (name, description, unit, dataPoints) => ({
   description,
   unit,
   gauge: {
-    dataPoints,
-  },
+    dataPoints
+  }
 });
 
 const buildPayload = async () => {
@@ -161,58 +155,55 @@ const buildPayload = async () => {
 
   if (cpu) {
     metrics.push(
-      gauge("system.cpu.utilization", "CPU utilization by state.", "1", [
-      point(timeUnixNano, cpu.user, [attr("state", "user")]),
-      point(timeUnixNano, cpu.system, [attr("state", "system")]),
-      point(timeUnixNano, cpu.idle, [attr("state", "idle")]),
-      point(timeUnixNano, cpu.nice, [attr("state", "nice")]),
-      point(timeUnixNano, cpu.irq, [attr("state", "irq")]),
-      ]),
+      gauge('system.cpu.utilization', 'CPU utilization by state.', '1', [
+        point(timeUnixNano, cpu.user, [attr('state', 'user')]),
+        point(timeUnixNano, cpu.system, [attr('state', 'system')]),
+        point(timeUnixNano, cpu.idle, [attr('state', 'idle')]),
+        point(timeUnixNano, cpu.nice, [attr('state', 'nice')]),
+        point(timeUnixNano, cpu.irq, [attr('state', 'irq')])
+      ])
     );
   }
 
   if (loadAverage.length >= 3) {
     metrics.push(
-      gauge("system.cpu.load_average.1m", "One minute system load average.", "1", [
-        point(timeUnixNano, loadAverage[0]),
+      gauge('system.cpu.load_average.1m', 'One minute system load average.', '1', [
+        point(timeUnixNano, loadAverage[0])
       ]),
-      gauge("system.cpu.load_average.5m", "Five minute system load average.", "1", [
-        point(timeUnixNano, loadAverage[1]),
+      gauge('system.cpu.load_average.5m', 'Five minute system load average.', '1', [
+        point(timeUnixNano, loadAverage[1])
       ]),
-      gauge("system.cpu.load_average.15m", "Fifteen minute system load average.", "1", [
-        point(timeUnixNano, loadAverage[2]),
-      ]),
+      gauge('system.cpu.load_average.15m', 'Fifteen minute system load average.', '1', [
+        point(timeUnixNano, loadAverage[2])
+      ])
     );
   }
 
   if (totalMemory !== null && freeMemory !== null && totalMemory > 0) {
     metrics.push(
-      gauge("system.memory.usage", "Memory usage by state.", "By", [
-        point(timeUnixNano, usedMemory, [attr("state", "used")]),
-        point(timeUnixNano, freeMemory, [attr("state", "free")]),
+      gauge('system.memory.usage', 'Memory usage by state.', 'By', [
+        point(timeUnixNano, usedMemory, [attr('state', 'used')]),
+        point(timeUnixNano, freeMemory, [attr('state', 'free')])
       ]),
-      gauge("system.memory.utilization", "Memory utilization.", "1", [
-        point(timeUnixNano, usedMemory / totalMemory),
-      ]),
+      gauge('system.memory.utilization', 'Memory utilization.', '1', [
+        point(timeUnixNano, usedMemory / totalMemory)
+      ])
     );
   }
 
   if (uptime !== null) {
-    metrics.push(gauge("system.uptime", "System uptime.", "s", [point(timeUnixNano, uptime)]));
+    metrics.push(gauge('system.uptime', 'System uptime.', 's', [point(timeUnixNano, uptime)]));
   }
 
   if (filesystem) {
     metrics.push(
-      gauge("system.filesystem.usage", "Root filesystem usage by state.", "By", [
-        point(timeUnixNano, filesystem.used, [attr("state", "used"), attr("mountpoint", "/")]),
-        point(timeUnixNano, filesystem.available, [
-          attr("state", "free"),
-          attr("mountpoint", "/"),
-        ]),
+      gauge('system.filesystem.usage', 'Root filesystem usage by state.', 'By', [
+        point(timeUnixNano, filesystem.used, [attr('state', 'used'), attr('mountpoint', '/')]),
+        point(timeUnixNano, filesystem.available, [attr('state', 'free'), attr('mountpoint', '/')])
       ]),
-      gauge("system.filesystem.utilization", "Root filesystem utilization.", "1", [
-        point(timeUnixNano, filesystem.utilization, [attr("mountpoint", "/")]),
-      ]),
+      gauge('system.filesystem.utilization', 'Root filesystem utilization.', '1', [
+        point(timeUnixNano, filesystem.utilization, [attr('mountpoint', '/')])
+      ])
     );
   }
 
@@ -221,50 +212,50 @@ const buildPayload = async () => {
       {
         resource: {
           attributes: [
-            attr("service.name", serviceName),
-            attr("deployment.environment", environment),
-            attr("os.type", os.type()),
-            attr("os.platform", os.platform()),
-            attr("telemetry.sdk.name", "orvo-local-metrics-script"),
-          ],
+            attr('service.name', serviceName),
+            attr('deployment.environment', environment),
+            attr('os.type', os.type()),
+            attr('os.platform', os.platform()),
+            attr('telemetry.sdk.name', 'orvo-local-metrics-script')
+          ]
         },
         scopeMetrics: [
           {
             scope: {
-              name: "orvo.local.system",
-              version: "1.0.0",
+              name: 'orvo.local.system',
+              version: '1.0.0'
             },
-            metrics,
-          },
-        ],
-      },
-    ],
+            metrics
+          }
+        ]
+      }
+    ]
   };
 };
 
 const sendOnce = async () => {
   const payload = await buildPayload();
   const response = await fetch(`${endpoint}/v1/metrics`, {
-    method: "POST",
+    method: 'POST',
     headers: {
       Authorization: `Bearer ${ingestionKey}`,
-      "Content-Type": "application/json",
-      "x-ingestion-key": ingestionKey,
+      'Content-Type': 'application/json',
+      'x-ingestion-key': ingestionKey
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(payload)
   });
 
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
+    const body = await response.text().catch(() => '');
     throw new Error(`Orvo metrics ingest failed with ${response.status}: ${body}`);
   }
 
   console.log(
-    `Sent ${payload.resourceMetrics[0].scopeMetrics[0].metrics.length} local metric groups to ${endpoint}/v1/metrics as ${serviceName}.`,
+    `Sent ${payload.resourceMetrics[0].scopeMetrics[0].metrics.length} local metric groups to ${endpoint}/v1/metrics as ${serviceName}.`
   );
 };
 
-if (args.has("--watch")) {
+if (args.has('--watch')) {
   console.log(`Sending local metrics every ${intervalMs}ms. Press Ctrl+C to stop.`);
   await sendOnce();
   setInterval(() => {

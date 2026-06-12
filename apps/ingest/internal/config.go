@@ -40,8 +40,8 @@ type Config struct {
 }
 
 type OrvoConfig struct {
-	OTLPBaseURL         string `env:"ORVO_OTLP_BASE_URL"`
-	PrivateIngestionKey string `env:"ORVO_PRIVATE_INGESTION_KEY"`
+	OTLPBaseURL         string `env:"PROD_OTEL_BASE_URL"`
+	PrivateIngestionKey string `env:"PROD_OTEL_INGEST_KEY"`
 }
 
 type AppConfig struct {
