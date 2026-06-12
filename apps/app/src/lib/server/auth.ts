@@ -58,43 +58,43 @@ const createAuth = (
     database: drizzleAdapter(db, { provider: "pg", schema: dbSchema }),
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: email != null ? true : false,
+      requireEmailVerification: false,
     },
     emailVerification:
       email != null
         ? {
-            sendOnSignUp: true,
-            autoSignInAfterVerification: true,
-          }
+          sendOnSignUp: true,
+          autoSignInAfterVerification: true,
+        }
         : undefined,
     socialProviders: config.github
       ? {
-          github: {
-            clientId: config.github.clientId,
-            clientSecret: config.github.clientSecret,
-          },
-        }
+        github: {
+          clientId: config.github.clientId,
+          clientSecret: config.github.clientSecret,
+        },
+      }
       : undefined,
     plugins: [
       email !== null
         ? emailOTP({
-            overrideDefaultEmailVerification: true,
-            sendVerificationOTP: async ({ email: emailAddr, otp, type }) => {
-              switch (type) {
-                case "email-verification":
-                  email?.sendEmail({
-                    to: emailAddr,
-                    subject: "Verify your email",
-                    template: "otp",
-                    props: {
-                      code: otp,
-                      purpose: "sign-up",
-                    },
-                  });
-                  break;
-              }
-            },
-          })
+          overrideDefaultEmailVerification: true,
+          sendVerificationOTP: async ({ email: emailAddr, otp, type }) => {
+            switch (type) {
+              case "email-verification":
+                email?.sendEmail({
+                  to: emailAddr,
+                  subject: "Verify your email",
+                  template: "otp",
+                  props: {
+                    code: otp,
+                    purpose: "sign-up",
+                  },
+                });
+                break;
+            }
+          },
+        })
         : undefined,
       organization({
         schema: {
@@ -118,73 +118,73 @@ const createAuth = (
       }),
       config.stripe && billingService
         ? stripePlugin({
-            stripeClient: config.stripe.client,
-            stripeWebhookSecret: config.stripe.webhookSecret,
-            createCustomerOnSignUp: false,
-            subscription: {
-              enabled: true,
-              plans: [
-                {
-                  name: "starter",
-                  priceId: config.stripe.starterPriceId,
-                  freeTrial: {
-                    days: 14,
-                    onTrialExpired: async (subscription: {
-                      referenceId: string;
-                    }) =>
-                      await billingService.onTrialExpired({
-                        organizationId: subscription.referenceId,
-                      }),
-                  },
+          stripeClient: config.stripe.client,
+          stripeWebhookSecret: config.stripe.webhookSecret,
+          createCustomerOnSignUp: false,
+          subscription: {
+            enabled: true,
+            plans: [
+              {
+                name: "starter",
+                priceId: config.stripe.starterPriceId,
+                freeTrial: {
+                  days: 14,
+                  onTrialExpired: async (subscription: {
+                    referenceId: string;
+                  }) =>
+                    await billingService.onTrialExpired({
+                      organizationId: subscription.referenceId,
+                    }),
                 },
-                {
-                  name: "pro",
-                  priceId: config.stripe.proPriceId,
-                  freeTrial: {
-                    days: 14,
-                    onTrialExpired: async (subscription: {
-                      referenceId: string;
-                    }) =>
-                      await billingService.onTrialExpired({
-                        organizationId: subscription.referenceId,
-                      }),
-                  },
-                },
-              ],
-              authorizeReference: async ({ user, referenceId }) => {
-                if (!referenceId) return false;
-
-                const currentMember = await db.query.member.findFirst({
-                  where: and(
-                    eq(dbSchema.member.organizationId, referenceId),
-                    eq(dbSchema.member.userId, user.id),
-                  ),
-                });
-
-                return currentMember?.role === "owner";
               },
-              getCheckoutSessionParams: async () => ({
-                params: {
-                  payment_method_collection: "always",
+              {
+                name: "pro",
+                priceId: config.stripe.proPriceId,
+                freeTrial: {
+                  days: 14,
+                  onTrialExpired: async (subscription: {
+                    referenceId: string;
+                  }) =>
+                    await billingService.onTrialExpired({
+                      organizationId: subscription.referenceId,
+                    }),
                 },
+              },
+            ],
+            authorizeReference: async ({ user, referenceId }) => {
+              if (!referenceId) return false;
+
+              const currentMember = await db.query.member.findFirst({
+                where: and(
+                  eq(dbSchema.member.organizationId, referenceId),
+                  eq(dbSchema.member.userId, user.id),
+                ),
+              });
+
+              return currentMember?.role === "owner";
+            },
+            getCheckoutSessionParams: async () => ({
+              params: {
+                payment_method_collection: "always",
+              },
+            }),
+            onSubscriptionComplete: async ({ subscription }) =>
+              await billingService.onSubscriptionCompleted({
+                organizationId: subscription.referenceId,
               }),
-              onSubscriptionComplete: async ({ subscription }) =>
-                await billingService.onSubscriptionCompleted({
-                  organizationId: subscription.referenceId,
-                }),
-              onSubscriptionUpdate: async ({ subscription }) =>
-                await billingService.onSubscriptonChanged({
-                  organizationId: subscription.referenceId,
-                }),
-              onSubscriptionDeleted: async ({ subscription }) =>
-                await billingService.onSubscriptionDeleted({
-                  organizationId: subscription.referenceId,
-                }),
-            },
-            organization: {
-              enabled: true,
-            },
-          })
+            onSubscriptionUpdate: async ({ subscription }) =>
+              await billingService.onSubscriptonChanged({
+                organizationId: subscription.referenceId,
+              }),
+            onSubscriptionDeleted: async ({ subscription }) =>
+              await billingService.onSubscriptionDeleted({
+                organizationId: subscription.referenceId,
+              }),
+          },
+          organization: {
+            enabled: true,
+          },
+        })
         : undefined,
       ,
       sveltekitCookies(getRequestEvent),
