@@ -14,9 +14,12 @@ COPY apps/app/package.json apps/app/package.json
 COPY packages/components/package.json packages/components/package.json
 COPY packages/clickhouse/package.json packages/clickhouse/package.json
 COPY packages/db/package.json packages/db/package.json
+COPY packages/encryption/package.json packages/encryption/package.json
 COPY packages/eslint-config/package.json packages/eslint-config/package.json
+COPY packages/logger/package.json packages/logger/package.json
 COPY packages/storage/package.json packages/storage/package.json
 COPY packages/typescript-config/package.json packages/typescript-config/package.json
+COPY packages/utils/package.json packages/utils/package.json
 
 RUN pnpm install --frozen-lockfile
 
