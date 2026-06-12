@@ -15,6 +15,10 @@ const app = pgTable(
     defaultTimezone: text('default_timezone').notNull().default('UTC'),
     createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
     updatedBy: text('updated_by').references(() => user.id, { onDelete: 'set null' }),
+    logsFirstReceivedAt: timestamp('logs_first_received_at'),
+    tracesFirstReceivedAt: timestamp('traces_first_received_at'),
+    metricsFirstReceivedAt: timestamp('metrics_first_received_at'),
+    deploymentsFirstReceivedAt: timestamp('deployments_first_received_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .defaultNow()

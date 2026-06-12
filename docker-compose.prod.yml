@@ -43,6 +43,20 @@ services:
     depends_on:
       - nats
 
+  telemetry-writer:
+    image: ${TELEMETRY_WRITER_IMAGE}
+    restart: unless-stopped
+    env_file:
+      - ./env/telemetry-writer.env
+    depends_on:
+      - nats
+
+  alerts-worker:
+    image: ${ALERTS_WORKER_IMAGE}
+    restart: unless-stopped
+    env_file:
+      - ./env/alerts-worker.env
+
 volumes:
   caddy_data:
   caddy_config:

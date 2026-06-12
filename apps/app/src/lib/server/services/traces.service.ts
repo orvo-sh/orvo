@@ -1,21 +1,129 @@
-import type { ClickHouseClient } from "@repo/clickhouse";
+import type { ClickHouse } from "@repo/clickhouse";
 import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
 import { z } from "zod";
-import { logTimeFilterSchema, resolveTimeRange } from "./logs.service";
+import { resolveTimeFilter, timeFilterSchema } from "./shared/time-filter";
 
 class TracesService {
   private logger: Logger;
 
   constructor(
-    private clickhouse: ClickHouseClient,
+    private clickhouse: ClickHouse,
     logger: Logger,
   ) {
     this.logger = logger.child("TracesService");
   }
 
+  async getTotalTraces(
+    input: z.input<typeof getTotalTracesInputSchema>,
+    context: { appId: string },
+  ) {
+    this.logger.info("getTotalTraces: fetching total traces", {
+      input,
+      context,
+    });
+
+    const validated = getTotalTracesInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
+
+    try {
+      const { startAtUtc, endAtUtc } = resolveTimeFilter(validated.data.time);
+      const result = await this.clickhouse.query({
+        format: "JSONEachRow",
+        query: `
+          SELECT uniqExact(trace_id) AS total
+          FROM traces_raw
+          WHERE app_id = ${quote(context.appId)}
+            AND start_time >= ${toDateTime64(startAtUtc)}
+            AND start_time <= ${toDateTime64(endAtUtc)}
+        `,
+      });
+      const rows = (await result.json()) as unknown as Array<{
+        total: number | string;
+      }>;
+      return ok({ total: Number(rows[0]?.total ?? 0) });
+    } catch (error) {
+      this.logger.error(
+        "getTotalTraces: failed to fetch total traces",
+        error as Error,
+      );
+      return err("Failed to fetch total traces.");
+    }
+  }
+
+  async getTracesTrend(
+    input: z.input<typeof getTotalTracesInputSchema>,
+    context: { appId: string },
+  ) {
+    this.logger.info("getTracesTrend: computing trace trend", {
+      input,
+      context,
+    });
+
+    const validated = getTotalTracesInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
+
+    try {
+      const { startAtUtc, endAtUtc } = resolveTimeFilter(validated.data.time);
+      const rangeMs = endAtUtc.getTime() - startAtUtc.getTime();
+      const baselineStart = new Date(startAtUtc.getTime() - rangeMs);
+      const baselineEnd = startAtUtc;
+
+      const [currentResult, baselineResult] = await Promise.all([
+        this.clickhouse.query({
+          format: "JSONEachRow",
+          query: `
+            SELECT uniqExact(trace_id) AS total
+            FROM traces_raw
+            WHERE app_id = ${quote(context.appId)}
+              AND start_time >= ${toDateTime64(startAtUtc)}
+              AND start_time <= ${toDateTime64(endAtUtc)}
+          `,
+        }),
+        this.clickhouse.query({
+          format: "JSONEachRow",
+          query: `
+            SELECT uniqExact(trace_id) AS total
+            FROM traces_raw
+            WHERE app_id = ${quote(context.appId)}
+              AND start_time >= ${toDateTime64(baselineStart)}
+              AND start_time <= ${toDateTime64(baselineEnd)}
+          `,
+        }),
+      ]);
+
+      const currentRows = (await currentResult.json()) as unknown as Array<{
+        total: number | string;
+      }>;
+      const baselineRows = (await baselineResult.json()) as unknown as Array<{
+        total: number | string;
+      }>;
+
+      const current = Number(currentRows[0]?.total ?? 0);
+      const baseline = Number(baselineRows[0]?.total ?? 0);
+      const trend =
+        baseline > 0
+          ? ((current - baseline) / baseline) * 100
+          : current > 0
+            ? 100
+            : 0;
+
+      return ok({ total: current, trend });
+    } catch (error) {
+      this.logger.error(
+        "getTracesTrend: failed to compute trace trend",
+        error as Error,
+      );
+      return err("Failed to compute trace trend.");
+    }
+  }
+
   async getTraces(
-    input: z.infer<typeof getTracesInputSchema>,
+    input: z.input<typeof getTracesInputSchema>,
     context: { appId: string },
   ) {
     this.logger.info("getTraces: fetching traces", { input, context });
@@ -90,7 +198,7 @@ class TracesService {
   }
 
   async getTraceSummary(
-    input: z.infer<typeof getTraceSummaryInputSchema>,
+    input: z.input<typeof getTraceSummaryInputSchema>,
     context: { appId: string },
   ) {
     this.logger.info("getTraceSummary: fetching trace summary", {
@@ -104,7 +212,7 @@ class TracesService {
     }
 
     try {
-      const { startAtUtc, endAtUtc } = resolveTimeRange(validated.data.time);
+      const { startAtUtc, endAtUtc } = resolveTimeFilter(validated.data.time);
       const whereClause = buildTraceSummaryWhereClause(
         context.appId,
         validated.data,
@@ -144,6 +252,142 @@ class TracesService {
     }
   }
 
+  async getTraceMetrics(
+    input: z.input<typeof getTraceMetricsInputSchema>,
+    context: { appId: string },
+  ) {
+    this.logger.info("getTraceMetrics: fetching trace metrics", {
+      input,
+      context,
+    });
+
+    const validated = getTraceMetricsInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
+
+    try {
+      const timeRange = resolveTimeFilter(validated.data.time);
+      const rangeMs = Math.max(
+        timeRange.endAtUtc.getTime() - timeRange.startAtUtc.getTime(),
+        1,
+      );
+      const baselineStart = new Date(timeRange.startAtUtc.getTime() - rangeMs);
+      const baselineEnd = timeRange.startAtUtc;
+      const bucketCount = validated.data.bucketCount;
+      const bucketSizeMs = Math.max(Math.ceil(rangeMs / bucketCount), 1);
+
+      const [bucketResult, currentSummaryResult, baselineSummaryResult] =
+        await Promise.all([
+          this.clickhouse.query({
+            format: "JSONEachRow",
+            query: `
+              WITH
+                ${timeRange.startAtUtc.getTime()} AS start_ms,
+                ${bucketSizeMs} AS bucket_ms
+              SELECT
+                least(toInt32(intDiv(toUnixTimestamp64Milli(start_time) - start_ms, bucket_ms)), ${bucketCount - 1}) AS bucket_index,
+                count() AS total,
+                countIf(status_code = 2) AS errors,
+                quantile(0.95)(duration_ns / 1000000) AS p95_latency_ms
+              FROM traces_raw
+              WHERE app_id = ${quote(context.appId)}
+                AND start_time >= ${toDateTime64(timeRange.startAtUtc)}
+                AND start_time <= ${toDateTime64(timeRange.endAtUtc)}
+              GROUP BY bucket_index
+              ORDER BY bucket_index ASC
+            `,
+          }),
+          this.clickhouse.query({
+            format: "JSONEachRow",
+            query: `
+              SELECT
+                count() AS total,
+                countIf(status_code = 2) AS errors,
+                quantile(0.95)(duration_ns / 1000000) AS p95_latency_ms
+              FROM traces_raw
+              WHERE app_id = ${quote(context.appId)}
+                AND start_time >= ${toDateTime64(timeRange.startAtUtc)}
+                AND start_time <= ${toDateTime64(timeRange.endAtUtc)}
+            `,
+          }),
+          this.clickhouse.query({
+            format: "JSONEachRow",
+            query: `
+              SELECT
+                count() AS total,
+                countIf(status_code = 2) AS errors,
+                quantile(0.95)(duration_ns / 1000000) AS p95_latency_ms
+              FROM traces_raw
+              WHERE app_id = ${quote(context.appId)}
+                AND start_time >= ${toDateTime64(baselineStart)}
+                AND start_time <= ${toDateTime64(baselineEnd)}
+            `,
+          }),
+        ]);
+
+      const rows = (await bucketResult.json()) as unknown as {
+        bucket_index: number;
+        total: number;
+        errors: number;
+        p95_latency_ms: number;
+      }[];
+      const rowMap = new Map(rows.map((row) => [row.bucket_index, row]));
+      const buckets = Array.from({ length: bucketCount }, (_, index) => {
+        const bucketStart = new Date(
+          timeRange.startAtUtc.getTime() + index * bucketSizeMs,
+        );
+        const bucketEnd = new Date(
+          Math.min(
+            timeRange.startAtUtc.getTime() + (index + 1) * bucketSizeMs,
+            timeRange.endAtUtc.getTime(),
+          ),
+        );
+        const row = rowMap.get(index);
+        const total = Number(row?.total ?? 0);
+        const errors = Number(row?.errors ?? 0);
+
+        return {
+          startAtUtc: bucketStart.toISOString(),
+          endAtUtc: bucketEnd.toISOString(),
+          total,
+          errors,
+          errorRate: total > 0 ? errors / total : 0,
+          p95LatencyMs: Number(row?.p95_latency_ms ?? 0),
+        };
+      });
+
+      const [currentSummaryRow] =
+        (await currentSummaryResult.json()) as unknown as RawTraceMetricSummaryRow[];
+      const [baselineSummaryRow] =
+        (await baselineSummaryResult.json()) as unknown as RawTraceMetricSummaryRow[];
+
+      const toSummary = (row: RawTraceMetricSummaryRow | undefined) => {
+        const total = Number(row?.total ?? 0);
+        const errors = Number(row?.errors ?? 0);
+
+        return {
+          total,
+          errors,
+          errorRate: total > 0 ? errors / total : 0,
+          p95LatencyMs: Number(row?.p95_latency_ms ?? 0),
+        };
+      };
+
+      return ok({
+        buckets,
+        summary: toSummary(currentSummaryRow),
+        baselineSummary: toSummary(baselineSummaryRow),
+      });
+    } catch (error) {
+      this.logger.error(
+        "getTraceMetrics: failed to fetch trace metrics",
+        error as Error,
+      );
+      return err("Failed to fetch trace metrics.");
+    }
+  }
+
   async getTraceServiceSummary(
     input: z.infer<typeof getTraceServiceSummaryInputSchema>,
     context: { appId: string },
@@ -159,7 +403,7 @@ class TracesService {
     }
 
     try {
-      const { startAtUtc, endAtUtc } = resolveTimeRange(validated.data.time);
+      const { startAtUtc, endAtUtc } = resolveTimeFilter(validated.data.time);
       const whereClauses = [
         `app_id = ${quote(context.appId)}`,
         `start_time >= ${toDateTime64(startAtUtc)}`,
@@ -219,7 +463,7 @@ class TracesService {
     }
 
     try {
-      const { startAtUtc, endAtUtc } = resolveTimeRange(validated.data.time);
+      const { startAtUtc, endAtUtc } = resolveTimeFilter(validated.data.time);
       const whereClauses = [
         `app_id = ${quote(context.appId)}`,
         `start_time >= ${toDateTime64(startAtUtc)}`,
@@ -380,14 +624,17 @@ export const tracesCursorSchema = z.object({
   traceId: z.string().trim().min(1).max(255),
 });
 
-export const getTracesInputSchema = z.object({
-  time: logTimeFilterSchema,
-  search: z.string().trim().max(500).default(""),
-  services: stringArrayFilterSchema,
-  environments: stringArrayFilterSchema,
-  scopes: stringArrayFilterSchema,
-  ingestionKeyIds: stringArrayFilterSchema,
-  statusCodes: statusCodeFilterSchema,
+export const tracesQueryFiltersSchema = z.object({
+  time: timeFilterSchema,
+  search: z.string().trim().max(500).optional().default(""),
+  services: stringArrayFilterSchema.optional().default([]),
+  environments: stringArrayFilterSchema.optional().default([]),
+  scopes: stringArrayFilterSchema.optional().default([]),
+  ingestionKeyIds: stringArrayFilterSchema.optional().default([]),
+  statusCodes: statusCodeFilterSchema.optional().default([]),
+});
+
+export const getTracesInputSchema = tracesQueryFiltersSchema.extend({
   limit: z.number().int().min(1).max(500).default(100),
   cursor: tracesCursorSchema.optional(),
 });
@@ -396,22 +643,23 @@ export const getTraceInputSchema = z.object({
   traceId: z.string().trim().min(1).max(255),
 });
 
-export const getTraceSummaryInputSchema = z.object({
-  time: logTimeFilterSchema,
-  search: z.string().trim().max(500).default(""),
-  services: stringArrayFilterSchema,
-  environments: stringArrayFilterSchema,
-  scopes: stringArrayFilterSchema,
-  ingestionKeyIds: stringArrayFilterSchema,
-  statusCodes: statusCodeFilterSchema,
+export const getTraceSummaryInputSchema = tracesQueryFiltersSchema;
+
+export const getTotalTracesInputSchema = z.object({
+  time: timeFilterSchema,
 });
 
 export const getTraceServiceSummaryInputSchema = z.object({
-  time: logTimeFilterSchema,
+  time: timeFilterSchema,
+});
+
+export const getTraceMetricsInputSchema = z.object({
+  time: timeFilterSchema,
+  bucketCount: z.number().int().min(10).max(240).default(60),
 });
 
 export const getServiceGraphInputSchema = z.object({
-  time: logTimeFilterSchema,
+  time: timeFilterSchema,
 });
 
 type RawServiceGraphEdgeRow = {
@@ -440,6 +688,12 @@ type RawTraceSummaryRow = {
   error_traces: number | string;
   p95_latency_ms: number | string;
   service_count: number | string;
+};
+
+type RawTraceMetricSummaryRow = {
+  total: number | string;
+  errors: number | string;
+  p95_latency_ms: number | string;
 };
 
 type RawTraceRow = {
@@ -507,9 +761,9 @@ const buildInClause = (column: string, values: string[]) =>
 
 const buildTraceSummaryWhereClause = (
   appId: string,
-  input: z.infer<typeof getTraceSummaryInputSchema>,
+  input: z.infer<typeof tracesQueryFiltersSchema>,
 ) => {
-  const { startAtUtc, endAtUtc } = resolveTimeRange(input.time);
+  const { startAtUtc, endAtUtc } = resolveTimeFilter(input.time);
   const whereClauses = [
     `app_id = ${quote(appId)}`,
     `start_time >= ${toDateTime64(startAtUtc)}`,
@@ -543,9 +797,9 @@ const buildTraceSummaryWhereClause = (
 
 const buildWhereClause = (
   appId: string,
-  input: z.infer<typeof getTracesInputSchema>,
+  input: z.infer<typeof tracesQueryFiltersSchema>,
 ) => {
-  const { startAtUtc, endAtUtc } = resolveTimeRange(input.time);
+  const { startAtUtc, endAtUtc } = resolveTimeFilter(input.time);
   const whereClauses = [
     `app_id = ${quote(appId)}`,
     `start_time >= ${toDateTime64(startAtUtc)}`,

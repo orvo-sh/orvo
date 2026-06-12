@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs';
-export { and, desc, eq, isNull } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { readFileSync } from 'node:fs';
 import postgres, { type Options, type PostgresType, type Sql } from 'postgres';
+export { and, desc, eq, isNull } from 'drizzle-orm';
 
 import * as schema from './schema/index.js';
 
@@ -9,6 +9,7 @@ const createDb = (databaseUrl: string) => drizzle(getDbClient(databaseUrl), { sc
 
 type Database = ReturnType<typeof createDb>;
 export type DB = Database;
+export type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 const clients = new Map<string, Sql>();
 const databases = new Map<string, Database>();

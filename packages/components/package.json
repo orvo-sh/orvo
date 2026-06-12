@@ -26,10 +26,35 @@
       "svelte": "./src/lib/components/icons/github/index.ts",
       "default": "./src/lib/components/icons/github/index.ts"
     },
+    "./icons/golang": {
+      "types": "./src/lib/components/icons/golang/index.ts",
+      "svelte": "./src/lib/components/icons/golang/index.ts",
+      "default": "./src/lib/components/icons/golang/index.ts"
+    },
+    "./icons/java": {
+      "types": "./src/lib/components/icons/java/index.ts",
+      "svelte": "./src/lib/components/icons/java/index.ts",
+      "default": "./src/lib/components/icons/java/index.ts"
+    },
+    "./icons/nodejs": {
+      "types": "./src/lib/components/icons/nodejs/index.ts",
+      "svelte": "./src/lib/components/icons/nodejs/index.ts",
+      "default": "./src/lib/components/icons/nodejs/index.ts"
+    },
     "./icons/orvo-logo": {
       "types": "./src/lib/components/icons/orvo-logo/index.ts",
       "svelte": "./src/lib/components/icons/orvo-logo/index.ts",
       "default": "./src/lib/components/icons/orvo-logo/index.ts"
+    },
+    "./icons/python": {
+      "types": "./src/lib/components/icons/python/index.ts",
+      "svelte": "./src/lib/components/icons/python/index.ts",
+      "default": "./src/lib/components/icons/python/index.ts"
+    },
+    "./icons/rust": {
+      "types": "./src/lib/components/icons/rust/index.ts",
+      "svelte": "./src/lib/components/icons/rust/index.ts",
+      "default": "./src/lib/components/icons/rust/index.ts"
     },
     "./ui/accordion": {
       "types": "./src/lib/components/ui/accordion/index.ts",

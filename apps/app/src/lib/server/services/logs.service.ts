@@ -1,20 +1,22 @@
-import type { ClickHouseClient } from "@repo/clickhouse";
+import type { ClickHouse } from "@repo/clickhouse";
 import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
 import { z } from "zod";
+import { buildInClause, quote, toDateTime64 } from "./shared/query-builders";
+import { resolveTimeFilter, timeFilterSchema } from "./shared/time-filter";
 
 class LogsService {
   private logger: Logger;
 
   constructor(
-    private clickhouse: ClickHouseClient,
+    private clickhouse: ClickHouse,
     logger: Logger,
   ) {
     this.logger = logger.child("LogsService");
   }
 
   async getLogs(
-    input: z.infer<typeof getLogsInputSchema>,
+    input: z.input<typeof getLogsInputSchema>,
     context: { appId: string },
   ) {
     this.logger.info("getLogs: fetching logs", { input, context });
@@ -61,7 +63,30 @@ class LogsService {
 					LIMIT ${pageSize}
 				`,
       });
-      const rows = (await result.json()) as unknown as RawLogRow[];
+      const rows = (await result.json()) as unknown as {
+        id: string;
+        app_id: string;
+        ingestion_key_id: string;
+        received_at: string | Date;
+        expires_at: string | Date;
+        timestamp: string | Date;
+        observed_timestamp: string | Date;
+        severity_number: number;
+        severity_text: string;
+        body: string;
+        trace_id: string;
+        span_id: string;
+        trace_flags: number;
+        resource_attributes: Record<string, string>;
+        resource_schema_url: string;
+        scope_name: string;
+        scope_version: string;
+        scope_attributes: Record<string, string>;
+        scope_schema_url: string;
+        log_attributes: Record<string, string>;
+        service_name: string;
+        deployment_environment: string;
+      }[];
       const hasNextPage = rows.length > validated.data.limit;
       const visibleRows = rows.slice(0, validated.data.limit).map((row) => ({
         ...row,
@@ -88,8 +113,110 @@ class LogsService {
     }
   }
 
+  async getTotalLogs(
+    input: z.input<typeof getTotalLogsInputSchema>,
+    context: { appId: string },
+  ) {
+    this.logger.info("getTotalLogs: fetching total logs", { input, context });
+
+    const validated = getTotalLogsInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
+
+    try {
+      const { startAtUtc, endAtUtc } = resolveTimeFilter(validated.data.time);
+      const result = await this.clickhouse.query({
+        format: "JSONEachRow",
+        query: `
+          SELECT count() AS total
+          FROM logs_raw
+          WHERE app_id = ${quote(context.appId)}
+            AND timestamp >= ${toDateTime64(startAtUtc)}
+            AND timestamp <= ${toDateTime64(endAtUtc)}
+        `,
+      });
+      const rows = (await result.json()) as unknown as Array<{
+        total: number | string;
+      }>;
+      return ok({ total: Number(rows[0]?.total ?? 0) });
+    } catch (error) {
+      this.logger.error(
+        "getTotalLogs: failed to fetch total logs",
+        error as Error,
+      );
+      return err("Failed to fetch total logs.");
+    }
+  }
+
+  async getLogsTrend(
+    input: z.input<typeof getTotalLogsInputSchema>,
+    context: { appId: string },
+  ) {
+    this.logger.info("getLogsTrend: computing log trend", { input, context });
+
+    const validated = getTotalLogsInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
+
+    try {
+      const { startAtUtc, endAtUtc } = resolveTimeFilter(validated.data.time);
+      const rangeMs = endAtUtc.getTime() - startAtUtc.getTime();
+      const baselineStart = new Date(startAtUtc.getTime() - rangeMs);
+      const baselineEnd = startAtUtc;
+
+      const [currentResult, baselineResult] = await Promise.all([
+        this.clickhouse.query({
+          format: "JSONEachRow",
+          query: `
+            SELECT count() AS total
+            FROM logs_raw
+            WHERE app_id = ${quote(context.appId)}
+              AND timestamp >= ${toDateTime64(startAtUtc)}
+              AND timestamp <= ${toDateTime64(endAtUtc)}
+          `,
+        }),
+        this.clickhouse.query({
+          format: "JSONEachRow",
+          query: `
+            SELECT count() AS total
+            FROM logs_raw
+            WHERE app_id = ${quote(context.appId)}
+              AND timestamp >= ${toDateTime64(baselineStart)}
+              AND timestamp <= ${toDateTime64(baselineEnd)}
+          `,
+        }),
+      ]);
+
+      const currentRows = (await currentResult.json()) as unknown as Array<{
+        total: number | string;
+      }>;
+      const baselineRows = (await baselineResult.json()) as unknown as Array<{
+        total: number | string;
+      }>;
+
+      const current = Number(currentRows[0]?.total ?? 0);
+      const baseline = Number(baselineRows[0]?.total ?? 0);
+      const trend =
+        baseline > 0
+          ? ((current - baseline) / baseline) * 100
+          : current > 0
+            ? 100
+            : 0;
+
+      return ok({ total: current, trend });
+    } catch (error) {
+      this.logger.error(
+        "getLogsTrend: failed to compute log trend",
+        error as Error,
+      );
+      return err("Failed to compute log trend.");
+    }
+  }
+
   async getLogVolume(
-    input: z.infer<typeof getLogVolumeInputSchema>,
+    input: z.input<typeof getLogVolumeInputSchema>,
     context: { appId: string },
   ) {
     this.logger.info("getLogVolume: fetching log volume", { input, context });
@@ -100,7 +227,7 @@ class LogsService {
     }
 
     try {
-      const timeRange = resolveTimeRange(validated.data.time);
+      const timeRange = resolveTimeFilter(validated.data.time);
       const rangeMs = Math.max(
         timeRange.endAtUtc.getTime() - timeRange.startAtUtc.getTime(),
         1,
@@ -134,7 +261,16 @@ class LogsService {
 					ORDER BY bucket_index ASC
 				`,
       });
-      const rows = (await result.json()) as unknown as RawVolumeRow[];
+      const rows = (await result.json()) as unknown as {
+        bucket_index: number;
+        fatal: number;
+        error: number;
+        warn: number;
+        info: number;
+        debug: number;
+        trace: number;
+        total: number;
+      }[];
       const rowMap = new Map(rows.map((row) => [row.bucket_index, row]));
       const buckets = Array.from({ length: bucketCount }, (_, index) => {
         const bucketStart = new Date(
@@ -151,13 +287,13 @@ class LogsService {
         return {
           startAtUtc: bucketStart.toISOString(),
           endAtUtc: bucketEnd.toISOString(),
-          fatal: row?.fatal ?? 0,
-          error: row?.error ?? 0,
-          warn: row?.warn ?? 0,
-          info: row?.info ?? 0,
-          debug: row?.debug ?? 0,
-          trace: row?.trace ?? 0,
-          total: row?.total ?? 0,
+          fatal: Number(row?.fatal ?? 0),
+          error: Number(row?.error ?? 0),
+          warn: Number(row?.warn ?? 0),
+          info: Number(row?.info ?? 0),
+          debug: Number(row?.debug ?? 0),
+          trace: Number(row?.trace ?? 0),
+          total: Number(row?.total ?? 0),
         };
       });
 
@@ -172,7 +308,7 @@ class LogsService {
   }
 
   async getLogServiceVolume(
-    input: z.infer<typeof getLogServiceVolumeInputSchema>,
+    input: z.input<typeof getLogServiceVolumeInputSchema>,
     context: { appId: string },
   ) {
     this.logger.info("getLogServiceVolume: fetching service volume", {
@@ -186,7 +322,7 @@ class LogsService {
     }
 
     try {
-      const timeRange = resolveTimeRange(validated.data.time);
+      const timeRange = resolveTimeFilter(validated.data.time);
       const rangeMs = Math.max(
         timeRange.endAtUtc.getTime() - timeRange.startAtUtc.getTime(),
         1,
@@ -211,9 +347,25 @@ class LogsService {
 					ORDER BY service_name, bucket_index ASC
 				`,
       });
-      const rows = (await result.json()) as unknown as RawServiceVolumeRow[];
+      const rows = (await result.json()) as unknown as {
+        service_name: string;
+        bucket_index: number;
+        total: number;
+        errors: number;
+      }[];
 
-      const serviceMap = new Map<string, Map<number, RawServiceVolumeRow>>();
+      const serviceMap = new Map<
+        string,
+        Map<
+          number,
+          {
+            service_name: string;
+            bucket_index: number;
+            total: number;
+            errors: number;
+          }
+        >
+      >();
       for (const row of rows) {
         if (!serviceMap.has(row.service_name)) {
           serviceMap.set(row.service_name, new Map());
@@ -251,7 +403,7 @@ class LogsService {
   }
 
   async getLogServiceSummary(
-    input: z.infer<typeof getLogServiceSummaryInputSchema>,
+    input: z.input<typeof getLogServiceSummaryInputSchema>,
     context: { appId: string },
   ) {
     this.logger.info("getLogServiceSummary: fetching service summary", {
@@ -265,7 +417,7 @@ class LogsService {
     }
 
     try {
-      const { startAtUtc, endAtUtc } = resolveTimeRange(validated.data.time);
+      const { startAtUtc, endAtUtc } = resolveTimeFilter(validated.data.time);
       const whereClause = buildWhereClause(context.appId, {
         time: validated.data.time,
         search: "",
@@ -290,7 +442,12 @@ class LogsService {
 					LIMIT 20
 				`,
       });
-      const rows = (await result.json()) as unknown as RawServiceSummaryRow[];
+      const rows = (await result.json()) as unknown as {
+        service_name: string;
+        total: number | string;
+        errors: number | string;
+        last_seen: string | Date;
+      }[];
 
       return ok({
         services: rows.map((row) => ({
@@ -331,36 +488,14 @@ const stringArrayFilterSchema = z
 
 export const logTimePresetSchema = z.enum(logTimePresetValues);
 
-export const logTimeFilterSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("preset"),
-    preset: logTimePresetSchema,
-  }),
-  z
-    .object({
-      kind: z.literal("range"),
-      startAtUtc: z.string().datetime({ offset: true }),
-      endAtUtc: z.string().datetime({ offset: true }),
-    })
-    .refine(
-      (value) =>
-        new Date(value.startAtUtc).getTime() <=
-        new Date(value.endAtUtc).getTime(),
-      {
-        message: "startAtUtc must be less than or equal to endAtUtc",
-        path: ["endAtUtc"],
-      },
-    ),
-]);
-
 export const logsQueryFiltersSchema = z.object({
-  time: logTimeFilterSchema,
-  search: z.string().trim().max(500).default(""),
-  levels: stringArrayFilterSchema,
-  services: stringArrayFilterSchema,
-  environments: stringArrayFilterSchema,
-  scopes: stringArrayFilterSchema,
-  ingestionKeyIds: stringArrayFilterSchema,
+  time: timeFilterSchema,
+  search: z.string().trim().max(500).optional().default(""),
+  levels: stringArrayFilterSchema.optional().default([]),
+  services: stringArrayFilterSchema.optional().default([]),
+  environments: stringArrayFilterSchema.optional().default([]),
+  scopes: stringArrayFilterSchema.optional().default([]),
+  ingestionKeyIds: stringArrayFilterSchema.optional().default([]),
   traceId: z.string().trim().max(255).optional(),
   spanId: z.string().trim().max(255).optional(),
 });
@@ -380,11 +515,15 @@ export const getLogVolumeInputSchema = logsQueryFiltersSchema.extend({
 });
 
 export const getLogServiceSummaryInputSchema = z.object({
-  time: logTimeFilterSchema,
+  time: timeFilterSchema,
 });
 
 export const getLogServiceVolumeInputSchema = logsQueryFiltersSchema.extend({
   bucketCount: z.number().int().min(5).max(240).default(20),
+});
+
+export const getTotalLogsInputSchema = z.object({
+  time: timeFilterSchema,
 });
 
 export type LogsOmitFacet =
@@ -393,62 +532,6 @@ export type LogsOmitFacet =
   | "environments"
   | "scopes"
   | "ingestionKeyIds";
-
-type RawLogRow = {
-  id: string;
-  app_id: string;
-  ingestion_key_id: string;
-  received_at: string | Date;
-  expires_at: string | Date;
-  timestamp: string | Date;
-  observed_timestamp: string | Date;
-  severity_number: number;
-  severity_text: string;
-  body: string;
-  trace_id: string;
-  span_id: string;
-  trace_flags: number;
-  resource_attributes: Record<string, string>;
-  resource_schema_url: string;
-  scope_name: string;
-  scope_version: string;
-  scope_attributes: Record<string, string>;
-  scope_schema_url: string;
-  log_attributes: Record<string, string>;
-  service_name: string;
-  deployment_environment: string;
-};
-
-type RawVolumeRow = {
-  bucket_index: number;
-  fatal: number;
-  error: number;
-  warn: number;
-  info: number;
-  debug: number;
-  trace: number;
-  total: number;
-};
-
-type RawServiceSummaryRow = {
-  service_name: string;
-  total: number | string;
-  errors: number | string;
-  last_seen: string | Date;
-};
-
-type RawServiceVolumeRow = {
-  service_name: string;
-  bucket_index: number;
-  total: number;
-  errors: number;
-};
-
-const quote = (value: string) =>
-  `'${value.replaceAll("\\", "\\\\").replaceAll("'", "\\'")}'`;
-
-const toDateTime64 = (value: Date) =>
-  `parseDateTime64BestEffort(${quote(value.toISOString())})`;
 
 const normalizeDateTime = (value: string | Date) => {
   if (value instanceof Date) {
@@ -462,49 +545,6 @@ const normalizeDateTime = (value: string | Date) => {
   return `${value.replace(" ", "T")}Z`;
 };
 
-const buildInClause = (column: string, values: string[]) =>
-  `${column} IN (${values.map((value) => quote(value)).join(", ")})`;
-
-const resolveTimeRange = (time: z.infer<typeof logTimeFilterSchema>) => {
-  const endAtUtc = new Date();
-
-  if (time.kind === "range") {
-    return {
-      startAtUtc: new Date(time.startAtUtc),
-      endAtUtc: new Date(time.endAtUtc),
-    };
-  }
-
-  if (time.preset === "today") {
-    const startAtToday = new Date(endAtUtc);
-    startAtToday.setUTCHours(0, 0, 0, 0);
-    return {
-      startAtUtc: startAtToday,
-      endAtUtc,
-    };
-  }
-
-  const presetMinutesMap: Record<(typeof logTimePresetValues)[number], number> =
-    {
-      last_30_minutes: 30,
-      last_hour: 60,
-      today: 0,
-      last_4_hours: 60 * 4,
-      last_24_hours: 60 * 24,
-      last_3_days: 60 * 24 * 3,
-      last_7_days: 60 * 24 * 7,
-      last_2_weeks: 60 * 24 * 14,
-      last_month: 60 * 24 * 30,
-    };
-
-  return {
-    startAtUtc: new Date(
-      endAtUtc.getTime() - presetMinutesMap[time.preset] * 60 * 1000,
-    ),
-    endAtUtc,
-  };
-};
-
 const buildWhereClause = (
   appId: string,
   input: z.infer<typeof logsQueryFiltersSchema>,
@@ -513,7 +553,7 @@ const buildWhereClause = (
     cursor?: z.infer<typeof logsCursorSchema>;
   },
 ) => {
-  const { startAtUtc, endAtUtc } = resolveTimeRange(input.time);
+  const { startAtUtc, endAtUtc } = resolveTimeFilter(input.time);
   const whereClauses = [
     `app_id = ${quote(appId)}`,
     `timestamp >= ${toDateTime64(startAtUtc)}`,
@@ -568,4 +608,4 @@ const buildWhereClause = (
   return whereClauses.join(" AND ");
 };
 
-export { buildWhereClause, LogsService, resolveTimeRange };
+export { buildWhereClause, LogsService };

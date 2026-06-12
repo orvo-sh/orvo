@@ -1,4 +1,4 @@
-import type { ClickHouseClient } from '@repo/clickhouse';
+import type { ClickHouse } from '@repo/clickhouse';
 import type { Logger } from '@repo/logger';
 import { err, ok } from '@repo/utils';
 import { z } from 'zod';
@@ -8,7 +8,7 @@ class LogFacetsService {
 	private logger: Logger;
 
 	constructor(
-		private clickhouse: ClickHouseClient,
+		private clickhouse: ClickHouse,
 		logger: Logger
 	) {
 		this.logger = logger.child('LogFacetsService');

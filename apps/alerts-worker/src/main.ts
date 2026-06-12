@@ -1,22 +1,22 @@
-import { getClickHouseClient, type ClickHouseClient } from '@repo/clickhouse';
-import { getDb, type DB } from '@repo/db';
-import { Encryption } from '@repo/encryption';
-import { Logger } from '@repo/logger';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { defaultResource, resourceFromAttributes } from '@opentelemetry/resources';
 import { BatchLogRecordProcessor, LoggerProvider } from '@opentelemetry/sdk-logs';
 import {
-	ATTR_DEPLOYMENT_ENVIRONMENT_NAME,
-	ATTR_SERVICE_NAME
+  ATTR_DEPLOYMENT_ENVIRONMENT_NAME,
+  ATTR_SERVICE_NAME
 } from '@opentelemetry/semantic-conventions';
+import { getClickHouseClient, type ClickHouse } from '@repo/clickhouse';
+import { getDb, type DB } from '@repo/db';
 import {
-	alertDeliveryAttempt,
-	alertEvent,
-	alertIncident,
-	alertRule,
-	alertRuleDestination,
-	alertWebhookDestination
+  alertDeliveryAttempt,
+  alertEvent,
+  alertIncident,
+  alertRule,
+  alertRuleDestination,
+  alertWebhookDestination
 } from '@repo/db/schema';
+import { Encryption } from '@repo/encryption';
+import { Logger } from '@repo/logger';
 import { genId } from '@repo/utils';
 import { and, asc, eq, inArray, isNull, lt, lte, or } from 'drizzle-orm';
 
@@ -32,7 +32,7 @@ class AlertsWorker {
 
 	constructor(
 		private db: DB,
-		private clickhouse: ClickHouseClient,
+		private clickhouse: ClickHouse,
 		private encryption: Encryption,
 		logger: Logger
 	) {

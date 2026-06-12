@@ -1,6 +1,7 @@
-export { err } from './err.js';
+export { formatNumber } from './format-number.js';
 export { genId } from './gen-id.js';
 export { generateRandomString } from './generate-random-string.js';
-export { ok } from './ok.js';
+export { redact } from "./redact.js";
+export { allOk, err, ok, type Result as ServiceResult } from './result.js';
 export { slugify } from './slugify.js';
-export type { ServiceResult } from './result.js';
+

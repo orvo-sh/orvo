@@ -1,17 +1,17 @@
-import type { ClickHouseClient } from "@repo/clickhouse";
+import type { ClickHouse } from "@repo/clickhouse";
 import type { DB } from "@repo/db";
 import { alertIncident, alertRule, deployment } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
 import { err, genId, ok } from "@repo/utils";
 import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { z } from "zod";
-import { logTimeFilterSchema, resolveTimeRange } from "./logs.service";
+import { resolveTimeFilter, timeFilterSchema } from "./shared/time-filter";
 
 class InsightsService {
   private logger: Logger;
 
   constructor(
-    private clickhouse: ClickHouseClient,
+    private clickhouse: ClickHouse,
     private db: DB,
     logger: Logger,
   ) {
@@ -30,7 +30,7 @@ class InsightsService {
     }
 
     try {
-      const { startAtUtc, endAtUtc } = resolveTimeRange(validated.data.time);
+      const { startAtUtc, endAtUtc } = resolveTimeFilter(validated.data.time);
       const rangeMs = endAtUtc.getTime() - startAtUtc.getTime();
       const baselineStart = new Date(startAtUtc.getTime() - rangeMs);
       const baselineEnd = startAtUtc;
@@ -114,9 +114,19 @@ class InsightsService {
         openIncidentByRuleId,
       });
 
-      insights.sort((a, b) => b.score - a.score);
+      insights.sort((a, b) => {
+        if (a.category === "active_alert" && b.category !== "active_alert") {
+          return -1;
+        }
 
-      return ok({ insights: insights.slice(0, 8) });
+        if (a.category !== "active_alert" && b.category === "active_alert") {
+          return 1;
+        }
+
+        return b.score - a.score;
+      });
+
+      return ok({ insights });
     } catch (error) {
       this.logger.error("getInsights: failed to generate insights", error);
       return err("Failed to generate insights.");
@@ -601,7 +611,7 @@ class InsightsService {
 }
 
 export const getInsightsInputSchema = z.object({
-  time: logTimeFilterSchema,
+  time: timeFilterSchema,
 });
 
 type WindowData = {

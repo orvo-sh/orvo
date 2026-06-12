@@ -4,7 +4,8 @@ import {
 	type ClickHouseClientConfigOptions
 } from '@clickhouse/client';
 
-export const getClickHouseClient = (config: ClickHouseClientConfigOptions): ClickHouseClient =>
+const getClickHouseClient = (config: ClickHouseClientConfigOptions): ClickHouseClient =>
 	createClient(config);
 
-export type { ClickHouseClient, ClickHouseClientConfigOptions };
+export { getClickHouseClient, type ClickHouseClient as ClickHouse };
+

@@ -153,6 +153,9 @@ importers:
       import-in-the-middle:
         specifier: ^3.0.1
         version: 3.0.1
+      layerchart:
+        specifier: 2.0.0-next.48
+        version: 2.0.0-next.48(@sveltejs/kit@2.60.1(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@7.0.0(svelte@5.55.9(@typescript-eslint/types@8.57.1))(vite@8.0.13(@types/node@24.12.0)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0)))(svelte@5.55.9(@typescript-eslint/types@8.57.1))(typescript@5.9.3)(vite@8.0.13(@types/node@24.12.0)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0)))(svelte@5.55.9(@typescript-eslint/types@8.57.1))(zod@4.4.3)
       postgres:
         specifier: ^3.4.9
         version: 3.4.9

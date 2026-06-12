@@ -1,159 +1,179 @@
-import { and, desc, eq, isNull, type DB } from '@repo/db';
-import { ingestionKey } from '@repo/db/schema';
-import type { Logger } from '@repo/logger';
-import { err, genId, ok } from '@repo/utils';
-import { z } from 'zod';
+import { and, desc, eq, isNull, type DB, type Tx } from "@repo/db";
+import { ingestionKey } from "@repo/db/schema";
+import type { Logger } from "@repo/logger";
+import { err, genId, ok } from "@repo/utils";
+import { z } from "zod";
 
 class IngestionKeyService {
-	private logger: Logger;
+  private logger: Logger;
 
-	constructor(
-		private db: DB,
-		logger: Logger
-	) {
-		this.logger = logger.child('IngestionKeyService');
-	}
+  constructor(
+    private db: DB,
+    logger: Logger,
+  ) {
+    this.logger = logger.child("IngestionKeyService");
+  }
 
-	async getIngestionKey(
-		input: z.infer<typeof getIngestionKeyInputSchema>,
-		context: { appId: string }
-	) {
-		this.logger.info('getIngestionKey: getting ingestion key', { input, context });
+  async getIngestionKey(
+    input: z.infer<typeof getIngestionKeyInputSchema>,
+    context: { appId: string },
+  ) {
+    this.logger.info("getIngestionKey: getting ingestion key", {
+      input,
+      context,
+    });
 
-		const validated = getIngestionKeyInputSchema.safeParse(input);
-		if (!validated.success) {
-			return err(validated.error.message);
-		}
+    const validated = getIngestionKeyInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
 
-		try {
-			const key = await this.db.query.ingestionKey.findFirst({
-				where: and(
-					eq(ingestionKey.appId, context.appId),
-					eq(ingestionKey.kind, validated.data.kind),
-					isNull(ingestionKey.revokedAt)
-				),
-				orderBy: [desc(ingestionKey.createdAt)]
-			});
+    try {
+      const key = await this.db.query.ingestionKey.findFirst({
+        where: and(
+          eq(ingestionKey.appId, context.appId),
+          eq(ingestionKey.kind, validated.data.kind),
+          isNull(ingestionKey.revokedAt),
+        ),
+        orderBy: [desc(ingestionKey.createdAt)],
+      });
 
-			return ok({ key: key ?? null });
-		} catch (error) {
-			this.logger.error('getIngestionKey: failed to get ingestion key', error as Error);
-			return err('Failed to get ingestion key.');
-		}
-	}
+      return ok({ key: key ?? null });
+    } catch (error) {
+      this.logger.error(
+        "getIngestionKey: failed to get ingestion key",
+        error as Error,
+      );
+      return err("Failed to get ingestion key.");
+    }
+  }
 
-	async createIngestionKey(
-		input: z.infer<typeof createIngestionKeyInputSchema>,
-		context: { appId: string; userId: string }
-	) {
-		this.logger.info('createIngestionKey: creating ingestion key', { input, context });
+  async createIngestionKey(
+    input: z.infer<typeof createIngestionKeyInputSchema>,
+    context: { appId: string; userId: string; tx?: Tx },
+  ) {
+    this.logger.info("createIngestionKey: creating ingestion key", {
+      input,
+      context,
+    });
 
-		const validated = createIngestionKeyInputSchema.safeParse(input);
-		if (!validated.success) {
-			return err(validated.error.message);
-		}
+    const validated = createIngestionKeyInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
 
-		try {
-			const activeKey = await this.db.query.ingestionKey.findFirst({
-				where: and(
-					eq(ingestionKey.appId, context.appId),
-					eq(ingestionKey.kind, validated.data.kind),
-					isNull(ingestionKey.revokedAt)
-				)
-			});
+    try {
+      const db = context.tx ?? this.db;
 
-			if (activeKey) {
-				return ok({ id: activeKey.id, key: activeKey.key });
-			}
+      const activeKey = await db.query.ingestionKey.findFirst({
+        where: and(
+          eq(ingestionKey.appId, context.appId),
+          eq(ingestionKey.kind, validated.data.kind),
+          isNull(ingestionKey.revokedAt),
+        ),
+      });
 
-			const key = genId(validated.data.kind === 'public' ? 'pk' : 'sk');
-			const id = genId('ingk');
+      if (activeKey) {
+        return ok({ id: activeKey.id, key: activeKey.key });
+      }
 
-			await this.db
-				.insert(ingestionKey)
-				.values({
-					id,
-					appId: context.appId,
-					kind: validated.data.kind,
-					key,
-					createdBy: context.userId
-				})
-				.execute();
+      const key = genId(validated.data.kind === "public" ? "pk" : "sk");
+      const id = genId("ingk");
 
-			return ok({ id, key });
-		} catch (error) {
-			this.logger.error('createIngestionKey: failed to create ingestion key', error as Error);
-			return err('Failed to create ingestion key.');
-		}
-	}
+      await db
+        .insert(ingestionKey)
+        .values({
+          id,
+          appId: context.appId,
+          kind: validated.data.kind,
+          key,
+          createdBy: context.userId,
+        })
+        .execute();
 
-	async rotateIngestionKey(
-		input: z.infer<typeof rotateIngestionKeyInputSchema>,
-		context: { appId: string; userId: string }
-	) {
-		this.logger.info('rotateIngestionKey: rotating ingestion key', { input, context });
+      return ok({ id, key });
+    } catch (error) {
+      this.logger.error(
+        "createIngestionKey: failed to create ingestion key",
+        error as Error,
+      );
+      return err("Failed to create ingestion key.");
+    }
+  }
 
-		const validated = rotateIngestionKeyInputSchema.safeParse(input);
-		if (!validated.success) {
-			return err(validated.error.message);
-		}
+  async rotateIngestionKey(
+    input: z.infer<typeof rotateIngestionKeyInputSchema>,
+    context: { appId: string; userId: string },
+  ) {
+    this.logger.info("rotateIngestionKey: rotating ingestion key", {
+      input,
+      context,
+    });
 
-		try {
-			const activeKey = await this.db.query.ingestionKey.findFirst({
-				where: and(
-					eq(ingestionKey.appId, context.appId),
-					eq(ingestionKey.kind, validated.data.kind),
-					isNull(ingestionKey.revokedAt)
-				)
-			});
+    const validated = rotateIngestionKeyInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
 
-			if (activeKey) {
-				await this.db
-					.update(ingestionKey)
-					.set({ revokedAt: new Date() })
-					.where(eq(ingestionKey.id, activeKey.id))
-					.execute();
-			}
+    try {
+      const activeKey = await this.db.query.ingestionKey.findFirst({
+        where: and(
+          eq(ingestionKey.appId, context.appId),
+          eq(ingestionKey.kind, validated.data.kind),
+          isNull(ingestionKey.revokedAt),
+        ),
+      });
 
-			const key = genId(validated.data.kind === 'public' ? 'pk' : 'sk');
-			const id = genId('ingk');
+      if (activeKey) {
+        await this.db
+          .update(ingestionKey)
+          .set({ revokedAt: new Date() })
+          .where(eq(ingestionKey.id, activeKey.id))
+          .execute();
+      }
 
-			await this.db
-				.insert(ingestionKey)
-				.values({
-					id,
-					appId: context.appId,
-					kind: validated.data.kind,
-					key,
-					createdBy: context.userId
-				})
-				.execute();
+      const key = genId(validated.data.kind === "public" ? "pk" : "sk");
+      const id = genId("ingk");
 
-			return ok({ id, key });
-		} catch (error) {
-			this.logger.error('rotateIngestionKey: failed to rotate ingestion key', error as Error);
-			return err('Failed to rotate ingestion key.');
-		}
-	}
+      await this.db
+        .insert(ingestionKey)
+        .values({
+          id,
+          appId: context.appId,
+          kind: validated.data.kind,
+          key,
+          createdBy: context.userId,
+        })
+        .execute();
+
+      return ok({ id, key });
+    } catch (error) {
+      this.logger.error(
+        "rotateIngestionKey: failed to rotate ingestion key",
+        error as Error,
+      );
+      return err("Failed to rotate ingestion key.");
+    }
+  }
 }
 
-const ingestionKeyKindSchema = z.enum(['public', 'private']);
+const ingestionKeyKindSchema = z.enum(["public", "private"]);
 
 const getIngestionKeyInputSchema = z.object({
-	kind: ingestionKeyKindSchema
+  kind: ingestionKeyKindSchema,
 });
 
 const createIngestionKeyInputSchema = z.object({
-	kind: ingestionKeyKindSchema
+  kind: ingestionKeyKindSchema,
 });
 
 const rotateIngestionKeyInputSchema = z.object({
-	kind: ingestionKeyKindSchema
+  kind: ingestionKeyKindSchema,
 });
 
 export {
-	createIngestionKeyInputSchema,
-	getIngestionKeyInputSchema,
-	IngestionKeyService,
-	rotateIngestionKeyInputSchema
+  createIngestionKeyInputSchema,
+  getIngestionKeyInputSchema,
+  IngestionKeyService,
+  rotateIngestionKeyInputSchema,
 };

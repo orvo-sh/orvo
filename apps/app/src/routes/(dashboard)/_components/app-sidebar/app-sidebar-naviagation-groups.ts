@@ -7,8 +7,7 @@ import {
   IconMap,
   IconRocket,
   IconRoute,
-  IconSparkle,
-  IconTerminal2,
+  IconTerminal2
 } from "@tabler/icons-svelte";
 
 type NavigationGroup = {
@@ -42,13 +41,7 @@ const generateAppNavigationGroups = (
           label: "Overview",
           icon: IconLayoutGrid,
           shortcut: "o",
-        },
-        {
-          href: `/a/${appId}/chat`,
-          label: "Ask Orvo",
-          icon: IconSparkle,
-          shortcut: "c",
-        },
+        }
       ],
     },
     {

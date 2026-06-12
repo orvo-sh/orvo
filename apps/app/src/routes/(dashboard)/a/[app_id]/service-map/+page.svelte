@@ -8,6 +8,7 @@
   type PageData = {
     appId: string;
     timePreset: string;
+    selectedService: string;
     graph: {
       nodes: Array<{
         name: string;
@@ -39,6 +40,7 @@
   const data = $derived(page.data as PageData);
   const graph = $derived(data.graph);
   const timePreset = $derived(data.timePreset);
+  const selectedService = $derived(data.selectedService);
 
   function setTimePreset(preset: string) {
     const url = new URL(window.location.href);
@@ -75,7 +77,7 @@
 
   <div class="flex h-full flex-col">
     {#if graph && graph.nodes.length > 0}
-      <ServiceGraph {graph} />
+      <ServiceGraph {graph} appId={data.appId} {timePreset} {selectedService} />
     {:else}
       <div class="flex flex-1 items-center justify-center">
         <div class="text-center">

@@ -1,11 +1,9 @@
 <script lang="ts">
-    import { page } from "$app/state";
-    import { assistantSidebarState } from "$lib/stores/assistant-sidebar.svelte";
     import { cn } from "@repo/components";
-    import { Button, buttonVariants } from "@repo/components/ui/button";
+    import { buttonVariants } from "@repo/components/ui/button";
     import * as HoverCard from "@repo/components/ui/hover-card";
     import * as Sidebar from "@repo/components/ui/sidebar";
-    import { IconInfoCircle, IconSparkle } from "@tabler/icons-svelte";
+    import { IconInfoCircle } from "@tabler/icons-svelte";
     import type { Snippet } from "svelte";
     import AppSwitcher from "./page-container-app-switcher.svelte";
 
@@ -34,7 +32,7 @@
   <header
     class="sticky h-13 bg-secondary top-0 z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border/90 p-2 px-3"
   >
-        <div class="flex min-w-0 items-center gap-2 flex-1 ">
+        <div class="flex min-w-0 items-center gap-2 md:flex-1 ">
           <div class="md:hidden">
             <Sidebar.Trigger />
           </div>
@@ -43,10 +41,11 @@
             <div class="flex-1">
               <AppSwitcher />
             </div>
+            <span class="text-muted-foreground/20 font-meduim md:hidden"> / </span>
           </div>
         </div>
 
-        <div class="flex-1 flex gap-0 items-center justify-center">
+        <div class="flex-1 flex gap-0 items-center md:justify-center">
           <h1 class="text-sm font-medium tracking-tight text-foreground">
             {title}
           </h1>
@@ -75,17 +74,6 @@
             >
               {#if actions}
                 {@render actions()}
-              {/if}
-              
-              {#if page.params.app_id && !page.url.pathname.endsWith("/chat")}
-                <Button
-                  variant={assistantSidebarState.open ? "secondary" : "ghost"}
-                  onclick={() => assistantSidebarState.open = !assistantSidebarState.open}
-                  aria-label="Toggle Ask Orvo"
-                >
-                  <IconSparkle data-slot="button-icon" class="size-4" />
-                  
-                </Button>
               {/if}
             </div>
         </div>

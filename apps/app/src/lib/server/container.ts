@@ -13,6 +13,7 @@ import { IngestionKeyService } from "$lib/server/services/ingestion-key.service"
 import { InsightsService } from "$lib/server/services/insights.service";
 import { LogFacetsService } from "$lib/server/services/log-facets.service";
 import { LogsService } from "$lib/server/services/logs.service";
+import { MetricsService } from "$lib/server/services/metrics.service";
 import { TracesService } from "$lib/server/services/traces.service";
 import { UploadService } from "$lib/server/services/upload.service";
 import { getClickHouseClient } from "@repo/clickhouse";
@@ -36,6 +37,7 @@ export type ServerContainer = {
   insightsService: InsightsService;
   logsService: LogsService;
   logFacetsService: LogFacetsService;
+  metricsService: MetricsService;
   tracesService: TracesService;
 };
 
@@ -151,6 +153,7 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
   const logFacetsService = new LogFacetsService(clickhouse, logger);
   const tracesService = new TracesService(clickhouse, logger);
   const insightsService = new InsightsService(clickhouse, db, logger);
+  const metricsService = new MetricsService(clickhouse, logger);
 
   return {
     authService,
@@ -170,6 +173,7 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
     insightsService,
     logsService,
     logFacetsService,
+    metricsService,
     tracesService,
   };
 };

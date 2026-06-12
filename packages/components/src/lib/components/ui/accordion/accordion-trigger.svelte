@@ -1,7 +1,6 @@
 <script lang="ts">
   import {
-    IconChevronDown as CaretDownIcon,
-    IconChevronUp as CaretUpIcon
+      IconChevronDown as CaretDownIcon
   } from '@tabler/icons-svelte';
   import { Accordion as AccordionPrimitive } from 'bits-ui';
   import { cn, type WithoutChild } from '../../../utils.js';
@@ -28,13 +27,10 @@
     {...restProps}
   >
     {@render children?.()}
-    <CaretDownIcon
-      data-slot="accordion-trigger-icon"
-      class="cn-accordion-trigger-icon pointer-events-none shrink-0 group-aria-expanded/accordion-trigger:hidden"
+    <div class="size-5 items-center justify-center flex rounded-full bg-muted-foreground/10">
+    <CaretDownIcon   
+      class="group-aria-expanded/accordion-trigger:rotate-180 size-3.5!"
     />
-    <CaretUpIcon
-      data-slot="accordion-trigger-icon"
-      class="cn-accordion-trigger-icon pointer-events-none hidden shrink-0 group-aria-expanded/accordion-trigger:inline"
-    />
+    </div>
   </AccordionPrimitive.Trigger>
 </AccordionPrimitive.Header>

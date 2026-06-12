@@ -1,184 +1,137 @@
-import { logTimePresetSchema } from "$lib/server/services/logs.service";
+import { ok } from "@repo/utils";
+import { error } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 
-const timePresetToBuckets: Record<string, number> = {
-  last_30_minutes: 30,
-  last_hour: 60,
-  last_4_hours: 48,
-  last_24_hours: 48,
-  last_7_days: 56,
-};
-
 export const load = (async ({ url, locals, params, parent }) => {
-  const parentData = await parent();
-  const appId = parentData.currentApp?.id ?? params.app_id;
-  const appName = parentData.currentApp?.name ?? "App";
+  const { currentApp } = await parent();
 
-  const rawPreset = url.searchParams.get("t");
-  const parsedPreset = logTimePresetSchema.safeParse(rawPreset);
-  const timePreset = parsedPreset.success ? parsedPreset.data : "last_hour";
-  const timeFilter = { kind: "preset" as const, preset: timePreset };
+  const time = (
+    ["30m", "1h", "4h", "24h", "7d"].includes(url.searchParams.get("t") ?? "")
+      ? url.searchParams.get("t")
+      : "1h"
+  ) as "30m" | "1h" | "4h" | "24h" | "7d";
 
-  const bucketCount = timePresetToBuckets[timePreset] ?? 48;
-  const serviceBuckets = Math.min(Math.max(Math.ceil(bucketCount / 4), 8), 24);
-
-  const now = new Date();
-  const rangeStart = new Date(
-    now.getTime() -
+  const timeFilter = {
+    kind: "preset" as const,
+    preset: (
       {
-        last_30_minutes: 30,
-        last_hour: 60,
-        last_4_hours: 240,
-        last_24_hours: 1440,
-        last_7_days: 10080,
-        last_3_days: 4320,
-        last_2_weeks: 20160,
-        last_month: 43200,
-        today: 0,
-      }[timePreset] *
-        60 *
-        1000,
-  );
+        "30m": "last_30_minutes",
+        "1h": "last_hour",
+        "4h": "last_4_hours",
+        "24h": "last_24_hours",
+        "7d": "last_7_days",
+      } as const
+    )[time],
+  };
 
   const [
-    logVolumeResult,
-    traceSummaryResult,
-    alertsResult,
-    deploymentsResult,
-    logServiceSummaryResult,
-    traceServiceSummaryResult,
-    logServiceVolumeResult,
-    insightsResult,
-  ] = await Promise.allSettled([
-    locals.container.logsService.getLogVolume(
-      {
-        time: timeFilter,
-        search: "",
-        levels: [],
-        services: [],
-        environments: [],
-        scopes: [],
-        ingestionKeyIds: [],
-        bucketCount,
-      },
-      { appId },
-    ),
-    locals.container.tracesService.getTraceSummary(
-      {
-        time: timeFilter,
-        search: "",
-        services: [],
-        environments: [],
-        scopes: [],
-        ingestionKeyIds: [],
-        statusCodes: [],
-      },
-      { appId },
-    ),
-    locals.container.alertRuleService.getAlertRules({ appId }),
-    locals.container.deploymentService.listDeployments(
-      { limit: 5, startAtUtc: rangeStart.toISOString() },
-      { appId },
-    ),
-    locals.container.logsService.getLogServiceSummary(
+    logsRes,
+    tracesRes,
+    metricsRes,
+    traceMetricsRes,
+    keyRes,
+    insightsRes,
+    serviceSummaryRes,
+  ] = await Promise.all([
+    locals.container.logsService.getLogsTrend(
       { time: timeFilter },
-      { appId },
+      { appId: params.app_id },
+    ),
+    locals.container.tracesService.getTracesTrend(
+      { time: timeFilter },
+      { appId: params.app_id },
+    ),
+    locals.container.metricsService.getMetricsTrend(
+      { time: timeFilter },
+      { appId: params.app_id },
+    ),
+    locals.container.tracesService.getTraceMetrics(
+      { time: timeFilter },
+      { appId: params.app_id },
+    ),
+    (async () => {
+      if (
+        !currentApp.logsFirstReceivedAt &&
+        !currentApp.tracesFirstReceivedAt &&
+        !currentApp.metricsFirstReceivedAt
+      ) {
+        return locals.container.ingestionKeyService.getIngestionKey(
+          { kind: "private" },
+          { appId: params.app_id },
+        );
+      }
+      return ok(null);
+    })(),
+    locals.container.insightsService.getInsights(
+      { time: timeFilter },
+      { appId: params.app_id },
     ),
     locals.container.tracesService.getTraceServiceSummary(
       { time: timeFilter },
-      { appId },
-    ),
-    locals.container.logsService.getLogServiceVolume(
-      {
-        time: timeFilter,
-        search: "",
-        levels: [],
-        services: [],
-        environments: [],
-        scopes: [],
-        ingestionKeyIds: [],
-        bucketCount: serviceBuckets,
-      },
-      { appId },
-    ),
-    locals.container.insightsService.getInsights(
-      { time: timeFilter },
-      { appId },
+      { appId: params.app_id },
     ),
   ]);
 
-  const logServiceData =
-    logServiceSummaryResult.status === "fulfilled" &&
-    logServiceSummaryResult.value.success
-      ? logServiceSummaryResult.value.data
-      : null;
-  const traceServiceData =
-    traceServiceSummaryResult.status === "fulfilled" &&
-    traceServiceSummaryResult.value.success
-      ? traceServiceSummaryResult.value.data
-      : null;
-  const logServiceVolumeData =
-    logServiceVolumeResult.status === "fulfilled" &&
-    logServiceVolumeResult.value.success
-      ? logServiceVolumeResult.value.data
-      : null;
+  if (
+    !logsRes.success ||
+    !tracesRes.success ||
+    !metricsRes.success ||
+    !traceMetricsRes.success ||
+    !keyRes.success ||
+    !insightsRes.success ||
+    !serviceSummaryRes.success
+  )
+    error(500, "Failed to load overview data.");
 
-  const serviceNames = new Set([
-    ...(logServiceData?.services.map((s) => s.name) ?? []),
-    ...(traceServiceData?.services.map((s) => s.name) ?? []),
-  ]);
+  const overallP95LatencyMs = traceMetricsRes.data.summary.p95LatencyMs;
+  const latencyThreshold = Math.max(overallP95LatencyMs * 1.25, 250);
 
-  const services = Array.from(serviceNames).map((name) => {
-    const logEntry = logServiceData?.services.find((s) => s.name === name);
-    const traceEntry = traceServiceData?.services.find((s) => s.name === name);
-    const volumeEntry = logServiceVolumeData?.services.find(
-      (s) => s.name === name,
-    );
+  const servicesNeedingAttention = serviceSummaryRes.data.services
+    .map((service) => ({
+      ...service,
+      score:
+        service.errorRate * 1200 +
+        Math.min(service.errors, 200) * 3 +
+        (service.p95LatencyMs >= latencyThreshold
+          ? (service.p95LatencyMs / latencyThreshold) * 40
+          : 0),
+      severity:
+        service.errors > 0 || service.errorRate >= 0.01
+          ? "critical"
+          : service.p95LatencyMs >= latencyThreshold
+            ? "warning"
+            : ("info" as const),
+    }))
+    .sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score;
+      }
 
-    return {
-      name,
-      logs: logEntry?.total ?? 0,
-      logErrors: logEntry?.errors ?? 0,
-      traces: traceEntry?.total ?? 0,
-      traceErrors: traceEntry?.errors ?? 0,
-      errorRate:
-        traceEntry != null
-          ? traceEntry.errorRate
-          : logEntry != null
-            ? logEntry.total > 0
-              ? logEntry.errors / logEntry.total
-              : 0
-            : 0,
-      p95LatencyMs: traceEntry?.p95LatencyMs ?? 0,
-      volumeBuckets: volumeEntry?.buckets ?? [],
-    };
-  });
+      if (right.errors !== left.errors) {
+        return right.errors - left.errors;
+      }
+
+      if (right.p95LatencyMs !== left.p95LatencyMs) {
+        return right.p95LatencyMs - left.p95LatencyMs;
+      }
+
+      return right.total - left.total;
+    })
+    .slice(0, 5)
+    .map(({ score: _, ...service }) => service);
 
   return {
-    appName,
-    timePreset,
-    logVolume:
-      logVolumeResult.status === "fulfilled" && logVolumeResult.value.success
-        ? logVolumeResult.value.data
-        : null,
-    traceSummary:
-      traceSummaryResult.status === "fulfilled" &&
-      traceSummaryResult.value.success
-        ? traceSummaryResult.value.data
-        : null,
-    alerts:
-      alertsResult.status === "fulfilled" && alertsResult.value.success
-        ? alertsResult.value.data
-        : null,
-    deployments:
-      deploymentsResult.status === "fulfilled" &&
-      deploymentsResult.value.success
-        ? deploymentsResult.value.data
-        : null,
-    insights:
-      insightsResult.status === "fulfilled" && insightsResult.value.success
-        ? insightsResult.value.data.insights
-        : [],
-    services,
+    time,
+    logTrend: logsRes.data,
+    traceTrend: tracesRes.data,
+    metricsTrend: metricsRes.data,
+    traceMetrics: traceMetricsRes.data,
+    ingestionKey: keyRes.data?.key?.key ?? null,
+    hasReceivedFirstSignal:
+      !!currentApp.logsFirstReceivedAt ||
+      !!currentApp.tracesFirstReceivedAt ||
+      !!currentApp.metricsFirstReceivedAt,
+    insights: insightsRes.data.insights,
+    servicesNeedingAttention,
   };
 }) satisfies PageServerLoad;
