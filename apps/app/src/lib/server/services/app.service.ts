@@ -85,7 +85,6 @@ class AppService {
           id,
           organizationId: context.organizationId,
           name: validated.data.name,
-          defaultTimezone: validated.data.defaultTimezone,
           createdBy: context.userId,
           updatedBy: context.userId,
         });
@@ -93,17 +92,18 @@ class AppService {
         const results = await Promise.all([
           this.ingestionKeyService.createIngestionKey(
             { kind: "public" },
-            { appId: id, userId: context.userId, tx },
+            { appId: id, userId: context.userId },
+            tx,
           ),
           this.ingestionKeyService.createIngestionKey(
             { kind: "private" },
-            { appId: id, userId: context.userId, tx },
-          ),
-          this.alertRuleService.seedDefaultAlertRules({
-            appId: id,
-            userId: context.userId,
+            { appId: id, userId: context.userId },
             tx,
-          }),
+          ),
+          this.alertRuleService.seedDefaultAlertRules(
+            { appId: id, userId: context.userId },
+            tx,
+          ),
         ]);
 
         for (const result of results) {
@@ -119,50 +119,6 @@ class AppService {
       return err("Failed to create app.");
     }
   }
-
-  async updateAppSettings(
-    input: z.infer<typeof updateAppSettingsInputSchema>,
-    context: { organizationId: string; appId: string; userId: string },
-  ) {
-    this.logger.info("updateAppSettings: updating app settings", {
-      input,
-      context,
-    });
-
-    const validated = updateAppSettingsInputSchema.safeParse(input);
-    if (!validated.success) {
-      return err(validated.error.message);
-    }
-
-    try {
-      const existing = await this.db.query.app.findFirst({
-        where: and(
-          eq(app.id, context.appId),
-          eq(app.organizationId, context.organizationId),
-        ),
-      });
-
-      if (!existing) {
-        return err("App not found.");
-      }
-
-      await this.db
-        .update(app)
-        .set({
-          defaultTimezone: validated.data.defaultTimezone,
-          updatedBy: context.userId,
-        })
-        .where(eq(app.id, existing.id));
-
-      return ok(undefined);
-    } catch (error) {
-      this.logger.error(
-        "updateAppSettings: failed to update app settings",
-        error as Error,
-      );
-      return err("Failed to update app settings.");
-    }
-  }
 }
 
 const getAppInputSchema = z.object({
@@ -171,16 +127,6 @@ const getAppInputSchema = z.object({
 
 const createAppInputSchema = z.object({
   name: z.string().trim().min(2).max(64),
-  defaultTimezone: z.string().trim().min(1).max(255),
 });
 
-const updateAppSettingsInputSchema = z.object({
-  defaultTimezone: z.string().trim().min(1).max(255),
-});
-
-export {
-  AppService,
-  createAppInputSchema,
-  getAppInputSchema,
-  updateAppSettingsInputSchema,
-};
+export { AppService, createAppInputSchema, getAppInputSchema };

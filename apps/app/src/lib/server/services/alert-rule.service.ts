@@ -407,17 +407,16 @@ class AlertRuleService {
     }
   }
 
-  async seedDefaultAlertRules(context: {
-    appId: string;
-    userId: string;
-    tx?: Tx;
-  }) {
+  async seedDefaultAlertRules(
+    context: { appId: string; userId: string },
+    tx?: Tx,
+  ) {
     this.logger.info("seedDefaultAlertRules: seeding default alert rules", {
       context,
     });
 
     try {
-      const db = context.tx ?? this.db;
+      const db = tx ?? this.db;
 
       const existingRule = await db.query.alertRule.findFirst({
         where: eq(alertRule.appId, context.appId),

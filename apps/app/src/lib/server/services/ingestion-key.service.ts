@@ -50,7 +50,8 @@ class IngestionKeyService {
 
   async createIngestionKey(
     input: z.infer<typeof createIngestionKeyInputSchema>,
-    context: { appId: string; userId: string; tx?: Tx },
+    context: { appId: string; userId: string },
+    tx?: Tx,
   ) {
     this.logger.info("createIngestionKey: creating ingestion key", {
       input,
@@ -63,7 +64,7 @@ class IngestionKeyService {
     }
 
     try {
-      const db = context.tx ?? this.db;
+      const db = tx ?? this.db;
 
       const activeKey = await db.query.ingestionKey.findFirst({
         where: and(

@@ -70,6 +70,7 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - Returning Drizzle rows directly from services is fine. Do not add mapper functions or DTOs unless the caller needs a different shape.
 - Prefer a small verb surface over CRUD-by-default. Add only the methods the product uses, for example `get*`, `create*`, and `rotate*` instead of list/revoke variants when rotation is the actual workflow.
 - Service methods should take request metadata such as `organizationId` through a `context` object, not as zod input. Direct identifiers like `id` or `slug` may stay in the zod input when they are part of the user action.
+- Transaction handles (`tx`) must be passed as a separate trailing parameter, never nested inside the `context` object. The standard service method signature is `method(input, context, tx?)`.
 - Service classes should take dependencies through the constructor, immediately derive a child logger in the constructor, log once at method entry, validate with `safeParse` near the top, and log one failure in the catch path before returning a stable result.
 - `hooks.server.ts` should create the request-scoped logger and container once per request. Routes and remote functions should call `event.locals.container.*` rather than instantiating services directly.
 - Keep `src/lib/api/*.remote.ts` focused on transport only: import the service schemas, call `query(...)` or `command(...)`, pull `getRequestEvent()`, and forward into the relevant container service. Put business logic in the service, not in the remote function.
