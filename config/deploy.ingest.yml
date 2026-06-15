@@ -16,6 +16,7 @@ ssh:
   user: <%= ENV.fetch("KAMAL_SSH_USER") %>
   keys:
     - <%= ENV.fetch("KAMAL_SSH_KEY_PATH") %>
+  config: false
 
 builder:
   arch: amd64
