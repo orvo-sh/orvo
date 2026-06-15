@@ -2,7 +2,11 @@ service: orvo-ingest
 image: ghcr.io/orvo-sh/orvo-ingest
 
 servers:
-  - <%= ENV.fetch("KAMAL_HOST") %>
+  web:
+    hosts:
+      - <%= ENV.fetch("KAMAL_HOST") %>
+    options:
+      restart: unless-stopped
 
 registry:
   server: ghcr.io
@@ -32,9 +36,6 @@ proxy:
 
 volumes:
   - /opt/orvo/certs:/opt/orvo/certs:ro
-
-options:
-  restart: unless-stopped
 
 env:
   clear:

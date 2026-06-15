@@ -6,6 +6,8 @@ servers:
     hosts:
       - <%= ENV.fetch("KAMAL_HOST") %>
     proxy: false
+    options:
+      restart: unless-stopped
 
 registry:
   server: ghcr.io
@@ -27,9 +29,6 @@ readiness_delay: 5
 
 volumes:
   - /opt/orvo/certs:/opt/orvo/certs:ro
-
-options:
-  restart: unless-stopped
 
 env:
   clear:

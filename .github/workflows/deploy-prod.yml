@@ -115,21 +115,6 @@ jobs:
           ssh -i "${KAMAL_SSH_KEY_PATH}" "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'mkdir -p /opt/orvo/certs'
           scp -i "${KAMAL_SSH_KEY_PATH}" deploy/certs/do-postgres-ca.crt "${KAMAL_SSH_USER}@${KAMAL_HOST}:/opt/orvo/certs/do-postgres-ca.crt"
 
-      - name: Remove legacy compose deployment
-        run: |
-          ssh -i "${KAMAL_SSH_KEY_PATH}" "${KAMAL_SSH_USER}@${KAMAL_HOST}" <<'EOF'
-          set -euo pipefail
-          if [ -f /opt/orvo/docker-compose.prod.yml ]; then
-            docker compose -f /opt/orvo/docker-compose.prod.yml --env-file /opt/orvo/.env down -v --remove-orphans || true
-          fi
-          docker rm -f orvo-caddy-1 orvo-app-1 orvo-ingest-1 orvo-telemetry-writer-1 orvo-alerts-worker-1 orvo-nats-1 2>/dev/null || true
-          docker network rm orvo_default 2>/dev/null || true
-          docker volume rm orvo_caddy_data orvo_caddy_config orvo_nats_data 2>/dev/null || true
-          rm -f /opt/orvo/docker-compose.prod.yml /opt/orvo/Caddyfile /opt/orvo/.env
-          rm -rf /opt/orvo/env
-          mkdir -p /opt/orvo/certs /opt/orvo/accessories/nats/data
-          EOF
-
       - name: Build and deliver app image
         run: kamal -c config/deploy.app.yml build deliver
 
