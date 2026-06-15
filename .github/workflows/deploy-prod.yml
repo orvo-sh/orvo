@@ -165,7 +165,7 @@ jobs:
           ssh -i "${KAMAL_SSH_KEY_PATH}" "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'rm -f /opt/orvo/migrate/app.env'
 
       - name: Boot NATS accessory
-        run: kamal -c config/deploy.ingest.yml accessory boot nats || kamal -c config/deploy.ingest.yml accessory reboot nats
+        run: kamal accessory boot nats -c config/deploy.ingest.yml || kamal accessory reboot nats -c config/deploy.ingest.yml
 
       - name: Deploy app
         run: kamal -c config/deploy.app.yml deploy --skip-push --version "${DEPLOY_VERSION}"
