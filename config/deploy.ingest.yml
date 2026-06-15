@@ -55,5 +55,3 @@ accessories:
     cmd: -js --store_dir /data
     directories:
       - /opt/orvo/accessories/nats/data:/data
-    options:
-      restart: unless-stopped
