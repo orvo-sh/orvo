@@ -1,7 +1,7 @@
-import { Resend } from 'resend';
+import { Resend } from "resend";
 import { renderTemplate, type Template } from "./email.generated";
 
-type EmailTransport = "console" | "resend"
+type EmailTransport = "console" | "resend";
 
 type EmailInput = {
   to: string;
@@ -11,13 +11,16 @@ type EmailInput = {
 
 class Email {
   private resend?: Resend;
-  private transport: EmailTransport
-  constructor(
-    config: { transport: EmailTransport, resendApiKey?: string }
-  ) {
-    if (config.transport === "resend" && !config.resendApiKey) throw new Error("Resend API key is required when transport is set to 'resend'.");
-    this.resend = new Resend(config.resendApiKey)
-    this.transport = config.transport
+  private transport: EmailTransport;
+  constructor(config: { transport: EmailTransport; resendApiKey?: string }) {
+    if (config.transport === "resend" && !config.resendApiKey)
+      throw new Error(
+        "Resend API key is required when transport is set to 'resend'.",
+      );
+    if (config.resendApiKey) {
+      this.resend = new Resend(config.resendApiKey);
+    }
+    this.transport = config.transport;
   }
 
   async sendEmail(input: EmailInput) {
@@ -30,11 +33,11 @@ class Email {
           to: [input.to],
           subject: input.subject,
           html,
-        })
+        });
 
-        if (!response) throw new Error("Failed to get response from resend.")
-        if (response?.error) throw new Error(response.error.message)
-        return response.data.id
+        if (!response) throw new Error("Failed to get response from resend.");
+        if (response?.error) throw new Error(response.error.message);
+        return response.data.id;
 
       case "console":
         console.log(`
@@ -48,10 +51,7 @@ ${html}
 
         return "console";
     }
-
-
   }
 }
 
 export { Email, type EmailInput };
-
