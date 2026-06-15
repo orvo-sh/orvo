@@ -50,7 +50,7 @@ export type ServerContainer = {
 const db = getDb(env.POSTGRES_URL);
 const clickhouse = getClickHouseClient({ url: env.CLICKHOUSE_URL });
 const storage =
-  env.SELF_HOSTED == "false"
+  env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY && env.S3_ENDPOINT
     ? new Storage({
         accessKeyId: env.S3_ACCESS_KEY_ID,
         secretAccessKey: env.S3_SECRET_ACCESS_KEY,
@@ -60,21 +60,16 @@ const storage =
       })
     : null;
 
-const stripe =
-  env.SELF_HOSTED == "false"
-    ? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: "2026-05-27.dahlia" })
-    : null;
-const email =
-  env.SELF_HOSTED == "false"
-    ? new Email({
-        resendApiKey: env.RESEND_API_KEY,
-        transport: dev ? "console" : "resend",
-      })
-    : null;
-const ai =
-  env.SELF_HOSTED == "false"
-    ? new AI({ geminiApiKey: env.GEMINI_API_KEY })
-    : null;
+const stripe = env.STRIPE_SECRET_KEY
+  ? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: "2026-05-27.dahlia" })
+  : null;
+const email = new Email({
+  resendApiKey: env.RESEND_API_KEY,
+  transport: dev ? "console" : "resend",
+});
+const ai = env.GEMINI_API_KEY
+  ? new AI({ geminiApiKey: env.GEMINI_API_KEY })
+  : null;
 const encryption = new Encryption({ secret: env.ENCRYPTION_SECRET });
 
 const cdnBaseUrl = process.env.CDN_BASE_URL ?? env.CDN_BASE_URL;
@@ -120,12 +115,11 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
     db,
     logger,
   );
-  const billingService =
-    env.SELF_HOSTED == "false"
-      ? new BillingService(db, logger, email!, stripe!)
-      : null;
+  const billingService = stripe
+    ? new BillingService(db, logger, email, stripe)
+    : null;
   const uploadService = new UploadService(logger, storage, {
-    cdnBaseUrl: env.CDN_BASE_URL,
+    cdnBaseUrl,
     maxUploadSizeBytes: MAX_UPLOAD_FILE_SIZE_BYTES,
   });
   const chatService = new ChatService(
@@ -142,21 +136,20 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
     secret: env.ENCRYPTION_SECRET,
     baseUrl: env.ORIGIN,
     github:
-      env.SELF_HOSTED == "false"
+      env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
         ? {
             clientId: env.GITHUB_CLIENT_ID,
             clientSecret: env.GITHUB_CLIENT_SECRET,
           }
         : undefined,
-    stripe:
-      env.SELF_HOSTED == "false"
-        ? {
-            client: stripe!,
-            webhookSecret: env.STRIPE_WEBHOOK_SECRET,
-            starterPriceId: env.STRIPE_STARTER_PRICE_ID,
-            proPriceId: env.STRIPE_PRO_PRICE_ID,
-          }
-        : undefined,
+    stripe: stripe
+      ? {
+          client: stripe,
+          webhookSecret: env.STRIPE_WEBHOOK_SECRET,
+          starterPriceId: env.STRIPE_STARTER_PRICE_ID,
+          proPriceId: env.STRIPE_PRO_PRICE_ID,
+        }
+      : undefined,
   });
 
   return {

@@ -36,28 +36,12 @@ const globalSetup = async (_config: FullConfig) => {
   process.env.ORIGIN = TEST_APP_ORIGIN;
   process.env.ENCRYPTION_SECRET = crypto.randomUUID();
 
-  // S3 / MinIO
   process.env.S3_ACCESS_KEY_ID = minioContainer.getUsername();
   process.env.S3_SECRET_ACCESS_KEY = minioContainer.getPassword();
   process.env.S3_ENDPOINT = minioContainer.getConnectionUrl();
   process.env.S3_REGION = "us-east-1";
   process.env.S3_BUCKET_NAME = "orvo-test";
   process.env.CDN_BASE_URL = minioContainer.getConnectionUrl();
-
-  // Dummy external service keys (SELF_HOSTED=false so services are instantiated)
-  process.env.SELF_HOSTED = "false";
-  process.env.STRIPE_SECRET_KEY = "sk_test_dummy";
-  process.env.STRIPE_WEBHOOK_SECRET = "whsec_dummy";
-  process.env.STRIPE_STARTER_PRICE_ID = "price_dummy_starter";
-  process.env.STRIPE_PRO_PRICE_ID = "price_dummy_pro";
-  process.env.RESEND_API_KEY = "re_dummy";
-  process.env.RESEND_FROM_EMAIL = "no-reply@test.orvo.sh";
-  process.env.GEMINI_API_KEY = "gemini_dummy";
-  process.env.GITHUB_CLIENT_ID = "github_dummy";
-  process.env.GITHUB_CLIENT_SECRET = "github_secret_dummy";
-  process.env.BILLING_SALES_EMAIL = "sales@test.orvo.sh";
-  process.env.PUBLIC_ORVO_OTLP_BASE_URL = "http://127.0.0.1:4318";
-  process.env.MAX_UPLOAD_SIZE_BYTES = "10485760";
 
   const appServer = await startAppServer();
 

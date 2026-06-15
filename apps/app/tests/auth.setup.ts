@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { getDb } from "@repo/db";
+import { organization, organizationUsage } from "@repo/db/schema";
+import { genId } from "@repo/utils";
+import { eq } from "drizzle-orm";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 
@@ -114,7 +117,23 @@ test("create full-user state", async ({ page }) => {
   );
   expect(activeResponse.ok()).toBeTruthy();
 
-  await page.goto("/apps");
+  await db
+    .update(organization)
+    .set({ billingPlan: "starter", billingStatus: "active" })
+    .where(eq(organization.id, orgData.id));
+
+  await db.insert(organizationUsage).values({
+    id: genId("orgu"),
+    organizationId: orgData.id,
+    logsRetentionDays: 14,
+    tracesRetentionDays: 14,
+    metricsRetentionDays: 14,
+    currentPeriodStart: new Date(),
+    currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    ingestLimitBytes: 50 * Math.pow(1024, 3),
+  });
+
+  await page.goto("/apps/new");
   await page.waitForLoadState("networkidle");
 
   await mkdir(dirname(`${AUTH_DIR}/full-user.json`), { recursive: true });

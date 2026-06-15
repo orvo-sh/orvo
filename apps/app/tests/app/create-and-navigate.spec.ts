@@ -3,10 +3,11 @@ import { expect, test } from "@playwright/test";
 test.use({ storageState: "tests/.auth/full-user.json" });
 
 test("create app after organization setup", async ({ page }) => {
-  await page.goto("/apps/new", { waitUntil: "domcontentloaded" });
+  await page.goto("/apps/new", { waitUntil: "networkidle" });
   await expect(page.locator("#create-app-form")).toBeVisible();
 
-  await page.fill("#app-name", "Test Application");
+  await page.locator("#app-name").fill("Test Application");
+  await expect(page.locator("#create-app-submit-button")).toBeEnabled();
   await page.click("#create-app-submit-button");
 
   await page.waitForURL(/\/a\//, { timeout: 30_000 });
@@ -14,10 +15,13 @@ test("create app after organization setup", async ({ page }) => {
 });
 
 test("create app with empty name shows error", async ({ page }) => {
-  await page.goto("/apps/new", { waitUntil: "domcontentloaded" });
+  await page.goto("/apps/new", { waitUntil: "networkidle" });
   await expect(page.locator("#create-app-form")).toBeVisible();
 
-  await page.click("#create-app-submit-button");
+  await expect(page.locator("#create-app-submit-button")).toBeDisabled();
+
+  await page.locator("#app-name").fill("A");
+  await page.locator("#app-name").press("Enter");
 
   await expect(page.locator("#create-app-form")).toContainText("name", {
     timeout: 10_000,
@@ -25,21 +29,31 @@ test("create app with empty name shows error", async ({ page }) => {
 });
 
 test("navigate to app overview after creation", async ({ page }) => {
-  await page.goto("/apps/new", { waitUntil: "domcontentloaded" });
-  await page.fill("#app-name", "Navigate App");
+  await page.goto("/apps/new", { waitUntil: "networkidle" });
+  await expect(page.locator("#create-app-form")).toBeVisible();
+
+  await page.locator("#app-name").fill("Navigate App");
+  await expect(page.locator("#create-app-submit-button")).toBeEnabled();
   await page.click("#create-app-submit-button");
 
   await page.waitForURL(/\/a\//, { timeout: 30_000 });
 
-  await expect(page.locator("text=Overview")).toBeVisible();
-  await expect(page.locator("text=Logs")).toBeVisible();
-  await expect(page.locator("text=Traces")).toBeVisible();
-  await expect(page.locator("text=Metrics")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Logs" }).first()).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Traces" }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Metrics" }).first(),
+  ).toBeVisible();
 });
 
 test("app settings page renders", async ({ page }) => {
-  await page.goto("/apps/new", { waitUntil: "domcontentloaded" });
-  await page.fill("#app-name", "Settings App");
+  await page.goto("/apps/new", { waitUntil: "networkidle" });
+  await expect(page.locator("#create-app-form")).toBeVisible();
+
+  await page.locator("#app-name").fill("Settings App");
+  await expect(page.locator("#create-app-submit-button")).toBeEnabled();
   await page.click("#create-app-submit-button");
 
   await page.waitForURL(/\/a\//, { timeout: 30_000 });
@@ -49,6 +63,6 @@ test("app settings page renders", async ({ page }) => {
     throw new Error("Could not extract app ID from URL");
   }
 
-  await page.goto(`/a/${appId}/settings`, { waitUntil: "domcontentloaded" });
-  await expect(page.locator("h1")).toContainText("Settings");
+  await page.goto(`/a/${appId}/settings`, { waitUntil: "networkidle" });
+  await expect(page.locator("h1")).toContainText("General");
 });
