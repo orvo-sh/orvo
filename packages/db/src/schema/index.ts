@@ -12,6 +12,7 @@ export * from './deployment.schema.js';
 export * from './ingestion-key.schema.js';
 export * from './invitation.schema.js';
 export * from './member.schema.js';
+export * from './organization-activation.schema.js';
 export * from './organization-usage.schema.js';
 export * from './organization.schema.js';
 export * from './session.schema.js';

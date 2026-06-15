@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { seedOrganizationActivation } from "$lib/stores/organization-activation.svelte";
   import { page } from "$app/state";
   import * as Sidebar from "@repo/components/ui/sidebar";
   import type { LayoutData } from "./$types";
   import AssistantSidebar from "./_components/assistant/assistant-sidebar.svelte";
   import { AppSidebar } from "./_components/app-sidebar";
+  import OrganizationActivationPill from "./_components/organization-activation-pill.svelte";
 
   let {
     children,
@@ -12,6 +14,13 @@
     children: import("svelte").Snippet;
     data: LayoutData;
   } = $props();
+
+  $effect(() => {
+    seedOrganizationActivation(
+      data.activeOrganizationId,
+      data.organizationActivation ?? null,
+    );
+  });
 </script>
 
 <Sidebar.Provider class="h-dvh max-h-dvh overflow-hidden">
@@ -21,8 +30,8 @@
     organizations={data.organizations}
     user={data.user}
   />
-  <Sidebar.Inset class="h-full min-h-0 overflow-hidden flex flex-row">
-    <div class="flex-1 min-w-0 flex flex-col h-full min-h-0">
+  <Sidebar.Inset class="flex h-full min-h-0 flex-row overflow-hidden">
+    <div class="flex h-full min-h-0 min-w-0 flex-1 flex-col">
       {@render children()}
     </div>
     <AssistantSidebar
@@ -30,4 +39,11 @@
       hidden={page.url.pathname.endsWith("/chat")}
     />
   </Sidebar.Inset>
+
+  {#if data.organizationActivation}
+    <OrganizationActivationPill
+      organizationId={data.activeOrganizationId}
+      initialOpen={data.organizationActivationOpen}
+    />
+  {/if}
 </Sidebar.Provider>

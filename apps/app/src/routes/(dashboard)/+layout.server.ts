@@ -57,9 +57,21 @@ export const load = (async (event) => {
     throw redirect(302, firstApp ? `/a/${firstApp.id}` : "/apps/new");
   }
 
+  const activationResult =
+    await event.locals.container.organizationActivationService.getOrganizationActivation(
+      {
+        organizationId: activeOrganizationId,
+      },
+    );
+  const activationCookieName = `organization_activation_open_${activeOrganizationId}`;
+
   return {
     user: auth.user,
     organizations,
     activeOrganizationId,
+    organizationActivation: activationResult.success
+      ? activationResult.data.activation
+      : null,
+    organizationActivationOpen: event.cookies.get(activationCookieName) !== "0",
   };
 }) satisfies LayoutServerLoad;

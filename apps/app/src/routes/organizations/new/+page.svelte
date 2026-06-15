@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
-      createOrganizationLogoUploadUrlCommand,
+    createOrganizationActivationCommand,
+    createOrganizationLogoUploadUrlCommand,
   } from "$lib/api/organizations.remote";
   import { authClient } from "$lib/auth-client";
   import { MAX_UPLOAD_FILE_SIZE_BYTES } from "$lib/constants";
@@ -8,11 +9,11 @@
   import * as Avatar from "@repo/components/ui/avatar";
   import { Button } from "@repo/components/ui/button";
   import {
-      Field,
-      FieldDescription,
-      FieldError,
-      FieldGroup,
-      FieldLabel,
+    Field,
+    FieldDescription,
+    FieldError,
+    FieldGroup,
+    FieldLabel,
   } from "@repo/components/ui/field";
   import { Input } from "@repo/components/ui/input";
   import { generateRandomString, slugify } from "@repo/utils";
@@ -147,6 +148,10 @@
       return;
     }
 
+    await createOrganizationActivationCommand({
+      organizationId: result.data.id,
+    });
+
     await authClient.organization.setActive(
       { organizationId: result.data.id },
       {
@@ -197,10 +202,10 @@
                   <Avatar.Image
                     src={logoPreviewUrl ?? logo ?? undefined}
                     alt={name.trim() || "Organization logo"}
-                    class="object-cover rounded-sm"
+                    class="rounded-sm object-cover"
                   />
                   <Avatar.Fallback class="rounded-sm">
-                    <IconBuildingStore/>
+                    <IconBuildingStore />
                   </Avatar.Fallback>
                 </Avatar.Root>
 
@@ -218,7 +223,7 @@
                       {logo ? "Change logo" : "Upload logo"}
                     </Button>
 
-                    {#if (logo || logoPreviewUrl) && !uploadingLogo }
+                    {#if (logo || logoPreviewUrl) && !uploadingLogo}
                       <Button
                         id="remove-organization-logo-button"
                         type="button"

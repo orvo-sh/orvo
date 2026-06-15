@@ -7,14 +7,10 @@
   import { toast } from "@repo/components/ui/sonner";
   import { IconArrowRight, IconCheck } from "@tabler/icons-svelte";
 
+  import { PLANS } from "$lib/constants";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
-
-  const starter = $derived(
-    data.plans.find((plan) => plan.key === "starter"),
-  );
-  const pro = $derived(data.plans.find((plan) => plan.key === "pro"));
 
   let loadingPlan = $state<string | null>(null);
 
@@ -33,7 +29,9 @@
       })
       .then((result) => {
         if (result.error) {
-          toast.error(result.error.message || "Failed to start the free trial.");
+          toast.error(
+            result.error.message || "Failed to start the free trial.",
+          );
           loadingPlan = null;
           return;
         }
@@ -60,7 +58,8 @@
       <div class="space-y-1">
         <h1 class="text-xl font-semibold tracking-tight">Choose a plan</h1>
         <p class="mx-auto max-w-xl text-sm text-muted-foreground">
-          Pick a plan to activate this organization and create your first app. You can always change or cancel your plan later.
+          Pick a plan to activate this organization and create your first app.
+          You can always change or cancel your plan later.
         </p>
       </div>
     </div>
@@ -75,13 +74,16 @@
         },
         description: "For small teams getting started.",
         features: [
-          `${starter?.includedGbPerSignal.logs} GB logs per month`,
-          `${starter?.includedGbPerSignal.metrics} GB metrics per month`,
-          `${starter?.includedGbPerSignal.traces} GB traces per month`,
-          `${starter?.retentionDays.logs} day retention`,
+          `${PLANS.starter.ingestLimitBytes / Math.pow(1024, 3)} GB included ingest`,
+          `${PLANS.starter.retentionDays.logs} day data retention`,
+          "No fee for extra seats",
         ],
         includedLabel: "Included:",
-        plan: data.plans.find((plan) => plan.key === "starter")!,
+        plan: {
+          name: "Starter",
+          description: "For small teams getting started.",
+          price: `$${PLANS.starter.priceUsd}/month`,
+        },
       })}
 
       {@render planCard({
@@ -93,14 +95,16 @@
         },
         description: "For teams shipping production apps.",
         features: [
-          `${pro?.includedGbPerSignal.logs} GB logs per month`,
-          `${pro?.includedGbPerSignal.metrics} GB metrics per month`,
-          `${pro?.includedGbPerSignal.traces} GB traces per month`,
-          `$${pro?.overagePricePerGb?.toFixed(2)} / GB overage`,
-          `${pro?.retentionDays.logs} day retention`,
+          `${PLANS.pro.ingestLimitBytes / Math.pow(1024, 3)} GB included ingest`,
+          `${PLANS.pro.retentionDays.logs} day data retention`,
+          `$${PLANS.pro.overagePricePerGb?.toFixed(2)} / GB overage`,
         ],
         includedLabel: "Everything in Starter plus:",
-        plan: data.plans.find((plan) => plan.key === "pro")!,
+        plan: {
+          name: "Pro",
+          description: "For teams shipping production apps.",
+          price: `$${PLANS.pro.priceUsd}/month`,
+        },
         recommended: true,
       })}
 
@@ -119,7 +123,11 @@
           "Priority support",
         ],
         includedLabel: "Everything in Professional plus:",
-        plan: data.plans.find((plan) => plan.key === "enterprise")!,
+        plan: {
+          name: "Enterprise",
+          description: "For custom scale and support.",
+          price: "Custom",
+        },
       })}
     </div>
   </div>
@@ -133,7 +141,8 @@
   plan,
   recommended = false,
 }: {
-  action: {
+  action:
+    | {
         kind: "trial";
         planKey: string;
         buttonId: string;
@@ -149,20 +158,25 @@
   description: string;
   features: string[];
   includedLabel: string;
-  plan: PageData["plans"][number];
+  plan: {
+    name: string;
+    description: string;
+    price: string;
+  };
   recommended?: boolean;
 })}
   <Card.Root
-    class={cn("flex flex-col", recommended
-      ? "ring-primary/60 ring-2"
-      : "border-border/80")}
+    class={cn(
+      "flex flex-col",
+      recommended ? "ring-2 ring-primary/60" : "border-border/80",
+    )}
   >
     <Card.Header>
       <Card.Title>{plan?.name}</Card.Title>
       <Card.Description>{description}</Card.Description>
       <div class="pt-3">
         <span class={"text-2xl font-semibold tracking-tight"}>
-          {plan?.priceLabel}
+          {plan?.price}
         </span>
       </div>
     </Card.Header>

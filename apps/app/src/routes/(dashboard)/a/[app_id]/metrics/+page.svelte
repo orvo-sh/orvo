@@ -1,4 +1,11 @@
 <script lang="ts">
+  import { invalidateAll } from "$app/navigation";
+  import { page } from "$app/state";
+  import { markOrganizationActivationTelemetryViewedCommand } from "$lib/api/organization-activation.remote";
+  import {
+    completeOrganizationActivationStep,
+    restoreOrganizationActivation,
+  } from "$lib/stores/organization-activation.svelte";
   import { getMetricsExplorerQuery } from "$lib/api/metrics.remote";
   import { cn } from "@repo/components";
   import { Button } from "@repo/components/ui/button";
@@ -79,6 +86,7 @@
   let loading = $state(false);
   let error = $state("");
   let loadRequest = 0;
+  let telemetryActivationSent = $state(false);
 
   const resolvePresetRange = (preset: MetricTimePreset) => {
     const end = new Date();
@@ -257,6 +265,44 @@
     return () => clearTimeout(timeout);
   });
 
+  const markTelemetryViewed = async () => {
+    if (telemetryActivationSent) {
+      return;
+    }
+
+    telemetryActivationSent = true;
+    const previousActivation =
+      completeOrganizationActivationStep("hasViewedTelemetry");
+    const result = await markOrganizationActivationTelemetryViewedCommand({});
+
+    if (result.success === false) {
+      telemetryActivationSent = false;
+      restoreOrganizationActivation(
+        page.data.activeOrganizationId,
+        previousActivation,
+      );
+      return;
+    }
+
+    void invalidateAll();
+  };
+
+  $effect(() => {
+    if (!page.data.organizationActivation) {
+      return;
+    }
+
+    if (page.data.organizationActivation.hasViewedTelemetry) {
+      return;
+    }
+
+    if (metricsData.summary.totalPoints === 0) {
+      return;
+    }
+
+    void markTelemetryViewed();
+  });
+
   $effect(() => {
     if (filters.metricName || metricsData.catalog.length === 0) {
       return;
@@ -266,9 +312,14 @@
   });
 </script>
 
-<PageContainer title="Metrics" class="overflow-hidden bg-secondary" innerClass="p-0!" scrollContent={false}>
+<PageContainer
+  title="Metrics"
+  class="overflow-hidden bg-secondary"
+  innerClass="p-0!"
+  scrollContent={false}
+>
   {#snippet actions()}
-    <Button variant="outline" onclick={refresh} loading={loading}>
+    <Button variant="outline" onclick={refresh} {loading}>
       <IconReload data-slot="button-icon" />
       Refresh
     </Button>
@@ -286,12 +337,16 @@
     />
 
     {#if error}
-      <div class="border-b border-destructive/20 bg-destructive/5 px-4 py-2 text-sm text-destructive">
+      <div
+        class="border-b border-destructive/20 bg-destructive/5 px-4 py-2 text-sm text-destructive"
+      >
         {error}
       </div>
     {/if}
 
-    <div class="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)_320px]">
+    <div
+      class="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)_320px]"
+    >
       <aside class="min-h-0 border-r bg-background">
         <div class="flex items-center justify-between border-b px-3 py-2">
           <div>
@@ -308,12 +363,15 @@
               type="button"
               class={cn(
                 "flex w-full flex-col gap-1 rounded-lg px-3 py-2 text-left transition-colors hover:bg-muted",
-                filters.metricName === metric.name && "bg-muted text-foreground",
+                filters.metricName === metric.name &&
+                  "bg-muted text-foreground",
               )}
               onclick={() => selectMetric(metric)}
             >
               <span class="truncate text-sm font-medium">{metric.name}</span>
-              <span class="flex items-center gap-2 text-xs text-muted-foreground">
+              <span
+                class="flex items-center gap-2 text-xs text-muted-foreground"
+              >
                 <span>{metric.type || "unknown"}</span>
                 <span class="h-1 w-1 rounded-full bg-border"></span>
                 <span>{formatNumber(metric.points)} pts</span>
@@ -322,7 +380,9 @@
           {/each}
 
           {#if metricsData.catalog.length === 0}
-            <div class="flex min-h-48 flex-col items-center justify-center rounded-lg border border-dashed px-4 text-center">
+            <div
+              class="flex min-h-48 flex-col items-center justify-center rounded-lg border border-dashed px-4 text-center"
+            >
               <p class="text-sm font-medium">No metrics found</p>
               <p class="mt-1 text-xs text-muted-foreground">
                 Send metrics or loosen the current filters.
@@ -335,7 +395,9 @@
       <main class="min-h-0 overflow-auto p-3">
         <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0">
-            <h2 class="truncate text-lg font-semibold tracking-tight">{selectedMetricTitle}</h2>
+            <h2 class="truncate text-lg font-semibold tracking-tight">
+              {selectedMetricTitle}
+            </h2>
             <p class="mt-1 text-sm text-muted-foreground">
               {selectedMetric?.description ||
                 "Graph one metric at a time, then split it by service or environment."}
@@ -372,36 +434,54 @@
         {:else}
           <Card.Root class="overflow-hidden">
             <Card.Header class="pb-3">
-              <Card.Title class="text-sm font-medium">Recent samples</Card.Title>
-              <Card.Description>Latest raw points for the selected metric</Card.Description>
+              <Card.Title class="text-sm font-medium">Recent samples</Card.Title
+              >
+              <Card.Description
+                >Latest raw points for the selected metric</Card.Description
+              >
             </Card.Header>
             <Card.Content class="p-0">
               <div class="overflow-x-auto">
                 <table class="w-full text-sm">
-                  <thead class="border-y bg-muted/50 text-xs text-muted-foreground">
+                  <thead
+                    class="border-y bg-muted/50 text-xs text-muted-foreground"
+                  >
                     <tr>
                       <th class="px-4 py-2 text-left font-medium">Time</th>
                       <th class="px-3 py-2 text-left font-medium">Service</th>
-                      <th class="px-3 py-2 text-left font-medium">Environment</th>
+                      <th class="px-3 py-2 text-left font-medium"
+                        >Environment</th
+                      >
                       <th class="px-4 py-2 text-right font-medium">Value</th>
                     </tr>
                   </thead>
                   <tbody>
                     {#each metricsData.samples as sample}
                       <tr class="border-b last:border-b-0">
-                        <td class="whitespace-nowrap px-4 py-2 text-muted-foreground">
+                        <td
+                          class="px-4 py-2 whitespace-nowrap text-muted-foreground"
+                        >
                           {formatDateTime(sample.time)}
                         </td>
-                        <td class="px-3 py-2">{sample.serviceName || "unknown service"}</td>
-                        <td class="px-3 py-2">{sample.environment || "unknown environment"}</td>
-                        <td class="px-4 py-2 text-right font-medium tabular-nums">
+                        <td class="px-3 py-2"
+                          >{sample.serviceName || "unknown service"}</td
+                        >
+                        <td class="px-3 py-2"
+                          >{sample.environment || "unknown environment"}</td
+                        >
+                        <td
+                          class="px-4 py-2 text-right font-medium tabular-nums"
+                        >
                           {formatMetricValue(sample.value, sample.unit)}
                         </td>
                       </tr>
                     {/each}
                     {#if metricsData.samples.length === 0}
                       <tr>
-                        <td colspan="4" class="px-4 py-12 text-center text-muted-foreground">
+                        <td
+                          colspan="4"
+                          class="px-4 py-12 text-center text-muted-foreground"
+                        >
                           No samples match this metric.
                         </td>
                       </tr>
@@ -414,33 +494,50 @@
         {/if}
       </main>
 
-      <aside class="hidden min-h-0 overflow-auto border-l bg-background p-3 xl:block">
+      <aside
+        class="hidden min-h-0 overflow-auto border-l bg-background p-3 xl:block"
+      >
         <div class="space-y-3">
           <Card.Root>
             <Card.Header class="pb-3">
               <Card.Title class="text-sm font-medium">Latest value</Card.Title>
-              <Card.Description>{formatDateTime(selectedMetric?.lastSeen ?? null)}</Card.Description>
+              <Card.Description
+                >{formatDateTime(
+                  selectedMetric?.lastSeen ?? null,
+                )}</Card.Description
+              >
             </Card.Header>
             <Card.Content>
               <p class="text-2xl font-semibold tracking-tight">
-                {formatMetricValue(selectedMetric?.lastValue ?? null, selectedMetric?.unit ?? "")}
+                {formatMetricValue(
+                  selectedMetric?.lastValue ?? null,
+                  selectedMetric?.unit ?? "",
+                )}
               </p>
               <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p class="text-xs text-muted-foreground">Type</p>
-                  <p class="mt-1 truncate font-medium">{selectedMetric?.type || "unknown"}</p>
+                  <p class="mt-1 truncate font-medium">
+                    {selectedMetric?.type || "unknown"}
+                  </p>
                 </div>
                 <div>
                   <p class="text-xs text-muted-foreground">Unit</p>
-                  <p class="mt-1 truncate font-medium">{selectedMetric?.unit || "none"}</p>
+                  <p class="mt-1 truncate font-medium">
+                    {selectedMetric?.unit || "none"}
+                  </p>
                 </div>
                 <div>
                   <p class="text-xs text-muted-foreground">Points</p>
-                  <p class="mt-1 font-medium">{formatNumber(selectedMetric?.points ?? 0)}</p>
+                  <p class="mt-1 font-medium">
+                    {formatNumber(selectedMetric?.points ?? 0)}
+                  </p>
                 </div>
                 <div>
                   <p class="text-xs text-muted-foreground">Services</p>
-                  <p class="mt-1 font-medium">{formatNumber(selectedMetric?.services ?? 0)}</p>
+                  <p class="mt-1 font-medium">
+                    {formatNumber(selectedMetric?.services ?? 0)}
+                  </p>
                 </div>
               </div>
             </Card.Content>
@@ -452,7 +549,9 @@
             </Card.Header>
             <Card.Content class="grid gap-3 text-sm">
               <div class="flex items-center justify-between">
-                <span class="inline-flex items-center gap-2 text-muted-foreground">
+                <span
+                  class="inline-flex items-center gap-2 text-muted-foreground"
+                >
                   <IconDatabase class="size-4" />
                   Points
                 </span>
@@ -461,7 +560,9 @@
                 </span>
               </div>
               <div class="flex items-center justify-between">
-                <span class="inline-flex items-center gap-2 text-muted-foreground">
+                <span
+                  class="inline-flex items-center gap-2 text-muted-foreground"
+                >
                   <IconServer class="size-4" />
                   Services
                 </span>
@@ -471,7 +572,9 @@
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-muted-foreground">Last point</span>
-                <span class="text-right font-medium">{formatDateTime(metricsData.summary.lastSeen)}</span>
+                <span class="text-right font-medium"
+                  >{formatDateTime(metricsData.summary.lastSeen)}</span
+                >
               </div>
             </Card.Content>
           </Card.Root>
@@ -487,16 +590,22 @@
                   class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
                   onclick={() => {
                     filters.services = filters.services.includes(service.value)
-                      ? filters.services.filter((value) => value !== service.value)
+                      ? filters.services.filter(
+                          (value) => value !== service.value,
+                        )
                       : [...filters.services, service.value];
                   }}
                 >
                   <span class="truncate">{service.value}</span>
-                  <span class="text-xs text-muted-foreground">{formatNumber(service.count)}</span>
+                  <span class="text-xs text-muted-foreground"
+                    >{formatNumber(service.count)}</span
+                  >
                 </button>
               {/each}
               {#if metricsData.facets.services.length === 0}
-                <p class="py-6 text-center text-sm text-muted-foreground">No service facets.</p>
+                <p class="py-6 text-center text-sm text-muted-foreground">
+                  No service facets.
+                </p>
               {/if}
             </Card.Content>
           </Card.Root>

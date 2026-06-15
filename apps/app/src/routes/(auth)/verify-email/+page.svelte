@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { authClient } from "$lib/auth-client";
+  import { OrvoLogo } from "@repo/components/icons/orvo-logo";
   import { Button } from "@repo/components/ui/button";
   import {
     Field,
@@ -14,18 +15,31 @@
     InputOTPSeparator,
     InputOTPSlot,
   } from "@repo/components/ui/input-otp";
-  import { OrvoLogo } from "@repo/components/icons/orvo-logo";
+  import { toast } from "@repo/components/ui/sonner";
 
   let { data } = $props();
 
   let otp = $state("");
   let loading = $state(false);
+  let loadingResendOTP = $state(false);
+  let secondsUntilResend = $state(0);
   let error = $state("");
 
-  const maskEmail = (email: string) => {
-    const [localPart, domain] = email.split("@");
-    return `${localPart.slice(0, 2)}***@${domain}`;
-  };
+  $effect(() => {
+    if (secondsUntilResend <= 0) return;
+
+    const interval = setInterval(() => {
+      if (secondsUntilResend <= 1) {
+        secondsUntilResend = 0;
+        clearInterval(interval);
+        return;
+      }
+
+      secondsUntilResend -= 1;
+    }, 1000);
+
+    return () => clearInterval(interval);
+  });
 
   const handleVerify = async () => {
     loading = true;
@@ -52,6 +66,34 @@
         loading = false;
       });
   };
+
+  const handleResendOtp = async () => {
+    loadingResendOTP = true;
+    await authClient.emailOtp.sendVerificationOtp(
+      {
+        email: data.email,
+        type: "email-verification",
+      },
+      {
+        onSuccess: () => {
+          secondsUntilResend = 120;
+          loadingResendOTP = false;
+          toast.success("Verification email sent.");
+        },
+        onError: (ctx) => {
+          loadingResendOTP = false;
+          if (ctx.response?.status === 429) {
+            const retryAfter = ctx.response.headers.get("X-Retry-After");
+            secondsUntilResend = Number(retryAfter ?? 120);
+            return;
+          }
+          toast.error("Failed to send verification email.", {
+            description: ctx.error.message,
+          });
+        },
+      },
+    );
+  };
 </script>
 
 <div class="flex flex-col gap-6">
@@ -68,8 +110,20 @@
         <div class="space-y-1">
           <h1 class="text-xl font-semibold">Verify your email</h1>
           <FieldDescription>
-            We just sent a verification code to <b>{maskEmail(data.email)}</b>.
-            Enter it below to confirm your email.
+            We sent a code to <b>{data.email}</b>. Enter it below to confirm
+            your email.
+            <Button
+              variant="link"
+              size="sm"
+              class="h-fit p-0"
+              onclick={() => {
+                authClient.signOut().then(() => {
+                  goto(`/sign-up`);
+                });
+              }}
+            >
+              Not your email?
+            </Button>
           </FieldDescription>
         </div>
       </div>
@@ -108,6 +162,24 @@
             class="w-full"
           >
             Verify email
+          </Button>
+        </Field>
+        <Field>
+          <Button
+            id="resend-otp-button"
+            type="button"
+            loading={loadingResendOTP}
+            disabled={secondsUntilResend > 0}
+            onclick={handleResendOtp}
+            class="w-full"
+            variant="outline"
+          >
+            Resend OTP
+            {#if secondsUntilResend > 0}
+              <span>
+                ({secondsUntilResend}s)
+              </span>
+            {/if}
           </Button>
         </Field>
       </div>

@@ -12,7 +12,6 @@ const app = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    defaultTimezone: text('default_timezone').notNull().default('UTC'),
     createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
     updatedBy: text('updated_by').references(() => user.id, { onDelete: 'set null' }),
     logsFirstReceivedAt: timestamp('logs_first_received_at'),

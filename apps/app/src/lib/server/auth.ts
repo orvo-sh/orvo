@@ -10,11 +10,13 @@ import { sveltekitCookies } from "better-auth/svelte-kit";
 import { and, eq } from "drizzle-orm";
 import Stripe from "stripe";
 
+import type { Logger } from "@repo/logger";
 import type { Email } from "./email";
 import { BillingService } from "./services/billing.service";
 
 const createAuth = (
   db: DB,
+  logger: Logger,
   email: Nullable<Email>,
   billingService: Nullable<BillingService>,
   config: {
@@ -32,9 +34,19 @@ const createAuth = (
     };
   },
 ) => {
+  logger = logger.child("AuthService");
   return betterAuth({
     baseURL: config.baseUrl,
     secret: config.secret,
+    rateLimit: {
+      enabled: true,
+      customRules: {
+        "/email-otp/send-verification-otp": {
+          window: 120,
+          max: 1,
+        },
+      },
+    },
     advanced: {
       database: {
         generateId: ({ model }) => {
@@ -49,6 +61,7 @@ const createAuth = (
                 member: "memb",
                 invitation: "inv",
                 "rate-limit": "rlmt",
+                "subscription": "sub"
               } as any
             )[model] ?? "auth";
           return genId(pre);
@@ -80,18 +93,22 @@ const createAuth = (
         ? emailOTP({
           overrideDefaultEmailVerification: true,
           sendVerificationOTP: async ({ email: emailAddr, otp, type }) => {
-            switch (type) {
-              case "email-verification":
-                email?.sendEmail({
-                  to: emailAddr,
-                  subject: "Verify your email",
-                  template: "otp",
-                  props: {
-                    code: otp,
-                    purpose: "sign-up",
-                  },
-                });
-                break;
+            try {
+              switch (type) {
+                case "email-verification":
+                  email?.sendEmail({
+                    to: emailAddr,
+                    subject: "Verify your email",
+                    template: "otp",
+                    props: {
+                      code: otp,
+                      purpose: "sign-up",
+                    },
+                  });
+                  break;
+              }
+            } catch (error) {
+              logger.error("sendVerificationOTP: failed to send verification otp", error as Error);
             }
           },
         })
@@ -163,15 +180,14 @@ const createAuth = (
 
               return currentMember?.role === "owner";
             },
-            getCheckoutSessionParams: async () => ({
+            getCheckoutSessionParams: async ({ user }) => ({
               params: {
                 payment_method_collection: "always",
+                customer_email: user.email,
               },
             }),
             onSubscriptionComplete: async ({ subscription }) =>
-              await billingService.onSubscriptionCompleted({
-                organizationId: subscription.referenceId,
-              }),
+              void await billingService.onSubscriptionCompleted(subscription),
             onSubscriptionUpdate: async ({ subscription }) =>
               await billingService.onSubscriptonChanged({
                 organizationId: subscription.referenceId,

@@ -448,7 +448,6 @@ class ChatService {
 		app: {
 			id: string;
 			name: string;
-			defaultTimezone: string;
 		},
 		now: Date,
 	) {
@@ -457,7 +456,6 @@ class ChatService {
 You are helping with the current Orvo app only:
 - App ID: ${app.id}
 - App name: ${app.name}
-- App timezone: ${app.defaultTimezone}
 - Organization: current organization
 - Current time: ${now.toISOString()}
 
@@ -467,7 +465,7 @@ Core behavior:
 - If a tool returns no rows, say that no matching telemetry was found for the requested scope or time range.
 - Do not imply you created, edited, deleted, enabled, disabled, or rotated anything. This assistant is read-only in this version.
 - When the user asks for an action you cannot perform, give the best next click path in Orvo instead.
-- Prefer UTC timestamps unless the user asks for the app timezone.
+- Prefer UTC timestamps unless the user asks for local timezone formatting.
 - Include internal Orvo links when useful, especially /a/${app.id}/logs, /a/${app.id}/traces, /a/${app.id}/alerts, and trace detail links.
 - Use relative Orvo paths exactly as tool outputs provide them. Do not invent external hostnames for Orvo links.
 - Keep raw IDs visible when they help the user verify the answer.
@@ -484,7 +482,6 @@ Safety and boundaries:
 		app: {
 			id: string;
 			name: string;
-			defaultTimezone: string;
 		},
 		organizationId: string,
 	) {
@@ -540,7 +537,6 @@ Safety and boundaries:
 						app: {
 							id: appResult.data.app.id,
 							name: appResult.data.app.name,
-							defaultTimezone: appResult.data.app.defaultTimezone,
 							createdAt: appResult.data.app.createdAt,
 							updatedAt: appResult.data.app.updatedAt,
 						},
@@ -1233,4 +1229,3 @@ export {
 	renameAssistantChatInputSchema,
 	saveAssistantMessagesInputSchema
 };
-

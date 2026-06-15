@@ -1,6 +1,12 @@
 <script lang="ts">
+  import { invalidateAll } from "$app/navigation";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
+  import { markOrganizationActivationTelemetryViewedCommand } from "$lib/api/organization-activation.remote";
+  import {
+    completeOrganizationActivationStep,
+    restoreOrganizationActivation,
+  } from "$lib/stores/organization-activation.svelte";
   import { Button } from "@repo/components/ui/button";
   import * as Dialog from "@repo/components/ui/dialog";
   import { formatNumber } from "@repo/utils";
@@ -27,6 +33,7 @@
   let dialogOpen = $state(false);
   let allInsights = $state(data.insights ?? []);
   let dialogLoading = $state(false);
+  let telemetryActivationSent = $state(false);
 
   const calculateTrendChange = (current: number, baseline: number) => {
     if (baseline === 0) {
@@ -123,6 +130,44 @@
       } as const
     )[t];
   }
+
+  const markTelemetryViewed = async () => {
+    if (telemetryActivationSent) {
+      return;
+    }
+
+    telemetryActivationSent = true;
+    const previousActivation =
+      completeOrganizationActivationStep("hasViewedTelemetry");
+    const result = await markOrganizationActivationTelemetryViewedCommand({});
+
+    if (result.success === false) {
+      telemetryActivationSent = false;
+      restoreOrganizationActivation(
+        page.data.activeOrganizationId,
+        previousActivation,
+      );
+      return;
+    }
+
+    void invalidateAll();
+  };
+
+  $effect(() => {
+    if (!page.data.organizationActivation) {
+      return;
+    }
+
+    if (page.data.organizationActivation.hasViewedTelemetry) {
+      return;
+    }
+
+    if (!data.hasReceivedFirstSignal) {
+      return;
+    }
+
+    void markTelemetryViewed();
+  });
 </script>
 
 <PageContainer title="Overview" class="bg-secondary">

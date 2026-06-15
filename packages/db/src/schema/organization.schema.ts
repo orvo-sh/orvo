@@ -3,8 +3,10 @@ import { pgEnum, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-co
 
 import { invitation } from './invitation.schema.js';
 import { member } from './member.schema.js';
+import { organizationActivation } from './organization-activation.schema.js';
+import { organizationUsage } from './organization-usage.schema.js';
 
-const billingPlan = pgEnum('billing_plan', [ "starter", 'pro', 'enterprise']);
+const billingPlan = pgEnum('billing_plan', ['starter', 'pro', 'enterprise']);
 const billingStatus = pgEnum('billing_status', ['trialing', 'active', 'past_due']);
 
 const organization = pgTable(
@@ -15,7 +17,6 @@ const organization = pgTable(
     slug: text('slug').notNull().unique(),
     logo: text('logo'),
     stripeCustomerId: text('stripe_customer_id'),
-    billingEmail: text('billing_email'),
     billingPlan: billingPlan('billing_plan'),
     billingStatus: billingStatus('billing_status'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -26,9 +27,17 @@ const organization = pgTable(
   (table) => [uniqueIndex('organization_slug_uidx').on(table.slug)]
 );
 
-const organizationRelations = relations(organization, ({ many }) => ({
+const organizationRelations = relations(organization, ({ many, one }) => ({
   members: many(member),
-  invitations: many(invitation)
+  invitations: many(invitation),
+  activation: one(organizationActivation, {
+    fields: [organization.id],
+    references: [organizationActivation.organizationId]
+  }),
+  usage: one(organizationUsage, {
+    fields: [organization.id],
+    references: [organizationUsage.organizationId]
+  })
 }));
 
 export { billingPlan, billingStatus, organization, organizationRelations };

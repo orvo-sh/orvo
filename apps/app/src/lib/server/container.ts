@@ -1,3 +1,4 @@
+import { dev } from "$app/environment";
 import { env } from "$env/dynamic/private";
 import { MAX_UPLOAD_FILE_SIZE_BYTES } from "$lib/constants";
 import { createAuth, type Auth } from "$lib/server/auth";
@@ -8,12 +9,13 @@ import { BillingService } from "$lib/server/services/billing.service";
 import { ChatService } from "$lib/server/services/chat.service";
 import { DashboardLogViewService } from "$lib/server/services/dashboard-log-view.service";
 import { DeploymentService } from "$lib/server/services/deployment.service";
+import { HostMonitoringService } from "$lib/server/services/host-monitoring.service";
 import { IngestionKeyService } from "$lib/server/services/ingestion-key.service";
 import { InsightsService } from "$lib/server/services/insights.service";
 import { LogFacetsService } from "$lib/server/services/log-facets.service";
 import { LogsService } from "$lib/server/services/logs.service";
 import { MetricsService } from "$lib/server/services/metrics.service";
-import { HostMonitoringService } from "$lib/server/services/host-monitoring.service";
+import { OrganizationActivationService } from "$lib/server/services/organization-activation.service";
 import { TracesService } from "$lib/server/services/traces.service";
 import { UploadService } from "$lib/server/services/upload.service";
 import { AI } from "@repo/ai";
@@ -40,6 +42,7 @@ export type ServerContainer = {
   logsService: LogsService;
   logFacetsService: LogFacetsService;
   metricsService: MetricsService;
+  organizationActivationService: OrganizationActivationService;
   hostMonitoringService: HostMonitoringService;
   tracesService: TracesService;
 };
@@ -63,7 +66,10 @@ const stripe =
     : null;
 const email =
   env.SELF_HOSTED == "false"
-    ? new Email({ resendApiKey: env.RESEND_API_KEY })
+    ? new Email({
+        resendApiKey: env.RESEND_API_KEY,
+        transport: dev ? "console" : "resend",
+      })
     : null;
 const ai =
   env.SELF_HOSTED == "false"
@@ -71,32 +77,11 @@ const ai =
     : null;
 const encryption = new Encryption({ secret: env.ENCRYPTION_SECRET });
 
-const stripeWebhookSecret =
-  process.env.STRIPE_WEBHOOK_SECRET ?? env.STRIPE_WEBHOOK_SECRET;
-const stripeStarterPriceId =
-  process.env.STRIPE_STARTER_PRICE_ID ?? env.STRIPE_STARTER_PRICE_ID;
-const stripeProPriceId =
-  process.env.STRIPE_PRO_PRICE_ID ?? env.STRIPE_PRO_PRICE_ID;
-
 const cdnBaseUrl = process.env.CDN_BASE_URL ?? env.CDN_BASE_URL;
 const publicOtlpBaseUrl =
   process.env.PUBLIC_ORVO_OTLP_BASE_URL ??
   env.PUBLIC_ORVO_OTLP_BASE_URL ??
   env.ORIGIN;
-
-const maxUploadSizeBytes = Number(
-  process.env.MAX_UPLOAD_SIZE_BYTES ??
-    env.MAX_UPLOAD_SIZE_BYTES ??
-    10 * 1024 * 1024,
-);
-const alertsEncryptionSecret =
-  process.env.ALERTS_ENCRYPTION_KEY ??
-  env.ALERTS_ENCRYPTION_KEY ??
-  process.env.ENCRYPTION_SECRET ??
-  env.ENCRYPTION_SECRET;
-if (!alertsEncryptionSecret) {
-  throw new Error("Missing ALERTS_ENCRYPTION_KEY");
-}
 
 export const createServerContainer = (logger: Logger): ServerContainer => {
   const ingestionKeyService = new IngestionKeyService(db, logger);
@@ -131,6 +116,10 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
     ingestionKeyService,
     alertRuleService,
   );
+  const organizationActivationService = new OrganizationActivationService(
+    db,
+    logger,
+  );
   const billingService =
     env.SELF_HOSTED == "false"
       ? new BillingService(db, logger, email!, stripe!)
@@ -149,7 +138,7 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
     alertRuleService,
     insightsService,
   );
-  const authService = createAuth(db, email, billingService, {
+  const authService = createAuth(db, logger, email, billingService, {
     secret: env.ENCRYPTION_SECRET,
     baseUrl: env.ORIGIN,
     github:
@@ -185,6 +174,7 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
     logsService,
     logFacetsService,
     metricsService,
+    organizationActivationService,
     hostMonitoringService,
     tracesService,
   };
