@@ -168,16 +168,16 @@ jobs:
         run: kamal accessory boot nats -c config/deploy.ingest.yml || kamal accessory reboot nats -c config/deploy.ingest.yml
 
       - name: Deploy app
-        run: kamal -c config/deploy.app.yml deploy --skip-push --version "${DEPLOY_VERSION}"
+        run: kamal deploy -c config/deploy.app.yml --skip-push --version "${DEPLOY_VERSION}"
 
       - name: Deploy alerts worker
-        run: kamal -c config/deploy.alerts-worker.yml deploy --skip-push --version "${DEPLOY_VERSION}"
+        run: kamal deploy -c config/deploy.alerts-worker.yml --skip-push --version "${DEPLOY_VERSION}"
 
       - name: Deploy telemetry writer
-        run: kamal -c config/deploy.telemetry-writer.yml deploy --skip-push --version "${DEPLOY_VERSION}"
+        run: kamal deploy -c config/deploy.telemetry-writer.yml --skip-push --version "${DEPLOY_VERSION}"
 
       - name: Deploy ingest
-        run: kamal -c config/deploy.ingest.yml deploy --skip-push --version "${DEPLOY_VERSION}"
+        run: kamal deploy -c config/deploy.ingest.yml --skip-push --version "${DEPLOY_VERSION}"
 
       - name: Verify production endpoints
         run: |
