@@ -112,12 +112,12 @@ jobs:
 
       - name: Upload Postgres CA certificate
         run: |
-          ssh "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'mkdir -p /opt/orvo/certs'
-          scp deploy/certs/do-postgres-ca.crt "${KAMAL_SSH_USER}@${KAMAL_HOST}:/opt/orvo/certs/do-postgres-ca.crt"
+          ssh -i "${KAMAL_SSH_KEY_PATH}" "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'mkdir -p /opt/orvo/certs'
+          scp -i "${KAMAL_SSH_KEY_PATH}" deploy/certs/do-postgres-ca.crt "${KAMAL_SSH_USER}@${KAMAL_HOST}:/opt/orvo/certs/do-postgres-ca.crt"
 
       - name: Remove legacy compose deployment
         run: |
-          ssh "${KAMAL_SSH_USER}@${KAMAL_HOST}" <<'EOF'
+          ssh -i "${KAMAL_SSH_KEY_PATH}" "${KAMAL_SSH_USER}@${KAMAL_HOST}" <<'EOF'
           set -euo pipefail
           if [ -f /opt/orvo/docker-compose.prod.yml ]; then
             docker compose -f /opt/orvo/docker-compose.prod.yml --env-file /opt/orvo/.env down -v --remove-orphans || true
