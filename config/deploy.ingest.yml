@@ -20,7 +20,7 @@ ssh:
 builder:
   arch: amd64
   context: apps/ingest
-  dockerfile: Dockerfile
+  dockerfile: apps/ingest/Dockerfile
 
 proxy:
   host: ingest.orvo.sh

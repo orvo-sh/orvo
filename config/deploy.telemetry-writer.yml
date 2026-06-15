@@ -21,7 +21,7 @@ ssh:
 builder:
   arch: amd64
   context: apps/telemetry-writer
-  dockerfile: Dockerfile
+  dockerfile: apps/telemetry-writer/Dockerfile
 
 readiness_delay: 5
 
