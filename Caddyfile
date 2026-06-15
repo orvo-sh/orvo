@@ -1,7 +1,0 @@
-app.orvo.sh {
-	reverse_proxy app:3000
-}
-
-ingest.orvo.sh {
-	reverse_proxy ingest:4318
-}

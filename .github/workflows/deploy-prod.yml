@@ -6,9 +6,19 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 permissions:
   contents: read
   packages: write
+
+env:
+  KAMAL_HOST: ${{ secrets.PROD_SERVER_HOST }}
+  KAMAL_REGISTRY_USERNAME: ${{ github.actor }}
+  KAMAL_SSH_KEY_PATH: ${{ github.workspace }}/.kamal/id_ed25519
+  KAMAL_SSH_USER: ${{ secrets.PROD_SERVER_USER }}
 
 jobs:
   deploy:
@@ -17,182 +27,133 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
 
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Install Kamal
+        run: gem install kamal -v 2.10.0
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-
-      - name: Build and push app image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/app/Dockerfile
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/orvo-app:sha-${{ github.sha }}
-            ghcr.io/${{ github.repository_owner }}/orvo-app:latest
-
-      - name: Build and push ingest image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./apps/ingest
-          file: apps/ingest/Dockerfile
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/orvo-ingest:sha-${{ github.sha }}
-            ghcr.io/${{ github.repository_owner }}/orvo-ingest:latest
-
-      - name: Build and push telemetry writer image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./apps/telemetry-writer
-          file: apps/telemetry-writer/Dockerfile
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/orvo-telemetry-writer:sha-${{ github.sha }}
-            ghcr.io/${{ github.repository_owner }}/orvo-telemetry-writer:latest
-
-      - name: Build and push alerts worker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/alerts-worker/Dockerfile
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/orvo-alerts-worker:sha-${{ github.sha }}
-            ghcr.io/${{ github.repository_owner }}/orvo-alerts-worker:latest
-
-      - name: Prepare deploy assets
+      - name: Prepare Kamal secrets and SSH key
         env:
-          APP_IMAGE: ghcr.io/${{ github.repository_owner }}/orvo-app:sha-${{ github.sha }}
-          INGEST_IMAGE: ghcr.io/${{ github.repository_owner }}/orvo-ingest:sha-${{ github.sha }}
-          TELEMETRY_WRITER_IMAGE: ghcr.io/${{ github.repository_owner }}/orvo-telemetry-writer:sha-${{ github.sha }}
-          ALERTS_WORKER_IMAGE: ghcr.io/${{ github.repository_owner }}/orvo-alerts-worker:sha-${{ github.sha }}
-          PROD_POSTGRES_URL: ${{ secrets.PROD_POSTGRES_URL }}
+          PROD_CDN_BASE_URL: ${{ secrets.PROD_CDN_BASE_URL }}
           PROD_CLICKHOUSE_URL: ${{ secrets.PROD_CLICKHOUSE_URL }}
           PROD_ENCRYPTION_SECRET: ${{ secrets.PROD_ENCRYPTION_SECRET }}
-          PROD_NATS_URL: ${{ secrets.PROD_NATS_URL }}
-          PROD_POSTGRES_CA_CERT: ${{ secrets.PROD_POSTGRES_CA_CERT }}
+          PROD_GEMINI_API_KEY: ${{ secrets.PROD_GEMINI_API_KEY }}
           PROD_GITHUB_CLIENT_ID: ${{ secrets.PROD_GITHUB_CLIENT_ID }}
           PROD_GITHUB_CLIENT_SECRET: ${{ secrets.PROD_GITHUB_CLIENT_SECRET }}
+          PROD_OTEL_INGEST_KEY: ${{ secrets.PROD_OTEL_INGEST_KEY }}
+          PROD_POSTGRES_URL: ${{ secrets.PROD_POSTGRES_URL }}
           PROD_RESEND_API_KEY: ${{ secrets.PROD_RESEND_API_KEY }}
-          PROD_STRIPE_SECRET_KEY: ${{ secrets.PROD_STRIPE_SECRET_KEY }}
-          PROD_STRIPE_WEBHOOK_SECRET: ${{ secrets.PROD_STRIPE_WEBHOOK_SECRET }}
-          PROD_STRIPE_STARTER_PRICE_ID: ${{ secrets.PROD_STRIPE_STARTER_PRICE_ID }}
-          PROD_STRIPE_PRO_PRICE_ID: ${{ secrets.PROD_STRIPE_PRO_PRICE_ID }}
           PROD_S3_ACCESS_KEY_ID: ${{ secrets.PROD_S3_ACCESS_KEY_ID }}
-          PROD_S3_SECRET_ACCESS_KEY: ${{ secrets.PROD_S3_SECRET_ACCESS_KEY }}
+          PROD_S3_BUCKET_NAME: ${{ secrets.PROD_S3_BUCKET_NAME }}
           PROD_S3_ENDPOINT: ${{ secrets.PROD_S3_ENDPOINT }}
           PROD_S3_REGION: ${{ secrets.PROD_S3_REGION }}
-          PROD_S3_BUCKET_NAME: ${{ secrets.PROD_S3_BUCKET_NAME }}
-          PROD_CDN_BASE_URL: ${{ secrets.PROD_CDN_BASE_URL }}
-          PROD_GEMINI_API_KEY: ${{ secrets.PROD_GEMINI_API_KEY }}
-          PROD_OTEL_INGEST_KEY: ${{ secrets.PROD_OTEL_INGEST_KEY }}
+          PROD_S3_SECRET_ACCESS_KEY: ${{ secrets.PROD_S3_SECRET_ACCESS_KEY }}
+          PROD_SERVER_SSH_KEY: ${{ secrets.PROD_SERVER_SSH_KEY }}
+          PROD_STRIPE_PRO_PRICE_ID: ${{ secrets.PROD_STRIPE_PRO_PRICE_ID }}
+          PROD_STRIPE_SECRET_KEY: ${{ secrets.PROD_STRIPE_SECRET_KEY }}
+          PROD_STRIPE_STARTER_PRICE_ID: ${{ secrets.PROD_STRIPE_STARTER_PRICE_ID }}
+          PROD_STRIPE_WEBHOOK_SECRET: ${{ secrets.PROD_STRIPE_WEBHOOK_SECRET }}
         run: |
-          mkdir -p deploy/env deploy/certs
+          mkdir -p .kamal ~/.ssh
+          printf '%s\n' "${PROD_SERVER_SSH_KEY}" > "${KAMAL_SSH_KEY_PATH}"
+          chmod 600 "${KAMAL_SSH_KEY_PATH}"
+          ssh-keyscan -H "${KAMAL_HOST}" >> ~/.ssh/known_hosts
 
-          cat <<EOF > deploy/.env
-          APP_IMAGE=${APP_IMAGE}
-          INGEST_IMAGE=${INGEST_IMAGE}
-          TELEMETRY_WRITER_IMAGE=${TELEMETRY_WRITER_IMAGE}
-          ALERTS_WORKER_IMAGE=${ALERTS_WORKER_IMAGE}
-          EOF
+          : > .kamal/secrets
+          write_secret() {
+            printf '%s=%s\n' "$1" "$2" >> .kamal/secrets
+          }
 
-          cat <<EOF > deploy/env/app.env
-          SELF_HOSTED=false
-          NODE_ENV=production
-          HOST=0.0.0.0
-          PORT=3000
-          ORIGIN=https://app.orvo.sh
-          POSTGRES_URL=${PROD_POSTGRES_URL}
-          CLICKHOUSE_URL=${PROD_CLICKHOUSE_URL}
-          ENCRYPTION_SECRET=${PROD_ENCRYPTION_SECRET}
-          GITHUB_CLIENT_ID=${PROD_GITHUB_CLIENT_ID}
-          GITHUB_CLIENT_SECRET=${PROD_GITHUB_CLIENT_SECRET}
-          RESEND_API_KEY=${PROD_RESEND_API_KEY}
-          STRIPE_SECRET_KEY=${PROD_STRIPE_SECRET_KEY}
-          STRIPE_WEBHOOK_SECRET=${PROD_STRIPE_WEBHOOK_SECRET}
-          STRIPE_STARTER_PRICE_ID=${PROD_STRIPE_STARTER_PRICE_ID}
-          STRIPE_PRO_PRICE_ID=${PROD_STRIPE_PRO_PRICE_ID}
-          PUBLIC_ORVO_OTLP_BASE_URL=https://ingest.orvo.sh
-          PROD_OTEL_BASE_URL=https://ingest.orvo.sh
-          PROD_OTEL_INGEST_KEY=${PROD_OTEL_INGEST_KEY}
-          S3_ACCESS_KEY_ID=${PROD_S3_ACCESS_KEY_ID}
-          S3_SECRET_ACCESS_KEY=${PROD_S3_SECRET_ACCESS_KEY}
-          S3_ENDPOINT=${PROD_S3_ENDPOINT}
-          S3_REGION=${PROD_S3_REGION}
-          S3_BUCKET_NAME=${PROD_S3_BUCKET_NAME}
-          CDN_BASE_URL=${PROD_CDN_BASE_URL}
-          GEMINI_API_KEY=${PROD_GEMINI_API_KEY}
-          EOF
+          write_secret KAMAL_REGISTRY_PASSWORD "${{ github.token }}"
+          write_secret PROD_CDN_BASE_URL "${PROD_CDN_BASE_URL}"
+          write_secret PROD_CLICKHOUSE_URL "${PROD_CLICKHOUSE_URL}"
+          write_secret PROD_ENCRYPTION_SECRET "${PROD_ENCRYPTION_SECRET}"
+          write_secret PROD_GEMINI_API_KEY "${PROD_GEMINI_API_KEY}"
+          write_secret PROD_GITHUB_CLIENT_ID "${PROD_GITHUB_CLIENT_ID}"
+          write_secret PROD_GITHUB_CLIENT_SECRET "${PROD_GITHUB_CLIENT_SECRET}"
+          write_secret PROD_OTEL_INGEST_KEY "${PROD_OTEL_INGEST_KEY}"
+          write_secret PROD_POSTGRES_URL "${PROD_POSTGRES_URL}"
+          write_secret PROD_RESEND_API_KEY "${PROD_RESEND_API_KEY}"
+          write_secret PROD_S3_ACCESS_KEY_ID "${PROD_S3_ACCESS_KEY_ID}"
+          write_secret PROD_S3_BUCKET_NAME "${PROD_S3_BUCKET_NAME}"
+          write_secret PROD_S3_ENDPOINT "${PROD_S3_ENDPOINT}"
+          write_secret PROD_S3_REGION "${PROD_S3_REGION}"
+          write_secret PROD_S3_SECRET_ACCESS_KEY "${PROD_S3_SECRET_ACCESS_KEY}"
+          write_secret PROD_STRIPE_PRO_PRICE_ID "${PROD_STRIPE_PRO_PRICE_ID}"
+          write_secret PROD_STRIPE_SECRET_KEY "${PROD_STRIPE_SECRET_KEY}"
+          write_secret PROD_STRIPE_STARTER_PRICE_ID "${PROD_STRIPE_STARTER_PRICE_ID}"
+          write_secret PROD_STRIPE_WEBHOOK_SECRET "${PROD_STRIPE_WEBHOOK_SECRET}"
 
-          cat <<EOF > deploy/env/ingest.env
-          APP_ENVIRONMENT=production
-          POSTGRES_URL=${PROD_POSTGRES_URL}
-          CLICKHOUSE_URL=${PROD_CLICKHOUSE_URL}
-          NATS_URL=${PROD_NATS_URL}
-          INGEST_HTTP_HOST=0.0.0.0
-          INGEST_HTTP_PORT=4318
-          PROD_OTEL_BASE_URL=https://ingest.orvo.sh
-          PROD_OTEL_INGEST_KEY=${PROD_OTEL_INGEST_KEY}
-          EOF
+          chmod 600 .kamal/secrets
 
-          cat <<EOF > deploy/env/telemetry-writer.env
-          APP_ENVIRONMENT=production
-          POSTGRES_URL=${PROD_POSTGRES_URL}
-          CLICKHOUSE_URL=${PROD_CLICKHOUSE_URL}
-          NATS_URL=${PROD_NATS_URL}
-          PROD_OTEL_BASE_URL=https://ingest.orvo.sh
-          PROD_OTEL_INGEST_KEY=${PROD_OTEL_INGEST_KEY}
-          EOF
-
-          cat <<EOF > deploy/env/alerts-worker.env
-          NODE_ENV=production
-          POSTGRES_URL=${PROD_POSTGRES_URL}
-          CLICKHOUSE_URL=${PROD_CLICKHOUSE_URL}
-          ALERTS_ENCRYPTION_KEY=${PROD_ENCRYPTION_SECRET}
-          PROD_OTEL_BASE_URL=https://ingest.orvo.sh
-          PROD_OTEL_INGEST_KEY=${PROD_OTEL_INGEST_KEY}
-          EOF
-
+      - name: Write Postgres CA certificate
+        env:
+          PROD_POSTGRES_CA_CERT: ${{ secrets.PROD_POSTGRES_CA_CERT }}
+        run: |
+          mkdir -p deploy/certs
           printf '%s' "${PROD_POSTGRES_CA_CERT}" | base64 --decode > deploy/certs/do-postgres-ca.crt
 
-      - name: Configure SSH
-        env:
-          PROD_SERVER_SSH_KEY: ${{ secrets.PROD_SERVER_SSH_KEY }}
+      - name: Validate Kamal configs
         run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${PROD_SERVER_SSH_KEY}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ secrets.PROD_SERVER_HOST }}" >> ~/.ssh/known_hosts
+          for config_file in \
+            config/deploy.app.yml \
+            config/deploy.ingest.yml \
+            config/deploy.telemetry-writer.yml \
+            config/deploy.alerts-worker.yml
+          do
+            kamal -c "${config_file}" config > /dev/null
+          done
 
-      - name: Copy deploy assets
+      - name: Upload Postgres CA certificate
         run: |
-          ssh "${{ secrets.PROD_SERVER_USER }}@${{ secrets.PROD_SERVER_HOST }}" 'mkdir -p /opt/orvo/env /opt/orvo/certs'
-          scp docker-compose.prod.yml Caddyfile "${{ secrets.PROD_SERVER_USER }}@${{ secrets.PROD_SERVER_HOST }}:/opt/orvo/"
-          scp deploy/.env "${{ secrets.PROD_SERVER_USER }}@${{ secrets.PROD_SERVER_HOST }}:/opt/orvo/.env"
-          scp deploy/env/app.env "${{ secrets.PROD_SERVER_USER }}@${{ secrets.PROD_SERVER_HOST }}:/opt/orvo/env/app.env"
-          scp deploy/env/ingest.env "${{ secrets.PROD_SERVER_USER }}@${{ secrets.PROD_SERVER_HOST }}:/opt/orvo/env/ingest.env"
-          scp deploy/env/telemetry-writer.env "${{ secrets.PROD_SERVER_USER }}@${{ secrets.PROD_SERVER_HOST }}:/opt/orvo/env/telemetry-writer.env"
-          scp deploy/env/alerts-worker.env "${{ secrets.PROD_SERVER_USER }}@${{ secrets.PROD_SERVER_HOST }}:/opt/orvo/env/alerts-worker.env"
-          scp deploy/certs/do-postgres-ca.crt "${{ secrets.PROD_SERVER_USER }}@${{ secrets.PROD_SERVER_HOST }}:/opt/orvo/certs/do-postgres-ca.crt"
+          ssh "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'mkdir -p /opt/orvo/certs'
+          scp deploy/certs/do-postgres-ca.crt "${KAMAL_SSH_USER}@${KAMAL_HOST}:/opt/orvo/certs/do-postgres-ca.crt"
 
-      - name: Deploy on server
-        env:
-          PROD_GHCR_PULL_USERNAME: ${{ secrets.PROD_GHCR_PULL_USERNAME }}
-          PROD_GHCR_PULL_TOKEN: ${{ secrets.PROD_GHCR_PULL_TOKEN }}
+      - name: Remove legacy compose deployment
         run: |
-          ssh "${{ secrets.PROD_SERVER_USER }}@${{ secrets.PROD_SERVER_HOST }}" <<EOF
+          ssh "${KAMAL_SSH_USER}@${KAMAL_HOST}" <<'EOF'
           set -euo pipefail
-          cd /opt/orvo
-          printf '%s\n' "${PROD_GHCR_PULL_TOKEN}" | docker login ghcr.io -u "${PROD_GHCR_PULL_USERNAME}" --password-stdin
-          docker compose -f docker-compose.prod.yml --env-file .env pull
-          docker compose -f docker-compose.prod.yml --env-file .env run -T --rm --no-deps app sh -lc 'pnpm --filter @repo/db db:migrate'
-          docker compose -f docker-compose.prod.yml --env-file .env run -T --rm --no-deps app sh -lc 'pnpm --filter @repo/clickhouse run db:migrate'
-          docker compose -f docker-compose.prod.yml --env-file .env up -d --force-recreate --remove-orphans
+          if [ -f /opt/orvo/docker-compose.prod.yml ]; then
+            docker compose -f /opt/orvo/docker-compose.prod.yml --env-file /opt/orvo/.env down -v --remove-orphans || true
+          fi
+          docker rm -f orvo-caddy-1 orvo-app-1 orvo-ingest-1 orvo-telemetry-writer-1 orvo-alerts-worker-1 orvo-nats-1 2>/dev/null || true
+          docker network rm orvo_default 2>/dev/null || true
+          docker volume rm orvo_caddy_data orvo_caddy_config orvo_nats_data 2>/dev/null || true
+          rm -f /opt/orvo/docker-compose.prod.yml /opt/orvo/Caddyfile /opt/orvo/.env
+          rm -rf /opt/orvo/env
+          mkdir -p /opt/orvo/certs /opt/orvo/accessories/nats/data
           EOF
+
+      - name: Build and deliver app image
+        run: kamal -c config/deploy.app.yml build deliver
+
+      - name: Run database migrations
+        run: |
+          kamal -c config/deploy.app.yml app exec -p 'pnpm --filter @repo/db db:migrate'
+          kamal -c config/deploy.app.yml app exec -p 'pnpm --filter @repo/clickhouse run db:migrate'
+
+      - name: Boot NATS accessory
+        run: kamal -c config/deploy.ingest.yml accessory boot nats || kamal -c config/deploy.ingest.yml accessory reboot nats
+
+      - name: Deploy alerts worker
+        run: kamal -c config/deploy.alerts-worker.yml deploy
+
+      - name: Deploy telemetry writer
+        run: kamal -c config/deploy.telemetry-writer.yml deploy
+
+      - name: Deploy app
+        run: kamal -c config/deploy.app.yml deploy --skip-push
+
+      - name: Deploy ingest
+        run: kamal -c config/deploy.ingest.yml deploy
+
+      - name: Verify production endpoints
+        run: |
+          curl --fail --silent --show-error https://app.orvo.sh/health
+          curl --fail --silent --show-error https://ingest.orvo.sh/ready

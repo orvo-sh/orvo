@@ -1,0 +1,60 @@
+service: orvo-ingest
+image: ghcr.io/orvo-sh/orvo-ingest
+
+servers:
+  - <%= ENV.fetch("KAMAL_HOST") %>
+
+registry:
+  server: ghcr.io
+  username: <%= ENV.fetch("KAMAL_REGISTRY_USERNAME") %>
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+ssh:
+  user: <%= ENV.fetch("KAMAL_SSH_USER") %>
+  keys:
+    - <%= ENV.fetch("KAMAL_SSH_KEY_PATH") %>
+
+builder:
+  arch: amd64
+  context: apps/ingest
+  dockerfile: Dockerfile
+
+proxy:
+  host: ingest.orvo.sh
+  app_port: 4318
+  ssl: true
+  forward_headers: true
+  healthcheck:
+    path: /ready
+    interval: 3
+    timeout: 3
+
+volumes:
+  - /opt/orvo/certs:/opt/orvo/certs:ro
+
+options:
+  restart: unless-stopped
+
+env:
+  clear:
+    APP_ENVIRONMENT: production
+    INGEST_HTTP_HOST: 0.0.0.0
+    INGEST_HTTP_PORT: "4318"
+    NATS_URL: nats://orvo-nats:4222
+    PROD_OTEL_BASE_URL: https://ingest.orvo.sh
+  secret:
+    - POSTGRES_URL:PROD_POSTGRES_URL
+    - CLICKHOUSE_URL:PROD_CLICKHOUSE_URL
+    - PROD_OTEL_INGEST_KEY
+
+accessories:
+  nats:
+    service: orvo-nats
+    image: nats:2.11-alpine
+    host: <%= ENV.fetch("KAMAL_HOST") %>
+    cmd: -js --store_dir /data
+    directories:
+      - /opt/orvo/accessories/nats/data:/data
+    options:
+      restart: unless-stopped
