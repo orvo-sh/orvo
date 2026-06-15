@@ -115,28 +115,66 @@ jobs:
           ssh -i "${KAMAL_SSH_KEY_PATH}" "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'mkdir -p /opt/orvo/certs'
           scp -i "${KAMAL_SSH_KEY_PATH}" deploy/certs/do-postgres-ca.crt "${KAMAL_SSH_USER}@${KAMAL_HOST}:/opt/orvo/certs/do-postgres-ca.crt"
 
-      - name: Build and deliver app image
-        run: kamal -c config/deploy.app.yml build deliver
+      - name: Build and push app image
+        run: kamal -c config/deploy.app.yml build push
+
+      - name: Build and push ingest image
+        run: kamal -c config/deploy.ingest.yml build push
+
+      - name: Build and push telemetry writer image
+        run: kamal -c config/deploy.telemetry-writer.yml build push
+
+      - name: Build and push alerts worker image
+        run: kamal -c config/deploy.alerts-worker.yml build push
+
+      - name: Pull app image to server
+        run: kamal -c config/deploy.app.yml build pull
+
+      - name: Pull ingest image to server
+        run: kamal -c config/deploy.ingest.yml build pull
+
+      - name: Pull telemetry writer image to server
+        run: kamal -c config/deploy.telemetry-writer.yml build pull
+
+      - name: Pull alerts worker image to server
+        run: kamal -c config/deploy.alerts-worker.yml build pull
+
+      - name: Prepare migration env file
+        env:
+          PROD_POSTGRES_URL: ${{ secrets.PROD_POSTGRES_URL }}
+          PROD_CLICKHOUSE_URL: ${{ secrets.PROD_CLICKHOUSE_URL }}
+        run: |
+          mkdir -p deploy/migrate
+          cat <<EOF > deploy/migrate/app.env
+          POSTGRES_URL=${PROD_POSTGRES_URL}
+          CLICKHOUSE_URL=${PROD_CLICKHOUSE_URL}
+          EOF
+
+      - name: Upload migration env file
+        run: |
+          ssh -i "${KAMAL_SSH_KEY_PATH}" "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'mkdir -p /opt/orvo/migrate'
+          scp -i "${KAMAL_SSH_KEY_PATH}" deploy/migrate/app.env "${KAMAL_SSH_USER}@${KAMAL_HOST}:/opt/orvo/migrate/app.env"
 
       - name: Run database migrations
         run: |
-          kamal -c config/deploy.app.yml --primary app exec 'pnpm --filter @repo/db db:migrate'
-          kamal -c config/deploy.app.yml --primary app exec 'pnpm --filter @repo/clickhouse run db:migrate'
+          ssh -i "${KAMAL_SSH_KEY_PATH}" "${KAMAL_SSH_USER}@${KAMAL_HOST}" \
+            "docker run --rm --env-file /opt/orvo/migrate/app.env -v /opt/orvo/certs:/opt/orvo/certs:ro ghcr.io/orvo-sh/orvo-app:${GITHUB_SHA} sh -lc 'cd /repo && pnpm --filter @repo/db db:migrate && pnpm --filter @repo/clickhouse run db:migrate'"
+          ssh -i "${KAMAL_SSH_KEY_PATH}" "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'rm -f /opt/orvo/migrate/app.env'
 
       - name: Boot NATS accessory
         run: kamal -c config/deploy.ingest.yml accessory boot nats || kamal -c config/deploy.ingest.yml accessory reboot nats
 
-      - name: Deploy alerts worker
-        run: kamal -c config/deploy.alerts-worker.yml deploy
-
-      - name: Deploy telemetry writer
-        run: kamal -c config/deploy.telemetry-writer.yml deploy
-
       - name: Deploy app
         run: kamal -c config/deploy.app.yml deploy --skip-push
 
+      - name: Deploy alerts worker
+        run: kamal -c config/deploy.alerts-worker.yml deploy --skip-push
+
+      - name: Deploy telemetry writer
+        run: kamal -c config/deploy.telemetry-writer.yml deploy --skip-push
+
       - name: Deploy ingest
-        run: kamal -c config/deploy.ingest.yml deploy
+        run: kamal -c config/deploy.ingest.yml deploy --skip-push
 
       - name: Verify production endpoints
         run: |
