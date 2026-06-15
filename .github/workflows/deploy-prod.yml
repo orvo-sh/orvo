@@ -64,6 +64,8 @@ jobs:
           mkdir -p .kamal ~/.ssh
           printf '%s\n' "${PROD_SERVER_SSH_KEY}" > "${KAMAL_SSH_KEY_PATH}"
           chmod 600 "${KAMAL_SSH_KEY_PATH}"
+          touch ~/.ssh/known_hosts
+          ssh-keygen -R "${KAMAL_HOST}" -f ~/.ssh/known_hosts || true
           ssh-keyscan -H "${KAMAL_HOST}" >> ~/.ssh/known_hosts
 
           : > .kamal/secrets
