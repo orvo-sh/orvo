@@ -13,7 +13,8 @@
     "db:create-migration": "node ./scripts/create-migration.mjs"
   },
   "dependencies": {
-    "@clickhouse/client": "^1.12.1"
+    "@clickhouse/client": "^1.12.1",
+    "@opentelemetry/api": "^1.9.1"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
