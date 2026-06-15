@@ -3,6 +3,16 @@ import { defineConfig, devices } from "@playwright/test";
 const TEST_APP_PORT = 42173;
 const TEST_APP_ORIGIN = `http://127.0.0.1:${TEST_APP_PORT}`;
 
+const chromeOptions = {
+  ...devices["Desktop Chrome"],
+  launchOptions: {
+    executablePath:
+      process.env.CI || process.env.PLAYWRIGHT_CHROME_PATH
+        ? undefined
+        : "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  },
+};
+
 export default defineConfig({
   testDir: "tests",
   testMatch: /(.+\.)?(test|spec)\.[jt]s/,
@@ -19,8 +29,14 @@ export default defineConfig({
   globalTeardown: "./tests/global-teardown.ts",
   projects: [
     {
+      name: "setup",
+      testMatch: /auth\.setup\.ts/,
+      use: chromeOptions,
+    },
+    {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"],
+      use: chromeOptions,
     },
   ],
 });

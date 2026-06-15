@@ -7,6 +7,8 @@ const globalTeardown = async (_config: FullConfig) => {
     global as typeof globalThis & {
       __TESTCONTAINER__?: {
         postgres?: StartedPostgreSqlContainer;
+        clickhouse?: { stop: () => Promise<void> };
+        minio?: { stop: () => Promise<void> };
         appServer?: ChildProcess;
       };
     }
@@ -15,6 +17,16 @@ const globalTeardown = async (_config: FullConfig) => {
   if (container?.appServer) {
     console.log("Stopping app test server.");
     container.appServer.kill("SIGTERM");
+  }
+
+  if (container?.minio) {
+    console.log("Stopping MinIO container.");
+    await container.minio.stop();
+  }
+
+  if (container?.clickhouse) {
+    console.log("Stopping ClickHouse container.");
+    await container.clickhouse.stop();
   }
 
   if (container?.postgres) {

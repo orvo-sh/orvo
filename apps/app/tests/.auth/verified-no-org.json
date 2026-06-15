@@ -1,0 +1,29 @@
+{
+  "cookies": [
+    {
+      "name": "better-auth.session_token",
+      "value": "smTd4SThuA9rkvxxAHqwLaDUek2bK1fO.WVicJvty53Q3GbptBqPKL4qEGqPXqHe%2BTnWaO%2B4t3I4%3D",
+      "domain": "127.0.0.1",
+      "path": "/",
+      "expires": 1782124291.614,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://127.0.0.1:42173",
+      "localStorage": [
+        {
+          "name": "mode-watcher-theme",
+          "value": ""
+        },
+        {
+          "name": "mode-watcher-mode",
+          "value": "system"
+        }
+      ]
+    }
+  ]
+}
