@@ -10,6 +10,11 @@ const baseLogger = new Logger('Orvo', { pretty: dev, loggerProvider });
 export const handle = async ({ event, resolve }) => {
 	const startTime = Date.now();
 	const requestId = genId('req');
+
+	const route = event.route.id ?? event.url.pathname;
+	event.tracing.root.updateName(`${event.request.method} ${route}`);
+	event.tracing.root.setAttribute('http.route', route);
+
 	const logger = baseLogger.child('Orvo', {
 		requestId,
 		method: event.request.method,
@@ -17,6 +22,7 @@ export const handle = async ({ event, resolve }) => {
 	});
 
 	event.locals.container = createServerContainer(logger);
+
 	event.tracing.root.setAttribute('orvo.request_id', requestId);
 	event.tracing.root.setAttribute('http.request.method', event.request.method);
 	event.tracing.root.setAttribute('url.path', event.url.pathname);
@@ -30,8 +36,6 @@ export const handle = async ({ event, resolve }) => {
 			user: session.user,
 		};
 	}
-
-	await new Promise((resolve) => setTimeout(resolve, 500));
 
 	const response = await svelteKitHandler({ event, resolve, auth: authService, building });
 
