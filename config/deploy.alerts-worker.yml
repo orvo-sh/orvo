@@ -6,8 +6,6 @@ servers:
     hosts:
       - <%= ENV.fetch("KAMAL_HOST") %>
     proxy: false
-    options:
-      restart: unless-stopped
 
 registry:
   server: ghcr.io

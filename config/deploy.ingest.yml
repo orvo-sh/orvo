@@ -5,8 +5,6 @@ servers:
   web:
     hosts:
       - <%= ENV.fetch("KAMAL_HOST") %>
-    options:
-      restart: unless-stopped
 
 registry:
   server: ghcr.io
