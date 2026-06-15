@@ -120,8 +120,8 @@ jobs:
 
       - name: Run database migrations
         run: |
-          kamal -c config/deploy.app.yml app exec -p 'pnpm --filter @repo/db db:migrate'
-          kamal -c config/deploy.app.yml app exec -p 'pnpm --filter @repo/clickhouse run db:migrate'
+          kamal -c config/deploy.app.yml --primary app exec 'pnpm --filter @repo/db db:migrate'
+          kamal -c config/deploy.app.yml --primary app exec 'pnpm --filter @repo/clickhouse run db:migrate'
 
       - name: Boot NATS accessory
         run: kamal -c config/deploy.ingest.yml accessory boot nats || kamal -c config/deploy.ingest.yml accessory reboot nats
