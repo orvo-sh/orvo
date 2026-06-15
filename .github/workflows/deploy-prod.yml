@@ -169,6 +169,9 @@ jobs:
       - name: Boot NATS accessory
         run: kamal accessory boot nats -c config/deploy.ingest.yml || kamal accessory reboot nats -c config/deploy.ingest.yml
 
+      - name: Deploy ingest
+        run: kamal deploy -c config/deploy.ingest.yml --skip-push --version "${DEPLOY_VERSION}"
+
       - name: Deploy app
         run: kamal deploy -c config/deploy.app.yml --skip-push --version "${DEPLOY_VERSION}"
 
@@ -177,9 +180,6 @@ jobs:
 
       - name: Deploy telemetry writer
         run: kamal deploy -c config/deploy.telemetry-writer.yml --skip-push --version "${DEPLOY_VERSION}"
-
-      - name: Deploy ingest
-        run: kamal deploy -c config/deploy.ingest.yml --skip-push --version "${DEPLOY_VERSION}"
 
       - name: Verify production endpoints
         run: |
