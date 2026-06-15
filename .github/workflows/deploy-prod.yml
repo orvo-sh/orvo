@@ -17,7 +17,6 @@ permissions:
 env:
   KAMAL_HOST: ${{ secrets.PROD_SERVER_HOST }}
   KAMAL_REGISTRY_USERNAME: ${{ github.actor }}
-  KAMAL_SSH_KEY_PATH: /tmp/kamal_id_ed25519
   KAMAL_SSH_USER: ${{ secrets.PROD_SERVER_USER }}
   DEPLOY_VERSION: ${{ github.sha }}
 
@@ -61,12 +60,19 @@ jobs:
           PROD_STRIPE_STARTER_PRICE_ID: ${{ secrets.PROD_STRIPE_STARTER_PRICE_ID }}
           PROD_STRIPE_WEBHOOK_SECRET: ${{ secrets.PROD_STRIPE_WEBHOOK_SECRET }}
         run: |
-          mkdir -p .kamal ~/.ssh
+          export HOME="${RUNNER_TEMP}/kamal-home"
+          export KAMAL_SSH_KEY_PATH="${HOME}/.ssh/kamal_id_ed25519"
+
+          mkdir -p .kamal "${HOME}/.ssh"
           printf '%s\n' "${PROD_SERVER_SSH_KEY}" > "${KAMAL_SSH_KEY_PATH}"
           chmod 600 "${KAMAL_SSH_KEY_PATH}"
-          touch ~/.ssh/known_hosts
-          ssh-keygen -R "${KAMAL_HOST}" -f ~/.ssh/known_hosts || true
-          ssh-keyscan -H "${KAMAL_HOST}" >> ~/.ssh/known_hosts
+          touch "${HOME}/.ssh/known_hosts"
+          ssh-keyscan -H "${KAMAL_HOST}" >> "${HOME}/.ssh/known_hosts"
+
+          {
+            echo "HOME=${HOME}"
+            echo "KAMAL_SSH_KEY_PATH=${KAMAL_SSH_KEY_PATH}"
+          } >> "${GITHUB_ENV}"
 
           : > .kamal/secrets
           write_secret() {
