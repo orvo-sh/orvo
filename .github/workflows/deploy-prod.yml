@@ -124,8 +124,8 @@ jobs:
 
       - name: Upload Postgres CA certificate
         run: |
-          ssh -i "${KAMAL_SSH_KEY_PATH}" "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'mkdir -p /opt/orvo/certs'
-          scp -i "${KAMAL_SSH_KEY_PATH}" "${RUNNER_TEMP}/do-postgres-ca.crt" "${KAMAL_SSH_USER}@${KAMAL_HOST}:/opt/orvo/certs/do-postgres-ca.crt"
+          ssh -i "${KAMAL_SSH_KEY_PATH}" -o UserKnownHostsFile="${HOME}/.ssh/known_hosts" -o StrictHostKeyChecking=yes "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'mkdir -p /opt/orvo/certs'
+          scp -i "${KAMAL_SSH_KEY_PATH}" -o UserKnownHostsFile="${HOME}/.ssh/known_hosts" -o StrictHostKeyChecking=yes "${RUNNER_TEMP}/do-postgres-ca.crt" "${KAMAL_SSH_USER}@${KAMAL_HOST}:/opt/orvo/certs/do-postgres-ca.crt"
 
       - name: Build and push app image
         run: kamal build push -c config/deploy.app.yml --version "${DEPLOY_VERSION}"
@@ -163,14 +163,14 @@ jobs:
 
       - name: Upload migration env file
         run: |
-          ssh -i "${KAMAL_SSH_KEY_PATH}" "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'mkdir -p /opt/orvo/migrate'
-          scp -i "${KAMAL_SSH_KEY_PATH}" "${RUNNER_TEMP}/app.env" "${KAMAL_SSH_USER}@${KAMAL_HOST}:/opt/orvo/migrate/app.env"
+          ssh -i "${KAMAL_SSH_KEY_PATH}" -o UserKnownHostsFile="${HOME}/.ssh/known_hosts" -o StrictHostKeyChecking=yes "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'mkdir -p /opt/orvo/migrate'
+          scp -i "${KAMAL_SSH_KEY_PATH}" -o UserKnownHostsFile="${HOME}/.ssh/known_hosts" -o StrictHostKeyChecking=yes "${RUNNER_TEMP}/app.env" "${KAMAL_SSH_USER}@${KAMAL_HOST}:/opt/orvo/migrate/app.env"
 
       - name: Run database migrations
         run: |
-          ssh -i "${KAMAL_SSH_KEY_PATH}" "${KAMAL_SSH_USER}@${KAMAL_HOST}" \
+          ssh -i "${KAMAL_SSH_KEY_PATH}" -o UserKnownHostsFile="${HOME}/.ssh/known_hosts" -o StrictHostKeyChecking=yes "${KAMAL_SSH_USER}@${KAMAL_HOST}" \
             "docker run --rm --env-file /opt/orvo/migrate/app.env -v /opt/orvo/certs:/opt/orvo/certs:ro ghcr.io/orvo-sh/orvo-app:${DEPLOY_VERSION} sh -lc 'cd /repo && pnpm --filter @repo/db db:migrate && pnpm --filter @repo/clickhouse run db:migrate'"
-          ssh -i "${KAMAL_SSH_KEY_PATH}" "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'rm -f /opt/orvo/migrate/app.env'
+          ssh -i "${KAMAL_SSH_KEY_PATH}" -o UserKnownHostsFile="${HOME}/.ssh/known_hosts" -o StrictHostKeyChecking=yes "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'rm -f /opt/orvo/migrate/app.env'
 
       - name: Boot NATS accessory
         run: kamal accessory boot nats -c config/deploy.ingest.yml || kamal accessory reboot nats -c config/deploy.ingest.yml
