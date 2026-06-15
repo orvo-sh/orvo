@@ -17,7 +17,7 @@ permissions:
 env:
   KAMAL_HOST: ${{ secrets.PROD_SERVER_HOST }}
   KAMAL_REGISTRY_USERNAME: ${{ github.actor }}
-  KAMAL_SSH_KEY_PATH: ${{ runner.temp }}/kamal_id_ed25519
+  KAMAL_SSH_KEY_PATH: /tmp/kamal_id_ed25519
   KAMAL_SSH_USER: ${{ secrets.PROD_SERVER_USER }}
   DEPLOY_VERSION: ${{ github.sha }}
 
