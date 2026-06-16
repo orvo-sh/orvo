@@ -37,6 +37,11 @@ class BillingService {
     private logger: Logger,
     private email: Email,
     private stripe: Stripe,
+    private config: {
+      starterPriceId: string;
+      proPriceId: string;
+      trialDays: number;
+    },
   ) {
     this.logger = logger.child("BillingService");
   }
@@ -160,56 +165,152 @@ class BillingService {
     }
   }
 
-  async onSubscriptionCompleted(subscription: Subscription) {
+  async updateBillingEmail(
+    input: z.infer<typeof updateBillingEmailInputSchema>,
+    context: { organizationId: string; userId: string },
+  ) {
+    this.logger.info("updateBillingEmail: updating billing email", {
+      input,
+      context,
+    });
+
+    const validated = updateBillingEmailInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
+
+    try {
+      if (
+        !(await this.isOrganizationOwner(
+          context.organizationId,
+          context.userId,
+        ))
+      ) {
+        return err("Only organization owners can manage billing.");
+      }
+
+      return err("Billing email updates are not available yet.");
+    } catch (error) {
+      this.logger.error(
+        "updateBillingEmail: failed to update billing email",
+        error as Error,
+      );
+      return err("Failed to update billing email.");
+    }
+  }
+
+  async startFreeTrial(
+    input: z.infer<typeof startFreeTrialInputSchema>,
+    context: { organizationId: string; userId: string },
+  ) {
+    this.logger.info("startFreeTrial: starting free trial", { input, context });
+
+    const validated = startFreeTrialInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
+
+    try {
+      if (
+        !(await this.isOrganizationOwner(
+          context.organizationId,
+          context.userId,
+        ))
+      ) {
+        return err("Only organization owners can start a trial.");
+      }
+
+      const currentOrganization = await this.db.query.organization.findFirst({
+        where: eq(organization.id, context.organizationId),
+      });
+
+      if (!currentOrganization) {
+        return err("Organization not found.");
+      }
+
+      const currentSubscription = await this.getCurrentSubscription(
+        context.organizationId,
+      );
+
+      if (
+        currentSubscription &&
+        ["trialing", "active", "past_due", "paused", "unpaid"].includes(
+          currentSubscription.status,
+        )
+      ) {
+        return err("This organization already has a subscription.");
+      }
+
+      let stripeCustomerId = currentOrganization.stripeCustomerId;
+      if (!stripeCustomerId) {
+        const stripeCustomer = await this.stripe.customers.create({
+          name: currentOrganization.name,
+          metadata: {
+            organizationId: currentOrganization.id,
+            customerType: "organization",
+          },
+        });
+
+        stripeCustomerId = stripeCustomer.id;
+
+        await this.db
+          .update(organization)
+          .set({ stripeCustomerId })
+          .where(eq(organization.id, currentOrganization.id));
+      }
+
+      const stripeSubscription = await this.stripe.subscriptions.create({
+        customer: stripeCustomerId,
+        items: [{ price: this.readStripePriceId(validated.data.plan) }],
+        trial_period_days: this.config.trialDays,
+        metadata: {
+          userId: context.userId,
+          referenceId: context.organizationId,
+        },
+        trial_settings: {
+          end_behavior: {
+            missing_payment_method: "cancel",
+          },
+        },
+      });
+
+      await this.syncStripeSubscriptionState({
+        organizationId: context.organizationId,
+        plan: validated.data.plan,
+        stripeSubscription,
+      });
+
+      return ok({ id: stripeSubscription.id });
+    } catch (error) {
+      this.logger.error("startFreeTrial: failed to start free trial", error as Error);
+      return err("Failed to start the free trial.");
+    }
+  }
+
+  async onSubscriptionCreated(subscription: Subscription) {
     this.logger.info(
-      "onSubscriptionCompleted: completing subscription activation",
+      "onSubscriptionCreated: syncing subscription activation",
       { subscription },
     );
 
-    const plan = {
-      "starter": PLANS.starter,
-      "pro": PLANS.pro
-    }[subscription.plan]!
-
     try {
-      await this.db.transaction(async (tx) => {
-        await tx.update(organization).set({
-          billingPlan: subscription.plan as "starter" | "pro",
-          billingStatus: 'trialing'
-        }).where(eq(organization.id, subscription.referenceId))
+      if (!subscription.stripeSubscriptionId) {
+        return err("Subscription is missing a Stripe subscription id.");
+      }
 
-        const currentOrganizationUsage = await tx.query.organizationUsage.findFirst({
-          where: eq(organizationUsage.organizationId, subscription.referenceId),
-        })
+      const stripeSubscription = await this.stripe.subscriptions.retrieve(
+        subscription.stripeSubscriptionId,
+      );
 
-        const stripeSubscriptionItem = (await this.stripe.subscriptionItems.list({
-          subscription: subscription.stripeSubscriptionId!
-        })).data[0]
+      await this.syncStripeSubscriptionState({
+        organizationId: subscription.referenceId,
+        plan: subscription.plan as "starter" | "pro",
+        stripeSubscription,
+      });
 
-        const organizationUsageValues = {
-          logsRetentionDays: plan.retentionDays.logs,
-          tracesRetentionDays: plan.retentionDays.traces,
-          metricsRetentionDays: plan.retentionDays.metrics,
-          currentPeriodStart: new Date(stripeSubscriptionItem.current_period_start * 1000),
-          currentPeriodEnd: new Date(stripeSubscriptionItem.current_period_end * 1000),
-          ingestLimitBytes: plan.ingestLimitBytes,
-        }
-
-        if (currentOrganizationUsage)
-          await tx
-            .update(organizationUsage)
-            .set(organizationUsageValues)
-            .where(eq(organizationUsage.organizationId, subscription.referenceId));
-        else
-          await tx.insert(organizationUsage).values({
-            id: genId("orgu"),
-            organizationId: subscription.referenceId,
-            ...organizationUsageValues,
-          });
-      })
-      return ok(null)
+      return ok(null);
     } catch (error) {
-      this.logger.error("onSubscriptionCompleted: failed to activate subscription", error as Error)
+      this.logger.error("onSubscriptionCreated: failed to sync subscription", error as Error)
       return err("Failed to activate subscription.")
     }
   }
@@ -313,11 +414,83 @@ class BillingService {
       ...owners.map((owner) => owner.user?.email ?? null),
     ])].filter((email): email is string => typeof email === "string");
   }
+
+  private readStripePriceId(plan: "starter" | "pro") {
+    return plan === "starter"
+      ? this.config.starterPriceId
+      : this.config.proPriceId;
+  }
+
+  private async syncStripeSubscriptionState(context: {
+    organizationId: string;
+    plan: "starter" | "pro";
+    stripeSubscription: Stripe.Subscription;
+  }) {
+    const plan = {
+      starter: PLANS.starter,
+      pro: PLANS.pro,
+    }[context.plan];
+
+    const periodStart = readStripeSubscriptionPeriodStart(
+      context.stripeSubscription,
+    );
+    const periodEnd = readStripeSubscriptionPeriodEnd(
+      context.stripeSubscription,
+    );
+    const fallbackStart =
+      context.stripeSubscription.trial_start ??
+      Math.floor(Date.now() / 1000);
+    const fallbackEnd =
+      context.stripeSubscription.trial_end ??
+      addDays(new Date(), this.config.trialDays).getTime() / 1000;
+
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(organization)
+        .set({
+          billingPlan: context.plan,
+          billingStatus:
+            context.stripeSubscription.status === "active" ? "active" : "trialing",
+        })
+        .where(eq(organization.id, context.organizationId));
+
+      const currentOrganizationUsage =
+        await tx.query.organizationUsage.findFirst({
+          where: eq(organizationUsage.organizationId, context.organizationId),
+        });
+
+      const organizationUsageValues = {
+        logsRetentionDays: plan.retentionDays.logs,
+        tracesRetentionDays: plan.retentionDays.traces,
+        metricsRetentionDays: plan.retentionDays.metrics,
+        currentPeriodStart: new Date((periodStart ?? fallbackStart) * 1000),
+        currentPeriodEnd: new Date((periodEnd ?? fallbackEnd) * 1000),
+        ingestLimitBytes: plan.ingestLimitBytes,
+      };
+
+      if (currentOrganizationUsage) {
+        await tx
+          .update(organizationUsage)
+          .set(organizationUsageValues)
+          .where(eq(organizationUsage.organizationId, context.organizationId));
+      } else {
+        await tx.insert(organizationUsage).values({
+          id: genId("orgu"),
+          organizationId: context.organizationId,
+          ...organizationUsageValues,
+        });
+      }
+    });
+  }
 }
 
 const getBillingStateInputSchema = z.object({});
 
 const createBillingPortalInputSchema = z.object({});
+
+const startFreeTrialInputSchema = z.object({
+  plan: z.enum(["starter", "pro"]),
+});
 
 const updateBillingEmailInputSchema = z.object({
   billingEmail: z.string().trim().email().max(255),
@@ -496,5 +669,6 @@ export {
   createBillingPortalInputSchema,
   getBillingStateInputSchema,
   queueBillingNotificationInputSchema,
+  startFreeTrialInputSchema,
   updateBillingEmailInputSchema
 };

@@ -77,45 +77,45 @@ const createAuth = (
     emailVerification:
       email != null
         ? {
-            sendOnSignUp: true,
-            autoSignInAfterVerification: true,
-          }
+          sendOnSignUp: true,
+          autoSignInAfterVerification: true,
+        }
         : undefined,
     socialProviders: config.github
       ? {
-          github: {
-            clientId: config.github.clientId,
-            clientSecret: config.github.clientSecret,
-          },
-        }
+        github: {
+          clientId: config.github.clientId,
+          clientSecret: config.github.clientSecret,
+        },
+      }
       : undefined,
     plugins: [
       email !== null
         ? emailOTP({
-            overrideDefaultEmailVerification: true,
-            sendVerificationOTP: async ({ email: emailAddr, otp, type }) => {
-              try {
-                switch (type) {
-                  case "email-verification":
-                    email?.sendEmail({
-                      to: emailAddr,
-                      subject: "Verify your email",
-                      template: "otp",
-                      props: {
-                        code: otp,
-                        purpose: "sign-up",
-                      },
-                    });
-                    break;
-                }
-              } catch (error) {
-                logger.error(
-                  "sendVerificationOTP: failed to send verification otp",
-                  error as Error,
-                );
+          overrideDefaultEmailVerification: true,
+          sendVerificationOTP: async ({ email: emailAddr, otp, type }) => {
+            try {
+              switch (type) {
+                case "email-verification":
+                  email?.sendEmail({
+                    to: emailAddr,
+                    subject: "Verify your email",
+                    template: "otp",
+                    props: {
+                      code: otp,
+                      purpose: "sign-up",
+                    },
+                  });
+                  break;
               }
-            },
-          })
+            } catch (error) {
+              logger.error(
+                "sendVerificationOTP: failed to send verification otp",
+                error as Error,
+              );
+            }
+          },
+        })
         : undefined,
       organization({
         schema: {
@@ -139,74 +139,60 @@ const createAuth = (
       }),
       config.stripe && billingService
         ? stripePlugin({
-            stripeClient: config.stripe.client,
-            stripeWebhookSecret: config.stripe.webhookSecret,
-            createCustomerOnSignUp: false,
-            subscription: {
-              enabled: true,
-              plans: [
-                {
-                  name: "starter",
-                  priceId: config.stripe.starterPriceId,
-                  freeTrial: {
-                    days: 14,
-                    onTrialExpired: async (subscription: {
-                      referenceId: string;
-                    }) =>
-                      await billingService.onTrialExpired({
-                        organizationId: subscription.referenceId,
-                      }),
-                  },
-                },
-                {
-                  name: "pro",
-                  priceId: config.stripe.proPriceId,
-                  freeTrial: {
-                    days: 14,
-                    onTrialExpired: async (subscription: {
-                      referenceId: string;
-                    }) =>
-                      await billingService.onTrialExpired({
-                        organizationId: subscription.referenceId,
-                      }),
-                  },
-                },
-              ],
-              authorizeReference: async ({ user, referenceId }) => {
-                if (!referenceId) return false;
-
-                const currentMember = await db.query.member.findFirst({
-                  where: and(
-                    eq(dbSchema.member.organizationId, referenceId),
-                    eq(dbSchema.member.userId, user.id),
-                  ),
-                });
-
-                return currentMember?.role === "owner";
+          stripeClient: config.stripe.client,
+          stripeWebhookSecret: config.stripe.webhookSecret,
+          createCustomerOnSignUp: false,
+          subscription: {
+            enabled: true,
+            plans: [
+              {
+                name: "starter",
+                priceId: config.stripe.starterPriceId,
               },
-              getCheckoutSessionParams: async ({ user }) => ({
-                params: {
-                  payment_method_collection: "always",
-                  customer_email: user.email,
-                },
+              {
+                name: "pro",
+                priceId: config.stripe.proPriceId,
+              },
+            ],
+            authorizeReference: async ({ user, referenceId }) => {
+              if (!referenceId) return false;
+
+              const currentMember = await db.query.member.findFirst({
+                where: and(
+                  eq(dbSchema.member.organizationId, referenceId),
+                  eq(dbSchema.member.userId, user.id),
+                ),
+              });
+
+              return currentMember?.role === "owner";
+            },
+            getCheckoutSessionParams: async ({ user }) => ({
+              params: {
+                payment_method_collection: "if_required",
+                customer_email: user.email,
+              },
+            }),
+            onSubscriptionCreated: async ({ subscription }) =>
+              void (await billingService.onSubscriptionCreated(
+                subscription,
+              )),
+            onSubscriptionComplete: async ({ subscription }) =>
+              void (await billingService.onSubscriptionCreated(
+                subscription,
+              )),
+            onSubscriptionUpdate: async ({ subscription }) =>
+              await billingService.onSubscriptonChanged({
+                organizationId: subscription.referenceId,
               }),
-              onSubscriptionComplete: async ({ subscription }) =>
-                void (await billingService.onSubscriptionCompleted(
-                  subscription,
-                )),
-              onSubscriptionUpdate: async ({ subscription }) =>
-                await billingService.onSubscriptonChanged({
-                  organizationId: subscription.referenceId,
-                }),
-              onSubscriptionDeleted: async ({ subscription }) =>
-                await billingService.onSubscriptionDeleted({
-                  organizationId: subscription.referenceId,
-                }),
-            },
-            organization: {
-              enabled: true,
-            },
-          })
+            onSubscriptionDeleted: async ({ subscription }) =>
+              await billingService.onSubscriptionDeleted({
+                organizationId: subscription.referenceId,
+              }),
+          },
+          organization: {
+            enabled: true,
+          },
+        })
         : undefined,
       ,
       sveltekitCookies(getRequestEvent),
