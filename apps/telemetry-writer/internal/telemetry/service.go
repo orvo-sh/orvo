@@ -14,11 +14,44 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/orvo-sh/orvo/apps/telemetry-writer/internal/config"
 	"github.com/orvo-sh/orvo/apps/telemetry-writer/internal/entitlements"
 	"github.com/orvo-sh/orvo/apps/telemetry-writer/internal/queue"
 )
+
+type natsHeaderCarrier nats.Header
+
+func (c natsHeaderCarrier) Get(key string) string {
+	return nats.Header(c).Get(key)
+}
+
+func (c natsHeaderCarrier) Set(key, value string) {
+	nats.Header(c).Set(key, value)
+}
+
+func (c natsHeaderCarrier) Keys() []string {
+	keys := make([]string, 0, len(c))
+	for k := range c {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func extractTraceContext(ctx context.Context, headers nats.Header) context.Context {
+	if len(headers) == 0 {
+		return ctx
+	}
+	return propagation.TraceContext{}.Extract(ctx, natsHeaderCarrier(headers))
+}
+
+func getBatchContext[T any](batch *messageBatch[T], fallback context.Context) context.Context {
+	if batch.traceContext != nil {
+		return batch.traceContext
+	}
+	return fallback
+}
 
 type clickhouseWriter interface {
 	InsertLogs(ctx context.Context, rows []LogRow) error
@@ -92,6 +125,7 @@ func (service *Service) Run(ctx context.Context) error {
 type messageBatch[T any] struct {
 	rows          []T
 	msgs          []jetstream.Msg
+	traceContext  context.Context
 	bytes         int
 	firstReceived time.Time
 	maxRows       int
@@ -107,12 +141,13 @@ func newMessageBatch[T any](maxRows int, maxBytes int, flushInterval time.Durati
 	}
 }
 
-func (batch *messageBatch[T]) Add(rows []T, msg jetstream.Msg, bytes int) {
+func (batch *messageBatch[T]) Add(rows []T, msg jetstream.Msg, bytes int, msgCtx context.Context) {
 	if len(rows) == 0 {
 		return
 	}
 	if batch.firstReceived.IsZero() {
 		batch.firstReceived = time.Now().UTC()
+		batch.traceContext = msgCtx
 	}
 	batch.rows = append(batch.rows, rows...)
 	batch.msgs = append(batch.msgs, msg)
@@ -139,6 +174,7 @@ func (batch *messageBatch[T]) ShouldFlush(now time.Time) bool {
 func (batch *messageBatch[T]) Reset() {
 	batch.rows = nil
 	batch.msgs = nil
+	batch.traceContext = nil
 	batch.bytes = 0
 	batch.firstReceived = time.Time{}
 }
@@ -202,19 +238,20 @@ func runWorkerLoop[T any](
 		if err != nil {
 			if errors.Is(err, nats.ErrTimeout) {
 				if batch.ShouldFlush(time.Now().UTC()) {
-					flush(ctx, batch, logger)
+					flush(getBatchContext(batch, ctx), batch, logger)
 				}
 				continue
 			}
 
 			logger.Error("RunWorkerLoop: iterator error", slog.Any("error", err))
 			if batch.ShouldFlush(time.Now().UTC()) {
-				flush(ctx, batch, logger)
+				flush(getBatchContext(batch, ctx), batch, logger)
 			}
 			continue
 		}
 
-		rows, err := decode(ctx, msg.Data())
+		msgCtx := extractTraceContext(ctx, msg.Headers())
+		rows, err := decode(msgCtx, msg.Data())
 		if err != nil {
 			logger.Error("RunWorkerLoop: failed to decode message", slog.Any("error", err))
 			if termErr := msg.Term(); termErr != nil {
@@ -230,9 +267,9 @@ func runWorkerLoop[T any](
 			continue
 		}
 
-		batch.Add(rows, msg, len(msg.Data()))
+		batch.Add(rows, msg, len(msg.Data()), msgCtx)
 		if batch.ShouldFlush(time.Now().UTC()) {
-			flush(ctx, batch, logger)
+			flush(getBatchContext(batch, ctx), batch, logger)
 		}
 	}
 }
@@ -242,7 +279,11 @@ func flushOnShutdown[T any](batch *messageBatch[T], logger *slog.Logger, shutdow
 		return
 	}
 
-	flushCtx, cancel := context.WithTimeout(context.Background(), shutdownFlushTimeout)
+	parentCtx := batch.traceContext
+	if parentCtx == nil {
+		parentCtx = context.Background()
+	}
+	flushCtx, cancel := context.WithTimeout(parentCtx, shutdownFlushTimeout)
 	defer cancel()
 	flush(flushCtx, batch, logger)
 }
