@@ -52,12 +52,12 @@ const clickhouse = getClickHouseClient({ url: env.CLICKHOUSE_URL });
 const storage =
   env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY && env.S3_ENDPOINT
     ? new Storage({
-        accessKeyId: env.S3_ACCESS_KEY_ID,
-        secretAccessKey: env.S3_SECRET_ACCESS_KEY,
-        endpoint: env.S3_ENDPOINT,
-        region: env.S3_REGION,
-        bucket: env.S3_BUCKET_NAME,
-      })
+      accessKeyId: env.S3_ACCESS_KEY_ID,
+      secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+      endpoint: env.S3_ENDPOINT,
+      region: env.S3_REGION,
+      bucket: env.S3_BUCKET_NAME,
+    })
     : null;
 
 const stripe = env.STRIPE_SECRET_KEY
@@ -73,10 +73,9 @@ const ai = env.GEMINI_API_KEY
 const encryption = new Encryption({ secret: env.ENCRYPTION_SECRET });
 
 const cdnBaseUrl = process.env.CDN_BASE_URL ?? env.CDN_BASE_URL;
-const publicOtlpBaseUrl =
-  process.env.PUBLIC_ORVO_OTLP_BASE_URL ??
-  env.PUBLIC_ORVO_OTLP_BASE_URL ??
-  env.ORIGIN;
+
+//TODO: Make this configurable in the future, but for now, we can hardcode it to the public ingest endpoint.
+const publicOtlpBaseUrl = "https://ingest.orvo.sh"
 
 export const createServerContainer = (logger: Logger): ServerContainer => {
   const ingestionKeyService = new IngestionKeyService(db, logger);
@@ -117,10 +116,10 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
   );
   const billingService = stripe
     ? new BillingService(db, logger, email, stripe, {
-        starterPriceId: env.STRIPE_STARTER_PRICE_ID,
-        proPriceId: env.STRIPE_PRO_PRICE_ID,
-        trialDays: 14,
-      })
+      starterPriceId: env.STRIPE_STARTER_PRICE_ID,
+      proPriceId: env.STRIPE_PRO_PRICE_ID,
+      trialDays: 14,
+    })
     : null;
   const uploadService = new UploadService(logger, storage, {
     cdnBaseUrl,
@@ -142,17 +141,17 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
     github:
       env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
         ? {
-            clientId: env.GITHUB_CLIENT_ID,
-            clientSecret: env.GITHUB_CLIENT_SECRET,
-          }
+          clientId: env.GITHUB_CLIENT_ID,
+          clientSecret: env.GITHUB_CLIENT_SECRET,
+        }
         : undefined,
     stripe: stripe
       ? {
-          client: stripe,
-          webhookSecret: env.STRIPE_WEBHOOK_SECRET,
-          starterPriceId: env.STRIPE_STARTER_PRICE_ID,
-          proPriceId: env.STRIPE_PRO_PRICE_ID,
-        }
+        client: stripe,
+        webhookSecret: env.STRIPE_WEBHOOK_SECRET,
+        starterPriceId: env.STRIPE_STARTER_PRICE_ID,
+        proPriceId: env.STRIPE_PRO_PRICE_ID,
+      }
       : undefined,
   });
 

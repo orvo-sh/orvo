@@ -1,11 +1,10 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { PUBLIC_ORVO_OTLP_BASE_URL } from "$env/static/public";
-  import { formatNumber } from "@repo/utils";
   import { Badge } from "@repo/components/ui/badge";
   import { Button } from "@repo/components/ui/button";
   import { Input } from "@repo/components/ui/input";
   import * as Select from "@repo/components/ui/select";
+  import { formatNumber } from "@repo/utils";
   import {
     IconBrandGithub,
     IconChevronRight,
@@ -26,7 +25,7 @@
 
   const deploymentEndpoint = new URL(
     "/v1/deployments",
-    PUBLIC_ORVO_OTLP_BASE_URL || "https://ingest.orvo.sh",
+    "https://ingest.orvo.sh",
   ).toString();
 
   const error = $derived(
