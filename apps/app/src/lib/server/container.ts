@@ -116,7 +116,11 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
     logger,
   );
   const billingService = stripe
-    ? new BillingService(db, logger, email, stripe)
+    ? new BillingService(db, logger, email, stripe, {
+        starterPriceId: env.STRIPE_STARTER_PRICE_ID,
+        proPriceId: env.STRIPE_PRO_PRICE_ID,
+        trialDays: 14,
+      })
     : null;
   const uploadService = new UploadService(logger, storage, {
     cdnBaseUrl,

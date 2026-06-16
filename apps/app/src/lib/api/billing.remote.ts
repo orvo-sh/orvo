@@ -2,6 +2,7 @@ import { command, getRequestEvent, query } from "$app/server";
 import {
   createBillingPortalInputSchema,
   getBillingStateInputSchema,
+  startFreeTrialInputSchema,
   updateBillingEmailInputSchema,
 } from "$lib/server/services/billing.service";
 import { getActiveOrganizationId } from "$lib/server/request-context";
@@ -23,7 +24,6 @@ export const getBillingStateQuery = query(
 
     return event.locals.container.billingService.getBillingState({
       organizationId,
-      userId: event.locals.auth!.user.id,
     });
   },
 );
@@ -52,6 +52,27 @@ export const createBillingPortalCommand = command(
         authService: event.locals.container.authService,
       },
     );
+  },
+);
+
+export const startFreeTrialCommand = command(
+  startFreeTrialInputSchema,
+  (input) => {
+    const event = getRequestEvent();
+    const organizationId = getActiveOrganizationId(event);
+
+    if (!organizationId) {
+      return err("No active organization selected.");
+    }
+
+    if (!event.locals.container.billingService) {
+      return err("Billing is not configured.");
+    }
+
+    return event.locals.container.billingService.startFreeTrial(input, {
+      organizationId,
+      userId: event.locals.auth!.user.id,
+    });
   },
 );
 

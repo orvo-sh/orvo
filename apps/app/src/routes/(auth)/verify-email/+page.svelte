@@ -115,7 +115,7 @@
             <Button
               variant="link"
               size="sm"
-              class="h-fit p-0"
+              class="h-fit p-0 text-sm"
               onclick={() => {
                 authClient.signOut().then(() => {
                   goto(`/sign-up`);

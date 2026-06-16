@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { authClient } from "$lib/auth-client";
+  import { startFreeTrialCommand } from "$lib/api/billing.remote";
   import { cn } from "@repo/components";
   import { OrvoLogo } from "@repo/components/icons/orvo-logo";
   import { Button } from "@repo/components/ui/button";
@@ -8,41 +8,23 @@
   import { IconArrowRight, IconCheck } from "@tabler/icons-svelte";
 
   import { PLANS } from "$lib/constants";
-  import type { PageData } from "./$types";
-
-  let { data }: { data: PageData } = $props();
 
   let loadingPlan = $state<string | null>(null);
 
   const startTrial = async (plan: string) => {
     loadingPlan = plan;
 
-    await authClient.subscription
-      .upgrade({
-        plan,
-        customerType: "organization",
-        referenceId: data.organizationId,
-        successUrl: `${window.location.origin}/`,
-        cancelUrl: `${window.location.origin}/organizations/plan`,
-        returnUrl: `${window.location.origin}/organizations/plan`,
-        disableRedirect: true,
+    await startFreeTrialCommand({
+        plan: plan as "starter" | "pro",
       })
       .then((result) => {
-        if (result.error) {
-          toast.error(
-            result.error.message || "Failed to start the free trial.",
-          );
+        if (!result.success) {
+          toast.error(result.error || "Failed to start the free trial.");
           loadingPlan = null;
           return;
         }
 
-        if (!result.data?.url) {
-          toast.error("Failed to start the free trial.");
-          loadingPlan = null;
-          return;
-        }
-
-        window.location.href = result.data.url;
+        window.location.href = "/apps/new";
       })
       .catch(() => {
         toast.error("Failed to start the free trial.");
