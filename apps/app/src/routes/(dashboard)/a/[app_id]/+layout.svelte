@@ -25,8 +25,8 @@
 
 <Sidebar.Provider class="h-dvh max-h-dvh overflow-hidden">
   <AppSidebar
-    level={page.params.app_id ? "app" : "organization"}
     activeOrganizationId={data.activeOrganizationId}
+    billingSummary={data.billingSummary}
     organizations={data.organizations}
     user={data.user}
   />

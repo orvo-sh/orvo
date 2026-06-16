@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { invalidateAll } from "$app/navigation";
-  import { goto } from "$app/navigation";
+  import { goto, invalidateAll } from "$app/navigation";
   import { page } from "$app/state";
   import { markOrganizationActivationTelemetryViewedCommand } from "$lib/api/organization-activation.remote";
   import {
@@ -9,6 +8,7 @@
   } from "$lib/stores/organization-activation.svelte";
   import { Button } from "@repo/components/ui/button";
   import * as Dialog from "@repo/components/ui/dialog";
+  import * as Select from "@repo/components/ui/select";
   import { formatNumber } from "@repo/utils";
   import {
     IconChartBar,
@@ -19,7 +19,7 @@
   } from "@tabler/icons-svelte";
 
   import { getInsightsQuery } from "$lib/api/insights.remote";
-  import PageContainer from "../../../_components/page-container/page-container.svelte";
+  import PageContainer from "../_components/page-container/page-container.svelte";
   import ChartCard from "./_components/chart-card.svelte";
   import InsightsSection from "./_components/insights-section.svelte";
   import { OnboardingBanner } from "./_components/onboarding-banner";
@@ -27,6 +27,7 @@
   import SignalSummaryCard from "./_components/signal-summary-card.svelte";
 
   const { data } = $props();
+  const timeOptions = ["30m", "1h", "4h", "24h", "7d"] as const;
 
   let time = $state(data.time);
   let loading = $state(false);
@@ -34,6 +35,24 @@
   let allInsights = $state(data.insights ?? []);
   let dialogLoading = $state(false);
   let telemetryActivationSent = $state(false);
+
+  const updateTime = async (nextTime: (typeof timeOptions)[number]) => {
+    if (loading || time === nextTime) {
+      return;
+    }
+
+    loading = true;
+    time = nextTime;
+
+    const url = new URL(page.url);
+    url.searchParams.set("t", nextTime);
+
+    try {
+      await goto(url);
+    } finally {
+      loading = false;
+    }
+  };
 
   const calculateTrendChange = (current: number, baseline: number) => {
     if (baseline === 0) {
@@ -170,23 +189,37 @@
   });
 </script>
 
-<PageContainer title="Overview" class="bg-secondary">
+<PageContainer title="Overview">
   {#snippet actions()}
-    <div class="flex gap-1 rounded-lg border bg-background p-1">
-      {#each ["30m", "1h", "4h", "24h", "7d"] as const as t}
+    <Select.Root
+      type="single"
+      value={time}
+      onValueChange={(nextTime) => {
+        if (!nextTime) return;
+        void updateTime(nextTime as (typeof timeOptions)[number]);
+      }}
+    >
+      <Select.Trigger
+        size="sm"
+        class="h-8.5! min-w-16 rounded-lg! bg-background py-0 sm:hidden"
+      >
+        last {time}
+      </Select.Trigger>
+      <Select.Content>
+        {#each timeOptions as option}
+          <Select.Item value={option} label={"last " + option} />
+        {/each}
+      </Select.Content>
+    </Select.Root>
+
+    <div class="hidden gap-1 rounded-lg border bg-background p-1 sm:flex">
+      {#each timeOptions as t}
         <Button
-          class={"h-6"}
+          class="h-6"
           variant={time == t ? "default" : "ghost"}
           size="sm"
           onclick={() => {
-            if (loading) return;
-            loading = true;
-            time = t;
-            const url = new URL(page.url);
-            url.searchParams.set("t", t);
-            goto(url).then(() => {
-              loading = false;
-            });
+            void updateTime(t);
           }}
         >
           {t}

@@ -19,7 +19,7 @@
     IconReload,
     IconServer,
   } from "@tabler/icons-svelte";
-  import PageContainer from "../../../_components/page-container/page-container.svelte";
+  import PageContainer from "../_components/page-container/page-container.svelte";
   import MetricsFilterBar from "./_components/metrics-filter-bar.svelte";
   import MetricsTimeseriesChart from "./_components/metrics-timeseries-chart.svelte";
   import type {

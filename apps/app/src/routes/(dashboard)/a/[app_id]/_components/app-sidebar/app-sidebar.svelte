@@ -5,23 +5,23 @@
   import { Kbd } from "@repo/components/ui/kbd";
   import * as Sidebar from "@repo/components/ui/sidebar";
   import {
-      IconBook2 as BookOpenTextIcon,
-      IconSettings as GearSixIcon,
-      IconCaretRightFilled,
-      IconChartPie2,
+    IconBook2 as BookOpenTextIcon,
+    IconSettings as GearSixIcon,
+    IconCaretRightFilled,
   } from "@tabler/icons-svelte";
 
   import { cn } from "@repo/components";
-  import { generateAppNavigationGroups, generateOrganizationNavigationGroups } from "./app-sidebar-naviagation-groups";
+  import { generateAppNavigationGroups } from "./app-sidebar-naviagation-groups";
   import AppSidebarOrganizationSwitcher from "./app-sidebar-organization-switcher.svelte";
+  import AppSidebarPlanCard from "./app-sidebar-plan-card.svelte";
   import AppSidebarUserNav from "./app-sidebar-user-nav.svelte";
 
   let {
     organizations,
     activeOrganizationId,
     user,
-    level,
-  }: ({
+    billingSummary,
+  }: {
     organizations: {
       id: string;
       name: string;
@@ -34,8 +34,16 @@
       email: string;
       image?: string | null;
     };
-    level:"app" | "organization";
-  }) = $props();
+    billingSummary: {
+      billingPlan: string | null;
+      includedBytes: number;
+      usedBytes: number;
+      logsIngestedBytes: number;
+      metricsIngestedBytes: number;
+      tracesIngestedBytes: number;
+      usagePercent: number;
+    } | null;
+  } = $props();
 
   type DashboardPageData = {
     currentApp?: {
@@ -48,18 +56,20 @@
     }>;
   };
 
-   const currentAppId = $derived(
+  const currentAppId = $derived(
     (page.data as DashboardPageData | undefined)?.currentApp?.id ?? "",
   );
   const logViews = $derived(
     (page.data as DashboardPageData | undefined)?.logViews ?? [],
   );
 
-  const navigationGroups = $derived({
-    "app":generateAppNavigationGroups(currentAppId, logViews),
-    "organization":generateOrganizationNavigationGroups()
-  }[level])
-  
+  const navigationGroups = $derived(
+    currentAppId ? generateAppNavigationGroups(currentAppId, logViews) : [],
+  );
+  const settingsHref = $derived(
+    currentAppId ? `/a/${currentAppId}/settings` : "/settings",
+  );
+
   let collapsedGroups = $state<Record<string, boolean>>({});
 
   const toggleGroup = (label: string) => {
@@ -74,8 +84,8 @@
       ...Object.fromEntries(
         navigationGroups
           .flatMap((group) => group.items)
-          .filter((item:any) => item?.shortcut)
-          .map((item:any) => [
+          .filter((item: any) => item?.shortcut)
+          .map((item: any) => [
             item.shortcut,
             () => {
               void goto(item.href);
@@ -83,11 +93,8 @@
           ]),
       ),
       s: () => {
-        void goto("/settings");
+        void goto(settingsHref);
       },
-      u: ()=> {
-        void goto("/usage")
-      }
     });
   });
 </script>
@@ -107,7 +114,7 @@
       <Sidebar.Group class="py-0!">
         {#if group.label}
           <Sidebar.GroupLabel>
-            {#snippet child({ props }:any)}
+            {#snippet child({ props }: any)}
               <button
                 type="button"
                 {...props}
@@ -143,7 +150,7 @@
                   {isActive}
                   tooltipContent={item.label}
                 >
-                  {#snippet child({ props }:any)}
+                  {#snippet child({ props }: any)}
                     <a {href} {...props}>
                       <Icon class="opacity-80" />
                       <span>{item.label}</span>
@@ -166,7 +173,7 @@
                         <Sidebar.MenuSubButton
                           isActive={page.url.pathname === subitem.href}
                         >
-                          {#snippet child({ props }:any)}
+                          {#snippet child({ props }: any)}
                             <a href={subitem.href} {...props}>
                               <span>{subitem.label}</span>
                             </a>
@@ -184,48 +191,32 @@
     {/each}
   </Sidebar.Content>
 
-  <Sidebar.Footer class="border-t border-sidebar-border/80 p-0">
+  <Sidebar.Footer class="gap-0 border-t border-sidebar-border/80 p-0">
+    <AppSidebarPlanCard
+      plan={billingSummary}
+      billingHref={`${settingsHref}/billing`}
+    />
     <Sidebar.Group>
       <Sidebar.GroupContent>
         <Sidebar.Menu class="gap-0.5">
-        <Sidebar.MenuItem>
+          <Sidebar.MenuItem>
             <Sidebar.MenuButton
               class="gap-2.5"
-              isActive={page.url.pathname.startsWith("/usage")}
-              tooltipContent="Usage"
+              isActive={page.url.pathname.startsWith(settingsHref)}
+              tooltipContent="Settings"
             >
-              {#snippet child({ props }:any)}
-                <a href="/usage" {...props}>
-                  <IconChartPie2 class="opacity-75" />
-                  <span>Usage</span>
-                  <Kbd class="ml-auto">u</Kbd>
+              {#snippet child({ props }: any)}
+                <a href={settingsHref} {...props}>
+                  <GearSixIcon class="opacity-75" />
+                  <span>Settings</span>
                 </a>
               {/snippet}
             </Sidebar.MenuButton>
           </Sidebar.MenuItem>
 
           <Sidebar.MenuItem>
-            <Sidebar.MenuButton
-              class="gap-2.5"
-              isActive={page.url.pathname.startsWith("/settings")}
-              tooltipContent="Settings"
-            >
-              {#snippet child({ props }:any)}
-                <a
-                  href={"/settings"}
-                  {...props}
-                >
-                  <GearSixIcon class="opacity-75" />
-                  <span>Settings</span>
-                  <Kbd class="ml-auto">s</Kbd>
-                </a>
-              {/snippet}
-            </Sidebar.MenuButton>
-          </Sidebar.MenuItem>
-          
-          <Sidebar.MenuItem>
             <Sidebar.MenuButton class="gap-2.5" tooltipContent="Documentation">
-              {#snippet child({ props }:any)}
+              {#snippet child({ props }: any)}
                 <a href="https://orvo.sh/docs" {...props}>
                   <BookOpenTextIcon class="opacity-75" />
                   <span>Documentation</span>
@@ -233,7 +224,7 @@
               {/snippet}
             </Sidebar.MenuButton>
           </Sidebar.MenuItem>
-          <AppSidebarUserNav {user} />
+          <AppSidebarUserNav {user} {settingsHref} />
         </Sidebar.Menu>
       </Sidebar.GroupContent>
     </Sidebar.Group>

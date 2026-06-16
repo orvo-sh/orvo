@@ -1,3 +1,4 @@
+export { formatBytes } from './format-bytes.js';
 export { formatNumber } from './format-number.js';
 export { genId } from './gen-id.js';
 export { generateRandomString } from './generate-random-string.js';

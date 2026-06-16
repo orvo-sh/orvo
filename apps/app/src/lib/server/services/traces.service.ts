@@ -136,9 +136,51 @@ class TracesService {
     try {
       const pageSize = validated.data.limit + 1;
       const whereClause = buildWhereClause(context.appId, validated.data);
-      const cursorClause = validated.data.cursor
-        ? `WHERE (trace_start_time < ${toDateTime64(new Date(validated.data.cursor.startTime))} OR (trace_start_time = ${toDateTime64(new Date(validated.data.cursor.startTime))} AND trace_id < ${quote(validated.data.cursor.traceId)}))`
-        : "";
+
+      const outerWhereClauses = [];
+      if (validated.data.cursor) {
+        outerWhereClauses.push(
+          `(trace_start_time < ${toDateTime64(new Date(validated.data.cursor.startTime))} OR (trace_start_time = ${toDateTime64(new Date(validated.data.cursor.startTime))} AND trace_id < ${quote(validated.data.cursor.traceId)}))`,
+        );
+      }
+      for (const condition of validated.data.conditions) {
+        const clause = buildOuterConditionClause(condition);
+        if (clause) {
+          outerWhereClauses.push(clause);
+        }
+      }
+      if (validated.data.operations.length > 0) {
+        outerWhereClauses.push(
+          buildInClause("name", validated.data.operations),
+        );
+      }
+      if (validated.data.traceIds.length > 0) {
+        outerWhereClauses.push(
+          buildInClause("trace_id", validated.data.traceIds),
+        );
+      }
+      if (validated.data.statuses.length === 1) {
+        outerWhereClauses.push(
+          validated.data.statuses[0] === "error"
+            ? "error_count > 0"
+            : "error_count = 0",
+        );
+      }
+      if (validated.data.minDurationNs !== undefined) {
+        outerWhereClauses.push(
+          `duration_ns >= ${validated.data.minDurationNs}`,
+        );
+      }
+      if (validated.data.maxDurationNs !== undefined) {
+        outerWhereClauses.push(
+          `duration_ns <= ${validated.data.maxDurationNs}`,
+        );
+      }
+      const outerWhere =
+        outerWhereClauses.length > 0
+          ? `WHERE ${outerWhereClauses.join(" AND ")}`
+          : "";
+
       const result = await this.clickhouse.query({
         format: "JSONEachRow",
         query: `
@@ -167,7 +209,7 @@ class TracesService {
 						WHERE ${whereClause}
 						GROUP BY trace_id
 					)
-					${cursorClause}
+					${outerWhere}
 					ORDER BY trace_start_time DESC, trace_id DESC
 					LIMIT ${pageSize}
 				`,
@@ -194,6 +236,166 @@ class TracesService {
     } catch (error) {
       this.logger.error("getTraces: failed to fetch traces", error as Error);
       return err("Failed to fetch traces.");
+    }
+  }
+
+  async getTraceFilterAttributes(context: { appId: string }) {
+    this.logger.info(
+      "getTraceFilterAttributes: fetching trace filter attributes",
+      {
+        context,
+      },
+    );
+
+    try {
+      const [resourceResult, scopeResult, spanResult] = await Promise.all([
+        this.clickhouse.query({
+          format: "JSONEachRow",
+          query: `
+            SELECT key, count() AS count
+            FROM (
+              SELECT arrayJoin(mapKeys(resource_attributes)) AS key
+              FROM traces_raw
+              WHERE app_id = ${quote(context.appId)}
+            )
+            WHERE key != ''
+            GROUP BY key
+            ORDER BY count DESC, key ASC
+          `,
+        }),
+        this.clickhouse.query({
+          format: "JSONEachRow",
+          query: `
+            SELECT key, count() AS count
+            FROM (
+              SELECT arrayJoin(mapKeys(scope_attributes)) AS key
+              FROM traces_raw
+              WHERE app_id = ${quote(context.appId)}
+            )
+            WHERE key != ''
+            GROUP BY key
+            ORDER BY count DESC, key ASC
+          `,
+        }),
+        this.clickhouse.query({
+          format: "JSONEachRow",
+          query: `
+            SELECT key, count() AS count
+            FROM (
+              SELECT arrayJoin(mapKeys(span_attributes)) AS key
+              FROM traces_raw
+              WHERE app_id = ${quote(context.appId)}
+            )
+            WHERE key != ''
+            GROUP BY key
+            ORDER BY count DESC, key ASC
+          `,
+        }),
+      ]);
+
+      const resourceKeys =
+        (await resourceResult.json()) as unknown as RawAttributeKeyRow[];
+      const scopeKeys =
+        (await scopeResult.json()) as unknown as RawAttributeKeyRow[];
+      const spanKeys =
+        (await spanResult.json()) as unknown as RawAttributeKeyRow[];
+
+      return ok({
+        attributes: [
+          ...traceSearchBaseAttributes,
+          ...resourceKeys.map((row) =>
+            createDynamicTraceFilterAttribute("resource", row.key),
+          ),
+          ...scopeKeys.map((row) =>
+            createDynamicTraceFilterAttribute("scope", row.key),
+          ),
+          ...spanKeys.map((row) =>
+            createDynamicTraceFilterAttribute("span", row.key),
+          ),
+        ],
+      });
+    } catch (error) {
+      this.logger.error(
+        "getTraceFilterAttributes: failed to fetch trace filter attributes",
+        error as Error,
+      );
+      return err("Failed to fetch trace filter attributes.");
+    }
+  }
+
+  async getTraceFilterValueSuggestions(
+    input: z.input<typeof getTraceFilterValueSuggestionsInputSchema>,
+    context: { appId: string },
+  ) {
+    this.logger.info(
+      "getTraceFilterValueSuggestions: fetching trace filter values",
+      {
+        input,
+        context,
+      },
+    );
+
+    const validated =
+      getTraceFilterValueSuggestionsInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
+
+    try {
+      const definition = resolveTraceFilterAttributeDefinition(
+        validated.data.attribute,
+      );
+      if (!definition) {
+        return err("Unknown trace filter attribute.");
+      }
+
+      const query = validated.data.query.trim();
+
+      if (definition.kind === "enum") {
+        return ok({
+          values: ["error", "ok"]
+            .filter((value: string) =>
+              query ? value.toLowerCase().includes(query.toLowerCase()) : true,
+            )
+            .slice(0, validated.data.limit)
+            .map((value: string) => ({ value, count: 0 })),
+        });
+      }
+
+      if (definition.kind === "duration") {
+        return ok({
+          values: traceDurationSuggestionValues
+            .filter((value: string) =>
+              query ? value.toLowerCase().includes(query.toLowerCase()) : true,
+            )
+            .slice(0, validated.data.limit)
+            .map((value: string) => ({ value, count: 0 })),
+        });
+      }
+
+      const result = await this.clickhouse.query({
+        format: "JSONEachRow",
+        query: buildTraceFilterValueSuggestionsQuery(
+          definition,
+          context.appId,
+          query,
+          validated.data.limit,
+        ),
+      });
+      const rows = (await result.json()) as unknown as RawFilterValueRow[];
+
+      return ok({
+        values: rows.map((row) => ({
+          value: row.value,
+          count: Number(row.count ?? 0),
+        })),
+      });
+    } catch (error) {
+      this.logger.error(
+        "getTraceFilterValueSuggestions: failed to fetch trace filter values",
+        error as Error,
+      );
+      return err("Failed to fetch trace filter values.");
     }
   }
 
@@ -664,6 +866,30 @@ const statusCodeFilterSchema = z
   .max(10)
   .default([]);
 
+const traceStatusFilterSchema = z
+  .array(z.enum(["ok", "error"]))
+  .max(10)
+  .default([]);
+
+export const traceFilterOperatorSchema = z.enum([
+  "eq",
+  "neq",
+  "contains",
+  "not_contains",
+  "in",
+  "not_in",
+  "gt",
+  "gte",
+  "lt",
+  "lte",
+]);
+
+export const traceFilterConditionSchema = z.object({
+  attribute: z.string().trim().min(1).max(255),
+  operator: traceFilterOperatorSchema,
+  value: z.string().trim().min(1).max(2000),
+});
+
 export const tracesCursorSchema = z.object({
   startTime: z.string().datetime({ offset: true }),
   traceId: z.string().trim().min(1).max(255),
@@ -677,6 +903,16 @@ export const tracesQueryFiltersSchema = z.object({
   scopes: stringArrayFilterSchema.optional().default([]),
   ingestionKeyIds: stringArrayFilterSchema.optional().default([]),
   statusCodes: statusCodeFilterSchema.optional().default([]),
+  statuses: traceStatusFilterSchema.optional().default([]),
+  operations: stringArrayFilterSchema.optional().default([]),
+  traceIds: stringArrayFilterSchema.optional().default([]),
+  conditions: z
+    .array(traceFilterConditionSchema)
+    .max(50)
+    .optional()
+    .default([]),
+  minDurationNs: z.number().min(0).optional(),
+  maxDurationNs: z.number().min(0).optional(),
 });
 
 export const getTracesInputSchema = tracesQueryFiltersSchema.extend({
@@ -706,6 +942,120 @@ export const getTraceMetricsInputSchema = z.object({
 export const getServiceGraphInputSchema = z.object({
   time: timeFilterSchema,
 });
+
+export const getTraceFilterValueSuggestionsInputSchema = z.object({
+  attribute: z.string().trim().min(1).max(255),
+  operator: traceFilterOperatorSchema.optional(),
+  query: z.string().trim().max(500).optional().default(""),
+  limit: z.number().int().min(1).max(100).default(12),
+});
+
+const traceStringOperators = [
+  "eq",
+  "neq",
+  "contains",
+  "not_contains",
+  "in",
+  "not_in",
+] satisfies z.infer<typeof traceFilterOperatorSchema>[];
+
+const traceDurationOperators = [
+  "eq",
+  "neq",
+  "gt",
+  "gte",
+  "lt",
+  "lte",
+] satisfies z.infer<typeof traceFilterOperatorSchema>[];
+
+const traceStatusOperators = ["eq", "neq", "in", "not_in"] satisfies z.infer<
+  typeof traceFilterOperatorSchema
+>[];
+
+const traceDurationSuggestionValues = [
+  "10ms",
+  "50ms",
+  "100ms",
+  "250ms",
+  "500ms",
+  "1s",
+  "2s",
+  "5s",
+  "10s",
+] as const;
+
+const traceSearchBaseAttributes = [
+  {
+    key: "trace.id",
+    label: "trace.id",
+    source: "trace",
+    type: "string",
+    availableOperators: traceStringOperators,
+  },
+  {
+    key: "trace.name",
+    label: "trace.name",
+    source: "trace",
+    type: "string",
+    availableOperators: traceStringOperators,
+  },
+  {
+    key: "trace.status",
+    label: "trace.status",
+    source: "trace",
+    type: "enum",
+    availableOperators: traceStatusOperators,
+  },
+  {
+    key: "trace.duration",
+    label: "trace.duration",
+    source: "trace",
+    type: "duration",
+    availableOperators: traceDurationOperators,
+  },
+  {
+    key: "service.name",
+    label: "service.name",
+    source: "trace",
+    type: "string",
+    availableOperators: traceStringOperators,
+  },
+  {
+    key: "deployment.environment",
+    label: "deployment.environment",
+    source: "trace",
+    type: "string",
+    availableOperators: traceStringOperators,
+  },
+  {
+    key: "scope.name",
+    label: "scope.name",
+    source: "scope",
+    type: "string",
+    availableOperators: traceStringOperators,
+  },
+  {
+    key: "scope.version",
+    label: "scope.version",
+    source: "scope",
+    type: "string",
+    availableOperators: traceStringOperators,
+  },
+  {
+    key: "status.message",
+    label: "status.message",
+    source: "span",
+    type: "string",
+    availableOperators: traceStringOperators,
+  },
+  {
+    key: "ingestion_key_id",
+    label: "ingestion_key_id",
+    source: "trace",
+    type: "string",
+    availableOperators: traceStringOperators,
+  },
+] as const;
 
 type RawServiceGraphEdgeRow = {
   source: string;
@@ -739,6 +1089,16 @@ type RawTraceMetricSummaryRow = {
   total: number | string;
   errors: number | string;
   p95_latency_ms: number | string;
+};
+
+type RawAttributeKeyRow = {
+  key: string;
+  count: number | string;
+};
+
+type RawFilterValueRow = {
+  value: string;
+  count: number | string;
 };
 
 type RawTraceRow = {
@@ -785,6 +1145,382 @@ type RawSpanRow = {
 
 const quote = (value: string) =>
   `'${value.replaceAll("\\", "\\\\").replaceAll("'", "\\'")}'`;
+
+const createDynamicTraceFilterAttribute = (
+  source: "resource" | "scope" | "span",
+  key: string,
+) => ({
+  key: `${source}.${key}`,
+  label: `${source}.${key}`,
+  source,
+  type: "string" as const,
+  availableOperators: traceStringOperators,
+});
+
+const resolveTraceFilterAttributeDefinition = (attribute: string) => {
+  const staticAttribute = traceSearchBaseAttributes.find(
+    (value) => value.key === attribute,
+  );
+  if (staticAttribute) {
+    return {
+      ...staticAttribute,
+      kind:
+        staticAttribute.key === "trace.status"
+          ? ("enum" as const)
+          : staticAttribute.key === "trace.duration"
+            ? ("duration" as const)
+            : ("column" as const),
+      column:
+        staticAttribute.key === "trace.id"
+          ? "trace_id"
+          : staticAttribute.key === "trace.name"
+            ? "name"
+            : staticAttribute.key === "service.name"
+              ? "service_name"
+              : staticAttribute.key === "deployment.environment"
+                ? "deployment_environment"
+                : staticAttribute.key === "scope.name"
+                  ? "scope_name"
+                  : staticAttribute.key === "scope.version"
+                    ? "scope_version"
+                    : staticAttribute.key === "status.message"
+                      ? "status_message"
+                      : staticAttribute.key === "ingestion_key_id"
+                        ? "ingestion_key_id"
+                        : undefined,
+      scope:
+        staticAttribute.key === "trace.id" ||
+        staticAttribute.key === "trace.name" ||
+        staticAttribute.key === "trace.status" ||
+        staticAttribute.key === "trace.duration"
+          ? ("outer" as const)
+          : ("inner" as const),
+    };
+  }
+
+  if (attribute.startsWith("resource.")) {
+    return {
+      ...createDynamicTraceFilterAttribute("resource", attribute.slice(9)),
+      mapColumn: "resource_attributes" as const,
+      mapKey: attribute.slice(9),
+      kind: "dynamic" as const,
+      scope: "inner" as const,
+    };
+  }
+
+  if (attribute.startsWith("scope.")) {
+    if (attribute === "scope.name" || attribute === "scope.version") {
+      return null;
+    }
+
+    return {
+      ...createDynamicTraceFilterAttribute("scope", attribute.slice(6)),
+      mapColumn: "scope_attributes" as const,
+      mapKey: attribute.slice(6),
+      kind: "dynamic" as const,
+      scope: "inner" as const,
+    };
+  }
+
+  if (attribute.startsWith("span.")) {
+    if (attribute === "span.kind") {
+      return null;
+    }
+
+    return {
+      ...createDynamicTraceFilterAttribute("span", attribute.slice(5)),
+      mapColumn: "span_attributes" as const,
+      mapKey: attribute.slice(5),
+      kind: "dynamic" as const,
+      scope: "inner" as const,
+    };
+  }
+
+  return null;
+};
+
+const parseDurationLiteralToNs = (value: string) => {
+  const match = value.match(/^([\d.]+)\s*(ms|s|m|h|µs|us|ns)?$/i);
+  if (!match) {
+    return undefined;
+  }
+
+  const num = Number.parseFloat(match[1]);
+  const unit = match[2]?.toLowerCase() ?? "ms";
+
+  switch (unit) {
+    case "ns":
+      return num;
+    case "µs":
+    case "us":
+      return num * 1_000;
+    case "ms":
+      return num * 1_000_000;
+    case "s":
+      return num * 1_000_000_000;
+    case "m":
+      return num * 60_000_000_000;
+    case "h":
+      return num * 3_600_000_000_000;
+    default:
+      return num * 1_000_000;
+  }
+};
+
+const parseMultiValueLiteral = (value: string) =>
+  value
+    .split("|")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const buildStringOperatorClause = (
+  expression: string,
+  operator: z.infer<typeof traceFilterOperatorSchema>,
+  value: string,
+) => {
+  switch (operator) {
+    case "eq":
+      return `${expression} = ${quote(value)}`;
+    case "neq":
+      return `${expression} != ${quote(value)}`;
+    case "contains":
+      return `positionCaseInsensitiveUTF8(${expression}, ${quote(value)}) > 0`;
+    case "not_contains":
+      return `positionCaseInsensitiveUTF8(${expression}, ${quote(value)}) = 0`;
+    case "in": {
+      const values = parseMultiValueLiteral(value);
+      if (values.length === 0) {
+        return null;
+      }
+
+      return `${expression} IN (${values.map((item) => quote(item)).join(", ")})`;
+    }
+    case "not_in": {
+      const values = parseMultiValueLiteral(value);
+      if (values.length === 0) {
+        return null;
+      }
+
+      return `${expression} NOT IN (${values.map((item) => quote(item)).join(", ")})`;
+    }
+    default:
+      return null;
+  }
+};
+
+const buildAnySearchClause = (value: string) =>
+  `(positionCaseInsensitiveUTF8(name, ${quote(value)}) > 0 OR positionCaseInsensitiveUTF8(trace_id, ${quote(value)}) > 0 OR positionCaseInsensitiveUTF8(status_message, ${quote(value)}) > 0 OR positionCaseInsensitiveUTF8(service_name, ${quote(value)}) > 0 OR positionCaseInsensitiveUTF8(deployment_environment, ${quote(value)}) > 0)`;
+
+const buildInnerConditionClause = (
+  condition: z.infer<typeof traceFilterConditionSchema>,
+) => {
+  const definition = resolveTraceFilterAttributeDefinition(condition.attribute);
+  if (!definition || definition.scope !== "inner") {
+    return null;
+  }
+
+  if (definition.kind === "dynamic") {
+    const expression = `toString(${definition.mapColumn}[${quote(definition.mapKey)}])`;
+    const clause = buildStringOperatorClause(
+      expression,
+      condition.operator,
+      condition.value,
+    );
+    if (!clause) {
+      return null;
+    }
+
+    return `(mapContains(${definition.mapColumn}, ${quote(definition.mapKey)}) AND ${clause})`;
+  }
+
+  if (!definition.column) {
+    return null;
+  }
+
+  return buildStringOperatorClause(
+    definition.column,
+    condition.operator,
+    condition.value,
+  );
+};
+
+const buildOuterConditionClause = (
+  condition: z.infer<typeof traceFilterConditionSchema>,
+) => {
+  const definition = resolveTraceFilterAttributeDefinition(condition.attribute);
+  if (!definition || definition.scope !== "outer") {
+    return null;
+  }
+
+  if (definition.kind === "enum") {
+    const values = parseMultiValueLiteral(condition.value).map((value) =>
+      value.toLowerCase(),
+    );
+    const normalizedValues =
+      values.length > 0 ? values : [condition.value.toLowerCase()];
+    const validValues = normalizedValues.filter((value) =>
+      ["ok", "error"].includes(value),
+    );
+
+    if (validValues.length === 0) {
+      return null;
+    }
+
+    const includesError = validValues.includes("error");
+    const includesOk = validValues.includes("ok");
+
+    if (condition.operator === "eq") {
+      return includesError ? "error_count > 0" : "error_count = 0";
+    }
+    if (condition.operator === "neq") {
+      return includesError ? "error_count = 0" : "error_count > 0";
+    }
+    if (condition.operator === "in") {
+      if (includesError && includesOk) {
+        return "1 = 1";
+      }
+
+      return includesError ? "error_count > 0" : "error_count = 0";
+    }
+    if (condition.operator === "not_in") {
+      if (includesError && includesOk) {
+        return "1 = 0";
+      }
+
+      return includesError ? "error_count = 0" : "error_count > 0";
+    }
+
+    return null;
+  }
+
+  if (definition.kind === "duration") {
+    const durationNs = parseDurationLiteralToNs(condition.value);
+    if (durationNs === undefined) {
+      return null;
+    }
+
+    switch (condition.operator) {
+      case "eq":
+        return `duration_ns = ${durationNs}`;
+      case "neq":
+        return `duration_ns != ${durationNs}`;
+      case "gt":
+        return `duration_ns > ${durationNs}`;
+      case "gte":
+        return `duration_ns >= ${durationNs}`;
+      case "lt":
+        return `duration_ns < ${durationNs}`;
+      case "lte":
+        return `duration_ns <= ${durationNs}`;
+      default:
+        return null;
+    }
+  }
+
+  if (!definition.column) {
+    return null;
+  }
+
+  return buildStringOperatorClause(
+    definition.column,
+    condition.operator,
+    condition.value,
+  );
+};
+
+const buildTraceFilterValueSuggestionsQuery = (
+  definition: NonNullable<
+    ReturnType<typeof resolveTraceFilterAttributeDefinition>
+  >,
+  appId: string,
+  query: string,
+  limit: number,
+) => {
+  const queryClause = query
+    ? `AND positionCaseInsensitiveUTF8(value, ${quote(query)}) > 0`
+    : "";
+
+  if (definition.kind === "dynamic") {
+    return `
+      SELECT
+        value,
+        count() AS count
+      FROM (
+        SELECT toString(${definition.mapColumn}[${quote(definition.mapKey)}]) AS value
+        FROM traces_raw
+        WHERE app_id = ${quote(appId)}
+          AND mapContains(${definition.mapColumn}, ${quote(definition.mapKey)})
+      )
+      WHERE value != ''
+        ${queryClause}
+      GROUP BY value
+      ORDER BY count DESC, value ASC
+      LIMIT ${limit}
+    `;
+  }
+
+  if (definition.key === "trace.name") {
+    return `
+      SELECT
+        value,
+        count() AS count
+      FROM (
+        SELECT
+          coalesce(nullIf(argMinIf(name, start_time, parent_span_id = ''), ''), argMin(name, start_time)) AS value
+        FROM traces_raw
+        WHERE app_id = ${quote(appId)}
+        GROUP BY trace_id
+      )
+      WHERE value != ''
+        ${queryClause}
+      GROUP BY value
+      ORDER BY count DESC, value ASC
+      LIMIT ${limit}
+    `;
+  }
+
+  if (definition.key === "trace.id") {
+    return `
+      SELECT
+        value,
+        count() AS count
+      FROM (
+        SELECT trace_id AS value
+        FROM traces_raw
+        WHERE app_id = ${quote(appId)}
+        GROUP BY trace_id
+      )
+      WHERE value != ''
+        ${queryClause}
+      GROUP BY value
+      ORDER BY value ASC
+      LIMIT ${limit}
+    `;
+  }
+
+  if (!("column" in definition) || !definition.column) {
+    return `
+      SELECT '' AS value, 0 AS count
+      WHERE 1 = 0
+    `;
+  }
+
+  return `
+    SELECT
+      value,
+      count() AS count
+    FROM (
+      SELECT ${definition.column} AS value
+      FROM traces_raw
+      WHERE app_id = ${quote(appId)}
+    )
+    WHERE value != ''
+      ${queryClause}
+    GROUP BY value
+    ORDER BY count DESC, value ASC
+    LIMIT ${limit}
+  `;
+};
 
 const toDateTime64 = (value: Date) =>
   `parseDateTime64BestEffort(${quote(value.toISOString())})`;
@@ -852,9 +1588,7 @@ const buildWhereClause = (
   ];
 
   if (input.search) {
-    whereClauses.push(
-      `(positionCaseInsensitiveUTF8(name, ${quote(input.search)}) > 0 OR positionCaseInsensitiveUTF8(trace_id, ${quote(input.search)}) > 0 OR positionCaseInsensitiveUTF8(status_message, ${quote(input.search)}) > 0)`,
-    );
+    whereClauses.push(buildAnySearchClause(input.search));
   }
 
   if (input.services.length > 0) {
@@ -877,6 +1611,13 @@ const buildWhereClause = (
 
   if (input.statusCodes.length > 0) {
     whereClauses.push(`status_code IN (${input.statusCodes.join(", ")})`);
+  }
+
+  for (const condition of input.conditions) {
+    const clause = buildInnerConditionClause(condition);
+    if (clause) {
+      whereClauses.push(clause);
+    }
   }
 
   return whereClauses.join(" AND ");

@@ -1,14 +1,12 @@
 import {
   IconAlertHexagon,
-  IconBox,
   IconChartBar,
-  IconGauge,
   IconLayoutGrid,
   IconMap,
   IconRocket,
-  IconRoute,
   IconServer,
-  IconTerminal2,
+  IconTelescope,
+  IconTerminal2
 } from "@tabler/icons-svelte";
 
 type NavigationGroup = {
@@ -16,7 +14,7 @@ type NavigationGroup = {
   items: {
     href: string;
     label: string;
-    icon: typeof IconGauge;
+    icon: typeof IconLayoutGrid;
     shortcut?: string;
     submenu?: Array<{
       href: string;
@@ -59,16 +57,16 @@ const generateAppNavigationGroups = (
           })),
         },
         {
+          href: `/a/${appId}/traces`,
+          label: "Traces",
+          icon: IconTelescope,
+          shortcut: "t",
+        },
+        {
           href: `/a/${appId}/metrics`,
           label: "Metrics",
           icon: IconChartBar,
           shortcut: "m",
-        },
-        {
-          href: `/a/${appId}/traces`,
-          label: "Traces",
-          icon: IconRoute,
-          shortcut: "t",
         },
         {
           href: `/a/${appId}/service-map`,
@@ -104,20 +102,4 @@ const generateAppNavigationGroups = (
   ];
 };
 
-const generateOrganizationNavigationGroups = (): NavigationGroup[] => {
-  return [
-    {
-      label: "",
-      items: [
-        {
-          href: `/apps`,
-          label: "Apps",
-          shortcut: "a",
-          icon: IconBox,
-        },
-      ],
-    },
-  ];
-};
-
-export { generateAppNavigationGroups, generateOrganizationNavigationGroups };
+export { generateAppNavigationGroups };

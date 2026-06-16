@@ -128,7 +128,10 @@ class InsightsService {
 
       return ok({ insights });
     } catch (error) {
-      this.logger.error("getInsights: failed to generate insights", error);
+      this.logger.error(
+        "getInsights: failed to generate insights",
+        error instanceof Error ? error : undefined,
+      );
       return err("Failed to generate insights.");
     }
   }

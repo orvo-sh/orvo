@@ -2,11 +2,6 @@
   import { browser } from "$app/environment";
   import { goto, invalidateAll, replaceState } from "$app/navigation";
   import { page } from "$app/state";
-  import { markOrganizationActivationTelemetryViewedCommand } from "$lib/api/organization-activation.remote";
-  import {
-    completeOrganizationActivationStep,
-    restoreOrganizationActivation,
-  } from "$lib/stores/organization-activation.svelte";
   import {
     createDashboardLogViewCommand,
     deleteDashboardLogViewCommand,
@@ -18,6 +13,11 @@
     getLogsQuery,
     getLogVolumeQuery,
   } from "$lib/api/logs.remote";
+  import { markOrganizationActivationTelemetryViewedCommand } from "$lib/api/organization-activation.remote";
+  import {
+    completeOrganizationActivationStep,
+    restoreOrganizationActivation,
+  } from "$lib/stores/organization-activation.svelte";
   import { Button, buttonVariants } from "@repo/components/ui/button";
   import * as ButtonGroup from "@repo/components/ui/button-group";
   import * as DropdownMenu from "@repo/components/ui/dropdown-menu";
@@ -32,7 +32,7 @@
 
   import { cn } from "@repo/components";
   import { onMount, untrack } from "svelte";
-  import PageContainer from "../../../../_components/page-container/page-container.svelte";
+  import PageContainer from "../../_components/page-container/page-container.svelte";
   import LogFilterBar from "../_components/log-filter-bar.svelte";
   import LogTable from "../_components/log-table.svelte";
   import LogVolumeChart from "../_components/log-volume-chart.svelte";
@@ -928,33 +928,19 @@
       {/if}
     </ButtonGroup.Root>
   {/snippet}
-  <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-    <LogFilterBar
-      bind:time
-      bind:filters
-      {serviceOptions}
-      {environmentOptions}
-    />
 
-    {#if error}
-      <div
-        class="border-b border-destructive/20 bg-destructive/5 px-4 py-2 text-sm text-destructive"
-      >
-        {error}
-      </div>
-    {/if}
+  <LogFilterBar bind:time bind:filters {serviceOptions} {environmentOptions} />
 
-    <LogVolumeChart
-      buckets={volumeBuckets}
-      {loading}
-      skeletonBucketCount={resolvedLogVolumeBucketCount}
-      start={rangeStart}
-      end={rangeEnd}
-      {onBucketClick}
-    />
+  <LogVolumeChart
+    buckets={volumeBuckets}
+    {loading}
+    skeletonBucketCount={resolvedLogVolumeBucketCount}
+    start={rangeStart}
+    end={rangeEnd}
+    {onBucketClick}
+  />
 
-    <div class="relative flex min-h-0 flex-1 overflow-hidden">
-      <LogTable {logs} {loading} {time} timezone={logTimezone} />
-    </div>
+  <div class="relative flex min-h-0 flex-1 overflow-hidden">
+    <LogTable {logs} {loading} {time} timezone={logTimezone} />
   </div>
 </PageContainer>

@@ -1,124 +1,127 @@
 <script lang="ts">
-  import { invalidateAll } from "$app/navigation";
-  import { page } from "$app/state";
+  import { goto, invalidateAll } from "$app/navigation";
+  import { navigating, page } from "$app/state";
   import { markOrganizationActivationTelemetryViewedCommand } from "$lib/api/organization-activation.remote";
+  import { getTraceFilterValueSuggestionsQuery } from "$lib/api/traces.remote";
   import {
     completeOrganizationActivationStep,
     restoreOrganizationActivation,
   } from "$lib/stores/organization-activation.svelte";
-  import { getTracesQuery } from "$lib/api/traces.remote";
   import { Button } from "@repo/components/ui/button";
-  import {
-    IconRefresh as ArrowsClockwiseIcon,
-    IconPlayerPlay as PlayIcon,
-  } from "@tabler/icons-svelte";
-  import PageContainer from "../../../_components/page-container/page-container.svelte";
-  import TraceFilterBar from "./_components/trace-filter-bar.svelte";
+  import { IconFileDescription } from "@tabler/icons-svelte";
+  import TraceSearchBar from "../_components/filter-builder/filter-builder.svelte";
+  import LiveRefreshButtonGroup from "../_components/live-refresh-button-group.svelte";
+  import PageContainer from "../_components/page-container/page-container.svelte";
+  import TimeRangePicker from "../logs/_components/time-range-picker.svelte";
+  import type { LogTimeFilter } from "../logs/types";
   import TraceTable from "./_components/trace-table.svelte";
-  import type { TraceFilters, TraceRow } from "./types";
+  import {
+    createTraceStateSearchParams,
+    resolveTraceTimeRange,
+  } from "./state";
+  import type { ActiveFilter, TraceFilters } from "./types";
+
+  let { data } = $props();
 
   let live = $state(false);
-  let rangeStart = $state(new Date(Date.now() - 10 * 60 * 60 * 1000));
-  let rangeEnd = $state(new Date());
-  let traces = $state<TraceRow[]>([]);
-  let loading = $state(false);
-  let error = $state("");
-  let loadRequest = 0;
   let telemetryActivationSent = $state(false);
+  let time = $state<LogTimeFilter>(data.time);
+  let filters = $state<TraceFilters>(data.filters);
 
-  $effect(() => {
-    if (!live) return;
-    const id = setInterval(() => {
-      rangeEnd = new Date();
-    }, 5000);
-    return () => clearInterval(id);
-  });
+  const loading = $derived(navigating.to?.url.pathname === page.url.pathname);
+  const nextSearch = $derived(
+    createTraceStateSearchParams(time, filters).toString(),
+  );
+  const timeRange = $derived(resolveTraceTimeRange(time));
+  const rangeStart = $derived(timeRange.start);
+  const rangeEnd = $derived(timeRange.end);
 
-  let filters = $state<TraceFilters>({
-    search: "",
-    services: [],
-    environments: [],
-    statusCodes: [],
-  });
+  const addFilter = (filter: ActiveFilter) => {
+    const exists = filters.activeFilters.some(
+      (value) =>
+        value.attribute === filter.attribute &&
+        value.operator === filter.operator &&
+        value.value === filter.value,
+    );
 
-  const createTracesInput = () => ({
-    time: {
-      kind: "range" as const,
-      startAtUtc: rangeStart.toISOString(),
-      endAtUtc: rangeEnd.toISOString(),
-    },
-    search: filters.search.trim(),
-    services: filters.services,
-    environments: filters.environments,
-    scopes: [],
-    ingestionKeyIds: [],
-    statusCodes: filters.statusCodes.map((statusCode) => Number(statusCode)),
-    limit: 250,
-  });
-
-  const refreshTraces = async () => {
-    const requestId = ++loadRequest;
-    loading = true;
-    error = "";
-
-    const result = await getTracesQuery(createTracesInput()).run();
-
-    if (requestId !== loadRequest) {
+    if (exists) {
       return;
     }
 
-    if (result.success === false) {
-      error = result.error;
-      loading = false;
+    const nextFilters = [...filters.activeFilters];
+
+    if (
+      filter.attribute === "trace.duration" &&
+      (filter.operator === "gt" || filter.operator === "gte")
+    ) {
+      filters = {
+        ...filters,
+        activeFilters: [
+          ...nextFilters.filter(
+            (value) =>
+              !(
+                value.attribute === "trace.duration" &&
+                (value.operator === "gt" || value.operator === "gte")
+              ),
+          ),
+          filter,
+        ],
+      };
       return;
     }
 
-    traces = result.data.traces;
-    loading = false;
+    if (
+      filter.attribute === "trace.duration" &&
+      (filter.operator === "lt" || filter.operator === "lte")
+    ) {
+      filters = {
+        ...filters,
+        activeFilters: [
+          ...nextFilters.filter(
+            (value) =>
+              !(
+                value.attribute === "trace.duration" &&
+                (value.operator === "lt" || value.operator === "lte")
+              ),
+          ),
+          filter,
+        ],
+      };
+      return;
+    }
+
+    filters = {
+      ...filters,
+      activeFilters: [...nextFilters, filter],
+    };
   };
 
-  const querySignature = $derived.by(() =>
-    JSON.stringify({
-      start: rangeStart.toISOString(),
-      end: rangeEnd.toISOString(),
-      search: filters.search,
-      services: filters.services,
-      environments: filters.environments,
-      statusCodes: filters.statusCodes,
-    }),
-  );
+  const removeFilter = (filter: ActiveFilter) => {
+    filters = {
+      ...filters,
+      activeFilters: filters.activeFilters.filter(
+        (value) =>
+          !(
+            value.attribute === filter.attribute &&
+            value.operator === filter.operator &&
+            value.value === filter.value
+          ),
+      ),
+    };
+  };
 
-  const serviceOptions = $derived(
-    [...new Set(traces.flatMap((trace) => trace.service_names))].map(
-      (service) => ({
-        value: service,
-        label: service,
-      }),
-    ),
-  );
-  const environmentOptions = $derived(
-    [...new Set(traces.flatMap((trace) => trace.deployment_environments))].map(
-      (environment) => ({
-        value: environment,
-        label: environment,
-      }),
-    ),
-  );
+  const refresh = async () => {
+    if (time.kind === "range") {
+      time = {
+        kind: "range",
+        startAtUtc: time.startAtUtc,
+        endAtUtc: new Date().toISOString(),
+      };
+      return;
+    }
 
-  function refresh() {
-    rangeEnd = new Date();
-  }
-
-  $effect(() => {
-    const signature = querySignature;
-
-    const timeout = setTimeout(() => {
-      if (!signature) return;
-      void refreshTraces();
-    }, 250);
-
-    return () => clearTimeout(timeout);
-  });
+    await invalidateAll();
+  };
 
   const markTelemetryViewed = async () => {
     if (telemetryActivationSent) {
@@ -139,8 +142,40 @@
       return;
     }
 
-    void invalidateAll();
+    await invalidateAll();
   };
+
+  $effect(() => {
+    time = data.time;
+    filters = data.filters;
+  });
+
+  $effect(() => {
+    if (!live) {
+      return;
+    }
+
+    const id = setInterval(() => {
+      void refresh();
+    }, 5000);
+
+    return () => clearInterval(id);
+  });
+
+  $effect(() => {
+    if (nextSearch === page.url.searchParams.toString()) {
+      return;
+    }
+
+    const href = nextSearch
+      ? `${page.url.pathname}?${nextSearch}`
+      : page.url.pathname;
+    void goto(href, {
+      keepFocus: true,
+      noScroll: true,
+      replaceState: true,
+    });
+  });
 
   $effect(() => {
     if (!page.data.organizationActivation) {
@@ -151,7 +186,7 @@
       return;
     }
 
-    if (traces.length === 0) {
+    if (data.traces.length === 0) {
       return;
     }
 
@@ -159,53 +194,63 @@
   });
 </script>
 
-<PageContainer title="Traces" class="overflow-hidden">
-  {#snippet actions()}
-    <Button
-      variant="outline"
-      onclick={() => {
-        live = !live;
-        if (live) rangeEnd = new Date();
-      }}
-      class={live
-        ? "border-green-500/50 text-green-600 dark:text-green-400"
-        : ""}
-    >
-      {#if live}
-        <span
-          class="size-2 animate-pulse rounded-full bg-green-500"
-          data-slot="button-icon"
-        ></span>
-        Live
-      {:else}
-        <PlayIcon data-slot="button-icon" />
-        Live
-      {/if}
-    </Button>
-
-    {#if !live}
-      <Button variant="outline" onclick={refresh}>
-        <ArrowsClockwiseIcon data-slot="button-icon" />
-        Refresh
+<PageContainer title="Traces" class="min-h-0 overflow-hidden" innerClass="p-0!">
+  {#snippet helper()}
+    <div class="space-y-2">
+      <p>
+        Traces represent distributed request flows across your services and
+        infrastructure.
+      </p>
+      <p>
+        Each trace captures the full path of a request through your system,
+        including timing, service dependencies, and status so you can identify
+        bottlenecks and errors.
+      </p>
+      <Button
+        href="https://orvo.sh/docs/traces"
+        size="sm"
+        target="_blank"
+        variant="outline"
+        class="mt-2 w-full"
+      >
+        <IconFileDescription data-slot="button-icon" />
+        Traces docs
       </Button>
-    {/if}
+    </div>
   {/snippet}
 
-  <div class="-mx-4 -my-4 flex min-h-0 flex-1 flex-col md:-mx-6 md:-my-5">
-    <TraceFilterBar
-      bind:start={rangeStart}
-      bind:end={rangeEnd}
-      bind:filters
-      {serviceOptions}
-      {environmentOptions}
-    />
-    {#if error}
-      <div
-        class="border-b border-destructive/20 bg-destructive/5 px-4 py-2 text-sm text-destructive"
-      >
-        {error}
-      </div>
-    {/if}
-    <TraceTable {traces} {filters} {loading} />
+  {#snippet actions()}
+    <LiveRefreshButtonGroup bind:live {refresh} />
+  {/snippet}
+
+  <div class="flex items-center gap-2 bg-secondary p-2 px-3">
+    <div class="min-w-0 flex-1">
+      <TraceSearchBar
+        attributes={data.filterAttributes}
+        filters={filters.activeFilters}
+        subjectLabel="traces"
+        loadValueSuggestions={(input) =>
+          getTraceFilterValueSuggestionsQuery(input).run()}
+        onAddFilter={addFilter}
+        onRemoveFilter={removeFilter}
+      />
+    </div>
+    <TimeRangePicker bind:time />
   </div>
+
+  {#if data.error}
+    <div
+      class="border-b border-border bg-background px-4 py-3 text-sm text-destructive"
+    >
+      {data.error}
+    </div>
+  {/if}
+
+  <TraceTable
+    traces={data.traces}
+    {loading}
+    onAddFilter={addFilter}
+    {rangeStart}
+    {rangeEnd}
+  />
 </PageContainer>

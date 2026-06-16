@@ -4,6 +4,9 @@ import type { PageServerLoad } from "./$types";
 
 export const load = (async ({ url, locals, params, parent }) => {
   const { currentApp } = await parent();
+  if (!currentApp) {
+    error(404, "App not found.");
+  }
 
   const time = (
     ["30m", "1h", "4h", "24h", "7d"].includes(url.searchParams.get("t") ?? "")

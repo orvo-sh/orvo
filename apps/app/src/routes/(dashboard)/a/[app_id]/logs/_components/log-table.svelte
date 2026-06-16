@@ -5,6 +5,7 @@
 
   import { normalizeSeverity } from "$lib/utils/normalize-severity";
   import { cn } from "@repo/components";
+  import { Badge } from "@repo/components/ui/badge";
   import { Skeleton } from "@repo/components/ui/skeleton";
   import type { LogRecord, LogTimeFilter } from "../types";
   import LogDetailPanel from "./log-detail-panel.svelte";
@@ -103,7 +104,7 @@
           <div
             data-selected={selectedLog?.id === log.id}
             class={cn(
-              "group flex min-h-7 cursor-pointer items-start gap-0 rounded-md py-1 pr-3 pl-3 transition-colors hover:brightness-95",
+              "group flex cursor-pointer items-start gap-0 rounded-md py-1 pr-3 pl-3 transition-colors hover:brightness-95",
               {
                 fatal:
                   "bg-destructive/10 text-destructive data-[selected=true]:bg-destructive/20",
@@ -162,12 +163,25 @@
               </span>
             </div>
 
-            <div class="flex min-w-0 flex-1 items-start gap-2">
+            <div class="mt-0.5 flex min-w-0 flex-1 flex-col items-start gap-1">
               <span
-                class="line-clamp-1 font-mono text-xs leading-relaxed break-all text-secondary-foreground"
+                class="font-mono text-xs leading-relaxed break-all text-secondary-foreground"
               >
-                  {log.body}
+                {log.body}
               </span>
+              {#if Object.keys(log.log_attributes ?? {}).length > 0}
+                <div class="flex flex-wrap gap-1">
+                  {#each Object.entries(log.log_attributes) as [key, value]}
+                    <Badge
+                      variant="outline"
+                      class="h-auto gap-0.5 rounded-md px-1.5 py-[1px] text-[11px] font-normal"
+                    >
+                      <span class="text-muted-foreground">{key}:</span>
+                      <span class="text-foreground">{value}</span>
+                    </Badge>
+                  {/each}
+                </div>
+              {/if}
             </div>
           </div>
         {/each}
@@ -188,7 +202,7 @@
 
   {#if selectedLog}
     <div
-      class="absolute top-[35px] inset-y-0 right-0 z-20 flex w-120 flex-col border-l shadow-xl"
+      class="absolute inset-y-0 top-[35px] right-0 z-20 flex w-120 flex-col border-l shadow-xl"
     >
       <LogDetailPanel
         log={selectedLog}

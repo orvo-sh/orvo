@@ -16,7 +16,7 @@ type Server struct {
 	listener   net.Listener
 }
 
-func NewServer(authService *AuthService, ingestService *TelemetryService, logger *slog.Logger, cfg IngestConfig) (*Server, error) {
+func NewServer(authService *AuthService, ingestService *TelemetryService, deploymentService *DeploymentService, logger *slog.Logger, cfg IngestConfig) (*Server, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/v1/logs", &signalHandler{
 		authService:   authService,
@@ -35,6 +35,30 @@ func NewServer(authService *AuthService, ingestService *TelemetryService, logger
 		ingestService: ingestService,
 		maxBodyBytes:  cfg.MaxBodyBytes,
 		signal:        "metrics",
+	})
+	mux.HandleFunc("/v1/deployments", func(writer http.ResponseWriter, request *http.Request) {
+		resolved, err := authService.ResolveRequest(request)
+		if err != nil {
+			writeAppError(writer, ErrInvalidIngestionKey)
+			return
+		}
+
+		deploymentService.handleCreate(writer, request, resolved)
+	})
+	mux.HandleFunc("/v1/deployments/", func(writer http.ResponseWriter, request *http.Request) {
+		resolved, err := authService.ResolveRequest(request)
+		if err != nil {
+			writeAppError(writer, ErrInvalidIngestionKey)
+			return
+		}
+
+		deploymentID, err := deploymentIDFromPath(request.URL.Path)
+		if err != nil {
+			writeAppError(writer, ErrDeploymentNotFound)
+			return
+		}
+
+		deploymentService.handleUpdate(writer, request, resolved, deploymentID)
 	})
 	mux.HandleFunc("/health", func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusOK)

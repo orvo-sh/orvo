@@ -1,10 +1,7 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import {
-    createBillingPortalCommand,
-    getBillingStateQuery,
-    updateBillingEmailCommand,
-  } from "$lib/api/billing.remote";
+  import { PLANS } from "$lib/constants";
+  import { createBillingPortalCommand, getBillingStateQuery } from "$lib/api/billing.remote";
   import { Button } from "@repo/components/ui/button";
   import {
     Card,
@@ -13,19 +10,85 @@
     CardHeader,
     CardTitle,
   } from "@repo/components/ui/card";
-  import { Input } from "@repo/components/ui/input";
   import { onMount } from "svelte";
 
   type BillingStateResult = Awaited<ReturnType<typeof getBillingStateQuery>>;
   type BillingState = Extract<BillingStateResult, { success: true }>["data"];
+  type BillingSignal = "logs" | "metrics" | "traces";
+
+  const bytesPerGb = 1_000_000_000;
+  const planCards = [
+    {
+      key: "starter",
+      name: "Starter",
+      priceLabel: `$${PLANS.starter.priceUsd}/month`,
+      includedGb: Math.round(PLANS.starter.ingestLimitBytes / bytesPerGb),
+      retentionDays: PLANS.starter.retentionDays,
+      overagePricePerGb: PLANS.starter.overagePricePerGb,
+    },
+    {
+      key: "pro",
+      name: "Pro",
+      priceLabel: `$${PLANS.pro.priceUsd}/month`,
+      includedGb: Math.round(PLANS.pro.ingestLimitBytes / bytesPerGb),
+      retentionDays: PLANS.pro.retentionDays,
+      overagePricePerGb: PLANS.pro.overagePricePerGb,
+    },
+    {
+      key: "enterprise",
+      name: "Enterprise",
+      priceLabel: "Custom",
+      includedGb: null,
+      retentionDays: null,
+      overagePricePerGb: null,
+    },
+  ] as const;
 
   let loading = $state(true);
   let portalLoading = $state(false);
-  let savingEmail = $state(false);
   let error = $state("");
   let success = $state("");
   let billingState = $state<BillingState | null>(null);
-  let billingEmail = $state("");
+
+  const signalCards = $derived.by(() => {
+    if (!billingState) {
+      return [];
+    }
+    const currentBillingState = billingState;
+
+    return ([
+      {
+        signal: "logs",
+        usedBytes: currentBillingState.logsIngestedBytes,
+        retentionDays: currentBillingState.logsRetentionDays,
+      },
+      {
+        signal: "metrics",
+        usedBytes: currentBillingState.metricsIngestedBytes,
+        retentionDays: currentBillingState.metricsRetentionDays,
+      },
+      {
+        signal: "traces",
+        usedBytes: currentBillingState.tracesIngestedBytes,
+        retentionDays: currentBillingState.tracesRetentionDays,
+      },
+    ] as const satisfies Array<{
+      signal: BillingSignal;
+      usedBytes: number;
+      retentionDays: number;
+    }>).map((signalCard) => ({
+      ...signalCard,
+      usagePercent:
+        currentBillingState.ingestLimitBytes > 0
+          ? Math.min(
+              100,
+              Math.round(
+                (signalCard.usedBytes / currentBillingState.ingestLimitBytes) * 100,
+              ),
+            )
+          : 0,
+    }));
+  });
 
   const loadBillingState = async () => {
     loading = true;
@@ -39,7 +102,6 @@
     }
 
     billingState = result.data;
-    billingEmail = result.data.billingEmail ?? "";
     loading = false;
   };
 
@@ -58,40 +120,24 @@
     window.location.href = result.data.url;
   };
 
-  const saveBillingEmail = async () => {
-    savingEmail = true;
-    error = "";
-    success = "";
-
-    const result = await updateBillingEmailCommand({
-      billingEmail: billingEmail.trim(),
-    });
-    if (result.success === false) {
-      error = result.error;
-      savingEmail = false;
-      return;
-    }
-
-    success = "Billing email updated.";
-    savingEmail = false;
-    await loadBillingState();
-  };
-
   const getStatusLabel = () => {
-    if (!billingState?.subscription) {
+    if (!billingState?.billingPlan || !billingState.billingStatus) {
       return "No active plan";
     }
 
-    return `${billingState.subscription.plan} ${billingState.subscription.status}`;
+    return `${billingState.billingPlan} ${billingState.billingStatus}`;
   };
 
   const getTrialCopy = () => {
-    const subscription = billingState?.subscription;
-    if (!subscription?.trialEnd) {
+    if (!billingState?.currentPeriodEnd) {
       return "Choose a plan to activate your organization.";
     }
 
-    return `Trial ends on ${new Date(subscription.trialEnd).toLocaleDateString()}.`;
+    if (billingState.billingStatus === "trialing") {
+      return `Trial ends on ${new Date(billingState.currentPeriodEnd).toLocaleDateString()}.`;
+    }
+
+    return `Current period ends on ${new Date(billingState.currentPeriodEnd).toLocaleDateString()}.`;
   };
 
   onMount(() => {
@@ -147,53 +193,40 @@
           </div>
 
           <div class="rounded-xl border p-4">
-            <p class="text-sm text-muted-foreground">Billing email</p>
+            <p class="text-sm text-muted-foreground">Current period</p>
             <p class="mt-2 text-lg font-semibold text-foreground">
               {loading
                 ? "Loading..."
-                : (billingState?.billingEmail ?? "Not set")}
+                : billingState?.currentPeriodEnd
+                  ? `${new Date(billingState.currentPeriodStart).toLocaleDateString()} to ${new Date(billingState.currentPeriodEnd).toLocaleDateString()}`
+                  : "Not available"}
             </p>
           </div>
         </div>
 
         <div class="grid gap-3">
-          <label class="text-sm font-medium text-foreground" for="billing-email"
-            >Billing email</label
-          >
-          <Input
-            id="billing-email"
-            bind:value={billingEmail}
-            type="email"
-            placeholder="billing@company.com"
-            disabled={loading || billingState?.isOwner === false}
-          />
+          <p class="text-sm font-medium text-foreground">Billing actions</p>
+          <p class="text-sm text-muted-foreground">
+            Open the billing portal to manage the organization subscription.
+          </p>
           <div class="flex flex-wrap gap-3">
             <Button
-              disabled={loading ||
-                savingEmail ||
-                billingState?.isOwner === false ||
-                billingEmail.trim().length === 0}
-              loading={savingEmail}
-              onclick={saveBillingEmail}
-            >
-              Save billing email
-            </Button>
-
-            <Button
               variant="outline"
-              disabled={loading ||
-                portalLoading ||
-                billingState?.isOwner === false}
+              disabled={loading || portalLoading}
               loading={portalLoading}
               onclick={openPortal}
             >
               Manage billing
             </Button>
+
+            <Button variant="outline" href="mailto:team@orvo.sh">
+              Contact sales
+            </Button>
           </div>
         </div>
 
         <div class="grid gap-3 md:grid-cols-3">
-          {#each billingState?.usage ?? [] as usage (usage.signal)}
+          {#each signalCards as usage (usage.signal)}
             <div class="rounded-xl border p-4">
               <p class="text-sm text-muted-foreground capitalize">
                 {usage.signal}
@@ -201,10 +234,12 @@
               <p class="mt-2 text-lg font-semibold text-foreground">
                 {loading
                   ? "Loading..."
-                  : `${((usage.usedBytes ?? 0) / 1_000_000_000 || 0).toFixed(1)} GB / ${((usage.includedBytes ?? 0) / 1_000_000_000 || 0).toFixed(1)} GB`}
+                  : `${(usage.usedBytes / bytesPerGb).toFixed(1)} GB used`}
               </p>
               <p class="mt-1 text-sm text-muted-foreground">
-                {loading ? "" : `${usage.usagePercent ?? 0}% used`}
+                {loading
+                  ? ""
+                  : `${usage.retentionDays} day retention, ${usage.usagePercent}% of plan limit`}
               </p>
             </div>
           {/each}
@@ -224,10 +259,7 @@
           If you need custom data retention, volume, or support requirements,
           talk to the team.
         </p>
-        <Button
-          variant="outline"
-          href={`mailto:${billingState?.salesEmail ?? "team@orvo.sh"}`}
-        >
+        <Button variant="outline" href="mailto:team@orvo.sh">
           Contact sales
         </Button>
       </CardContent>
@@ -235,35 +267,34 @@
   </div>
 
   <div class="grid gap-6 xl:grid-cols-3">
-    {#each billingState?.plans ?? [] as plan (plan.key)}
+    {#each planCards as plan (plan.key)}
       <Card class="border-border/80">
         <CardHeader class="gap-1">
           <CardTitle>{plan.name}</CardTitle>
-          <CardDescription>{plan.priceLabel ?? "Custom"}</CardDescription>
+          <CardDescription>{plan.priceLabel}</CardDescription>
         </CardHeader>
         <CardContent class="grid gap-4">
           <div class="space-y-1 text-sm text-muted-foreground">
-            <p>Logs: {plan.includedGbPerSignal.logs} GB / month</p>
-            <p>Metrics: {plan.includedGbPerSignal.metrics} GB / month</p>
-            <p>Traces: {plan.includedGbPerSignal.traces} GB / month</p>
-            <p>Retention: {plan.retentionDays.logs} days</p>
+            {#if plan.includedGb !== null}
+              <p>Ingest: {plan.includedGb} GB / month</p>
+            {/if}
+            {#if plan.retentionDays}
+              <p>Logs retention: {plan.retentionDays.logs} days</p>
+              <p>Metrics retention: {plan.retentionDays.metrics} days</p>
+              <p>Traces retention: {plan.retentionDays.traces} days</p>
+            {/if}
             {#if plan.overagePricePerGb}
               <p>${plan.overagePricePerGb.toFixed(2)} / GB overage</p>
             {/if}
           </div>
 
           {#if plan.key === "enterprise"}
-            <Button
-              variant="outline"
-              href={`mailto:${billingState?.salesEmail ?? "team@orvo.sh"}`}
-            >
+            <Button variant="outline" href="mailto:team@orvo.sh">
               Contact sales
             </Button>
           {:else}
             <Button
-              disabled={loading ||
-                portalLoading ||
-                billingState?.isOwner === false}
+              disabled={loading || portalLoading}
               loading={portalLoading}
               variant="outline"
               onclick={openPortal}
