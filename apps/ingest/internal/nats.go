@@ -8,7 +8,26 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"go.opentelemetry.io/otel/propagation"
 )
+
+type natsHeaderCarrier nats.Header
+
+func (c natsHeaderCarrier) Get(key string) string {
+	return nats.Header(c).Get(key)
+}
+
+func (c natsHeaderCarrier) Set(key, value string) {
+	nats.Header(c).Set(key, value)
+}
+
+func (c natsHeaderCarrier) Keys() []string {
+	keys := make([]string, 0, len(c))
+	for k := range c {
+		keys = append(keys, k)
+	}
+	return keys
+}
 
 type QueueClient struct {
 	conn      *nats.Conn
@@ -90,7 +109,14 @@ func (client *QueueClient) publish(ctx context.Context, subject string, message 
 	publishCtx, cancel := context.WithTimeout(ctx, client.config.PublishTimeout)
 	defer cancel()
 
-	ack, err := client.jetstream.Publish(publishCtx, subject, body)
+	headers := make(nats.Header)
+	propagation.TraceContext{}.Inject(publishCtx, natsHeaderCarrier(headers))
+
+	ack, err := client.jetstream.PublishMsg(publishCtx, &nats.Msg{
+		Subject: subject,
+		Data:    body,
+		Header:  headers,
+	})
 	if err != nil {
 		return fmt.Errorf("nats: publish %s: %w", subject, err)
 	}
