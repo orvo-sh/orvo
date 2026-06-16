@@ -1,9 +1,9 @@
 import type { ClickHouse } from "@repo/clickhouse";
 import type { DB } from "@repo/db";
-import { app, deployment, ingestionKey } from "@repo/db/schema";
+import { deployment } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
-import { err, genId, ok } from "@repo/utils";
-import { and, desc, eq, gte, isNull, lte } from "drizzle-orm";
+import { err, ok } from "@repo/utils";
+import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { z } from "zod";
 
 class DeploymentService {
@@ -15,155 +15,6 @@ class DeploymentService {
     logger: Logger,
   ) {
     this.logger = logger.child("DeploymentService");
-  }
-
-  async resolvePrivateIngestionKey(
-    input: z.infer<typeof resolvePrivateIngestionKeyInputSchema>,
-  ) {
-    this.logger.info(
-      "resolvePrivateIngestionKey: resolving deployment API key",
-    );
-
-    const validated = resolvePrivateIngestionKeyInputSchema.safeParse(input);
-    if (!validated.success) {
-      return err(validated.error.message);
-    }
-
-    try {
-      const key = await this.db.query.ingestionKey.findFirst({
-        where: and(
-          eq(ingestionKey.key, validated.data.key),
-          eq(ingestionKey.kind, "private"),
-          isNull(ingestionKey.revokedAt),
-        ),
-      });
-
-      if (!key) {
-        return err("Invalid deployment API key.");
-      }
-
-      await this.db
-        .update(ingestionKey)
-        .set({ lastUsedAt: new Date() })
-        .where(eq(ingestionKey.id, key.id))
-        .execute();
-
-      return ok({ appId: key.appId, ingestionKeyId: key.id });
-    } catch (error) {
-      this.logger.error(
-        "resolvePrivateIngestionKey: failed to resolve deployment API key",
-        error,
-      );
-      return err("Failed to authenticate deployment request.");
-    }
-  }
-
-  async createDeployment(
-    input: z.infer<typeof createDeploymentInputSchema>,
-    context: { appId: string },
-  ) {
-    this.logger.info("createDeployment: creating deployment", {
-      input,
-      context,
-    });
-
-    const validated = createDeploymentInputSchema.safeParse(input);
-    if (!validated.success) {
-      return err(validated.error.message);
-    }
-
-    try {
-      const id = genId("dep");
-      const startedAt = new Date(
-        validated.data.startedAt ?? new Date().toISOString(),
-      );
-      const finishedAt = validated.data.finishedAt
-        ? new Date(validated.data.finishedAt)
-        : null;
-
-      await this.db
-        .insert(deployment)
-        .values({
-          id,
-          appId: context.appId,
-          serviceName: validated.data.serviceName,
-          environmentName: validated.data.environmentName,
-          version: validated.data.version,
-          status: validated.data.status,
-          startedAt,
-          finishedAt,
-          gitSha: validated.data.gitSha,
-          gitBranch: validated.data.gitBranch,
-          gitRepository: validated.data.gitRepository,
-          gitActor: validated.data.gitActor,
-          commitMessage: validated.data.commitMessage,
-          externalUrl: validated.data.externalUrl,
-          metadata: validated.data.metadata,
-        })
-        .execute();
-
-      await this.db
-        .update(app)
-        .set({ deploymentsFirstReceivedAt: new Date() })
-        .where(
-          and(
-            eq(app.id, context.appId),
-            isNull(app.deploymentsFirstReceivedAt),
-          ),
-        )
-        .execute();
-
-      return ok({ id });
-    } catch (error) {
-      this.logger.error("createDeployment: failed to create deployment", error);
-      return err("Failed to create deployment.");
-    }
-  }
-
-  async updateDeployment(
-    input: z.infer<typeof updateDeploymentInputSchema>,
-    context: { appId: string },
-  ) {
-    this.logger.info("updateDeployment: updating deployment", {
-      input,
-      context,
-    });
-
-    const validated = updateDeploymentInputSchema.safeParse(input);
-    if (!validated.success) {
-      return err(validated.error.message);
-    }
-
-    try {
-      const existing = await this.db.query.deployment.findFirst({
-        where: and(
-          eq(deployment.id, validated.data.id),
-          eq(deployment.appId, context.appId),
-        ),
-      });
-
-      if (!existing) {
-        return err("Deployment not found.");
-      }
-
-      await this.db
-        .update(deployment)
-        .set({
-          status: validated.data.status ?? existing.status,
-          finishedAt: validated.data.finishedAt
-            ? new Date(validated.data.finishedAt)
-            : existing.finishedAt,
-          externalUrl: validated.data.externalUrl ?? existing.externalUrl,
-          metadata: validated.data.metadata ?? existing.metadata,
-        })
-        .where(eq(deployment.id, existing.id))
-        .execute();
-
-      return ok(undefined);
-    } catch (error) {
-      this.logger.error("updateDeployment: failed to update deployment", error);
-      return err("Failed to update deployment.");
-    }
   }
 
   async listDeployments(
@@ -219,7 +70,10 @@ class DeploymentService {
 
       return ok({ deployments });
     } catch (error) {
-      this.logger.error("listDeployments: failed to list deployments", error);
+      this.logger.error(
+        "listDeployments: failed to list deployments",
+        error instanceof Error ? error : undefined,
+      );
       return err("Failed to list deployments.");
     }
   }
@@ -249,7 +103,10 @@ class DeploymentService {
 
       return ok({ deployment: row });
     } catch (error) {
-      this.logger.error("getDeployment: failed to get deployment", error);
+      this.logger.error(
+        "getDeployment: failed to get deployment",
+        error instanceof Error ? error : undefined,
+      );
       return err("Failed to get deployment.");
     }
   }
@@ -347,7 +204,7 @@ class DeploymentService {
     } catch (error) {
       this.logger.error(
         "getDeploymentHealth: failed to get deployment health",
-        error,
+        error instanceof Error ? error : undefined,
       );
       return err("Failed to get deployment health.");
     }
@@ -485,43 +342,6 @@ const deploymentStatusSchema = z.enum([
   "rolled_back",
 ]);
 
-const metadataSchema = z.record(z.string(), z.unknown()).default({});
-
-const createDeploymentInputSchema = z
-  .object({
-    serviceName: z.string().trim().min(1).max(255),
-    environmentName: z.string().trim().min(1).max(255),
-    version: z.string().trim().max(255).optional(),
-    status: deploymentStatusSchema.default("succeeded"),
-    startedAt: z.string().datetime({ offset: true }).optional(),
-    finishedAt: z.string().datetime({ offset: true }).optional(),
-    gitSha: z.string().trim().max(255).optional(),
-    gitBranch: z.string().trim().max(255).optional(),
-    gitRepository: z.string().trim().max(255).optional(),
-    gitActor: z.string().trim().max(255).optional(),
-    commitMessage: z.string().trim().max(2000).optional(),
-    externalUrl: z.string().trim().url().max(2000).optional(),
-    metadata: metadataSchema,
-  })
-  .refine(
-    (value) =>
-      !value.finishedAt ||
-      new Date(value.finishedAt).getTime() >=
-        new Date(value.startedAt ?? new Date().toISOString()).getTime(),
-    {
-      message: "finishedAt must be greater than or equal to startedAt",
-      path: ["finishedAt"],
-    },
-  );
-
-const updateDeploymentInputSchema = z.object({
-  id: z.string().trim().min(1).max(255),
-  status: deploymentStatusSchema.optional(),
-  finishedAt: z.string().datetime({ offset: true }).optional(),
-  externalUrl: z.string().trim().url().max(2000).optional(),
-  metadata: metadataSchema.optional(),
-});
-
 const listDeploymentsInputSchema = z.object({
   serviceName: z.string().trim().min(1).max(255).optional(),
   environmentName: z.string().trim().min(1).max(255).optional(),
@@ -533,10 +353,6 @@ const listDeploymentsInputSchema = z.object({
 
 const getDeploymentInputSchema = z.object({
   id: z.string().trim().min(1).max(255),
-});
-
-const resolvePrivateIngestionKeyInputSchema = z.object({
-  key: z.string().trim().min(1),
 });
 
 type RawLogSummaryRow = {
@@ -603,10 +419,7 @@ const normalizeDateTime = (value: string | Date) => {
 };
 
 export {
-  createDeploymentInputSchema,
   DeploymentService,
   getDeploymentInputSchema,
   listDeploymentsInputSchema,
-  resolvePrivateIngestionKeyInputSchema,
-  updateDeploymentInputSchema,
 };

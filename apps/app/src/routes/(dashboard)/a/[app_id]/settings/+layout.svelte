@@ -2,13 +2,14 @@
   import { page } from "$app/state";
   import * as Sidebar from "@repo/components/ui/sidebar";
   import {
-      IconSettings as GearSixIcon,
-      IconKey as KeyIcon,
-      IconWebhook as WebhookIcon
+    IconCreditCard as CreditCardIcon,
+    IconSettings as GearSixIcon,
+    IconKey as KeyIcon,
+    IconWebhook as WebhookIcon,
   } from "@tabler/icons-svelte";
   import type { Snippet } from "svelte";
 
-  import PageContainer from "../../../_components/page-container/page-container.svelte";
+  import PageContainer from "../_components/page-container/page-container.svelte";
 
   let { children }: { children?: Snippet } = $props();
 
@@ -45,20 +46,30 @@
         },
       ],
     },
+    {
+      label: "Organization",
+      items: [
+        {
+          href: `${settingsBasePath}/billing`,
+          label: "Billing & usage",
+          icon: CreditCardIcon,
+          isActive: (pathname: string) =>
+            pathname.startsWith(`${settingsBasePath}/billing`),
+        },
+      ],
+    },
   ]);
 
   const activeItem = $derived(
     sections
       .flatMap((section) => section.items)
-      .find((item) => item.isActive(page.url.pathname))
+      .find((item) => item.isActive(page.url.pathname)),
   );
 </script>
 
 <PageContainer title={activeItem?.label || "Settings"} innerClass="p-0!">
   <div class="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
-    <aside
-      class="shrink-0 w-64 not-lg:hidden border-r"
-    >
+    <aside class="w-64 shrink-0 border-r not-lg:hidden">
       {#each sections as section}
         <Sidebar.Group>
           <Sidebar.GroupLabel>{section.label}</Sidebar.GroupLabel>

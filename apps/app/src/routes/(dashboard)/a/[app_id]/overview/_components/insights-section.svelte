@@ -86,7 +86,7 @@
   }
 </script>
 
-<section class="flex flex-col rounded-xl bg-muted ring ring-foreground/10">
+<section class="flex flex-col">
   <div class="flex items-center justify-between">
     <div class="flex flex-1 items-center gap-0 px-3 py-0.5">
       <h2 class="text-sm font-normal tracking-tight text-secondary-foreground">
@@ -151,7 +151,7 @@
     </Button>
   </div>
 
-  <Card.Root class="relative p-0">
+  <Card.Root class="relative  p-0">
     {#if loading}
       <div
         class="absolute top-0 z-50 h-full w-full bg-background opacity-60"

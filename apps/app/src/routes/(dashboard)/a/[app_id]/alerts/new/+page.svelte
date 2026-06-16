@@ -12,7 +12,7 @@
     restoreOrganizationActivation,
   } from "$lib/stores/organization-activation.svelte";
   import { onMount } from "svelte";
-  import PageContainer from "../../../../_components/page-container/page-container.svelte";
+  import PageContainer from "../../_components/page-container/page-container.svelte";
   import AlertRuleForm from "../_components/alert-rule-form.svelte";
 
   let loading = $state(true);

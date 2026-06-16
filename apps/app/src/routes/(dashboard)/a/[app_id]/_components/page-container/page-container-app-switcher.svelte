@@ -5,65 +5,67 @@
   import { Input } from "@repo/components/ui/input";
   import * as Popover from "@repo/components/ui/popover";
   import {
-      IconCheck as CheckIcon,
-      IconCircleX,
-      IconPlus,
-      IconSearch,
-      IconSelector
+    IconCheck as CheckIcon,
+    IconCircleX,
+    IconPlus,
+    IconSearch,
+    IconSelector,
   } from "@tabler/icons-svelte";
 
-  type AppOption = {
-    id: string;
-    name: string;
-  };
+  const preservedSections = new Set([
+    "overview",
+    "metrics",
+    "traces",
+    "alerts",
+    "chat",
+    "deployments",
+    "hosts",
+    "service-map",
+    "settings",
+  ]);
 
-  type DashboardPageData = {
-    apps?: AppOption[];
-    currentApp?: AppOption;
+  const getAppSectionPath = (pathname: string, currentAppId: string) => {
+    const appPath = `/a/${currentAppId}`;
+
+    if (!pathname.startsWith(appPath)) {
+      return "";
+    }
+
+    const [, section = "", detail = ""] = pathname
+      .slice(appPath.length)
+      .split("/")
+      .filter(Boolean);
+
+    if (!section) {
+      return "";
+    }
+
+    if (section === "logs") {
+      return detail ? `/logs/${detail}` : "/logs";
+    }
+
+    if (section === "settings") {
+      return detail === "billing" || detail === "ingest-keys"
+        ? `/settings/${detail}`
+        : "/settings";
+    }
+
+    return preservedSections.has(section) ? `/${section}` : "";
   };
 
   const getSwitchHref = (
     nextAppId: string,
     currentAppId: string,
     pathname: string,
-  ) => {
-    const prefix = `/a/${currentAppId}`;
-    if (!pathname.startsWith(prefix)) {
-      return `/a/${nextAppId}`;
-    }
-
-    const suffix = pathname.slice(prefix.length);
-    if (!suffix) {
-      return `/a/${nextAppId}`;
-    }
-
-    if (
-      suffix === "/logs" ||
-      suffix === "/metrics" ||
-      suffix === "/traces" ||
-      suffix === "/alerts" ||
-      suffix === "/alerts/new" ||
-      suffix === "/chat" ||
-      suffix === "/settings" ||
-      suffix === "/settings/ingest-keys" ||
-      /^\/logs\/[^/]+$/.test(suffix)
-    ) {
-      return `/a/${nextAppId}${suffix}`;
-    }
-
-    if (suffix.startsWith("/alerts/")) {
-      return `/a/${nextAppId}/alerts`;
-    }
-
-    if (suffix.startsWith("/traces/")) {
-      return `/a/${nextAppId}/traces`;
-    }
-
-    return `/a/${nextAppId}`;
-  };
+  ) => `/a/${nextAppId}${getAppSectionPath(pathname, currentAppId)}`;
 
   const dashboardData = $derived(
-    (page.data as DashboardPageData | undefined) ?? {},
+    (page.data as
+      | {
+          apps?: { id: string; name: string }[];
+          currentApp?: { id: string; name: string };
+        }
+      | undefined) ?? {},
   );
   const apps = $derived(dashboardData.apps ?? []);
   const currentApp = $derived(dashboardData.currentApp ?? null);
@@ -81,14 +83,11 @@
         variant: "ghost",
       })}
     >
-        {currentApp.name}
-	  <IconSelector />
+      {currentApp.name}
+      <IconSelector />
     </Popover.Trigger>
 
-    <Popover.Content
-      align="start"
-      class="w-72 gap-0 p-0"
-    >
+    <Popover.Content align="start" class="w-72 gap-0 p-0">
       <div class="relative flex items-center gap-1 border-b px-2 py-1">
         <IconSearch
           class="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground"
@@ -110,11 +109,12 @@
         {/if}
       </div>
 
-      <div class="max-h-52 overflow-y-auto p-1 gap-1 flex flex-col">
+      <div class="flex max-h-52 flex-col gap-1 overflow-y-auto p-1">
         {#each filteredApps as app}
           {@const selected = app.id === currentApp.id}
           <a
             href={getSwitchHref(app.id, currentApp.id, page.url.pathname)}
+            data-sveltekit-reload
             class={cn(
               "flex w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-sm transition-colors hover:bg-muted/70",
               selected && "bg-muted/80",
@@ -143,7 +143,7 @@
           <span
             class="flex size-4 shrink-0 items-center justify-center text-muted-foreground"
           >
-            <IconPlus class="size-4"/>
+            <IconPlus class="size-4" />
           </span>
           <span class="truncate">Create app</span>
         </a>

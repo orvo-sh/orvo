@@ -10,7 +10,7 @@
     IconDatabase,
     IconServer,
   } from "@tabler/icons-svelte";
-  import PageContainer from "../../../../_components/page-container/page-container.svelte";
+  import PageContainer from "../../_components/page-container/page-container.svelte";
   import MetricsTimeseriesChart from "../../metrics/_components/metrics-timeseries-chart.svelte";
 
   let { data } = $props();

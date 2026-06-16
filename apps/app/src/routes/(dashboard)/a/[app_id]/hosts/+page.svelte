@@ -14,7 +14,7 @@
     IconServer,
     IconSettings,
   } from "@tabler/icons-svelte";
-  import PageContainer from "../../../_components/page-container/page-container.svelte";
+  import PageContainer from "../_components/page-container/page-container.svelte";
 
   let { data } = $props();
 

@@ -1,5 +1,6 @@
 import { getRequestEvent, query } from "$app/server";
 import {
+  getTraceFilterValueSuggestionsInputSchema,
   getServiceGraphInputSchema,
   getTraceInputSchema,
   getTracesInputSchema,
@@ -46,5 +47,24 @@ export const getServiceGraphQuery = query(
     return event.locals.container.tracesService.getServiceGraph(input, {
       appId: appContext.data.appId,
     });
+  },
+);
+
+export const getTraceFilterValueSuggestionsQuery = query(
+  getTraceFilterValueSuggestionsInputSchema,
+  async (input) => {
+    const event = getRequestEvent();
+    const appContext = await resolveRequestAppContext(event);
+
+    if (!appContext.success) {
+      return err(appContext.error);
+    }
+
+    return event.locals.container.tracesService.getTraceFilterValueSuggestions(
+      input,
+      {
+        appId: appContext.data.appId,
+      },
+    );
   },
 );

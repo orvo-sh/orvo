@@ -80,7 +80,10 @@ class AlertRuleService {
         })),
       });
     } catch (error) {
-      this.logger.error("getAlertRules: failed to get alert rules", error);
+      this.logger.error(
+        "getAlertRules: failed to get alert rules",
+        error instanceof Error ? error : undefined,
+      );
       return err("Failed to get alert rules.");
     }
   }
@@ -122,7 +125,10 @@ class AlertRuleService {
         },
       });
     } catch (error) {
-      this.logger.error("getAlertRule: failed to get alert rule", error);
+      this.logger.error(
+        "getAlertRule: failed to get alert rule",
+        error instanceof Error ? error : undefined,
+      );
       return err("Failed to get alert rule.");
     }
   }
@@ -206,7 +212,10 @@ class AlertRuleService {
 
       return ok({ id });
     } catch (error) {
-      this.logger.error("createAlertRule: failed to create alert rule", error);
+      this.logger.error(
+        "createAlertRule: failed to create alert rule",
+        error instanceof Error ? error : undefined,
+      );
       return err("Failed to create alert rule.");
     }
   }
@@ -306,7 +315,10 @@ class AlertRuleService {
 
       return ok(undefined);
     } catch (error) {
-      this.logger.error("updateAlertRule: failed to update alert rule", error);
+      this.logger.error(
+        "updateAlertRule: failed to update alert rule",
+        error instanceof Error ? error : undefined,
+      );
       return err("Failed to update alert rule.");
     }
   }
@@ -370,7 +382,7 @@ class AlertRuleService {
     } catch (error) {
       this.logger.error(
         "setAlertRuleEnabled: failed to update alert rule enabled state",
-        error,
+        error instanceof Error ? error : undefined,
       );
       return err("Failed to update alert rule.");
     }
@@ -402,7 +414,10 @@ class AlertRuleService {
 
       return ok(undefined);
     } catch (error) {
-      this.logger.error("deleteAlertRule: failed to delete alert rule", error);
+      this.logger.error(
+        "deleteAlertRule: failed to delete alert rule",
+        error instanceof Error ? error : undefined,
+      );
       return err("Failed to delete alert rule.");
     }
   }
@@ -458,7 +473,7 @@ class AlertRuleService {
     } catch (error) {
       this.logger.error(
         "seedDefaultAlertRules: failed to seed default alert rules",
-        error,
+        error instanceof Error ? error : undefined,
       );
       return err("Failed to seed default alert rules.");
     }

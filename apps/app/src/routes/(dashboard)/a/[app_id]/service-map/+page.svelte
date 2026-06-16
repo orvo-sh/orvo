@@ -2,7 +2,7 @@
   import { page } from "$app/state";
   import { Button } from "@repo/components/ui/button";
   import { IconRefresh } from "@tabler/icons-svelte";
-  import PageContainer from "../../../_components/page-container/page-container.svelte";
+  import PageContainer from "../_components/page-container/page-container.svelte";
   import ServiceGraph from "./_components/service-graph.svelte";
 
   type PageData = {

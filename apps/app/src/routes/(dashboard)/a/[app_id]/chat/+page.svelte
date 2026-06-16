@@ -2,8 +2,8 @@
   import { page } from "$app/state";
   import { Button } from "@repo/components/ui/button";
   import { IconLayoutDashboard } from "@tabler/icons-svelte";
-  import AssistantConversation from "../../../_components/assistant/assistant-conversation.svelte";
-  import PageContainer from "../../../_components/page-container/page-container.svelte";
+  import AssistantConversation from "../_components/assistant/assistant-conversation.svelte";
+  import PageContainer from "../_components/page-container/page-container.svelte";
 
   const appId = $derived(page.params.app_id ?? "");
 </script>

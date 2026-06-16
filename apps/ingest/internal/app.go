@@ -51,8 +51,9 @@ func Run(ctx context.Context) error {
 	authService := NewAuthService(postgresDB, logger, backgroundManager, cfg.Ingest.IngestionKeyCacheTTL)
 	billingService := NewBillingService(postgresDB, logger)
 	ingestService := NewTelemetryService(natsClient, billingService, postgresDB, logger)
+	deploymentService := NewDeploymentService(postgresDB, logger)
 
-	server, err := NewServer(authService, ingestService, logger, cfg.Ingest)
+	server, err := NewServer(authService, ingestService, deploymentService, logger, cfg.Ingest)
 	if err != nil {
 		logger.Error("main: failed to initialize ingest server", slog.Any("error", err))
 		return err
