@@ -1,50 +1,141 @@
-# Turborepo Svelte starter
+# Orvo
 
-This Turborepo starter is maintained by the Turborepo core team
-on [GitHub](https://github.com/vercel/turborepo/tree/main/examples/with-svelte/packages)
-.
+An observability platform built as a Turborepo monorepo. Orvo ingests logs, traces, and metrics via OpenTelemetry, stores them in ClickHouse, and provides a SvelteKit dashboard for exploration, alerting, and insights.
 
-## Using this example
+## Apps
 
-Run the following command:
+| App                | Description                                                                                | Runtime             |
+| ------------------ | ------------------------------------------------------------------------------------------ | ------------------- |
+| `app`              | Main dashboard — organizations, apps, logs, traces, metrics, alerts, billing, AI assistant | SvelteKit + Node.js |
+| `web`              | Landing/marketing site                                                                     | SvelteKit           |
+| `docs`             | Documentation site                                                                         | SvelteKit           |
+| `ingest`           | OTLP HTTP ingestion service for logs, traces, and metrics                                  | Go                  |
+| `telemetry-writer` | Consumes telemetry from NATS and writes batches to ClickHouse                              | Go                  |
+| `alerts-worker`    | Evaluates alert rules and delivers webhook notifications                                   | Node.js             |
+
+## Packages
+
+| Package                   | Description                                |
+| ------------------------- | ------------------------------------------ |
+| `@repo/components`        | Shared shadcn-svelte UI component library  |
+| `@repo/db`                | Drizzle ORM schemas and PostgreSQL client  |
+| `@repo/clickhouse`        | ClickHouse analytics client and migrations |
+| `@repo/ai`                | AI SDK wrapper (Google Gemini)             |
+| `@repo/logger`            | OpenTelemetry structured logging with Pino |
+| `@repo/encryption`        | Encryption utilities                       |
+| `@repo/storage`           | S3-compatible object storage client        |
+| `@repo/host-agent`        | Host monitoring agent utilities            |
+| `@repo/utils`             | Shared utilities (ULID generation, etc.)   |
+| `@repo/eslint-config`     | Shared ESLint configuration                |
+| `@repo/typescript-config` | Shared TypeScript configuration            |
+
+## Tech Stack
+
+- **Frontend:** SvelteKit 2, Svelte 5, TypeScript, Tailwind CSS v4, shadcn-svelte
+- **Backend:** SvelteKit (Node.js adapter), Go 1.24
+- **Databases:** PostgreSQL (Drizzle ORM), ClickHouse
+- **Messaging:** NATS
+- **Observability:** OpenTelemetry (OTLP ingestion, tracing, logging)
+- **Auth:** Better Auth
+- **Billing:** Stripe
+- **AI:** Google Gemini via AI SDK
+- **Email:** Resend
+- **Storage:** S3-compatible
+- **Testing:** Playwright, Vitest, testcontainers
+- **Build:** Turborepo, pnpm, Vite
+
+## Prerequisites
+
+- Node.js >= 18
+- pnpm 10.x
+- Go 1.24 (for `ingest` and `telemetry-writer`)
+- PostgreSQL
+- ClickHouse
+- NATS
+- (Optional) S3-compatible storage, Stripe, Resend, Gemini API key
+
+## Getting Started
+
+Install dependencies:
 
 ```sh
-npx create-turbo@latest -e with-svelte
+pnpm install
 ```
 
-## What's inside?
+Run the development servers:
 
-This Turborepo includes the following packages/apps:
+```sh
+# Run all apps in parallel
+pnpm dev
 
-### Apps
+# Or run a specific app
+pnpm --filter app dev
+pnpm --filter ingest dev
+```
 
-- `docs`: a [svelte-kit](https://kit.svelte.dev/) app
-- `web`: another [svelte-kit](https://kit.svelte.dev/) app
+Build all apps and packages:
 
-### Packages
+```sh
+pnpm build
+```
 
-#### `eslint-config`
+Run type checks:
 
-`eslint` configurations (includes `eslint-plugin-svelte` and `eslint-config-prettier`)
+```sh
+pnpm check-types
+```
 
-#### `typescript-config`
+Run tests:
 
-A package containing a custom `tsconfig` file.
+```sh
+pnpm test
+```
 
-#### `ui`
+## Database
 
-A stub Svelte component library shared by both `web` and `docs` applications. The package supports Svelte components and
-runes in `.svelte.ts` files, which are not supported in the svelte-kit generated tsconfig.
+The `app` package provides shortcuts for database operations:
 
-Please refer to the [packaging](https://svelte.dev/docs/kit/packaging) page of the svelte documentation for additional
-information about svelte component libraries.
+```sh
+# Push schema changes (development)
+pnpm --filter app db:push
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+# Generate migrations
+pnpm --filter app db:generate
 
-### Utilities
+# Run migrations
+pnpm --filter app db:migrate
 
-This Turborepo has some additional tools already setup for you:
+# Open Drizzle Studio
+pnpm --filter app db:studio
+```
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+## Project Structure
+
+```
+├── apps/
+│   ├── app/              # Main dashboard application
+│   ├── web/              # Marketing site
+│   ├── docs/             # Documentation
+│   ├── ingest/           # Go OTLP ingestion service
+│   ├── telemetry-writer/ # Go ClickHouse writer service
+│   └── alerts-worker/    # Alert evaluation worker
+├── packages/
+│   ├── components/       # Shared UI components
+│   ├── db/               # Database schemas and client
+│   ├── clickhouse/       # ClickHouse client
+│   ├── ai/               # AI SDK integration
+│   ├── logger/           # Structured logging
+│   ├── encryption/       # Encryption helpers
+│   ├── storage/          # Object storage client
+│   ├── host-agent/       # Host monitoring
+│   ├── utils/            # Shared utilities
+│   ├── eslint-config/    # ESLint presets
+│   └── typescript-config/# TypeScript presets
+├── package.json          # Root workspace config
+├── pnpm-workspace.yaml   # pnpm workspace definition
+└── turbo.json            # Turborepo task pipeline
+```
+
+## License
+
+[Add your license here]

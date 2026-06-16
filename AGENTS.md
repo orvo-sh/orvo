@@ -49,7 +49,8 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - Use sentence case for user-facing labels, headings, actions, and menu items. Avoid Title Case unless a third-party name requires it.
 - Commit messages should follow the existing history style: conventional prefix like `feat:`, `fix:`, or `refactor:` followed by a lowercase subject.
 - Prefer inlining one-off values and helpers unless extraction clearly improves reuse or readability.
-- Prefer inlining file-local types too. Do not introduce local `type` aliases for props, rows, or small shapes that are only used once or twice inside the same file unless the inline form is materially hard to read.
+- Prefer inlining file-local types too. Do not introduce local `type` aliases or interfaces for props, rows, page data, or other small shapes that are only used once or twice inside the same file unless the inline form is materially hard to read.
+- In UI code, treat explicit file-local types as the exception. Default to inference first, then inline object shapes at the use site if a type annotation is still needed.
 - In UI files, default to inlining one-off derived values, booleans, ids, and tiny formatting decisions directly at the use site. Do not extract `has*`, `display*`, `trend*`, or similar locals unless they are reused enough to clearly pay for themselves.
 - Prefer grouping exports at the very bottom of the file (e.g., `export { x, y }`) instead of using inline exports on every member (e.g., `export const x = ...`).
 
