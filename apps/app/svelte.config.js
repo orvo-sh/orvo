@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
   compilerOptions: {
-    warningFilter:(w)=>["state_referenced_locally"].includes(w),
+    warningFilter: (w) => ["state_referenced_locally"].includes(w),
     // Force runes mode for the project, except for libraries. Can be removed in svelte 6.
     runes: ({ filename }) =>
       filename.split(/[/\\]/).includes("node_modules") ? undefined : true,

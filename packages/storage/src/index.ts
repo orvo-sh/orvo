@@ -4,7 +4,7 @@ import {
   PutObjectCommand,
   S3Client
 } from '@aws-sdk/client-s3';
-import { getSignedUrl as awsGetSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { getSignedUrl as awsGetSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 class Storage {
   private client: S3Client;
@@ -45,14 +45,17 @@ class Storage {
       expiresIn?: number;
     }
   ) {
-
-    const url = await awsGetSignedUrl(this.client, new PutObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-      ContentType: options?.contentType
-    }), {
-      expiresIn: options?.expiresIn || 900
-    })
+    const url = await awsGetSignedUrl(
+      this.client,
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ContentType: options?.contentType
+      }),
+      {
+        expiresIn: options?.expiresIn || 900
+      }
+    );
     return url;
   }
 

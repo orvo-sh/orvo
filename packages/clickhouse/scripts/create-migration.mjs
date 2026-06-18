@@ -19,7 +19,10 @@ const slug = name
   .replace(/[^a-z0-9]+/g, '-')
   .replace(/^-+|-+$/g, '');
 
-const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+const timestamp = new Date()
+  .toISOString()
+  .replace(/[-:TZ.]/g, '')
+  .slice(0, 14);
 const filename = `${timestamp}_${slug}.sql`;
 const filepath = path.join(migrationsDir, filename);
 
@@ -29,7 +32,7 @@ await writeFile(
     '-- Use `-- statement-breakpoint` between statements when a migration contains multiple commands.',
     '',
     ''
-  ].join('\n'),
+  ].join('\n')
 );
 
 console.log(path.relative(packageRoot, filepath));

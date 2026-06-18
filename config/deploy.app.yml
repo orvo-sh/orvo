@@ -38,10 +38,10 @@ volumes:
 
 env:
   clear:
-    SELF_HOSTED: "false"
+    SELF_HOSTED: 'false'
     NODE_ENV: production
     HOST: 0.0.0.0
-    PORT: "3000"
+    PORT: '3000'
     ORIGIN: https://app.orvo.sh
     PUBLIC_ORVO_OTLP_BASE_URL: https://ingest.orvo.sh
     PROD_OTEL_BASE_URL: https://ingest.orvo.sh
@@ -62,5 +62,4 @@ env:
     - S3_REGION:PROD_S3_REGION
     - S3_BUCKET_NAME:PROD_S3_BUCKET_NAME
     - CDN_BASE_URL:PROD_CDN_BASE_URL
-    - GEMINI_API_KEY:PROD_GEMINI_API_KEY
     - PROD_OTEL_INGEST_KEY

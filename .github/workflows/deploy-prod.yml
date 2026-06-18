@@ -30,7 +30,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.3"
+          ruby-version: '3.3'
 
       - name: Install Kamal
         run: gem install kamal -v 2.10.0
@@ -43,7 +43,6 @@ jobs:
           PROD_CDN_BASE_URL: ${{ secrets.PROD_CDN_BASE_URL }}
           PROD_CLICKHOUSE_URL: ${{ secrets.PROD_CLICKHOUSE_URL }}
           PROD_ENCRYPTION_SECRET: ${{ secrets.PROD_ENCRYPTION_SECRET }}
-          PROD_GEMINI_API_KEY: ${{ secrets.PROD_GEMINI_API_KEY }}
           PROD_GITHUB_CLIENT_ID: ${{ secrets.PROD_GITHUB_CLIENT_ID }}
           PROD_GITHUB_CLIENT_SECRET: ${{ secrets.PROD_GITHUB_CLIENT_SECRET }}
           PROD_OTEL_INGEST_KEY: ${{ secrets.PROD_OTEL_INGEST_KEY }}
@@ -83,7 +82,6 @@ jobs:
           write_secret PROD_CDN_BASE_URL "${PROD_CDN_BASE_URL}"
           write_secret PROD_CLICKHOUSE_URL "${PROD_CLICKHOUSE_URL}"
           write_secret PROD_ENCRYPTION_SECRET "${PROD_ENCRYPTION_SECRET}"
-          write_secret PROD_GEMINI_API_KEY "${PROD_GEMINI_API_KEY}"
           write_secret PROD_GITHUB_CLIENT_ID "${PROD_GITHUB_CLIENT_ID}"
           write_secret PROD_GITHUB_CLIENT_SECRET "${PROD_GITHUB_CLIENT_SECRET}"
           write_secret PROD_OTEL_INGEST_KEY "${PROD_OTEL_INGEST_KEY}"

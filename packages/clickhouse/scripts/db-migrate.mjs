@@ -44,9 +44,7 @@ const appliedRows = await (
 ).json();
 
 const appliedVersions = new Set(appliedRows.map((row) => row.version));
-const migrations = (await readdir(migrationsDir))
-  .filter((file) => file.endsWith('.sql'))
-  .sort();
+const migrations = (await readdir(migrationsDir)).filter((file) => file.endsWith('.sql')).sort();
 
 for (const migration of migrations) {
   const version = migration.replace(/\.sql$/, '');

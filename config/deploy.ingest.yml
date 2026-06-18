@@ -40,7 +40,7 @@ env:
   clear:
     APP_ENVIRONMENT: production
     INGEST_HTTP_HOST: 0.0.0.0
-    INGEST_HTTP_PORT: "4318"
+    INGEST_HTTP_PORT: '4318'
     NATS_URL: nats://orvo-nats:4222
     PROD_OTEL_BASE_URL: https://ingest.orvo.sh
   secret:

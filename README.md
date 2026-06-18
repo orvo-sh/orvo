@@ -4,14 +4,14 @@ An observability platform built as a Turborepo monorepo. Orvo ingests logs, trac
 
 ## Apps
 
-| App                | Description                                                                                | Runtime             |
-| ------------------ | ------------------------------------------------------------------------------------------ | ------------------- |
-| `app`              | Main dashboard — organizations, apps, logs, traces, metrics, alerts, billing, AI assistant | SvelteKit + Node.js |
-| `web`              | Landing/marketing site                                                                     | SvelteKit           |
-| `docs`             | Documentation site                                                                         | SvelteKit           |
-| `ingest`           | OTLP HTTP ingestion service for logs, traces, and metrics                                  | Go                  |
-| `telemetry-writer` | Consumes telemetry from NATS and writes batches to ClickHouse                              | Go                  |
-| `alerts-worker`    | Evaluates alert rules and delivers webhook notifications                                   | Node.js             |
+| App                | Description                                                                  | Runtime             |
+| ------------------ | ---------------------------------------------------------------------------- | ------------------- |
+| `app`              | Main dashboard — organizations, apps, logs, traces, metrics, alerts, billing | SvelteKit + Node.js |
+| `web`              | Landing/marketing site                                                       | SvelteKit           |
+| `docs`             | Documentation site                                                           | SvelteKit           |
+| `ingest`           | OTLP HTTP ingestion service for logs, traces, and metrics                    | Go                  |
+| `telemetry-writer` | Consumes telemetry from NATS and writes batches to ClickHouse                | Go                  |
+| `alerts-worker`    | Evaluates alert rules and delivers webhook notifications                     | Node.js             |
 
 ## Packages
 
@@ -20,11 +20,9 @@ An observability platform built as a Turborepo monorepo. Orvo ingests logs, trac
 | `@repo/components`        | Shared shadcn-svelte UI component library  |
 | `@repo/db`                | Drizzle ORM schemas and PostgreSQL client  |
 | `@repo/clickhouse`        | ClickHouse analytics client and migrations |
-| `@repo/ai`                | AI SDK wrapper (Google Gemini)             |
 | `@repo/logger`            | OpenTelemetry structured logging with Pino |
 | `@repo/encryption`        | Encryption utilities                       |
 | `@repo/storage`           | S3-compatible object storage client        |
-| `@repo/host-agent`        | Host monitoring agent utilities            |
 | `@repo/utils`             | Shared utilities (ULID generation, etc.)   |
 | `@repo/eslint-config`     | Shared ESLint configuration                |
 | `@repo/typescript-config` | Shared TypeScript configuration            |
@@ -38,7 +36,6 @@ An observability platform built as a Turborepo monorepo. Orvo ingests logs, trac
 - **Observability:** OpenTelemetry (OTLP ingestion, tracing, logging)
 - **Auth:** Better Auth
 - **Billing:** Stripe
-- **AI:** Google Gemini via AI SDK
 - **Email:** Resend
 - **Storage:** S3-compatible
 - **Testing:** Playwright, Vitest, testcontainers
@@ -52,7 +49,7 @@ An observability platform built as a Turborepo monorepo. Orvo ingests logs, trac
 - PostgreSQL
 - ClickHouse
 - NATS
-- (Optional) S3-compatible storage, Stripe, Resend, Gemini API key
+- (Optional) S3-compatible storage, Stripe, Resend
 
 ## Getting Started
 
@@ -123,11 +120,9 @@ pnpm --filter app db:studio
 │   ├── components/       # Shared UI components
 │   ├── db/               # Database schemas and client
 │   ├── clickhouse/       # ClickHouse client
-│   ├── ai/               # AI SDK integration
 │   ├── logger/           # Structured logging
 │   ├── encryption/       # Encryption helpers
 │   ├── storage/          # Object storage client
-│   ├── host-agent/       # Host monitoring
 │   ├── utils/            # Shared utilities
 │   ├── eslint-config/    # ESLint presets
 │   └── typescript-config/# TypeScript presets
