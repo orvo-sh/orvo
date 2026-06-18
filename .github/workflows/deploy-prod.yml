@@ -110,7 +110,6 @@ jobs:
           for config_file in \
             config/deploy.app.yml \
             config/deploy.ingest.yml \
-            config/deploy.telemetry-writer.yml \
             config/deploy.alerts-worker.yml
           do
             kamal -c "${config_file}" config > /dev/null
@@ -131,9 +130,6 @@ jobs:
       - name: Build and push ingest image
         run: kamal build push -c config/deploy.ingest.yml --version "${DEPLOY_VERSION}"
 
-      - name: Build and push telemetry writer image
-        run: kamal build push -c config/deploy.telemetry-writer.yml --version "${DEPLOY_VERSION}"
-
       - name: Build and push alerts worker image
         run: kamal build push -c config/deploy.alerts-worker.yml --version "${DEPLOY_VERSION}"
 
@@ -142,9 +138,6 @@ jobs:
 
       - name: Pull ingest image to server
         run: kamal build pull -c config/deploy.ingest.yml --version "${DEPLOY_VERSION}"
-
-      - name: Pull telemetry writer image to server
-        run: kamal build pull -c config/deploy.telemetry-writer.yml --version "${DEPLOY_VERSION}"
 
       - name: Pull alerts worker image to server
         run: kamal build pull -c config/deploy.alerts-worker.yml --version "${DEPLOY_VERSION}"
@@ -170,9 +163,6 @@ jobs:
             "docker run --rm --env-file /opt/orvo/migrate/app.env -v /opt/orvo/certs:/opt/orvo/certs:ro ghcr.io/orvo-sh/orvo-app:${DEPLOY_VERSION} sh -lc 'cd /repo && pnpm --filter @repo/db db:migrate && pnpm --filter @repo/clickhouse run db:migrate'"
           ssh -i "${KAMAL_SSH_KEY_PATH}" -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'rm -f /opt/orvo/migrate/app.env'
 
-      - name: Boot NATS accessory
-        run: kamal accessory boot nats -c config/deploy.ingest.yml || kamal accessory reboot nats -c config/deploy.ingest.yml
-
       - name: Deploy ingest
         run: kamal deploy -c config/deploy.ingest.yml --skip-push --version "${DEPLOY_VERSION}"
 
@@ -181,9 +171,6 @@ jobs:
 
       - name: Deploy alerts worker
         run: kamal deploy -c config/deploy.alerts-worker.yml --skip-push --version "${DEPLOY_VERSION}"
-
-      - name: Deploy telemetry writer
-        run: kamal deploy -c config/deploy.telemetry-writer.yml --skip-push --version "${DEPLOY_VERSION}"
 
       - name: Verify production endpoints
         run: |
