@@ -1,7 +1,7 @@
 import Root from './orvo-logo.svelte';
 
 export {
-	//
-	Root as OrvoLogo,
-	Root
+  //
+  Root as OrvoLogo,
+  Root
 };

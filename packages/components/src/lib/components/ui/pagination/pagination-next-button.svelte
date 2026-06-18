@@ -1,31 +1,31 @@
 <script lang="ts">
-	import { Pagination as PaginationPrimitive } from "bits-ui";
-	import { IconChevronRight as CaretRightIcon } from "@tabler/icons-svelte";
-	import { cn } from "../../../utils.js";
-	import { buttonVariants } from "../button/index.js";
+  import { Pagination as PaginationPrimitive } from 'bits-ui';
+  import { IconChevronRight as CaretRightIcon } from '@tabler/icons-svelte';
+  import { cn } from '../../../utils.js';
+  import { buttonVariants } from '../button/index.js';
 
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: PaginationPrimitive.NextButtonProps = $props();
+  let {
+    ref = $bindable(null),
+    class: className,
+    children,
+    ...restProps
+  }: PaginationPrimitive.NextButtonProps = $props();
 </script>
 
 {#snippet Fallback()}
-	<span>Next</span>
-	<CaretRightIcon class={cn("size-4", className)} />
+  <span>Next</span>
+  <CaretRightIcon class={cn('size-4', className)} />
 {/snippet}
 
 <PaginationPrimitive.NextButton
-	bind:ref
-	aria-label="Go to next page"
-	class={cn(buttonVariants({ variant: "ghost" }), "pr-1.5!", className)}
-	{...restProps}
+  bind:ref
+  aria-label="Go to next page"
+  class={cn(buttonVariants({ variant: 'ghost' }), 'pr-1.5!', className)}
+  {...restProps}
 >
-	{#if children}
-		{@render children?.()}
-	{:else}
-		{@render Fallback()}
-	{/if}
+  {#if children}
+    {@render children?.()}
+  {:else}
+    {@render Fallback()}
+  {/if}
 </PaginationPrimitive.NextButton>

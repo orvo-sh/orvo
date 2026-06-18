@@ -1,22 +1,25 @@
 <script lang="ts">
-	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef, type WithoutChildren } from "../../../utils.js";
-	import { IconDots as DotsThreeIcon } from "@tabler/icons-svelte";
+  import type { HTMLAttributes } from 'svelte/elements';
+  import { cn, type WithElementRef, type WithoutChildren } from '../../../utils.js';
+  import { IconDots as DotsThreeIcon } from '@tabler/icons-svelte';
 
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: WithoutChildren<WithElementRef<HTMLAttributes<HTMLSpanElement>>> = $props();
+  let {
+    ref = $bindable(null),
+    class: className,
+    ...restProps
+  }: WithoutChildren<WithElementRef<HTMLAttributes<HTMLSpanElement>>> = $props();
 </script>
 
 <span
-	bind:this={ref}
-	aria-hidden="true"
-	data-slot="pagination-ellipsis"
-	class={cn("size-8 items-center justify-center [&_svg:not([class*='size-'])]:size-4 flex items-center justify-center", className)}
-	{...restProps}
+  bind:this={ref}
+  aria-hidden="true"
+  data-slot="pagination-ellipsis"
+  class={cn(
+    "flex size-8 items-center items-center justify-center justify-center [&_svg:not([class*='size-'])]:size-4",
+    className
+  )}
+  {...restProps}
 >
-	<DotsThreeIcon  />
-	<span class="sr-only">More pages</span>
+  <DotsThreeIcon />
+  <span class="sr-only">More pages</span>
 </span>

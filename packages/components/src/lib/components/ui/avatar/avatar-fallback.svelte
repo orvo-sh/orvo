@@ -44,7 +44,7 @@
   data-slot="avatar-fallback"
   style={id ? `background: ${getColors(id).gradient}; color: ${getColors(id).textColor}` : ''}
   class={cn(
-    'text-muted-foreground rounded-full flex size-full items-center justify-center text-sm group-data-[size=sm]/avatar:text-xs',
+    'text-muted-foreground flex size-full items-center justify-center rounded-full text-sm group-data-[size=sm]/avatar:text-xs',
     className,
     !id && 'bg-muted'
   )}
