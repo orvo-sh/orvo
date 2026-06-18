@@ -1,0 +1,44 @@
+import { error } from "@sveltejs/kit";
+import type { PageServerLoad } from "./$types";
+
+export const load = (async ({ locals, params, parent }) => {
+  const { currentApp } = await parent();
+  if (!currentApp) {
+    error(404, "App not found.");
+  }
+
+  const [monitorResult, destinationsResult, incidentsResult] = await Promise.all([
+    locals.container.heartbeatService.getHeartbeatMonitor(
+      params.heartbeat_monitor_id,
+      {
+        appId: params.app_id,
+      },
+    ),
+    locals.container.notificationDestinationService.listNotificationDestinations(
+      {
+        appId: params.app_id,
+      },
+    ),
+    locals.container.incidentService.getOpenIncidents(
+      {},
+      { appId: params.app_id },
+    ),
+  ]);
+
+  if (!monitorResult.success) {
+    error(
+      monitorResult.error === "Heartbeat monitor not found." ? 404 : 500,
+      monitorResult.error,
+    );
+  }
+
+  if (!destinationsResult.success || !incidentsResult.success) {
+    error(500, "Failed to load heartbeat monitor.");
+  }
+
+  return {
+    monitor: monitorResult.data.monitor,
+    destinations: destinationsResult.data.destinations,
+    incidents: incidentsResult.data.incidents,
+  };
+}) satisfies PageServerLoad;

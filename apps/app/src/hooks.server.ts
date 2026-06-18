@@ -11,6 +11,7 @@ import { svelteKitHandler } from "better-auth/svelte-kit";
 import { loggerProvider } from "./instrumentation.server";
 
 const baseLogger = new Logger("Orvo", { pretty: dev, loggerProvider });
+//void ensureHeartbeatNotificationBackgroundJobs(baseLogger);
 
 export const handle = async ({ event, resolve }) => {
   const startTime = Date.now();

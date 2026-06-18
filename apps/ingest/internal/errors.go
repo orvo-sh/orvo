@@ -34,6 +34,7 @@ var (
 	ErrMalformedPayload            = newAppError(400, "malformed_payload")
 	ErrInvalidDeploymentPayload    = newAppError(400, "invalid_deployment_payload")
 	ErrDeploymentNotFound          = newAppError(404, "deployment_not_found")
+	ErrHeartbeatMonitorNotFound    = newAppError(404, "heartbeat_monitor_not_found")
 	ErrUnsupportedContentType      = newAppError(415, "unsupported_content_type")
 	ErrUnsupportedContentEncoding  = newAppError(415, "unsupported_content_encoding")
 	ErrPayloadTooLarge             = newAppError(413, "payload_too_large")

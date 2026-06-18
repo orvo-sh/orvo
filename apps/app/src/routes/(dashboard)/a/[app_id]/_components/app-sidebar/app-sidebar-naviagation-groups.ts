@@ -1,12 +1,12 @@
 import {
   IconAlertHexagon,
   IconChartBar,
+  IconCpu2,
+  IconHeartbeat,
   IconLayoutGrid,
   IconMap,
-  IconRocket,
-  IconServer,
   IconTelescope,
-  IconTerminal2
+  IconTerminal2,
 } from "@tabler/icons-svelte";
 
 type NavigationGroup = {
@@ -39,7 +39,6 @@ const generateAppNavigationGroups = (
           href: `/a/${appId}/overview`,
           label: "Overview",
           icon: IconLayoutGrid,
-          shortcut: "o",
         },
       ],
     },
@@ -50,7 +49,6 @@ const generateAppNavigationGroups = (
           href: `/a/${appId}/logs`,
           label: "Logs",
           icon: IconTerminal2,
-          shortcut: "l",
           submenu: logViews.map((view) => ({
             href: `/a/${appId}/logs/${view.slug}`,
             label: view.name,
@@ -60,42 +58,42 @@ const generateAppNavigationGroups = (
           href: `/a/${appId}/traces`,
           label: "Traces",
           icon: IconTelescope,
-          shortcut: "t",
         },
         {
           href: `/a/${appId}/metrics`,
           label: "Metrics",
           icon: IconChartBar,
-          shortcut: "m",
         },
         {
           href: `/a/${appId}/service-map`,
           label: "Service map",
           icon: IconMap,
-          shortcut: "g",
         },
       ],
     },
     {
       label: "Monitoring",
       items: [
-        {
-          href: `/a/${appId}/deployments`,
-          label: "Deployments",
-          icon: IconRocket,
-          shortcut: "d",
-        },
+        // {
+        //   href: `/a/${appId}/deployments`,
+        //   label: "Deployments",
+        //   icon: IconRocket,
+        //
+        // },
         {
           href: `/a/${appId}/hosts`,
           label: "Hosts",
-          icon: IconServer,
-          shortcut: "h",
+          icon: IconCpu2,
         },
         {
           href: `/a/${appId}/alerts`,
           label: "Alerts",
           icon: IconAlertHexagon,
-          shortcut: "a",
+        },
+        {
+          href: `/a/${appId}/heartbeats`,
+          label: "Heartbeats",
+          icon: IconHeartbeat,
         },
       ],
     },

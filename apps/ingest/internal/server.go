@@ -16,7 +16,7 @@ type Server struct {
 	listener   net.Listener
 }
 
-func NewServer(authService *AuthService, ingestService *TelemetryService, deploymentService *DeploymentService, logger *slog.Logger, cfg IngestConfig) (*Server, error) {
+func NewServer(authService *AuthService, ingestService *TelemetryService, deploymentService *DeploymentService, heartbeatService *HeartbeatService, logger *slog.Logger, cfg IngestConfig) (*Server, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/v1/logs", &signalHandler{
 		authService:   authService,
@@ -60,6 +60,15 @@ func NewServer(authService *AuthService, ingestService *TelemetryService, deploy
 
 		deploymentService.handleUpdate(writer, request, resolved, deploymentID)
 	})
+	mux.HandleFunc("/v1/heartbeats/", func(writer http.ResponseWriter, request *http.Request) {
+		secret, err := heartbeatSecretFromPath(request.URL.Path)
+		if err != nil {
+			writeAppError(writer, ErrHeartbeatMonitorNotFound)
+			return
+		}
+
+		heartbeatService.handleCheckIn(writer, request, secret)
+	})
 	mux.HandleFunc("/health", func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusOK)
 		_, _ = writer.Write([]byte("OK"))
@@ -93,7 +102,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Access-Control-Allow-Origin", "*")
 		writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Content-Encoding, Traceparent, Tracestate, Baggage, "+SelfTelemetryHeader)
-		writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS")
 		writer.Header().Set("Access-Control-Max-Age", "86400")
 
 		if request.Method == http.MethodOptions {

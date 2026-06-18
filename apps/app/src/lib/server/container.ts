@@ -1,24 +1,26 @@
 import { dev } from "$app/environment";
 import { env } from "$env/dynamic/private";
 import { MAX_UPLOAD_FILE_SIZE_BYTES } from "$lib/constants";
-import { createAuth, type Auth } from "$lib/server/auth";
+import { createAuth } from "$lib/server/auth";
 import { AlertRuleService } from "$lib/server/services/alert-rule.service";
 import { AlertWebhookDestinationService } from "$lib/server/services/alert-webhook-destination.service";
 import { AppService } from "$lib/server/services/app.service";
 import { BillingService } from "$lib/server/services/billing.service";
-import { ChatService } from "$lib/server/services/chat.service";
 import { DashboardLogViewService } from "$lib/server/services/dashboard-log-view.service";
 import { DeploymentService } from "$lib/server/services/deployment.service";
+import { HeartbeatService } from "$lib/server/services/heartbeat.service";
 import { HostMonitoringService } from "$lib/server/services/host-monitoring.service";
+import { IncidentService } from "$lib/server/services/incident.service";
 import { IngestionKeyService } from "$lib/server/services/ingestion-key.service";
-import { InsightsService } from "$lib/server/services/insights.service";
 import { LogFacetsService } from "$lib/server/services/log-facets.service";
 import { LogsService } from "$lib/server/services/logs.service";
 import { MetricsService } from "$lib/server/services/metrics.service";
+import { NotificationDeliveryService } from "$lib/server/services/notification-delivery.service";
+import { NotificationDestinationService } from "$lib/server/services/notification-destination.service";
+import { OnboardingService } from "$lib/server/services/onboarding.service";
 import { OrganizationActivationService } from "$lib/server/services/organization-activation.service";
 import { TracesService } from "$lib/server/services/traces.service";
 import { UploadService } from "$lib/server/services/upload.service";
-import { AI } from "@repo/ai";
 import { getClickHouseClient } from "@repo/clickhouse";
 import { getDb } from "@repo/db";
 import { Encryption } from "@repo/encryption";
@@ -26,26 +28,6 @@ import { Logger } from "@repo/logger";
 import { Storage } from "@repo/storage";
 import Stripe from "stripe";
 import { Email } from "./email";
-
-export type ServerContainer = {
-  authService: Auth;
-  uploadService: UploadService;
-  billingService: Nullable<BillingService>;
-  appService: AppService;
-  chatService: ChatService;
-  alertRuleService: AlertRuleService;
-  alertWebhookDestinationService: AlertWebhookDestinationService;
-  dashboardLogViewService: DashboardLogViewService;
-  deploymentService: DeploymentService;
-  ingestionKeyService: IngestionKeyService;
-  insightsService: InsightsService;
-  logsService: LogsService;
-  logFacetsService: LogFacetsService;
-  metricsService: MetricsService;
-  organizationActivationService: OrganizationActivationService;
-  hostMonitoringService: HostMonitoringService;
-  tracesService: TracesService;
-};
 
 const db = getDb(env.POSTGRES_URL);
 const clickhouse = getClickHouseClient({ url: env.CLICKHOUSE_URL });
@@ -67,18 +49,27 @@ const email = new Email({
   resendApiKey: env.RESEND_API_KEY,
   transport: dev ? "console" : "resend",
 });
-const ai = env.GEMINI_API_KEY
-  ? new AI({ geminiApiKey: env.GEMINI_API_KEY })
-  : null;
 const encryption = new Encryption({ secret: env.ENCRYPTION_SECRET });
 
 const cdnBaseUrl = process.env.CDN_BASE_URL ?? env.CDN_BASE_URL;
 
 //TODO: Make this configurable in the future, but for now, we can hardcode it to the public ingest endpoint.
-const publicOtlpBaseUrl = "https://ingest.orvo.sh"
+const publicOtlpBaseUrl = "https://ingest.orvo.sh";
 
-export const createServerContainer = (logger: Logger): ServerContainer => {
+const createServerContainer = (logger: Logger) => {
   const ingestionKeyService = new IngestionKeyService(db, logger);
+  const notificationDeliveryService = new NotificationDeliveryService(
+    db,
+    logger,
+    encryption,
+    email,
+  );
+  const notificationDestinationService = new NotificationDestinationService(
+    db,
+    logger,
+    encryption,
+    notificationDeliveryService,
+  );
   const alertRuleService = new AlertRuleService(db, logger);
   const alertWebhookDestinationService = new AlertWebhookDestinationService(
     db,
@@ -89,9 +80,12 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
   const logFacetsService = new LogFacetsService(clickhouse, logger);
   const dashboardLogViewService = new DashboardLogViewService(db, logger);
   const tracesService = new TracesService(clickhouse, logger);
-  const insightsService = new InsightsService(clickhouse, db, logger);
+  const incidentService = new IncidentService(db, logger);
   const metricsService = new MetricsService(clickhouse, logger);
   const deploymentService = new DeploymentService(db, clickhouse, logger);
+  const heartbeatService = new HeartbeatService(db, logger, {
+    ingestBaseUrl: publicOtlpBaseUrl,
+  });
   const hostMonitoringService = new HostMonitoringService(
     db,
     clickhouse,
@@ -114,6 +108,11 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
     db,
     logger,
   );
+  const onboardingService = new OnboardingService(
+    ingestionKeyService,
+    { otlpBaseUrl: publicOtlpBaseUrl },
+    logger,
+  );
   const billingService = stripe
     ? new BillingService(db, logger, email, stripe, {
       starterPriceId: env.STRIPE_STARTER_PRICE_ID,
@@ -125,16 +124,7 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
     cdnBaseUrl,
     maxUploadSizeBytes: MAX_UPLOAD_FILE_SIZE_BYTES,
   });
-  const chatService = new ChatService(
-    db,
-    logger,
-    ai,
-    appService,
-    logsService,
-    tracesService,
-    alertRuleService,
-    insightsService,
-  );
+
   const authService = createAuth(db, logger, email, billingService, {
     secret: env.ENCRYPTION_SECRET,
     baseUrl: env.ORIGIN,
@@ -160,18 +150,22 @@ export const createServerContainer = (logger: Logger): ServerContainer => {
     uploadService,
     billingService,
     appService,
-    chatService,
     alertRuleService,
     alertWebhookDestinationService,
     dashboardLogViewService,
     deploymentService,
+    heartbeatService,
     ingestionKeyService,
-    insightsService,
+    incidentService,
     logsService,
     logFacetsService,
     metricsService,
+    notificationDestinationService,
+    onboardingService,
     organizationActivationService,
     hostMonitoringService,
     tracesService,
   };
 };
+
+export { createServerContainer };

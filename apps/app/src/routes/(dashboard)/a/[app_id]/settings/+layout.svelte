@@ -5,6 +5,7 @@
     IconCreditCard as CreditCardIcon,
     IconSettings as GearSixIcon,
     IconKey as KeyIcon,
+    IconBell as BellIcon,
     IconWebhook as WebhookIcon,
   } from "@tabler/icons-svelte";
   import type { Snippet } from "svelte";
@@ -37,6 +38,13 @@
     {
       label: "Alerts",
       items: [
+        {
+          href: `${settingsBasePath}/notifications`,
+          label: "Notifications",
+          icon: BellIcon,
+          isActive: (pathname: string) =>
+            pathname.startsWith(`${settingsBasePath}/notifications`),
+        },
         {
           href: `${settingsBasePath}/alerts/webhooks`,
           label: "Webhooks",

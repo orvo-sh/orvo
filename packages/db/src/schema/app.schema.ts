@@ -18,6 +18,7 @@ const app = pgTable(
     tracesFirstReceivedAt: timestamp('traces_first_received_at'),
     metricsFirstReceivedAt: timestamp('metrics_first_received_at'),
     deploymentsFirstReceivedAt: timestamp('deployments_first_received_at'),
+    heartbeatsFirstReceivedAt: timestamp('heartbeats_first_received_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .defaultNow()
