@@ -109,13 +109,15 @@
       <Card.Title class="text-sm font-medium">{title}</Card.Title>
       <Card.Description>
         {description ??
-          `${aggregation === "avg"
-            ? "Average value"
-            : aggregation === "sum"
-              ? "Summed value"
-              : aggregation === "count"
-                ? "Point count"
-                : `${aggregation} value`} over the selected range`}
+          `${
+            aggregation === "avg"
+              ? "Average value"
+              : aggregation === "sum"
+                ? "Summed value"
+                : aggregation === "count"
+                  ? "Point count"
+                  : `${aggregation} value`
+          } over the selected range`}
       </Card.Description>
     </div>
     {#if loading}
@@ -193,7 +195,9 @@
         </ChartContainer>
       {:else}
         <div class="flex h-full w-full items-center justify-center">
-          <p class="text-sm text-muted-foreground">No metric points match these filters.</p>
+          <p class="text-sm text-muted-foreground">
+            No metric points match these filters.
+          </p>
         </div>
       {/if}
     </div>
@@ -201,7 +205,9 @@
     {#if displaySeries.length > 0}
       <div class="flex flex-wrap gap-2 border-t px-4 py-3">
         {#each displaySeries as item, index}
-          <div class="inline-flex items-center gap-2 text-xs text-muted-foreground">
+          <div
+            class="inline-flex items-center gap-2 text-xs text-muted-foreground"
+          >
             <span
               class="h-2 w-2 rounded-full"
               style={`background: ${SERIES_COLORS[index % SERIES_COLORS.length]}`}

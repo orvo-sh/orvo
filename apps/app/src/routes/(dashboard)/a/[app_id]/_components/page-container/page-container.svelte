@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import { cn } from "@repo/components";
   import { buttonVariants } from "@repo/components/ui/button";
   import * as HoverCard from "@repo/components/ui/hover-card";
@@ -45,13 +46,16 @@
 
       <div class="flex min-w-0 items-center gap-0.5">
         <div class="flex-1">
-          <PageContainerAppSwitcher />
+          <PageContainerAppSwitcher
+            apps={page.data.apps}
+            currentAppId={page.data.currentApp.id}
+          />
         </div>
         <span class="font-meduim text-muted-foreground/20 md:hidden"> / </span>
       </div>
     </div>
 
-    <div class="flex flex-1 items-center gap-2 md:justify-center">
+    <div class="flex flex-1 items-center gap-0.5 md:justify-center">
       {#if back}
         <a
           href={back}
@@ -61,18 +65,19 @@
           <span class="sr-only">Back</span>
         </a>
       {/if}
-      <h1 class="text-sm font-medium tracking-tight text-foreground">
+      <h1 class=" text-sm font-medium tracking-tight text-foreground">
         {title}
       </h1>
       {#if helper}
-        <HoverCard.Root openDelay={50} closeDelay={50}>
+        <HoverCard.Root>
           <HoverCard.Trigger
             class={buttonVariants({
               variant: "ghost",
               size: "icon-sm",
+              class: "size-6",
             })}
           >
-            <IconInfoCircle class="opacity-75" />
+            <IconInfoCircle class="size-4 opacity-75" />
             <span class="sr-only">Page information</span>
           </HoverCard.Trigger>
           <HoverCard.Content

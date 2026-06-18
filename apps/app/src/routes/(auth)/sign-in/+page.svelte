@@ -4,12 +4,12 @@
   import { OrvoLogo } from "@repo/components/icons/orvo-logo";
   import { Button } from "@repo/components/ui/button";
   import {
-      Field,
-      FieldDescription,
-      FieldError,
-      FieldGroup,
-      FieldLabel,
-      FieldSeparator,
+    Field,
+    FieldDescription,
+    FieldError,
+    FieldGroup,
+    FieldLabel,
+    FieldSeparator,
   } from "@repo/components/ui/field";
   import { Input } from "@repo/components/ui/input";
 
@@ -95,7 +95,8 @@
         <div class="space-y-1">
           <h1 class="text-xl font-semibold">Welcome back</h1>
           <FieldDescription
-            >Don't have an account? <a href="/sign-up" class="text-primary">Get started</a
+            >Don't have an account? <a href="/sign-up" class="text-primary"
+              >Get started</a
             ></FieldDescription
           >
         </div>

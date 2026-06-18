@@ -68,7 +68,10 @@ const requireOrganization = async (
     });
 
   if (organizations.length === 0) {
-    throw redirect(302, options.noOrganizationsRedirectTo ?? "/organizations/new");
+    throw redirect(
+      302,
+      options.noOrganizationsRedirectTo ?? "/organizations/new",
+    );
   }
 
   const activeOrganizationId = getActiveOrganizationId(event);
@@ -78,7 +81,10 @@ const requireOrganization = async (
       (organization) => organization.id === activeOrganizationId,
     )
   ) {
-    throw redirect(302, options.invalidOrganizationRedirectTo ?? "/organizations");
+    throw redirect(
+      302,
+      options.invalidOrganizationRedirectTo ?? "/organizations",
+    );
   }
 
   return {
@@ -110,9 +116,10 @@ const ensureOrganizationHasBillingPlan = async (
     throw redirect(302, options.missingBillingServiceRedirectTo ?? "/");
   }
 
-  const billingState = await event.locals.container.billingService.getBillingState({
-    organizationId: organizationContext.activeOrganizationId,
-  });
+  const billingState =
+    await event.locals.container.billingService.getBillingState({
+      organizationId: organizationContext.activeOrganizationId,
+    });
 
   if (!billingState.success || !billingState.data.billingPlan) {
     throw redirect(302, options.missingPlanRedirectTo ?? "/organizations/plan");

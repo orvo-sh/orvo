@@ -40,7 +40,7 @@ class AlertsWorker {
   }
 
   run = async () => {
-    for (; ;) {
+    for (;;) {
       try {
         await this.processDueRules();
         await this.processDueDeliveries();
@@ -712,18 +712,18 @@ type AlertEntityType = (typeof alertIncident.$inferSelect)['entityType'];
 type AlertSignalType = (typeof alertRule.$inferSelect)['signalType'];
 type EvaluatedSignal =
   | {
-    entityType: AlertEntityType;
-    entityId: string;
-    entityName: string | null;
-    status: 'ok';
-    value: number;
-  }
+      entityType: AlertEntityType;
+      entityId: string;
+      entityName: string | null;
+      status: 'ok';
+      value: number;
+    }
   | {
-    entityType: AlertEntityType;
-    entityId: string;
-    entityName: string | null;
-    status: 'no_data';
-  };
+      entityType: AlertEntityType;
+      entityId: string;
+      entityName: string | null;
+      status: 'no_data';
+    };
 
 const buildPayload = (
   eventType: AlertEventName,
@@ -886,8 +886,8 @@ const buildMetricSignalQuery = (rule: AlertRuleRow, windowStartAt: Date, windowE
           max(coalesce(value_double, toFloat64(value_int))) * 100 AS value
         FROM metrics_raw
         WHERE ${[...baseClauses, `metric_name = ${quote('system.filesystem.utilization')}`].join(
-        ' AND '
-      )}
+          ' AND '
+        )}
         GROUP BY host_id
       `;
     case 'host_reporting_stale': {
@@ -1062,29 +1062,29 @@ const main = async () => {
     loggerProvider:
       otlpBaseUrl && otlpIngestionKey
         ? new LoggerProvider({
-          resource: defaultResource().merge(
-            resourceFromAttributes({
-              [ATTR_SERVICE_NAME]: 'orvo-alerts-worker',
-              [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]: process.env.NODE_ENV ?? 'development'
-            })
-          ),
-          processors: [
-            new BatchLogRecordProcessor(
-              new OTLPLogExporter({
-                url: new URL('/v1/logs', otlpBaseUrl).toString(),
-                headers: {
-                  Authorization: `Bearer ${otlpIngestionKey}`,
-                  'X-Orvo-Self-Telemetry': 'true'
+            resource: defaultResource().merge(
+              resourceFromAttributes({
+                [ATTR_SERVICE_NAME]: 'orvo-alerts-worker',
+                [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]: process.env.NODE_ENV ?? 'development'
+              })
+            ),
+            processors: [
+              new BatchLogRecordProcessor(
+                new OTLPLogExporter({
+                  url: new URL('/v1/logs', otlpBaseUrl).toString(),
+                  headers: {
+                    Authorization: `Bearer ${otlpIngestionKey}`,
+                    'X-Orvo-Self-Telemetry': 'true'
+                  }
+                }),
+                {
+                  scheduledDelayMillis: 1000,
+                  maxExportBatchSize: 64,
+                  maxQueueSize: 512
                 }
-              }),
-              {
-                scheduledDelayMillis: 1000,
-                maxExportBatchSize: 64,
-                maxQueueSize: 512
-              }
-            )
-          ]
-        })
+              )
+            ]
+          })
         : null
   });
   const worker = new AlertsWorker(

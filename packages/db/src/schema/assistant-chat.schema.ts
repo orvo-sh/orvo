@@ -82,9 +82,4 @@ const assistantMessageRelations = relations(assistantMessage, ({ one }) => ({
   })
 }));
 
-export {
-  assistantChat,
-  assistantChatRelations,
-  assistantMessage,
-  assistantMessageRelations
-};
+export { assistantChat, assistantChatRelations, assistantMessage, assistantMessageRelations };

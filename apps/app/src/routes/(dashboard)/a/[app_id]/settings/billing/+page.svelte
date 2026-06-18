@@ -1,7 +1,10 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { PLANS } from "$lib/constants";
-  import { createBillingPortalCommand, getBillingStateQuery } from "$lib/api/billing.remote";
+  import {
+    createBillingPortalCommand,
+    getBillingStateQuery,
+  } from "$lib/api/billing.remote";
   import { Button } from "@repo/components/ui/button";
   import {
     Card,
@@ -56,34 +59,37 @@
     }
     const currentBillingState = billingState;
 
-    return ([
-      {
-        signal: "logs",
-        usedBytes: currentBillingState.logsIngestedBytes,
-        retentionDays: currentBillingState.logsRetentionDays,
-      },
-      {
-        signal: "metrics",
-        usedBytes: currentBillingState.metricsIngestedBytes,
-        retentionDays: currentBillingState.metricsRetentionDays,
-      },
-      {
-        signal: "traces",
-        usedBytes: currentBillingState.tracesIngestedBytes,
-        retentionDays: currentBillingState.tracesRetentionDays,
-      },
-    ] as const satisfies Array<{
-      signal: BillingSignal;
-      usedBytes: number;
-      retentionDays: number;
-    }>).map((signalCard) => ({
+    return (
+      [
+        {
+          signal: "logs",
+          usedBytes: currentBillingState.logsIngestedBytes,
+          retentionDays: currentBillingState.logsRetentionDays,
+        },
+        {
+          signal: "metrics",
+          usedBytes: currentBillingState.metricsIngestedBytes,
+          retentionDays: currentBillingState.metricsRetentionDays,
+        },
+        {
+          signal: "traces",
+          usedBytes: currentBillingState.tracesIngestedBytes,
+          retentionDays: currentBillingState.tracesRetentionDays,
+        },
+      ] as const satisfies Array<{
+        signal: BillingSignal;
+        usedBytes: number;
+        retentionDays: number;
+      }>
+    ).map((signalCard) => ({
       ...signalCard,
       usagePercent:
         currentBillingState.ingestLimitBytes > 0
           ? Math.min(
               100,
               Math.round(
-                (signalCard.usedBytes / currentBillingState.ingestLimitBytes) * 100,
+                (signalCard.usedBytes / currentBillingState.ingestLimitBytes) *
+                  100,
               ),
             )
           : 0,

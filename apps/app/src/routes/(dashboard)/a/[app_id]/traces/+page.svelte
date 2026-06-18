@@ -15,10 +15,7 @@
   import TimeRangePicker from "../logs/_components/time-range-picker.svelte";
   import type { LogTimeFilter } from "../logs/types";
   import TraceTable from "./_components/trace-table.svelte";
-  import {
-    createTraceStateSearchParams,
-    resolveTraceTimeRange,
-  } from "./state";
+  import { createTraceStateSearchParams, resolveTraceTimeRange } from "./state";
   import type { ActiveFilter, TraceFilters } from "./types";
 
   let { data } = $props();

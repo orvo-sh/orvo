@@ -4,12 +4,12 @@
   import { OrvoLogo } from "@repo/components/icons/orvo-logo";
   import { Button } from "@repo/components/ui/button";
   import {
-      Field,
-      FieldDescription,
-      FieldError,
-      FieldGroup,
-      FieldLabel,
-      FieldSeparator,
+    Field,
+    FieldDescription,
+    FieldError,
+    FieldGroup,
+    FieldLabel,
+    FieldSeparator,
   } from "@repo/components/ui/field";
   import { Input } from "@repo/components/ui/input";
 
@@ -83,7 +83,9 @@
         <div class="space-y-1">
           <h1 class="text-xl font-semibold">Create your account</h1>
           <FieldDescription>
-            Already have an account? <a href="/sign-in" class="text-primary">Sign in</a>
+            Already have an account? <a href="/sign-in" class="text-primary"
+              >Sign in</a
+            >
           </FieldDescription>
         </div>
       </div>

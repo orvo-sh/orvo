@@ -151,7 +151,7 @@
     </Button>
   </div>
 
-  <Card.Root class="relative bg-secondary p-0">
+  <Card.Root class="relative p-0">
     {#if loading}
       <div
         class="absolute top-0 z-50 h-full w-full bg-background opacity-60"

@@ -51,7 +51,11 @@ const deployment = pgTable(
   (table) => [
     index('deployment_app_id_idx').on(table.appId),
     index('deployment_app_started_at_idx').on(table.appId, table.startedAt),
-    index('deployment_app_service_env_idx').on(table.appId, table.serviceName, table.environmentName),
+    index('deployment_app_service_env_idx').on(
+      table.appId,
+      table.serviceName,
+      table.environmentName
+    ),
     index('deployment_app_status_idx').on(table.appId, table.status)
   ]
 );
@@ -63,9 +67,4 @@ const deploymentRelations = relations(deployment, ({ one }) => ({
   })
 }));
 
-export {
-  deployment,
-  deploymentCorrelationStrategy,
-  deploymentRelations,
-  deploymentStatus
-};
+export { deployment, deploymentCorrelationStrategy, deploymentRelations, deploymentStatus };

@@ -43,7 +43,7 @@ if (orvoOtlpBaseUrl && orvoIngestKey) {
     traceExporter: new OTLPTraceExporter({
       url: new URL("/v1/traces", orvoOtlpBaseUrl).toString(),
       headers: {
-        "Authorization": `Bearer ${orvoIngestKey}`,
+        Authorization: `Bearer ${orvoIngestKey}`,
         "X-Orvo-Self-Telemetry": "true",
       },
     }),

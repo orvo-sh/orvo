@@ -15,17 +15,10 @@ const organizationUsage = pgTable(
     metricsRetentionDays: integer('metrics_retention_days').notNull(),
     currentPeriodStart: timestamp('current_period_start').notNull(),
     currentPeriodEnd: timestamp('current_period_end').notNull(),
-    logsIngestedBytes: bigint('logs_ingested_bytes', { mode: 'number' })
-      .notNull()
-      .default(0),
-    tracesIngestedBytes: bigint('traces_ingested_bytes', { mode: 'number' })
-      .notNull()
-      .default(0),
-    metricsIngestedBytes: bigint('metrics_ingested_bytes', { mode: 'number' })
-      .notNull()
-      .default(0),
-    ingestLimitBytes: bigint('ingest_limit_bytes', { mode: 'number' })
-      .notNull(),
+    logsIngestedBytes: bigint('logs_ingested_bytes', { mode: 'number' }).notNull().default(0),
+    tracesIngestedBytes: bigint('traces_ingested_bytes', { mode: 'number' }).notNull().default(0),
+    metricsIngestedBytes: bigint('metrics_ingested_bytes', { mode: 'number' }).notNull().default(0),
+    ingestLimitBytes: bigint('ingest_limit_bytes', { mode: 'number' }).notNull(),
     notified70At: timestamp('notified_70_at'),
     notified85At: timestamp('notified_85_at'),
     notified100At: timestamp('notified_100_at'),
@@ -33,7 +26,7 @@ const organizationUsage = pgTable(
     updatedAt: timestamp('updated_at')
       .defaultNow()
       .$onUpdate(() => new Date())
-      .notNull(),
+      .notNull()
   },
   (table) => [uniqueIndex('organization_usage_organization_id_uidx').on(table.organizationId)]
 );

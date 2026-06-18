@@ -110,12 +110,8 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -298,12 +294,8 @@
           "name": "alert_delivery_attempt_app_id_app_id_fk",
           "tableFrom": "alert_delivery_attempt",
           "tableTo": "app",
-          "columnsFrom": [
-            "app_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["app_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -311,12 +303,8 @@
           "name": "alert_delivery_attempt_destination_id_alert_webhook_destination_id_fk",
           "tableFrom": "alert_delivery_attempt",
           "tableTo": "alert_webhook_destination",
-          "columnsFrom": [
-            "destination_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["destination_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -324,12 +312,8 @@
           "name": "alert_delivery_attempt_rule_id_alert_rule_id_fk",
           "tableFrom": "alert_delivery_attempt",
           "tableTo": "alert_rule",
-          "columnsFrom": [
-            "rule_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["rule_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -337,12 +321,8 @@
           "name": "alert_delivery_attempt_incident_id_alert_incident_id_fk",
           "tableFrom": "alert_delivery_attempt",
           "tableTo": "alert_incident",
-          "columnsFrom": [
-            "incident_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["incident_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -350,12 +330,8 @@
           "name": "alert_delivery_attempt_event_id_alert_event_id_fk",
           "tableFrom": "alert_delivery_attempt",
           "tableTo": "alert_event",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -479,12 +455,8 @@
           "name": "alert_event_app_id_app_id_fk",
           "tableFrom": "alert_event",
           "tableTo": "app",
-          "columnsFrom": [
-            "app_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["app_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -492,12 +464,8 @@
           "name": "alert_event_rule_id_alert_rule_id_fk",
           "tableFrom": "alert_event",
           "tableTo": "alert_rule",
-          "columnsFrom": [
-            "rule_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["rule_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -505,12 +473,8 @@
           "name": "alert_event_incident_id_alert_incident_id_fk",
           "tableFrom": "alert_event",
           "tableTo": "alert_incident",
-          "columnsFrom": [
-            "incident_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["incident_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -712,12 +676,8 @@
           "name": "alert_incident_app_id_app_id_fk",
           "tableFrom": "alert_incident",
           "tableTo": "app",
-          "columnsFrom": [
-            "app_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["app_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -725,12 +685,8 @@
           "name": "alert_incident_rule_id_alert_rule_id_fk",
           "tableFrom": "alert_incident",
           "tableTo": "alert_rule",
-          "columnsFrom": [
-            "rule_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["rule_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -787,12 +743,8 @@
           "name": "alert_rule_destination_rule_id_alert_rule_id_fk",
           "tableFrom": "alert_rule_destination",
           "tableTo": "alert_rule",
-          "columnsFrom": [
-            "rule_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["rule_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -800,12 +752,8 @@
           "name": "alert_rule_destination_destination_id_alert_webhook_destination_id_fk",
           "tableFrom": "alert_rule_destination",
           "tableTo": "alert_webhook_destination",
-          "columnsFrom": [
-            "destination_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["destination_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -813,10 +761,7 @@
       "compositePrimaryKeys": {
         "alert_rule_destination_pk": {
           "name": "alert_rule_destination_pk",
-          "columns": [
-            "rule_id",
-            "destination_id"
-          ]
+          "columns": ["rule_id", "destination_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1097,12 +1042,8 @@
           "name": "alert_rule_app_id_app_id_fk",
           "tableFrom": "alert_rule",
           "tableTo": "app",
-          "columnsFrom": [
-            "app_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["app_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1110,12 +1051,8 @@
           "name": "alert_rule_created_by_user_id_fk",
           "tableFrom": "alert_rule",
           "tableTo": "user",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1123,12 +1060,8 @@
           "name": "alert_rule_updated_by_user_id_fk",
           "tableFrom": "alert_rule",
           "tableTo": "user",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1250,12 +1183,8 @@
           "name": "alert_webhook_destination_app_id_app_id_fk",
           "tableFrom": "alert_webhook_destination",
           "tableTo": "app",
-          "columnsFrom": [
-            "app_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["app_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1263,12 +1192,8 @@
           "name": "alert_webhook_destination_created_by_user_id_fk",
           "tableFrom": "alert_webhook_destination",
           "tableTo": "user",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1276,12 +1201,8 @@
           "name": "alert_webhook_destination_updated_by_user_id_fk",
           "tableFrom": "alert_webhook_destination",
           "tableTo": "user",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1423,12 +1344,8 @@
           "name": "app_organization_id_organization_id_fk",
           "tableFrom": "app",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1436,12 +1353,8 @@
           "name": "app_created_by_user_id_fk",
           "tableFrom": "app",
           "tableTo": "user",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1449,12 +1362,8 @@
           "name": "app_updated_by_user_id_fk",
           "tableFrom": "app",
           "tableTo": "user",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1588,12 +1497,8 @@
           "name": "assistant_chat_organization_id_organization_id_fk",
           "tableFrom": "assistant_chat",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1601,12 +1506,8 @@
           "name": "assistant_chat_app_id_app_id_fk",
           "tableFrom": "assistant_chat",
           "tableTo": "app",
-          "columnsFrom": [
-            "app_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["app_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1614,12 +1515,8 @@
           "name": "assistant_chat_created_by_user_id_fk",
           "tableFrom": "assistant_chat",
           "tableTo": "user",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1627,12 +1524,8 @@
           "name": "assistant_chat_updated_by_user_id_fk",
           "tableFrom": "assistant_chat",
           "tableTo": "user",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1736,12 +1629,8 @@
           "name": "assistant_message_chat_id_assistant_chat_id_fk",
           "tableFrom": "assistant_message",
           "tableTo": "assistant_chat",
-          "columnsFrom": [
-            "chat_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1856,12 +1745,8 @@
           "name": "dashboard_log_view_app_id_app_id_fk",
           "tableFrom": "dashboard_log_view",
           "tableTo": "app",
-          "columnsFrom": [
-            "app_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["app_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1869,12 +1754,8 @@
           "name": "dashboard_log_view_created_by_user_id_fk",
           "tableFrom": "dashboard_log_view",
           "tableTo": "user",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1882,12 +1763,8 @@
           "name": "dashboard_log_view_updated_by_user_id_fk",
           "tableFrom": "dashboard_log_view",
           "tableTo": "user",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2121,12 +1998,8 @@
           "name": "deployment_app_id_app_id_fk",
           "tableFrom": "deployment",
           "tableTo": "app",
-          "columnsFrom": [
-            "app_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["app_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2266,12 +2139,8 @@
           "name": "ingestion_key_app_id_app_id_fk",
           "tableFrom": "ingestion_key",
           "tableTo": "app",
-          "columnsFrom": [
-            "app_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["app_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2279,12 +2148,8 @@
           "name": "ingestion_key_created_by_user_id_fk",
           "tableFrom": "ingestion_key",
           "tableTo": "user",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2396,12 +2261,8 @@
           "name": "invitation_organization_id_organization_id_fk",
           "tableFrom": "invitation",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2409,12 +2270,8 @@
           "name": "invitation_inviter_id_user_id_fk",
           "tableFrom": "invitation",
           "tableTo": "user",
-          "columnsFrom": [
-            "inviter_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["inviter_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2498,12 +2355,8 @@
           "name": "member_organization_id_organization_id_fk",
           "tableFrom": "member",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2511,12 +2364,8 @@
           "name": "member_user_id_user_id_fk",
           "tableFrom": "member",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2571,12 +2420,8 @@
           "name": "organization_activation_organization_id_organization_id_fk",
           "tableFrom": "organization_activation",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2715,12 +2560,8 @@
           "name": "organization_usage_organization_id_organization_id_fk",
           "tableFrom": "organization_usage",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2816,9 +2657,7 @@
         "organization_slug_unique": {
           "name": "organization_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -2907,12 +2746,8 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2922,9 +2757,7 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -3171,9 +3004,7 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -3252,48 +3083,27 @@
     "public.alert_delivery_status": {
       "name": "alert_delivery_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "succeeded",
-        "failed"
-      ]
+      "values": ["pending", "succeeded", "failed"]
     },
     "public.alert_event_type": {
       "name": "alert_event_type",
       "schema": "public",
-      "values": [
-        "opened",
-        "renotified",
-        "resolved",
-        "test"
-      ]
+      "values": ["opened", "renotified", "resolved", "test"]
     },
     "public.alert_incident_entity_type": {
       "name": "alert_incident_entity_type",
       "schema": "public",
-      "values": [
-        "app",
-        "host",
-        "container"
-      ]
+      "values": ["app", "host", "container"]
     },
     "public.alert_incident_status": {
       "name": "alert_incident_status",
       "schema": "public",
-      "values": [
-        "open",
-        "resolved"
-      ]
+      "values": ["open", "resolved"]
     },
     "public.alert_comparator": {
       "name": "alert_comparator",
       "schema": "public",
-      "values": [
-        "gt",
-        "gte",
-        "lt",
-        "lte"
-      ]
+      "values": ["gt", "gte", "lt", "lte"]
     },
     "public.alert_signal_type": {
       "name": "alert_signal_type",
@@ -3317,48 +3127,27 @@
     "public.deployment_correlation_strategy": {
       "name": "deployment_correlation_strategy",
       "schema": "public",
-      "values": [
-        "time_window",
-        "explicit_id",
-        "service_version"
-      ]
+      "values": ["time_window", "explicit_id", "service_version"]
     },
     "public.deployment_status": {
       "name": "deployment_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "in_progress",
-        "succeeded",
-        "failed",
-        "rolled_back"
-      ]
+      "values": ["pending", "in_progress", "succeeded", "failed", "rolled_back"]
     },
     "public.ingestion_key_kind": {
       "name": "ingestion_key_kind",
       "schema": "public",
-      "values": [
-        "public",
-        "private"
-      ]
+      "values": ["public", "private"]
     },
     "public.billing_plan": {
       "name": "billing_plan",
       "schema": "public",
-      "values": [
-        "starter",
-        "pro",
-        "enterprise"
-      ]
+      "values": ["starter", "pro", "enterprise"]
     },
     "public.billing_status": {
       "name": "billing_status",
       "schema": "public",
-      "values": [
-        "trialing",
-        "active",
-        "past_due"
-      ]
+      "values": ["trialing", "active", "past_due"]
     }
   },
   "schemas": {},

@@ -36,9 +36,7 @@
   <Dialog.Trigger class={className}>
     {@render children?.()}
   </Dialog.Trigger>
-  <Dialog.Content
-    class="sm:max-w-5xl"
-  >
+  <Dialog.Content class="sm:max-w-5xl">
     <Dialog.Header class="py-2">
       <Dialog.Title>Installing OpenTelemetry</Dialog.Title>
       <Dialog.Description>
@@ -55,72 +53,71 @@
         </a>
       </Dialog.Description>
     </Dialog.Header>
-    
-      <Tabs.Root value="node" class="mt-2">
-        <Tabs.List variant="line" class="w-full border-b">
-          {#each tabs as tab}
-            <Tabs.Trigger value={tab.value} class="gap-1.5">
-              <tab.icon class="size-4" />
-              {tab.label}
-            </Tabs.Trigger>
-          {/each}
-        </Tabs.List>
 
+    <Tabs.Root value="node" class="mt-2">
+      <Tabs.List variant="line" class="w-full border-b">
         {#each tabs as tab}
-          <Tabs.Content value={tab.value} class="mt-2 min-w-0 space-y-4">
-            <div class="space-y-1.5">
-              <p class="text-sm font-medium text-secondary-foreground">
-                1. Install dependencies
-              </p>
-              <div class="relative">
-                <Button
-                  variant="secondary"
-                  size="icon-sm"
-                  class="absolute top-1.5 right-1.5 bg-secondary/60"
-                  onclick={() => copy(tab.install)}
-                >
-                  <IconCopy data-slot="button-icon" class="size-3.5" />
-                </Button>
-                <pre
-                  class="code-block w-full max-w-full rounded-lg bg-zinc-900 px-4 py-4 text-xs whitespace-pre-wrap text-zinc-50"><code
-                    >{@html highlightCode(
-                      tab.install,
-                      tab.value === "java" ? "java" : "bash",
-                    )}</code
-                  ></pre>
-              </div>
-            </div>
-
-            <p class="text-muted-foreground">
-              {tab.body}
-            </p>
-
-            <div class="space-y-1.5">
-              <p class="text-sm font-medium text-secondary-foreground">
-                2. Configure the exporter
-              </p>
-              <div class="relative">
-                <Button
-                  variant="secondary"
-                  size="icon-sm"
-                  class="absolute top-1.5 right-1.5 bg-secondary/60"
-                  onclick={() => copy(tab.snippet)}
-                >
-                  <IconCopy data-slot="button-icon" class="size-3.5" />
-                </Button>
-                <pre
-                  class="code-block w-full max-w-full rounded-lg bg-zinc-900 px-4 py-4 text-xs whitespace-pre-wrap text-zinc-50"><code
-                    >{@html highlightCode(
-                      tab.snippet.replaceAll("YOUR_KEY", ingestionKey),
-                      tab.value,
-                    )}</code
-                  ></pre>
-              </div>
-            </div>
-          </Tabs.Content>
+          <Tabs.Trigger value={tab.value} class="gap-1.5">
+            <tab.icon class="size-4" />
+            {tab.label}
+          </Tabs.Trigger>
         {/each}
-      </Tabs.Root>
-    
+      </Tabs.List>
+
+      {#each tabs as tab}
+        <Tabs.Content value={tab.value} class="mt-2 min-w-0 space-y-4">
+          <div class="space-y-1.5">
+            <p class="text-sm font-medium text-secondary-foreground">
+              1. Install dependencies
+            </p>
+            <div class="relative">
+              <Button
+                variant="secondary"
+                size="icon-sm"
+                class="absolute top-1.5 right-1.5 bg-secondary/60"
+                onclick={() => copy(tab.install)}
+              >
+                <IconCopy data-slot="button-icon" class="size-3.5" />
+              </Button>
+              <pre
+                class="code-block w-full max-w-full rounded-lg bg-zinc-900 px-4 py-4 text-xs whitespace-pre-wrap text-zinc-50"><code
+                  >{@html highlightCode(
+                    tab.install,
+                    tab.value === "java" ? "java" : "bash",
+                  )}</code
+                ></pre>
+            </div>
+          </div>
+
+          <p class="text-muted-foreground">
+            {tab.body}
+          </p>
+
+          <div class="space-y-1.5">
+            <p class="text-sm font-medium text-secondary-foreground">
+              2. Configure the exporter
+            </p>
+            <div class="relative">
+              <Button
+                variant="secondary"
+                size="icon-sm"
+                class="absolute top-1.5 right-1.5 bg-secondary/60"
+                onclick={() => copy(tab.snippet)}
+              >
+                <IconCopy data-slot="button-icon" class="size-3.5" />
+              </Button>
+              <pre
+                class="code-block w-full max-w-full rounded-lg bg-zinc-900 px-4 py-4 text-xs whitespace-pre-wrap text-zinc-50"><code
+                  >{@html highlightCode(
+                    tab.snippet.replaceAll("YOUR_KEY", ingestionKey),
+                    tab.value,
+                  )}</code
+                ></pre>
+            </div>
+          </div>
+        </Tabs.Content>
+      {/each}
+    </Tabs.Root>
   </Dialog.Content>
 </Dialog.Root>
 

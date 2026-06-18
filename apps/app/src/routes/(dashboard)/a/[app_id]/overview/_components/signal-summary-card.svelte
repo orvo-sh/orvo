@@ -73,7 +73,7 @@
         </div>
         <div class="flex flex-col items-end gap-px">
           <div
-            class="flex size-5 items-center justify-center rounded-full border bg-muted"
+            class="flex size-5 items-center justify-center rounded-full bg-muted"
           >
             <IconChevronRight class="size-4 text-muted-foreground" />
           </div>

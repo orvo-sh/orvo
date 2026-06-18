@@ -7,7 +7,7 @@ import {
   member,
   organization,
   organizationUsage,
-  subscription
+  subscription,
 } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
 import { err, genId, ok } from "@repo/utils";
@@ -47,7 +47,9 @@ class BillingService {
   }
 
   async getBillingState(context: { organizationId: string }) {
-    this.logger.info("getBillingState: getting organization billing state", { context })
+    this.logger.info("getBillingState: getting organization billing state", {
+      context,
+    });
 
     try {
       const organization = await this.db.query.organization.findFirst({
@@ -61,25 +63,28 @@ class BillingService {
               createdAt: false,
               id: false,
               organizationId: false,
-              updatedAt: false
-            }
-          }
+              updatedAt: false,
+            },
+          },
         },
         where: ({ id }, { eq }) => {
-          return eq(id, context.organizationId)
+          return eq(id, context.organizationId);
         },
-      })
+      });
 
-      if (!organization) return err("No organization found.")
+      if (!organization) return err("No organization found.");
 
       return ok({
         billingPlan: organization.billingPlan,
         billingStatus: organization.billingStatus,
-        ...organization.usage
-      })
+        ...organization.usage,
+      });
     } catch (error) {
-      this.logger.error("getBillingState: an error occured while getting billing state", error as Error)
-      return err("Failed to get billing state")
+      this.logger.error(
+        "getBillingState: an error occured while getting billing state",
+        error as Error,
+      );
+      return err("Failed to get billing state");
     }
   }
 
@@ -282,16 +287,18 @@ class BillingService {
 
       return ok({ id: stripeSubscription.id });
     } catch (error) {
-      this.logger.error("startFreeTrial: failed to start free trial", error as Error);
+      this.logger.error(
+        "startFreeTrial: failed to start free trial",
+        error as Error,
+      );
       return err("Failed to start the free trial.");
     }
   }
 
   async onSubscriptionCreated(subscription: Subscription) {
-    this.logger.info(
-      "onSubscriptionCreated: syncing subscription activation",
-      { subscription },
-    );
+    this.logger.info("onSubscriptionCreated: syncing subscription activation", {
+      subscription,
+    });
 
     try {
       if (!subscription.stripeSubscriptionId) {
@@ -310,8 +317,11 @@ class BillingService {
 
       return ok(null);
     } catch (error) {
-      this.logger.error("onSubscriptionCreated: failed to sync subscription", error as Error)
-      return err("Failed to activate subscription.")
+      this.logger.error(
+        "onSubscriptionCreated: failed to sync subscription",
+        error as Error,
+      );
+      return err("Failed to activate subscription.");
     }
   }
 
@@ -409,10 +419,12 @@ class BillingService {
       },
     });
 
-    return [...new Set([
-      billingEmail,
-      ...owners.map((owner) => owner.user?.email ?? null),
-    ])].filter((email): email is string => typeof email === "string");
+    return [
+      ...new Set([
+        billingEmail,
+        ...owners.map((owner) => owner.user?.email ?? null),
+      ]),
+    ].filter((email): email is string => typeof email === "string");
   }
 
   private readStripePriceId(plan: "starter" | "pro") {
@@ -438,8 +450,7 @@ class BillingService {
       context.stripeSubscription,
     );
     const fallbackStart =
-      context.stripeSubscription.trial_start ??
-      Math.floor(Date.now() / 1000);
+      context.stripeSubscription.trial_start ?? Math.floor(Date.now() / 1000);
     const fallbackEnd =
       context.stripeSubscription.trial_end ??
       addDays(new Date(), this.config.trialDays).getTime() / 1000;
@@ -450,7 +461,9 @@ class BillingService {
         .set({
           billingPlan: context.plan,
           billingStatus:
-            context.stripeSubscription.status === "active" ? "active" : "trialing",
+            context.stripeSubscription.status === "active"
+              ? "active"
+              : "trialing",
         })
         .where(eq(organization.id, context.organizationId));
 
@@ -501,9 +514,6 @@ const queueBillingNotificationInputSchema = z.object({
   payload: z.record(z.string(), z.string()),
 });
 
-
-
-
 const billingStatusHasAccess = (
   status: string | null | undefined,
 ): status is BillingAccessStatus =>
@@ -536,7 +546,9 @@ const addDays = (date: Date, days: number) => {
   return nextDate;
 };
 
-const readStripeSubscriptionPeriodStart = (stripeSubscription: Stripe.Subscription) => {
+const readStripeSubscriptionPeriodStart = (
+  stripeSubscription: Stripe.Subscription,
+) => {
   const currentPeriodStarts = stripeSubscription.items.data
     .map((item) => item.current_period_start)
     .filter((value): value is number => typeof value === "number");
@@ -546,14 +558,14 @@ const readStripeSubscriptionPeriodStart = (stripeSubscription: Stripe.Subscripti
     : null;
 };
 
-const readStripeSubscriptionPeriodEnd = (stripeSubscription: Stripe.Subscription) => {
+const readStripeSubscriptionPeriodEnd = (
+  stripeSubscription: Stripe.Subscription,
+) => {
   const currentPeriodEnds = stripeSubscription.items.data
     .map((item) => item.current_period_end)
     .filter((value): value is number => typeof value === "number");
 
-  return currentPeriodEnds.length > 0
-    ? Math.max(...currentPeriodEnds)
-    : null;
+  return currentPeriodEnds.length > 0 ? Math.max(...currentPeriodEnds) : null;
 };
 
 const readRedirectUrl = (result: unknown) => {
@@ -584,36 +596,36 @@ const buildBillingEmail = (
   organizationName: string,
 ):
   | {
-    subject: string;
-    template: "billing-subscription-completed";
-    props: {
-      organizationName: string;
-      planName: string;
-    };
-  }
+      subject: string;
+      template: "billing-subscription-completed";
+      props: {
+        organizationName: string;
+        planName: string;
+      };
+    }
   | {
-    subject: string;
-    template: "billing-trial-started";
-    props: {
-      organizationName: string;
-      trialEnd: string;
-    };
-  }
+      subject: string;
+      template: "billing-trial-started";
+      props: {
+        organizationName: string;
+        trialEnd: string;
+      };
+    }
   | {
-    subject: string;
-    template: "billing-trial-will-end";
-    props: {
-      organizationName: string;
-      trialEnd: string;
-    };
-  }
+      subject: string;
+      template: "billing-trial-will-end";
+      props: {
+        organizationName: string;
+        trialEnd: string;
+      };
+    }
   | {
-    subject: string;
-    template: "billing-trial-expired";
-    props: {
-      organizationName: string;
-    };
-  }
+      subject: string;
+      template: "billing-trial-expired";
+      props: {
+        organizationName: string;
+      };
+    }
   | null => {
   switch (kind) {
     case "trial_started":
@@ -670,5 +682,5 @@ export {
   getBillingStateInputSchema,
   queueBillingNotificationInputSchema,
   startFreeTrialInputSchema,
-  updateBillingEmailInputSchema
+  updateBillingEmailInputSchema,
 };

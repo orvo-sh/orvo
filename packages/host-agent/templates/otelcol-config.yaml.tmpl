@@ -49,11 +49,16 @@ processors:
 
 exporters:
   otlphttp/orvo:
-    endpoint: {{OTLP_ENDPOINT}}
+    endpoint: ${env:ORVO_OTLP_ENDPOINT}
     headers:
-      Authorization: Bearer {{PRIVATE_INGESTION_KEY}}
+      Authorization: ${env:ORVO_OTLP_AUTHORIZATION}
+
+extensions:
+  health_check:
+    endpoint: 127.0.0.1:13133
 
 service:
+  extensions: [health_check]
   pipelines:
     metrics:
       receivers: [hostmetrics{{DOCKER_METRICS_PIPELINE_RECEIVER}}]

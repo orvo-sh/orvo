@@ -1,6 +1,8 @@
 <script lang="ts">
   import { Toaster } from "@repo/components/ui/sonner";
+  import * as Tooltip from "@repo/components/ui/tooltip";
   import { ModeWatcher } from "mode-watcher";
+
   import "../app.css";
   import type { LayoutData } from "./$types";
 
@@ -19,4 +21,6 @@
   disableHeadScriptInjection
 />
 <Toaster />
-{@render children()}
+<Tooltip.Provider>
+  {@render children()}
+</Tooltip.Provider>

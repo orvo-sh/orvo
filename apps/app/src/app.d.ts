@@ -1,4 +1,4 @@
-import type { ServerContainer } from "$lib/server/container";
+import type { createServerContainer } from "$lib/server/container";
 import type { Session, User } from "better-auth";
 
 // See https://svelte.dev/docs/kit/types#app.d.ts
@@ -19,7 +19,7 @@ declare global {
 
   namespace App {
     interface Locals {
-      container: ServerContainer;
+      container: ReturnType<typeof createServerContainer>;
       auth?: {
         session: Session & {
           activeOrganizationId?: string | null;
@@ -33,4 +33,5 @@ declare global {
 declare module "d3-force";
 declare module "d3-scale";
 
-export {};
+export { };
+

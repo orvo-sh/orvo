@@ -1,16 +1,16 @@
 import { z } from "zod";
 
 const timeFilterPresetEnum = z.enum([
-    "last_30_minutes",
-    "last_hour",
-    "today",
-    "last_4_hours",
-    "last_24_hours",
-    "last_3_days",
-    "last_7_days",
-    "last_2_weeks",
-    "last_month",
-    ]);
+  "last_30_minutes",
+  "last_hour",
+  "today",
+  "last_4_hours",
+  "last_24_hours",
+  "last_3_days",
+  "last_7_days",
+  "last_2_weeks",
+  "last_month",
+]);
 
 const timeFilterSchema = z.discriminatedUnion("kind", [
   z.object({
@@ -40,12 +40,12 @@ type TimeFilterPreset = z.infer<typeof timeFilterPresetEnum>;
 const resolveTimeFilter = (timeFilter: TimeFilter) => {
   const endAtUtc = new Date();
 
-  if (timeFilter.kind === "range") 
+  if (timeFilter.kind === "range")
     return {
       startAtUtc: new Date(timeFilter.startAtUtc),
       endAtUtc: new Date(timeFilter.endAtUtc),
     };
-  
+
   if (timeFilter.preset === "today") {
     const startAtToday = new Date(endAtUtc);
     startAtToday.setUTCHours(0, 0, 0, 0);
@@ -55,18 +55,17 @@ const resolveTimeFilter = (timeFilter: TimeFilter) => {
     };
   }
 
-  const presetMinutesMap: Record<TimeFilterPreset, number> =
-    {
-      last_30_minutes: 30,
-      last_hour: 60,
-      today: 0,
-      last_4_hours: 60 * 4,
-      last_24_hours: 60 * 24,
-      last_3_days: 60 * 24 * 3,
-      last_7_days: 60 * 24 * 7,
-      last_2_weeks: 60 * 24 * 14,
-      last_month: 60 * 24 * 30,
-    };
+  const presetMinutesMap: Record<TimeFilterPreset, number> = {
+    last_30_minutes: 30,
+    last_hour: 60,
+    today: 0,
+    last_4_hours: 60 * 4,
+    last_24_hours: 60 * 24,
+    last_3_days: 60 * 24 * 3,
+    last_7_days: 60 * 24 * 7,
+    last_2_weeks: 60 * 24 * 14,
+    last_month: 60 * 24 * 30,
+  };
 
   return {
     startAtUtc: new Date(
@@ -76,6 +75,4 @@ const resolveTimeFilter = (timeFilter: TimeFilter) => {
   };
 };
 
-
 export { resolveTimeFilter, timeFilterSchema, type TimeFilter };
-

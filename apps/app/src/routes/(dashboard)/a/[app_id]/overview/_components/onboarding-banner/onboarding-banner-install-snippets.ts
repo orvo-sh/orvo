@@ -6,7 +6,6 @@ import { RustIcon } from "@repo/components/icons/rust";
 
 const ingestEndpoint = "https://ingest.orvo.sh";
 
-
 export const tabs = [
   {
     value: "node",
@@ -63,7 +62,7 @@ trace.set_tracer_provider(provider)
   {
     value: "go",
     label: "Go",
-    icon:GolangIcon,
+    icon: GolangIcon,
     install: `go get go.opentelemetry.io/otel \\\n  go.opentelemetry.io/otel/sdk \\\n  go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp`,
     body: "In Go, create an OTLP HTTP exporter and attach it to a tracer provider. The same pattern applies to metrics and logs using their respective OTLP packages.",
     snippet: `package main
@@ -92,7 +91,7 @@ func main() {
   {
     value: "java",
     label: "Java",
-    icon:JavaIcon,
+    icon: JavaIcon,
     install:
       "<!-- Maven dependencies for opentelemetry-sdk, opentelemetry-exporter-otlp, and opentelemetry-api -->",
     body: "Configure the OTLP HTTP exporter with your endpoint and ingestion key. The same exporter handles traces, metrics, and logs.",
@@ -112,7 +111,7 @@ SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
   {
     value: "rust",
     label: "Rust",
-    icon:RustIcon,
+    icon: RustIcon,
     install:
       "cargo add opentelemetry opentelemetry-otlp opentelemetry-sdk tokio",
     body: "Use the OTLP HTTP exporter in the OpenTelemetry SDK. Configure the endpoint and headers, then build your tracer provider.",

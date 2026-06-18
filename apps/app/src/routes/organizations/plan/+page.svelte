@@ -15,8 +15,8 @@
     loadingPlan = plan;
 
     await startFreeTrialCommand({
-        plan: plan as "starter" | "pro",
-      })
+      plan: plan as "starter" | "pro",
+    })
       .then((result) => {
         if (!result.success) {
           toast.error(result.error || "Failed to start the free trial.");

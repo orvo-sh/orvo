@@ -145,7 +145,10 @@ class MetricsService {
       );
       const bucketCount = validated.data.bucketCount;
       const bucketSizeMs = Math.max(Math.ceil(rangeMs / bucketCount), 1);
-      const whereClause = buildMetricsWhereClause(context.appId, validated.data);
+      const whereClause = buildMetricsWhereClause(
+        context.appId,
+        validated.data,
+      );
       const summaryWhereClause = buildMetricsWhereClause(context.appId, {
         ...validated.data,
         metricName: undefined,
@@ -368,7 +371,12 @@ class MetricsService {
 }
 
 const metricAggregationValues = ["avg", "sum", "min", "max", "count"] as const;
-const metricGroupByValues = ["none", "metric", "service", "environment"] as const;
+const metricGroupByValues = [
+  "none",
+  "metric",
+  "service",
+  "environment",
+] as const;
 
 const stringArrayFilterSchema = z
   .array(z.string().trim().min(1).max(255))

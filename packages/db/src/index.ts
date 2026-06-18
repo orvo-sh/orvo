@@ -9,7 +9,7 @@ const createDb = (databaseUrl: string) => drizzle(getDbClient(databaseUrl), { sc
 
 type Database = ReturnType<typeof createDb>;
 export type DB = Database;
-export type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
+export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 
 const clients = new Map<string, Sql>();
 const databases = new Map<string, Database>();
@@ -45,10 +45,7 @@ export const getDbClient = (databaseUrl: string) => {
   let client = clients.get(databaseUrl);
 
   if (!client) {
-    client = postgres(
-      getPostgresConnectionString(databaseUrl),
-      getPostgresOptions(databaseUrl)
-    );
+    client = postgres(getPostgresConnectionString(databaseUrl), getPostgresOptions(databaseUrl));
     clients.set(databaseUrl, client);
   }
 

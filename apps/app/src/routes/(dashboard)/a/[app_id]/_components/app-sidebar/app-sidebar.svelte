@@ -2,7 +2,6 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { kbdShortcut } from "$lib/utils/kbd-shortcut";
-  import { Kbd } from "@repo/components/ui/kbd";
   import * as Sidebar from "@repo/components/ui/sidebar";
   import {
     IconBook2 as BookOpenTextIcon,
@@ -13,7 +12,7 @@
   import { cn } from "@repo/components";
   import { generateAppNavigationGroups } from "./app-sidebar-naviagation-groups";
   import AppSidebarOrganizationSwitcher from "./app-sidebar-organization-switcher.svelte";
-  import AppSidebarPlanCard from "./app-sidebar-plan-card.svelte";
+  import AppSidebarUsageCard from "./app-sidebar-usage-card.svelte";
   import AppSidebarUserNav from "./app-sidebar-user-nav.svelte";
 
   let {
@@ -92,9 +91,6 @@
             },
           ]),
       ),
-      s: () => {
-        void goto(settingsHref);
-      },
     });
   });
 </script>
@@ -146,22 +142,20 @@
                 {@const href = item.href}
                 {@const isActive = page.url.pathname == href}
                 <Sidebar.MenuButton
-                  class="group/menu-btn gap-2.5"
+                  class="group/menu-btn relative gap-2.5 overflow-visible"
                   {isActive}
                   tooltipContent={item.label}
                 >
-                  {#snippet child({ props }: any)}
+                  {#snippet child({ props })}
                     <a {href} {...props}>
+                      {#if isActive}
+                        <span
+                          class="absolute -left-2 h-5.5 w-1 rounded-r-md bg-primary/80"
+                        >
+                        </span>
+                      {/if}
                       <Icon class="opacity-80" />
                       <span>{item.label}</span>
-                      <Kbd
-                        class={cn(
-                          "ml-auto",
-                          isActive
-                            ? "border-muted-foreground/40"
-                            : "opacity-70 group-hover/menu-btn:border-muted-foreground/40 group-hover/menu-btn:opacity-100",
-                        )}>{item.shortcut}</Kbd
-                      >
                     </a>
                   {/snippet}
                 </Sidebar.MenuButton>
@@ -192,9 +186,11 @@
   </Sidebar.Content>
 
   <Sidebar.Footer class="gap-0 border-t border-sidebar-border/80 p-0">
-    <AppSidebarPlanCard
-      plan={billingSummary}
-      billingHref={`${settingsHref}/billing`}
+    <AppSidebarUsageCard
+      includedBytes={billingSummary?.includedBytes ?? 0}
+      logsIngestedBytes={billingSummary?.logsIngestedBytes ?? 0}
+      tracesIngestedBytes={billingSummary?.tracesIngestedBytes ?? 0}
+      metricsIngestedBytes={billingSummary?.metricsIngestedBytes ?? 0}
     />
     <Sidebar.Group>
       <Sidebar.GroupContent>
@@ -207,6 +203,12 @@
             >
               {#snippet child({ props }: any)}
                 <a href={settingsHref} {...props}>
+                  {#if page.url.pathname.startsWith(settingsHref)}
+                    <span
+                      class="absolute -left-2 h-5.5 w-1 rounded-r-md bg-primary/80"
+                    >
+                    </span>
+                  {/if}
                   <GearSixIcon class="opacity-75" />
                   <span>Settings</span>
                 </a>

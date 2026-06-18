@@ -46,8 +46,6 @@ const renderCollectorConfig = (template: string, options: InstallBundleOptions) 
 
   return replaceTemplate(template, {
     APP_ID: options.appId,
-    OTLP_ENDPOINT: options.otlpEndpoint,
-    PRIVATE_INGESTION_KEY: options.privateIngestionKey,
     DOCKER_RECEIVERS: dockerReceivers.trimEnd(),
     DOCKER_METRICS_PIPELINE_RECEIVER: dockerMetricsPipelineReceiver
   });
@@ -67,9 +65,7 @@ const renderEnvFile = (template: string, options: InstallBundleOptions) =>
   replaceTemplate(template, {
     APP_ID: options.appId,
     OTLP_ENDPOINT: options.otlpEndpoint,
-    PRIVATE_INGESTION_KEY: options.privateIngestionKey,
-    CONFIG_ROOT: configRoot,
-    STATE_ROOT: stateRoot
+    PRIVATE_INGESTION_KEY: options.privateIngestionKey
   });
 
 const encodeBundlePart = (value: string) => Buffer.from(value, 'utf8').toString('base64');
@@ -87,7 +83,7 @@ const renderInstallBundle = (
   const envFile = renderEnvFile(templates.envFile, options);
 
   return [
-    `ORVO_INSTALL_BUNDLE_VERSION=${shellQuote('1')}`,
+    `ORVO_INSTALL_BUNDLE_VERSION=${shellQuote('2')}`,
     `ORVO_OTELCOL_VERSION=${shellQuote(collectorVersion)}`,
     `ORVO_APP_ID=${shellQuote(options.appId)}`,
     `ORVO_DOCKER_ENABLED=${shellQuote(options.dockerEnabled ? 'true' : 'false')}`,

@@ -91,7 +91,9 @@
   <span class="mx-1 h-5 w-px bg-border"></span>
 
   <div class="relative flex items-center">
-    <IconSearch class="pointer-events-none absolute left-3 size-3.5 text-muted-foreground" />
+    <IconSearch
+      class="pointer-events-none absolute left-3 size-3.5 text-muted-foreground"
+    />
     <Input
       placeholder="Search metrics"
       bind:value={searchDraft}
@@ -117,7 +119,9 @@
       {#each metricOptions as option}
         <Select.Item value={option.value}>
           <span class="min-w-0 truncate">{option.value}</span>
-          <span class="ml-auto text-xs text-muted-foreground">{option.count}</span>
+          <span class="ml-auto text-xs text-muted-foreground"
+            >{option.count}</span
+          >
         </Select.Item>
       {/each}
     </Select.Content>

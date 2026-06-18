@@ -3,4 +3,4 @@
 
 @source "./**/*.{svelte,ts,js}";
 @source "../node_modules/@repo/components";
-@source "../node_modules/layerchart/**/*.{svelte,js}"
+@source "../node_modules/layerchart/**/*.{svelte,js}";

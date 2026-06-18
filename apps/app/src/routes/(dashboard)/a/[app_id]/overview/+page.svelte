@@ -11,17 +11,17 @@
   import * as Select from "@repo/components/ui/select";
   import { formatNumber } from "@repo/utils";
   import {
+    IconAlertTriangle,
     IconChartBar,
     IconChevronRight,
     IconRoute,
-    IconSparkles,
     IconTerminal2,
   } from "@tabler/icons-svelte";
 
-  import { getInsightsQuery } from "$lib/api/insights.remote";
+  import { getOpenIncidentsQuery } from "$lib/api/incidents.remote";
   import PageContainer from "../_components/page-container/page-container.svelte";
   import ChartCard from "./_components/chart-card.svelte";
-  import InsightsSection from "./_components/insights-section.svelte";
+  import IncidentsSection from "./_components/incidents-section.svelte";
   import { OnboardingBanner } from "./_components/onboarding-banner";
   import ServicesSection from "./_components/services-section.svelte";
   import SignalSummaryCard from "./_components/signal-summary-card.svelte";
@@ -32,7 +32,7 @@
   let time = $state(data.time);
   let loading = $state(false);
   let dialogOpen = $state(false);
-  let allInsights = $state(data.insights ?? []);
+  let allIncidents = $state(data.incidents ?? []);
   let dialogLoading = $state(false);
   let telemetryActivationSent = $state(false);
 
@@ -97,57 +97,24 @@
 
   async function handleViewAll() {
     dialogOpen = true;
-    if (allInsights.length <= 3) {
+    if (allIncidents.length <= 3) {
       dialogLoading = true;
-      const result = await getInsightsQuery({
-        time: { kind: "preset", preset: mapTimeToPreset(time) },
-      });
+      const result = await getOpenIncidentsQuery({});
       if (result.success) {
-        allInsights = result.data.insights;
+        allIncidents = result.data.incidents;
       }
       dialogLoading = false;
     }
   }
 
-  function getInsightIcon(category: string) {
-    if (category === "error_spike" || category === "active_alert") {
-      return IconSparkles;
-    }
-    if (category === "latency_regression") {
-      return IconSparkles;
-    }
-    if (category === "throughput_drop") {
-      return IconSparkles;
-    }
-    if (category === "new_error_pattern") {
-      return IconSparkles;
-    }
-    if (category === "deployment_impact") {
-      return IconSparkles;
-    }
-    if (category === "metric_anomaly") {
-      return IconSparkles;
-    }
-    return IconSparkles;
-  }
-
-  function mapTimeToPreset(
-    t: "30m" | "1h" | "4h" | "24h" | "7d",
-  ):
-    | "last_30_minutes"
-    | "last_hour"
-    | "last_4_hours"
-    | "last_24_hours"
-    | "last_7_days" {
-    return (
-      {
-        "30m": "last_30_minutes",
-        "1h": "last_hour",
-        "4h": "last_4_hours",
-        "24h": "last_24_hours",
-        "7d": "last_7_days",
-      } as const
-    )[t];
+  function formatIncidentTimeAgo(value: Date) {
+    const seconds = Math.floor((Date.now() - new Date(value).getTime()) / 1000);
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h`;
+    return `${Math.floor(hours / 24)}d`;
   }
 
   const markTelemetryViewed = async () => {
@@ -190,6 +157,18 @@
 </script>
 
 <PageContainer title="Overview">
+  {#snippet helper()}
+    <div class="space-y-2">
+      <p>
+        Overview shows a high-level summary of your app's health and recent
+        telemetry.
+      </p>
+      <p>
+        Use it to spot trends in logs, traces, and metrics, and to quickly see
+        any open incidents or services that need attention.
+      </p>
+    </div>
+  {/snippet}
   {#snippet actions()}
     <Select.Root
       type="single"
@@ -212,7 +191,7 @@
       </Select.Content>
     </Select.Root>
 
-    <div class="hidden gap-1 rounded-lg border bg-background p-1 sm:flex">
+    <div class="hidden gap-1 rounded-lg border bg-muted p-0.75 sm:flex">
       {#each timeOptions as t}
         <Button
           class="h-6"
@@ -282,10 +261,11 @@
       />
     </section>
 
-    <InsightsSection
-      insights={data.insights ?? []}
+    <IncidentsSection
+      incidents={data.incidents ?? []}
       {loading}
       onViewAll={handleViewAll}
+      appId={page.params.app_id ?? ""}
     />
 
     <ServicesSection
@@ -308,18 +288,20 @@
   <Dialog.Content class="max-w-lg">
     <Dialog.Header>
       <div class="flex items-center gap-2">
-        <IconSparkles class="size-4 text-primary" />
-        <Dialog.Title class="text-sm font-semibold">All insights</Dialog.Title>
-        {#if allInsights.length > 0}
+        <IconAlertTriangle class="size-4 text-destructive" />
+        <Dialog.Title class="text-sm font-semibold"
+          >All open incidents</Dialog.Title
+        >
+        {#if allIncidents.length > 0}
           <span
             class="inline-flex h-5 items-center justify-center rounded-full border border-transparent bg-secondary px-2 text-xs font-medium text-secondary-foreground"
           >
-            {allInsights.length}
+            {allIncidents.length}
           </span>
         {/if}
       </div>
       <Dialog.Description class="sr-only">
-        Full list of insights for the selected time window.
+        Full list of open alert incidents for this app.
       </Dialog.Description>
     </Dialog.Header>
 
@@ -329,42 +311,34 @@
           class="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"
         ></div>
       </div>
-    {:else if allInsights.length === 0}
+    {:else if allIncidents.length === 0}
       <div class="py-6 text-center text-sm text-muted-foreground">
-        No insights for this period.
+        No open incidents.
       </div>
     {:else}
       <div class="divide-y divide-border/70">
-        {#each allInsights as insight (insight.id)}
-          {@const InsightIcon = getInsightIcon(insight.category)}
-          <div class="flex items-center gap-3 py-3">
+        {#each allIncidents as incident (incident.id)}
+          <a
+            href={`/a/${page.params.app_id}/alerts`}
+            class="flex items-center gap-3 py-3"
+          >
             <div
-              class="flex size-9 shrink-0 items-center justify-center rounded-lg {insight.severity ===
-              'critical'
-                ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
-                : insight.severity === 'warning'
-                  ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400'
-                  : 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'}"
+              class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400"
             >
-              <InsightIcon class="size-4" />
+              <IconAlertTriangle class="size-4" />
             </div>
             <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium">{insight.title}</p>
+              <p class="text-sm font-medium">{incident.rule.name}</p>
               <p class="line-clamp-2 text-xs text-muted-foreground">
-                {insight.body}
+                {incident.rule.signalType}
+                {#if incident.lastObservedValue !== null}
+                  · value {incident.lastObservedValue}
+                {/if}
+                · open for {formatIncidentTimeAgo(incident.openedAt)}
               </p>
             </div>
-            {#if insight.link}
-              <a
-                href={insight.link}
-                class="flex shrink-0 items-center text-muted-foreground hover:text-foreground"
-              >
-                <IconChevronRight class="size-4" />
-              </a>
-            {:else}
-              <div class="size-4 shrink-0"></div>
-            {/if}
-          </div>
+            <IconChevronRight class="size-4 shrink-0 text-muted-foreground" />
+          </a>
         {/each}
       </div>
     {/if}

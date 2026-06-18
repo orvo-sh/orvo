@@ -21,7 +21,10 @@ export const load = (async (event) => {
       headers: event.request.headers,
     });
 
-  if (organizations.length === 0 && event.url.pathname !== "/organizations/new") {
+  if (
+    organizations.length === 0 &&
+    event.url.pathname !== "/organizations/new"
+  ) {
     throw redirect(302, "/organizations/new");
   }
 
