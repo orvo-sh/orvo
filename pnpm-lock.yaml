@@ -21,52 +21,6 @@ importers:
         specifier: ^2.9.14
         version: 2.9.14
 
-  apps/alerts-worker:
-    dependencies:
-      '@opentelemetry/exporter-logs-otlp-http':
-        specifier: ^0.218.0
-        version: 0.218.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/resources':
-        specifier: ^2.7.1
-        version: 2.7.1(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-logs':
-        specifier: ^0.218.0
-        version: 0.218.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/semantic-conventions':
-        specifier: ^1.41.1
-        version: 1.41.1
-      '@repo/clickhouse':
-        specifier: workspace:^
-        version: link:../../packages/clickhouse
-      '@repo/db':
-        specifier: workspace:^
-        version: link:../../packages/db
-      '@repo/encryption':
-        specifier: workspace:*
-        version: link:../../packages/encryption
-      '@repo/logger':
-        specifier: workspace:*
-        version: link:../../packages/logger
-      '@repo/utils':
-        specifier: workspace:*
-        version: link:../../packages/utils
-      drizzle-orm:
-        specifier: ^0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.10.0)(kysely@0.28.17)(pg@8.21.0)(postgres@3.4.9)
-    devDependencies:
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../../packages/typescript-config
-      '@types/node':
-        specifier: ^24.12.0
-        version: 24.12.0
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-      vite-node:
-        specifier: ^5.2.0
-        version: 5.3.0(@types/node@24.12.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
-
   apps/app:
     dependencies:
       '@ai-sdk/google':

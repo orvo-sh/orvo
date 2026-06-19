@@ -75,6 +75,7 @@ const createServerContainer = (logger: Logger) => {
     db,
     logger,
     encryption,
+    notificationDeliveryService,
   );
   const logsService = new LogsService(clickhouse, logger);
   const logFacetsService = new LogFacetsService(clickhouse, logger);
@@ -168,4 +169,23 @@ const createServerContainer = (logger: Logger) => {
   };
 };
 
-export { createServerContainer };
+const createWorkerContainer = (logger: Logger) => {
+  const notificationDeliveryService = new NotificationDeliveryService(
+    db,
+    logger,
+    encryption,
+    email,
+  );
+  const heartbeatService = new HeartbeatService(db, logger, {
+    ingestBaseUrl: publicOtlpBaseUrl,
+  });
+
+  return {
+    clickhouse,
+    db,
+    heartbeatService,
+    notificationDeliveryService,
+  };
+};
+
+export { createServerContainer, createWorkerContainer };

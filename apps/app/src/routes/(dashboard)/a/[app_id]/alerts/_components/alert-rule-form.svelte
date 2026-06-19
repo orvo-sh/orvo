@@ -27,7 +27,12 @@
     onSubmit,
   }: {
     form: AlertRuleFormValue;
-    destinations: Array<{ id: string; name: string; isEnabled: boolean }>;
+    destinations: Array<{
+      id: string;
+      name: string;
+      isEnabled: boolean;
+      kind: string;
+    }>;
     submitting?: boolean;
     error?: string;
     submitLabel: string;
@@ -367,7 +372,7 @@
     <CardHeader class="gap-1">
       <CardTitle>Destinations</CardTitle>
       <CardDescription
-        >Attach shared webhook destinations to notify when the rule fires.</CardDescription
+        >Attach shared webhook or email destinations to notify when the rule fires.</CardDescription
       >
     </CardHeader>
     <CardContent class="grid gap-3">
@@ -375,7 +380,7 @@
         <div
           class="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground"
         >
-          No webhook destinations yet. Add one in settings before attaching it
+          No notification destinations yet. Add one in settings before attaching it
           to a rule.
         </div>
       {:else}
@@ -394,7 +399,9 @@
                   {destination.name}
                 </p>
                 <p class="text-xs text-muted-foreground">
-                  {destination.isEnabled ? "Enabled" : "Disabled"}
+                  {destination.kind === "webhook" ? "Webhook" : "Email"} · {destination.isEnabled
+                    ? "Enabled"
+                    : "Disabled"}
                 </p>
               </div>
             </div>

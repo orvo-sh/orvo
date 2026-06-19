@@ -1,5 +1,6 @@
 import { building, dev } from "$app/environment";
 import { createServerContainer } from "$lib/server/container";
+import { ensureWorkersStarted } from "$lib/server/workers";
 import {
   getThemeDocumentAttributes,
   resolveThemeMode,
@@ -11,7 +12,7 @@ import { svelteKitHandler } from "better-auth/svelte-kit";
 import { loggerProvider } from "./instrumentation.server";
 
 const baseLogger = new Logger("Orvo", { pretty: dev, loggerProvider });
-//void ensureHeartbeatNotificationBackgroundJobs(baseLogger);
+void ensureWorkersStarted(baseLogger);
 
 export const handle = async ({ event, resolve }) => {
   const startTime = Date.now();

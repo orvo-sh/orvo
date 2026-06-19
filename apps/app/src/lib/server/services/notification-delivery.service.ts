@@ -361,6 +361,99 @@ const buildEmailContent = (
     };
   }
 
+  const rule = payload.rule as
+    | {
+        name?: string;
+        signalType?: string;
+        comparator?: string;
+        threshold?: number;
+        windowMinutes?: number;
+      }
+    | undefined;
+  const incident = payload.incident as
+    | {
+        entity?: {
+          type?: string;
+          id?: string;
+          name?: string | null;
+        };
+      }
+    | undefined;
+  const evaluation = payload.evaluation as
+    | {
+        observedValue?: number | null;
+        windowStartAt?: string;
+        windowEndAt?: string;
+      }
+    | undefined;
+
+  if (app?.name && rule?.name) {
+    const entityLabel =
+      incident?.entity?.name ??
+      incident?.entity?.id ??
+      (incident?.entity?.type === "app" ? app.name : "Unknown entity");
+    const observedValue =
+      typeof evaluation?.observedValue === "number"
+        ? formatObservedValue(evaluation.observedValue)
+        : "No data";
+    const threshold =
+      typeof rule.threshold === "number"
+        ? `${formatComparator(rule.comparator)} ${formatObservedValue(rule.threshold)}`
+        : "Unknown threshold";
+    const windowLabel =
+      typeof rule.windowMinutes === "number" ? `${rule.windowMinutes}m` : "Unknown";
+
+    if (eventType === "alert.opened") {
+      return {
+        subject: `Alert opened: ${rule.name}`,
+        template: "threshold-alert-opened" as const,
+        props: {
+          appName: app.name,
+          entityName: entityLabel,
+          observedValue,
+          ruleName: rule.name,
+          signalType: formatSignalType(rule.signalType),
+          threshold,
+          window: windowLabel,
+        },
+      };
+    }
+
+    if (eventType === "alert.renotified") {
+      return {
+        subject: `Alert still firing: ${rule.name}`,
+        template: "threshold-alert-renotified" as const,
+        props: {
+          appName: app.name,
+          entityName: entityLabel,
+          observedValue,
+          ruleName: rule.name,
+          signalType: formatSignalType(rule.signalType),
+          threshold,
+          window: windowLabel,
+        },
+      };
+    }
+
+    if (eventType === "alert.resolved") {
+      return {
+        subject: `Alert resolved: ${rule.name}`,
+        template: "threshold-alert-resolved" as const,
+        props: {
+          appName: app.name,
+          entityName: entityLabel,
+          observedValue,
+          resolvedAt:
+            typeof payload.timestamp === "string"
+              ? payload.timestamp
+              : new Date().toISOString(),
+          ruleName: rule.name,
+          signalType: formatSignalType(rule.signalType),
+        },
+      };
+    }
+  }
+
   if (eventType === "destination.test") {
     const destination = payload.destination as { name?: string } | undefined;
     return {
@@ -410,6 +503,44 @@ const sendEmailContent = async (
           expectedEvery: string;
           recoveredAt: string;
         };
+      }
+    | {
+        subject: string;
+        template: "threshold-alert-opened";
+        props: {
+          appName: string;
+          entityName: string;
+          observedValue: string;
+          ruleName: string;
+          signalType: string;
+          threshold: string;
+          window: string;
+        };
+      }
+    | {
+        subject: string;
+        template: "threshold-alert-renotified";
+        props: {
+          appName: string;
+          entityName: string;
+          observedValue: string;
+          ruleName: string;
+          signalType: string;
+          threshold: string;
+          window: string;
+        };
+      }
+    | {
+        subject: string;
+        template: "threshold-alert-resolved";
+        props: {
+          appName: string;
+          entityName: string;
+          observedValue: string;
+          resolvedAt: string;
+          ruleName: string;
+          signalType: string;
+        };
       },
 ) => {
   switch (content.template) {
@@ -434,6 +565,27 @@ const sendEmailContent = async (
         template: content.template,
         props: content.props,
       });
+    case "threshold-alert-opened":
+      return email.sendEmail({
+        to: recipient,
+        subject: content.subject,
+        template: content.template,
+        props: content.props,
+      });
+    case "threshold-alert-renotified":
+      return email.sendEmail({
+        to: recipient,
+        subject: content.subject,
+        template: content.template,
+        props: content.props,
+      });
+    case "threshold-alert-resolved":
+      return email.sendEmail({
+        to: recipient,
+        subject: content.subject,
+        template: content.template,
+        props: content.props,
+      });
   }
 };
 
@@ -448,5 +600,33 @@ const formatDuration = (seconds: number) => {
 
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 };
+
+const formatComparator = (comparator?: string) => {
+  switch (comparator) {
+    case "gt":
+      return ">";
+    case "gte":
+      return ">=";
+    case "lt":
+      return "<";
+    case "lte":
+      return "<=";
+    default:
+      return "?";
+  }
+};
+
+const formatObservedValue = (value: number) =>
+  Number.isInteger(value) ? `${value}` : value.toFixed(2);
+
+const formatSignalType = (signalType?: string) =>
+  signalType
+    ? signalType
+        .split("_")
+        .map((part) => part.toUpperCase() === "P95" || part.toUpperCase() === "P99"
+          ? part.toUpperCase()
+          : part)
+        .join(" ")
+    : "Unknown signal";
 
 export { NotificationDeliveryService };

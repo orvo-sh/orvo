@@ -43,6 +43,13 @@
       "when": 1781793149140,
       "tag": "0005_secret_captain_midlands",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781879406354,
+      "tag": "0006_safe_living_lightning",
+      "breakpoints": true
     }
   ]
 }

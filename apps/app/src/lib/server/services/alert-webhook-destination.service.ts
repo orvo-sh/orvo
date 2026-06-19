@@ -1,10 +1,12 @@
 import type { DB } from "@repo/db";
-import { alertDeliveryAttempt, alertWebhookDestination } from "@repo/db/schema";
+import { notificationDestination } from "@repo/db/schema";
 import { Encryption } from "@repo/encryption";
 import type { Logger } from "@repo/logger";
 import { err, genId, ok } from "@repo/utils";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
+
+import { NotificationDeliveryService } from "./notification-delivery.service";
 
 class AlertWebhookDestinationService {
   private logger: Logger;
@@ -13,6 +15,7 @@ class AlertWebhookDestinationService {
     private db: DB,
     logger: Logger,
     private encryption: Encryption,
+    private notificationDeliveryService: NotificationDeliveryService,
   ) {
     this.logger = logger.child("AlertWebhookDestinationService");
   }
@@ -24,19 +27,32 @@ class AlertWebhookDestinationService {
     );
 
     try {
-      const destinations = await this.db.query.alertWebhookDestination.findMany(
+      const destinations = await this.db.query.notificationDestination.findMany(
         {
-          where: eq(alertWebhookDestination.appId, context.appId),
-          orderBy: [asc(alertWebhookDestination.name)],
+          where: and(
+            eq(notificationDestination.appId, context.appId),
+            eq(notificationDestination.kind, "webhook"),
+          ),
+          orderBy: [asc(notificationDestination.name)],
         },
       );
 
       return ok({
         destinations: destinations.map((destination) => ({
-          ...destination,
-          headers: JSON.parse(
-            this.encryption.decrypt(destination.headersEncrypted),
-          ),
+          id: destination.id,
+          appId: destination.appId,
+          name: destination.name,
+          url: destination.webhookUrl ?? "",
+          headers: destination.webhookHeadersEncrypted
+            ? JSON.parse(
+                this.encryption.decrypt(destination.webhookHeadersEncrypted),
+              )
+            : [],
+          isEnabled: destination.isEnabled,
+          createdBy: destination.createdBy,
+          updatedBy: destination.updatedBy,
+          createdAt: destination.createdAt,
+          updatedAt: destination.updatedAt,
         })),
       });
     } catch (error) {
@@ -66,22 +82,26 @@ class AlertWebhookDestinationService {
     }
 
     try {
-      const id = genId("alds");
+      const result =
+        await this.db
+          .insert(notificationDestination)
+          .values({
+            id: genId("alds"),
+            appId: context.appId,
+            name: validated.data.name,
+            kind: "webhook",
+            webhookUrl: validated.data.url,
+            webhookHeadersEncrypted: this.encryption.encrypt(
+              JSON.stringify(validated.data.headers),
+            ),
+            emailRecipients: [],
+            isEnabled: validated.data.isEnabled,
+            createdBy: context.userId,
+            updatedBy: context.userId,
+          })
+          .returning({ id: notificationDestination.id });
 
-      await this.db.insert(alertWebhookDestination).values({
-        id,
-        appId: context.appId,
-        name: validated.data.name,
-        url: validated.data.url,
-        headersEncrypted: this.encryption.encrypt(
-          JSON.stringify(validated.data.headers),
-        ),
-        isEnabled: validated.data.isEnabled,
-        createdBy: context.userId,
-        updatedBy: context.userId,
-      });
-
-      return ok({ id });
+      return ok({ id: result[0]!.id });
     } catch (error) {
       this.logger.error(
         "createAlertWebhookDestination: failed to create alert webhook destination",
@@ -109,10 +129,11 @@ class AlertWebhookDestinationService {
     }
 
     try {
-      const existing = await this.db.query.alertWebhookDestination.findFirst({
+      const existing = await this.db.query.notificationDestination.findFirst({
         where: and(
-          eq(alertWebhookDestination.id, validated.data.id),
-          eq(alertWebhookDestination.appId, context.appId),
+          eq(notificationDestination.id, validated.data.id),
+          eq(notificationDestination.appId, context.appId),
+          eq(notificationDestination.kind, "webhook"),
         ),
       });
 
@@ -121,17 +142,17 @@ class AlertWebhookDestinationService {
       }
 
       await this.db
-        .update(alertWebhookDestination)
+        .update(notificationDestination)
         .set({
           name: validated.data.name,
-          url: validated.data.url,
-          headersEncrypted: this.encryption.encrypt(
+          webhookUrl: validated.data.url,
+          webhookHeadersEncrypted: this.encryption.encrypt(
             JSON.stringify(validated.data.headers),
           ),
           isEnabled: validated.data.isEnabled,
           updatedBy: context.userId,
         })
-        .where(eq(alertWebhookDestination.id, existing.id));
+        .where(eq(notificationDestination.id, existing.id));
 
       return ok(undefined);
     } catch (error) {
@@ -162,11 +183,12 @@ class AlertWebhookDestinationService {
 
     try {
       await this.db
-        .delete(alertWebhookDestination)
+        .delete(notificationDestination)
         .where(
           and(
-            eq(alertWebhookDestination.id, validated.data),
-            eq(alertWebhookDestination.appId, context.appId),
+            eq(notificationDestination.id, validated.data),
+            eq(notificationDestination.appId, context.appId),
+            eq(notificationDestination.kind, "webhook"),
           ),
         );
 
@@ -198,11 +220,12 @@ class AlertWebhookDestinationService {
     }
 
     try {
-      const destination = await this.db.query.alertWebhookDestination.findFirst(
+      const destination = await this.db.query.notificationDestination.findFirst(
         {
           where: and(
-            eq(alertWebhookDestination.id, validated.data),
-            eq(alertWebhookDestination.appId, context.appId),
+            eq(notificationDestination.id, validated.data),
+            eq(notificationDestination.appId, context.appId),
+            eq(notificationDestination.kind, "webhook"),
           ),
         },
       );
@@ -211,63 +234,13 @@ class AlertWebhookDestinationService {
         return err("Webhook destination not found.");
       }
 
-      const payload = {
-        type: "alert.test",
-        timestamp: new Date().toISOString(),
-        appId: context.appId,
-        destination: {
-          id: destination.id,
-          name: destination.name,
-        },
-      };
-      const headers = JSON.parse(
-        this.encryption.decrypt(destination.headersEncrypted),
-      ) as Array<{
-        key: string;
-        value: string;
-      }>;
-      const response = await fetch(destination.url, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...Object.fromEntries(
-            headers.map((header) => [header.key, header.value]),
-          ),
-        },
-        body: JSON.stringify(payload),
-      });
-      const body = await response.text().catch(() => "");
-      const deliveryId = genId("aldv");
-      const now = new Date();
+      const attempt = await this.notificationDeliveryService.createTestDelivery(
+        destination,
+        context,
+      );
 
-      await this.db.transaction(async (tx) => {
-        await tx.insert(alertDeliveryAttempt).values({
-          id: deliveryId,
-          appId: context.appId,
-          destinationId: destination.id,
-          eventType: "test",
-          payload,
-          status: response.ok ? "succeeded" : "failed",
-          attemptNumber: 1,
-          nextAttemptAt: now,
-          lastAttemptAt: now,
-          deliveredAt: response.ok ? now : null,
-          httpStatus: response.status,
-          errorMessage: response.ok
-            ? null
-            : body.slice(0, 2000) || "Webhook request failed.",
-        });
-
-        await tx
-          .update(alertWebhookDestination)
-          .set({
-            lastTestedAt: now,
-          })
-          .where(eq(alertWebhookDestination.id, destination.id));
-      });
-
-      if (!response.ok) {
-        return err(`Webhook test failed with status ${response.status}.`);
+      if (!attempt.success) {
+        return err(attempt.errorMessage ?? "Webhook test failed.");
       }
 
       return ok(undefined);

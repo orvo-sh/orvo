@@ -3,10 +3,13 @@ import { index, integer, jsonb, pgEnum, pgTable, text, timestamp } from 'drizzle
 import { app } from './app.schema.js';
 import { notificationDestination } from './notification-destination.schema.js';
 
-const notificationSourceKind = pgEnum('notification_source_kind', ['heartbeat']);
+const notificationSourceKind = pgEnum('notification_source_kind', ['heartbeat', 'alert']);
 const notificationEventType = pgEnum('notification_event_type', [
   'heartbeat.missed',
   'heartbeat.recovered',
+  'alert.opened',
+  'alert.renotified',
+  'alert.resolved',
   'destination.test'
 ]);
 const notificationDeliveryStatus = pgEnum('notification_delivery_status', [

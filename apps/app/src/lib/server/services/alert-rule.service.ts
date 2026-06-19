@@ -3,7 +3,7 @@ import {
   alertIncident,
   alertRule,
   alertRuleDestination,
-  alertWebhookDestination,
+  notificationDestination,
 } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
 import { err, genId, ok } from "@repo/utils";
@@ -157,16 +157,16 @@ class AlertRuleService {
       const destinations =
         destinationIds.length === 0
           ? []
-          : await this.db.query.alertWebhookDestination.findMany({
+          : await this.db.query.notificationDestination.findMany({
               where: and(
-                eq(alertWebhookDestination.appId, context.appId),
-                inArray(alertWebhookDestination.id, destinationIds),
+                eq(notificationDestination.appId, context.appId),
+                inArray(notificationDestination.id, destinationIds),
               ),
-              orderBy: [asc(alertWebhookDestination.name)],
+              orderBy: [asc(notificationDestination.name)],
             });
 
       if (destinations.length !== destinationIds.length) {
-        return err("One or more destinations could not be found.");
+        return err("One or more notification destinations could not be found.");
       }
 
       const id = genId("alrt");
@@ -255,16 +255,16 @@ class AlertRuleService {
       const destinations =
         destinationIds.length === 0
           ? []
-          : await this.db.query.alertWebhookDestination.findMany({
+          : await this.db.query.notificationDestination.findMany({
               where: and(
-                eq(alertWebhookDestination.appId, context.appId),
-                inArray(alertWebhookDestination.id, destinationIds),
+                eq(notificationDestination.appId, context.appId),
+                inArray(notificationDestination.id, destinationIds),
               ),
-              orderBy: [asc(alertWebhookDestination.name)],
+              orderBy: [asc(notificationDestination.name)],
             });
 
       if (destinations.length !== destinationIds.length) {
-        return err("One or more destinations could not be found.");
+        return err("One or more notification destinations could not be found.");
       }
 
       await this.db.transaction(async (tx) => {

@@ -10,7 +10,7 @@
     getAlertRuleQuery,
     updateAlertRuleCommand,
   } from "$lib/api/alert-rules.remote";
-  import { getAlertWebhookDestinationsQuery } from "$lib/api/alert-webhook-destinations.remote";
+  import { getNotificationDestinationsQuery } from "$lib/api/notification-destinations.remote";
   import { Button } from "@repo/components/ui/button";
   import { onMount } from "svelte";
   import PageContainer from "../../_components/page-container/page-container.svelte";
@@ -21,7 +21,7 @@
   let deleting = $state(false);
   let error = $state("");
   let destinations = $state<
-    Array<{ id: string; name: string; isEnabled: boolean }>
+    Array<{ id: string; name: string; isEnabled: boolean; kind: string }>
   >([]);
   let form = $state<AlertRuleFormValue>(createEmptyAlertRuleForm());
 
@@ -33,7 +33,7 @@
 
     const [ruleResult, destinationsResult] = await Promise.all([
       getAlertRuleQuery(ruleId).run(),
-      getAlertWebhookDestinationsQuery({}).run(),
+      getNotificationDestinationsQuery({}).run(),
     ]);
 
     if (ruleResult.success === false) {
@@ -89,6 +89,7 @@
       id: destination.id,
       name: destination.name,
       isEnabled: destination.isEnabled,
+      kind: destination.kind,
     }));
     loading = false;
   };

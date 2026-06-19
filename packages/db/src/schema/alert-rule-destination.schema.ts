@@ -1,7 +1,7 @@
 import { index, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
 
 import { alertRule } from './alert-rule.schema.js';
-import { alertWebhookDestination } from './alert-webhook-destination.schema.js';
+import { notificationDestination } from './notification-destination.schema.js';
 
 const alertRuleDestination = pgTable(
   'alert_rule_destination',
@@ -11,7 +11,7 @@ const alertRuleDestination = pgTable(
       .references(() => alertRule.id, { onDelete: 'cascade' }),
     destinationId: text('destination_id')
       .notNull()
-      .references(() => alertWebhookDestination.id, { onDelete: 'cascade' }),
+      .references(() => notificationDestination.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').defaultNow().notNull()
   },
   (table) => [

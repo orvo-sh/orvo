@@ -6,7 +6,7 @@
     type AlertRuleFormValue,
   } from "$lib/alerts";
   import { createAlertRuleCommand } from "$lib/api/alert-rules.remote";
-  import { getAlertWebhookDestinationsQuery } from "$lib/api/alert-webhook-destinations.remote";
+  import { getNotificationDestinationsQuery } from "$lib/api/notification-destinations.remote";
   import {
     completeOrganizationActivationStep,
     restoreOrganizationActivation,
@@ -19,7 +19,7 @@
   let submitting = $state(false);
   let error = $state("");
   let destinations = $state<
-    Array<{ id: string; name: string; isEnabled: boolean }>
+    Array<{ id: string; name: string; isEnabled: boolean; kind: string }>
   >([]);
   let form = $state<AlertRuleFormValue>(createEmptyAlertRuleForm());
 
@@ -27,7 +27,7 @@
     loading = true;
     error = "";
 
-    const result = await getAlertWebhookDestinationsQuery({}).run();
+    const result = await getNotificationDestinationsQuery({}).run();
     if (result.success === false) {
       error = result.error;
       loading = false;
@@ -38,6 +38,7 @@
       id: destination.id,
       name: destination.name,
       isEnabled: destination.isEnabled,
+      kind: destination.kind,
     }));
     loading = false;
   };

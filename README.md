@@ -11,7 +11,6 @@ An observability platform built as a Turborepo monorepo. Orvo ingests logs, trac
 | `docs`             | Documentation site                                                           | SvelteKit           |
 | `ingest`           | OTLP HTTP ingestion service for logs, traces, and metrics                    | Go                  |
 | `telemetry-writer` | Consumes telemetry from NATS and writes batches to ClickHouse                | Go                  |
-| `alerts-worker`    | Evaluates alert rules and delivers webhook notifications                     | Node.js             |
 
 ## Packages
 
@@ -115,7 +114,6 @@ pnpm --filter app db:studio
 │   ├── docs/             # Documentation
 │   ├── ingest/           # Go OTLP ingestion service
 │   ├── telemetry-writer/ # Go ClickHouse writer service
-│   └── alerts-worker/    # Alert evaluation worker
 ├── packages/
 │   ├── components/       # Shared UI components
 │   ├── db/               # Database schemas and client
