@@ -3,6 +3,7 @@ declare module "pg-boss" {
     constructor(options: { connectionString: string; migrate?: boolean });
     on(event: "error", handler: (error: Error) => void): void;
     start(): Promise<this>;
+    createQueue(name: string): Promise<void>;
     schedule(
       name: string,
       cron: string,

@@ -17,6 +17,8 @@ abstract class BaseWorker {
   }
 
   async register(boss: PgBoss) {
+    await boss.createQueue(this.name);
+
     if (this.cron) {
       await boss.schedule(this.name, this.cron, {}, { key: this.name });
     }
