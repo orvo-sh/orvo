@@ -10,6 +10,7 @@
   import { Button } from "@repo/components/ui/button";
   import * as Dialog from "@repo/components/ui/dialog";
   import { toast } from "@repo/components/ui/sonner";
+  import { formatDuration } from "@repo/utils";
   import {
     IconAlertTriangle,
     IconBellRinging,
@@ -21,6 +22,7 @@
     IconPlayerPlay,
   } from "@tabler/icons-svelte";
   import CreateEditHeartbeatMonitor from "../_components/create-edit-heartbeat-monitor.svelte";
+  import HeartbeatCheckInHistory from "../_components/heartbeat-checkin-history.svelte";
   import PageContainer from "../../_components/page-container/page-container.svelte";
   import IncidentsSection from "../../overview/_components/incidents-section.svelte";
 
@@ -31,6 +33,7 @@
   let allIncidentsOpen = $state(false);
 
   const monitor = $derived(data.monitor);
+  const history = $derived(data.history);
   const destinations = $derived(data.destinations);
   const incidents = $derived(data.incidents ?? []);
 
@@ -43,20 +46,6 @@
     never_received: "border-border text-muted-foreground",
     paused: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300",
   } as const;
-
-  const formatRelativeWindow = (seconds: number) => {
-    if (seconds < 60) {
-      return `${seconds}s`;
-    }
-
-    if (seconds % 60 === 0) {
-      return `${seconds / 60}m`;
-    }
-
-    const minutes = Math.floor(seconds / 60);
-    const remainderSeconds = seconds % 60;
-    return `${minutes}m ${remainderSeconds}s`;
-  };
 
   const formatTimestamp = (value: Date | string | null) => {
     if (!value) {
@@ -223,8 +212,8 @@
               {currentStateLabel}
             </Badge>
             <span class="text-sm text-muted-foreground">
-              Every {formatRelativeWindow(monitor.expectedEverySeconds)} with{" "}
-              {formatRelativeWindow(monitor.graceSeconds)} grace
+              Every {formatDuration(monitor.expectedEverySeconds)} with{" "}
+              {formatDuration(monitor.graceSeconds)} grace
             </span>
           </div>
           <h2 class="text-lg font-semibold">
@@ -276,6 +265,11 @@
         </p>
       </div>
     </section>
+
+    <HeartbeatCheckInHistory
+      history={history}
+      expectedEverySeconds={monitor.expectedEverySeconds}
+    />
 
     <section class="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
       <IncidentsSection

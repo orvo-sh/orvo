@@ -84,7 +84,7 @@ const createServerContainer = (logger: Logger) => {
   const incidentService = new IncidentService(db, logger);
   const metricsService = new MetricsService(clickhouse, logger);
   const deploymentService = new DeploymentService(db, clickhouse, logger);
-  const heartbeatService = new HeartbeatService(db, logger, {
+  const heartbeatService = new HeartbeatService(db, clickhouse, logger, {
     ingestBaseUrl: publicOtlpBaseUrl,
   });
   const hostMonitoringService = new HostMonitoringService(
@@ -176,7 +176,7 @@ const createWorkerContainer = (logger: Logger) => {
     encryption,
     email,
   );
-  const heartbeatService = new HeartbeatService(db, logger, {
+  const heartbeatService = new HeartbeatService(db, clickhouse, logger, {
     ingestBaseUrl: publicOtlpBaseUrl,
   });
 

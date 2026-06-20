@@ -8,7 +8,7 @@ import {
 } from "@repo/db/schema";
 import { Encryption } from "@repo/encryption";
 import type { Logger } from "@repo/logger";
-import { genId } from "@repo/utils";
+import { formatDuration, genId } from "@repo/utils";
 import { and, asc, eq, lte } from "drizzle-orm";
 
 class NotificationDeliveryService {
@@ -587,18 +587,6 @@ const sendEmailContent = async (
         props: content.props,
       });
   }
-};
-
-const formatDuration = (seconds: number) => {
-  if (seconds < 60) {
-    return `${seconds}s`;
-  }
-
-  if (seconds % 60 === 0) {
-    return `${seconds / 60}m`;
-  }
-
-  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 };
 
 const formatComparator = (comparator?: string) => {

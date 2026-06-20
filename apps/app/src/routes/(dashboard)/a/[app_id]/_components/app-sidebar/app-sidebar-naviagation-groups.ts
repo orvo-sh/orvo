@@ -4,9 +4,8 @@ import {
   IconCpu2,
   IconHeartbeat,
   IconLayoutGrid,
-  IconMap,
   IconTelescope,
-  IconTerminal2,
+  IconTerminal2
 } from "@tabler/icons-svelte";
 
 type NavigationGroup = {
@@ -63,23 +62,12 @@ const generateAppNavigationGroups = (
           href: `/a/${appId}/metrics`,
           label: "Metrics",
           icon: IconChartBar,
-        },
-        {
-          href: `/a/${appId}/service-map`,
-          label: "Service map",
-          icon: IconMap,
-        },
+        }
       ],
     },
     {
       label: "Monitoring",
       items: [
-        // {
-        //   href: `/a/${appId}/deployments`,
-        //   label: "Deployments",
-        //   icon: IconRocket,
-        //
-        // },
         {
           href: `/a/${appId}/hosts`,
           label: "Hosts",

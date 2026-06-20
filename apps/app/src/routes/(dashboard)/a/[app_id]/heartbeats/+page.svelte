@@ -1,135 +1,52 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
-  import { page } from "$app/state";
-  import {
-    deleteHeartbeatMonitorCommand,
-    regenerateHeartbeatMonitorSecretCommand,
-  } from "$lib/api/heartbeats.remote";
-  import { Badge } from "@repo/components/ui/badge";
-  import { Button } from "@repo/components/ui/button";
+  import { startAutoRefresh } from "$lib/browser/auto-refresh";
+  import { createNowStore } from "$lib/stores/now";
+  import { Button, buttonVariants } from "@repo/components/ui/button";
+  import * as Card from "@repo/components/ui/card";
+  import * as DropdownMenu from "@repo/components/ui/dropdown-menu";
   import * as Tabs from "@repo/components/ui/tabs";
-  import { toast } from "@repo/components/ui/sonner";
   import {
-    IconCopy,
+    IconAlertTriangle,
+    IconChecks,
+    IconCircle,
+    IconCircleFilled,
+    IconDotsVertical,
     IconFileDescription,
-    IconHeartbeat,
-    IconKey,
+    IconList,
+    IconPlayerPause,
     IconPlus,
-    IconTrash,
   } from "@tabler/icons-svelte";
+  import { onMount } from "svelte";
+
+  import { page } from "$app/state";
+  import { cn } from "@repo/components";
+  import { Badge } from "@repo/components/ui/badge";
+  import { formatDuration } from "@repo/utils";
+
   import PageContainer from "../_components/page-container/page-container.svelte";
   import CreateEditHeartbeatMonitor from "./_components/create-edit-heartbeat-monitor.svelte";
+  import DeleteHeartbeatMonitorDialog from "./_components/delete-heartbeat-monitor-dialog.svelte";
+  import EditHeartbeatMonitorDialog from "./_components/edit-heartbeat-monitor-dialog.svelte";
+  import ToggleHeartbeatMonitorPausedDialog from "./_components/toggle-heartbeat-monitor-paused-dialog.svelte";
 
   let { data } = $props();
 
-  let deletingId = $state("");
-  let regeneratingId = $state("");
-  let tab = $state<"all" | "healthy" | "missed" | "paused">("all");
+  const nowStore = createNowStore(1000);
 
-  const monitors = $derived(
-    data.monitorsResult.success ? data.monitorsResult.data.monitors : [],
-  );
-  const destinations = $derived(
-    data.destinationsResult.success
-      ? data.destinationsResult.data.destinations
-      : [],
-  );
-  const loadError = $derived(
-    data.monitorsResult.success ? "" : data.monitorsResult.error,
-  );
-  const visibleMonitors = $derived(
-    monitors.filter((monitor) => {
-      if (tab === "healthy") {
-        return monitor.status === "healthy" && !monitor.isPaused;
-      }
-
-      if (tab === "missed") {
-        return monitor.status === "missed";
-      }
-
-      if (tab === "paused") {
-        return monitor.isPaused;
-      }
-
-      return true;
-    }),
-  );
-
-  const statusClasses = {
-    healthy:
-      "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300",
-    grace:
-      "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-    missed: "border-destructive/30 bg-destructive/10 text-destructive",
-    never_received: "border-border text-muted-foreground",
-    paused: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  } as const;
-
-  const copy = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast.success("Copied to clipboard.");
-    } catch {
-      toast.error("Failed to copy.");
-    }
-  };
-
-  const remove = async (id: string) => {
-    deletingId = id;
-    const result = await deleteHeartbeatMonitorCommand(id);
-    deletingId = "";
-
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-
-    await invalidateAll();
-    toast.success("Heartbeat monitor deleted.");
-  };
-
-  const regenerate = async (id: string) => {
-    regeneratingId = id;
-    const result = await regenerateHeartbeatMonitorSecretCommand(id);
-    regeneratingId = "";
-
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-
-    await copy(result.data.secretUrl);
-    await invalidateAll();
-    toast.success("Heartbeat URL regenerated and copied.");
-  };
-
-  const formatRelativeWindow = (seconds: number) => {
-    if (seconds < 60) {
-      return `${seconds}s`;
-    }
-
-    if (seconds % 60 === 0) {
-      return `${seconds / 60}m`;
-    }
-
-    return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-  };
-
-  const formatTimestamp = (value: Date | string | null) => {
-    if (!value) {
-      return "Never";
-    }
-
-    return new Intl.DateTimeFormat(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(value));
-  };
+  onMount(() => {
+    return startAutoRefresh({
+      refresh: () => invalidateAll(),
+      intervalMs: 10_000,
+    });
+  });
 </script>
 
-<PageContainer title="Heartbeats">
+<PageContainer
+  title="Heartbeats"
+  scrollContent={false}
+  innerClass="min-h-0 px-0! gap-2 overflow-hidden"
+>
   {#snippet helper()}
     <div class="space-y-2">
       <p>
@@ -155,193 +72,218 @@
     </div>
   {/snippet}
   {#snippet actions()}
-    <CreateEditHeartbeatMonitor {destinations}>
-      {#snippet child({ props })}
-        <Button {...props}>
-          <IconPlus data-slot="button-icon" />
-          Create heartbeat
-        </Button>
-      {/snippet}
+    <CreateEditHeartbeatMonitor
+      destinations={data.destinations}
+      class={buttonVariants({ class: "hidden sm:flex" })}
+    >
+      <IconPlus />
+      Create heartbeat
+    </CreateEditHeartbeatMonitor>
+    <CreateEditHeartbeatMonitor
+      destinations={data.destinations}
+      class={buttonVariants({ class: " sm:hidden", size: "icon" })}
+    >
+      <IconPlus />
     </CreateEditHeartbeatMonitor>
   {/snippet}
 
-  <div class="mx-auto flex w-full max-w-6xl flex-col gap-4">
-    <Tabs.Root bind:value={tab} class="gap-0">
-      <Tabs.List
-        class="h-auto w-full justify-start gap-2 rounded-none border-b bg-transparent p-0"
-      >
-        <Tabs.Trigger
-          value="all"
-          class="h-10 flex-none rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-1 data-active:border-foreground"
+  <Tabs.Root value="all" class="flex min-h-0 flex-1 flex-col gap-0">
+    <Tabs.List
+      variant="line"
+      class="flex h-8! w-full justify-start border-b px-3"
+    >
+      <Tabs.Trigger value="all" class="px-3 pb-3">
+        <IconList class="size-3.5" />
+        All
+        <span
+          class="items-center justify-center rounded-sm border border-primary/40 bg-primary/10 px-1 font-mono text-xs text-blue-800 tabular-nums"
+          >{data.monitors.length}</span
         >
-          All
-          <span class="text-xs text-muted-foreground">{monitors.length}</span>
-        </Tabs.Trigger>
-        <Tabs.Trigger
-          value="healthy"
-          class="h-10 flex-none rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-1 data-active:border-foreground"
+      </Tabs.Trigger>
+      <Tabs.Trigger value="healthy" class="px-3 pb-3">
+        <IconChecks class="size-3.5" />
+        Healthy
+        <span
+          class="items-center justify-center rounded-sm border border-green-600/40 bg-green-600/10 px-1 font-mono text-xs text-green-800 tabular-nums"
         >
-          Healthy
-          <span class="text-xs text-muted-foreground">
-            {monitors.filter(
-              (monitor) => monitor.status === "healthy" && !monitor.isPaused,
-            ).length}
-          </span>
-        </Tabs.Trigger>
-        <Tabs.Trigger
-          value="missed"
-          class="h-10 flex-none rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-1 data-active:border-foreground"
+          {data.monitors.filter(
+            (monitor) => monitor.status === "healthy" && !monitor.isPaused,
+          ).length}
+        </span>
+      </Tabs.Trigger>
+      <Tabs.Trigger value="missed" class="px-3 pb-3">
+        <IconAlertTriangle class="size-3.5" />
+        Missed
+        <span
+          class="items-center justify-center rounded-sm border border-red-600/40 bg-red-600/10 px-1 font-mono text-xs text-red-800 tabular-nums"
         >
-          Missed
-          <span class="text-xs text-muted-foreground">
-            {monitors.filter((monitor) => monitor.status === "missed").length}
-          </span>
-        </Tabs.Trigger>
-        <Tabs.Trigger
-          value="paused"
-          class="h-10 flex-none rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-1 data-active:border-foreground"
+          {data.monitors.filter((monitor) => monitor.status === "missed")
+            .length}
+        </span>
+      </Tabs.Trigger>
+      <Tabs.Trigger value="paused" class="px-3 pb-3">
+        <IconPlayerPause class="size-3.5" />
+        Paused
+        <span
+          class="items-center justify-center rounded-sm border border-muted-foreground/30 bg-muted-foreground/7 px-1 font-mono text-xs text-muted-foreground tabular-nums"
         >
-          Paused
-          <span class="text-xs text-muted-foreground">
-            {monitors.filter((monitor) => monitor.isPaused).length}
-          </span>
-        </Tabs.Trigger>
-      </Tabs.List>
-    </Tabs.Root>
+          {data.monitors.filter((monitor) => monitor.isPaused).length}
+        </span>
+      </Tabs.Trigger>
+    </Tabs.List>
 
-    {#if loadError}
-      <div
-        class="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
-      >
-        {loadError}
-      </div>
-    {/if}
-
-    {#if monitors.length === 0}
-      <section class="relative overflow-hidden rounded-xl border bg-background">
-        <div
-          class="absolute inset-0 opacity-40"
-          style="background-image: repeating-linear-gradient(135deg, transparent, transparent 16px, color-mix(in oklab, var(--color-border) 24%, transparent) 16px, color-mix(in oklab, var(--color-border) 24%, transparent) 17px);"
-        ></div>
-        <div class="relative mx-auto flex min-h-[420px] max-w-2xl flex-col items-center justify-center gap-4 px-6 text-center">
-          <div class="rounded-full border bg-background/90 p-3 shadow-sm">
-            <IconHeartbeat class="size-5 text-muted-foreground" />
-          </div>
-          <h3 class="text-3xl font-semibold tracking-tight">No heartbeats</h3>
-          <p class="max-w-md text-sm text-muted-foreground">
-            Add your first heartbeat monitor to track scheduled jobs, workers,
-            and external checks.
-          </p>
-          <div class="flex flex-wrap items-center justify-center gap-2">
-            <CreateEditHeartbeatMonitor {destinations}>
-              {#snippet child({ props })}
-                <Button {...props}>
-                  <IconPlus data-slot="button-icon" />
-                  Add first heartbeat
-                </Button>
-              {/snippet}
-            </CreateEditHeartbeatMonitor>
-            <Button
-              href="https://orvo.sh/docs/heartbeats"
-              target="_blank"
-              variant="outline"
-            >
-              <IconFileDescription data-slot="button-icon" />
-              View docs
-            </Button>
-          </div>
-        </div>
-      </section>
-    {:else if visibleMonitors.length === 0}
-      <section class="rounded-xl border bg-background px-6 py-16 text-center">
-        <div class="mx-auto flex max-w-md flex-col items-center gap-3">
-          <div class="rounded-full border bg-muted/30 p-3">
-            <IconHeartbeat class="size-5 text-muted-foreground" />
-          </div>
-          <h3 class="text-lg font-semibold">No heartbeats in this view</h3>
-          <p class="text-sm text-muted-foreground">
-            Try another tab or create a new heartbeat monitor.
-          </p>
-          <CreateEditHeartbeatMonitor {destinations}>
-            {#snippet child({ props })}
-              <Button {...props}>
-                <IconPlus data-slot="button-icon" />
-                Create heartbeat
-              </Button>
-            {/snippet}
-          </CreateEditHeartbeatMonitor>
-        </div>
-      </section>
-    {:else}
-      <section class="overflow-hidden rounded-xl border bg-background">
-        {#each visibleMonitors as monitor, index (monitor.id)}
-          <article
-            class:border-b={index !== visibleMonitors.length - 1}
-            class="border-border/70 px-5 py-4"
-          >
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div class="min-w-0 space-y-2">
-                <div class="flex flex-wrap items-center gap-2">
-                  <a
-                    href={`/a/${page.params.app_id}/heartbeats/${monitor.id}`}
-                    class="truncate text-base font-medium hover:underline"
-                  >
-                    {monitor.name}
-                  </a>
-                  <Badge
-                    variant="outline"
-                    class={statusClasses[monitor.isPaused ? "paused" : monitor.status]}
-                  >
-                    {monitor.isPaused ? "Paused" : monitor.status.replaceAll("_", " ")}
-                  </Badge>
-                </div>
-                <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                  <span>Every {formatRelativeWindow(monitor.expectedEverySeconds)}</span>
-                  <span>Grace {formatRelativeWindow(monitor.graceSeconds)}</span>
-                  <span>Last check-in {formatTimestamp(monitor.lastCheckInAt)}</span>
-                </div>
-              </div>
-
-              <div class="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onclick={() => copy(monitor.secretUrl)}
-                >
-                  <IconCopy data-slot="button-icon" />
-                  Copy URL
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  loading={regeneratingId === monitor.id}
-                  onclick={() => regenerate(monitor.id)}
-                >
-                  <IconKey data-slot="button-icon" />
-                  Regenerate
-                </Button>
-                <CreateEditHeartbeatMonitor
-                  heartbeatMonitor={monitor}
-                  {destinations}
-                >
-                  {#snippet child({ props })}
-                    <Button {...props} variant="outline" size="sm">Edit</Button>
-                  {/snippet}
-                </CreateEditHeartbeatMonitor>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  loading={deletingId === monitor.id}
-                  onclick={() => remove(monitor.id)}
-                >
-                  <IconTrash data-slot="button-icon" />
-                  Delete
-                </Button>
-              </div>
-            </div>
-          </article>
-        {/each}
-      </section>
-    {/if}
-  </div>
+    {#each ["all", "healthy", "missed", "paused"] as const as tab}
+      <Tabs.Content value={tab} class="min-h-0 flex-1  p-3">
+        {@render heartbeatMonitorList({ tab })}
+      </Tabs.Content>
+    {/each}
+  </Tabs.Root>
 </PageContainer>
+
+{#snippet heartbeatMonitorList({
+  tab,
+}: {
+  tab: "all" | "healthy" | "missed" | "paused";
+})}
+  {@const filteredMonitors = (() => {
+    if (tab === "healthy")
+      return data.monitors.filter(
+        (monitor) => monitor.status === "healthy" && !monitor.isPaused,
+      );
+    if (tab === "missed")
+      return data.monitors.filter((monitor) => monitor.status === "missed");
+    if (tab === "paused")
+      return data.monitors.filter((monitor) => monitor.isPaused);
+    return data.monitors;
+  })()}
+  <Card.Root
+    data-empty={filteredMonitors.length === 0 ? "true" : undefined}
+    class="min-h-0 gap-0 divide-y overflow-y-auto rounded-xl p-0 data-empty:ring-0"
+  >
+    {#each filteredMonitors as monitor (monitor.id)}
+      <div
+        class="flex items-center gap-2 px-2 py-2 transition-colors hover:bg-muted/50"
+      >
+        <a
+          class="flex min-w-0 flex-1 flex-col gap-1 rounded-lg px-2 py-0.5 pt-0.75"
+          href={`/a/${page.params.app_id}/heartbeats/${monitor.id}`}
+        >
+          <div class="flex flex-wrap items-center gap-2 text-sm font-medium">
+            {monitor.name}
+            <Badge
+              variant="outline"
+              class={cn(
+                "gap-0.5 pr-1.5 pl-0.75",
+                {
+                  healthy: "border-green-600/20 bg-green-600/7 text-green-700 ",
+                  grace: "border-amber-600/20 bg-amber-600/7 text-amber-800",
+                  missed: "border-red-600/20 bg-red-600/7 text-red-800",
+                  never_received:
+                    "border-muted-foreground/20 bg-muted-foreground/7 text-muted-foreground",
+                }[monitor.status],
+                monitor.isPaused &&
+                  "border-muted-foreground/20 bg-muted-foreground/7 text-muted-foreground",
+              )}
+            >
+              {#if monitor.isPaused}
+                <IconCircle class="size-2.5" />
+              {:else}
+                <IconCircleFilled class="size-2.5" />
+              {/if}
+              {monitor.isPaused
+                ? "Paused"
+                : monitor.status.toLocaleUpperCase()[0] +
+                  monitor.status.slice(1).replaceAll("_", " ")}
+            </Badge>
+          </div>
+          <div
+            class="flex flex-wrap gap-0.75 gap-y-1 text-[0.8rem] text-muted-foreground"
+          >
+            Runs every <span class="font-medium text-secondary-foreground"
+              >{formatDuration(monitor.expectedEverySeconds)}</span
+            >
+            with a grace period of
+            <span class="font-medium text-secondary-foreground">
+              {formatDuration(monitor.graceSeconds)}.
+            </span>
+            {#if monitor.lastCheckInAt}
+              Last check-in was
+              <span class="font-medium text-secondary-foreground"
+                >{formatDuration(
+                  monitor.lastCheckInAt
+                    ? Math.floor(
+                        ($nowStore -
+                          new Date(monitor.lastCheckInAt).getTime()) /
+                          1000,
+                      )
+                    : Infinity,
+                )}</span
+              >ago.
+            {/if}
+          </div>
+        </a>
+
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger
+            class={buttonVariants({
+              variant: "ghost",
+              size: "icon-sm",
+            })}
+            aria-label={`Open actions for ${monitor.name}`}
+          >
+            <IconDotsVertical />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content align="end" class="w-40">
+            <EditHeartbeatMonitorDialog
+              heartbeatMonitor={monitor}
+              destinations={data.destinations}
+            >
+              {#snippet children({ openDialog })}
+                <DropdownMenu.Item
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    openDialog();
+                  }}
+                >
+                  Edit
+                </DropdownMenu.Item>
+              {/snippet}
+            </EditHeartbeatMonitorDialog>
+            <ToggleHeartbeatMonitorPausedDialog heartbeatMonitor={monitor}>
+              {#snippet children({ openDialog })}
+                <DropdownMenu.Item
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    openDialog();
+                  }}
+                >
+                  {monitor.isPaused ? "Resume" : "Pause"}
+                </DropdownMenu.Item>
+              {/snippet}
+            </ToggleHeartbeatMonitorPausedDialog>
+            <DropdownMenu.Separator />
+            <DeleteHeartbeatMonitorDialog heartbeatMonitor={monitor}>
+              {#snippet children({ openDialog })}
+                <DropdownMenu.Item
+                  variant="destructive"
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    openDialog();
+                  }}
+                >
+                  Delete
+                </DropdownMenu.Item>
+              {/snippet}
+            </DeleteHeartbeatMonitorDialog>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+      </div>
+    {:else}
+      <div
+        class="flex flex-col items-center text-sm text-muted-foreground pt-[5%]"
+      >
+        No heartbeat monitors found.
+      </div>
+    {/each}
+  </Card.Root>
+{/snippet}

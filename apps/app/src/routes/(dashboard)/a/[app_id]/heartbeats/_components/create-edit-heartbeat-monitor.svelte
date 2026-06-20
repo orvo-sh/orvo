@@ -26,6 +26,7 @@
     child,
     children,
     class: className,
+    open = $bindable(false),
   }: {
     heartbeatMonitor?: {
       id: string;
@@ -43,9 +44,8 @@
     child?: Snippet<[{ props: Record<string, unknown> }]>;
     children?: Snippet;
     class?: string;
+    open?: boolean;
   } = $props();
-
-  let open = $state(false);
   let name = $state("");
   let expectedEveryValue = $state(5);
   let expectedEveryUnit =
