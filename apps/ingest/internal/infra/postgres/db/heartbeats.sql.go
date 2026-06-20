@@ -14,35 +14,14 @@ import (
 const getHeartbeatMonitorByToken = `-- name: GetHeartbeatMonitorByToken :one
 SELECT
   heartbeat_monitor.id,
-  heartbeat_monitor.app_id,
-  heartbeat_monitor.name,
-  heartbeat_monitor.token,
-  heartbeat_monitor.expected_every_seconds,
-  heartbeat_monitor.grace_seconds,
-  heartbeat_monitor.last_check_in_at,
-  heartbeat_monitor.last_status::text AS last_status,
-  heartbeat_monitor.last_missed_at,
-  heartbeat_monitor.last_recovered_at,
-  heartbeat_monitor.paused_at,
-  app.name AS app_name
+  heartbeat_monitor.app_id
 FROM heartbeat_monitor
-JOIN app ON app.id = heartbeat_monitor.app_id
 WHERE heartbeat_monitor.token = $1
 `
 
 type GetHeartbeatMonitorByTokenRow struct {
-	ID                   string           `json:"id"`
-	AppID                string           `json:"app_id"`
-	Name                 string           `json:"name"`
-	Token                string           `json:"token"`
-	ExpectedEverySeconds int32            `json:"expected_every_seconds"`
-	GraceSeconds         int32            `json:"grace_seconds"`
-	LastCheckInAt        pgtype.Timestamp `json:"last_check_in_at"`
-	LastStatus           string           `json:"last_status"`
-	LastMissedAt         pgtype.Timestamp `json:"last_missed_at"`
-	LastRecoveredAt      pgtype.Timestamp `json:"last_recovered_at"`
-	PausedAt             pgtype.Timestamp `json:"paused_at"`
-	AppName              string           `json:"app_name"`
+	ID    string `json:"id"`
+	AppID string `json:"app_id"`
 }
 
 func (q *Queries) GetHeartbeatMonitorByToken(ctx context.Context, token string) (GetHeartbeatMonitorByTokenRow, error) {
@@ -51,82 +30,8 @@ func (q *Queries) GetHeartbeatMonitorByToken(ctx context.Context, token string) 
 	err := row.Scan(
 		&i.ID,
 		&i.AppID,
-		&i.Name,
-		&i.Token,
-		&i.ExpectedEverySeconds,
-		&i.GraceSeconds,
-		&i.LastCheckInAt,
-		&i.LastStatus,
-		&i.LastMissedAt,
-		&i.LastRecoveredAt,
-		&i.PausedAt,
-		&i.AppName,
 	)
 	return i, err
-}
-
-const insertNotificationDelivery = `-- name: InsertNotificationDelivery :exec
-INSERT INTO notification_delivery (
-  id,
-  app_id,
-  destination_id,
-  source_kind,
-  source_id,
-  event_type,
-  payload,
-  status,
-  next_attempt_at
-)
-VALUES ($1, $2, $3, 'heartbeat', $4, $5, $6, 'pending', $7)
-`
-
-type InsertNotificationDeliveryParams struct {
-	ID            string                `json:"id"`
-	AppID         string                `json:"app_id"`
-	DestinationID string                `json:"destination_id"`
-	SourceID      string                `json:"source_id"`
-	EventType     NotificationEventType `json:"event_type"`
-	Payload       []byte                `json:"payload"`
-	NextAttemptAt pgtype.Timestamp      `json:"next_attempt_at"`
-}
-
-func (q *Queries) InsertNotificationDelivery(ctx context.Context, arg InsertNotificationDeliveryParams) error {
-	_, err := q.db.Exec(ctx, insertNotificationDelivery,
-		arg.ID,
-		arg.AppID,
-		arg.DestinationID,
-		arg.SourceID,
-		arg.EventType,
-		arg.Payload,
-		arg.NextAttemptAt,
-	)
-	return err
-}
-
-const listHeartbeatMonitorDestinationIDs = `-- name: ListHeartbeatMonitorDestinationIDs :many
-SELECT destination_id
-FROM heartbeat_monitor_destination
-WHERE heartbeat_monitor_id = $1
-`
-
-func (q *Queries) ListHeartbeatMonitorDestinationIDs(ctx context.Context, heartbeatMonitorID string) ([]string, error) {
-	rows, err := q.db.Query(ctx, listHeartbeatMonitorDestinationIDs, heartbeatMonitorID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []string{}
-	for rows.Next() {
-		var destination_id string
-		if err := rows.Scan(&destination_id); err != nil {
-			return nil, err
-		}
-		items = append(items, destination_id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const markHeartbeatMonitorHealthy = `-- name: MarkHeartbeatMonitorHealthy :exec
@@ -134,7 +39,6 @@ UPDATE heartbeat_monitor
 SET
   last_check_in_at = $2,
   last_status = 'healthy',
-  last_recovered_at = CASE WHEN last_status = 'missed' THEN $2 ELSE last_recovered_at END,
   updated_at = $2
 WHERE id = $1
 `

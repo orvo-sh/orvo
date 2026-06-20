@@ -48,95 +48,25 @@ FROM organization_usage
 WHERE organization_id = $1
 FOR UPDATE;
 
--- name: CreateOrganizationUsage :one
-INSERT INTO organization_usage (
-  id,
-  organization_id,
-  logs_retention_days,
-  traces_retention_days,
-  metrics_retention_days,
-  current_period_start,
-  current_period_end,
-  ingest_limit_bytes
-)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING
-  id,
-  organization_id,
-  logs_retention_days,
-  traces_retention_days,
-  metrics_retention_days,
-  current_period_start,
-  current_period_end,
-  logs_ingested_bytes,
-  traces_ingested_bytes,
-  metrics_ingested_bytes,
-  ingest_limit_bytes,
-  notified_70_at,
-  notified_85_at,
-  notified_100_at,
-  created_at,
-  updated_at;
-
--- name: UpdateOrganizationUsageLogs :exec
+-- name: UpdateOrganizationUsage :exec
 UPDATE organization_usage
-SET logs_ingested_bytes = $3,
-    ingest_limit_bytes = $4,
+SET metrics_ingested_bytes = $2,
+    traces_ingested_bytes = $3, 
+    logs_ingested_bytes = $4,
     notified_70_at = $5,
     notified_85_at = $6,
     notified_100_at = $7,
     updated_at = NOW()
-WHERE id = $1
-  AND organization_id = $2;
-
--- name: UpdateOrganizationUsageTraces :exec
-UPDATE organization_usage
-SET traces_ingested_bytes = $3,
-    ingest_limit_bytes = $4,
-    notified_70_at = $5,
-    notified_85_at = $6,
-    notified_100_at = $7,
-    updated_at = NOW()
-WHERE id = $1
-  AND organization_id = $2;
-
--- name: UpdateOrganizationUsageMetrics :exec
-UPDATE organization_usage
-SET metrics_ingested_bytes = $3,
-    ingest_limit_bytes = $4,
-    notified_70_at = $5,
-    notified_85_at = $6,
-    notified_100_at = $7,
-    updated_at = NOW()
-WHERE id = $1
-  AND organization_id = $2;
-
--- name: ReleaseOrganizationUsageLogs :exec
-UPDATE organization_usage
-SET logs_ingested_bytes = GREATEST(logs_ingested_bytes - $2, 0),
-    updated_at = NOW()
-WHERE organization_id = $1;
-
--- name: ReleaseOrganizationUsageTraces :exec
-UPDATE organization_usage
-SET traces_ingested_bytes = GREATEST(traces_ingested_bytes - $2, 0),
-    updated_at = NOW()
-WHERE organization_id = $1;
-
--- name: ReleaseOrganizationUsageMetrics :exec
-UPDATE organization_usage
-SET metrics_ingested_bytes = GREATEST(metrics_ingested_bytes - $2, 0),
-    updated_at = NOW()
-WHERE organization_id = $1;
+WHERE id = $1;
 
 -- name: GetAppRetentionPolicy :one
 SELECT
   app.organization_id,
   COALESCE(organization.billing_plan::text, ''::text)::text AS plan_key,
   CASE WHEN organization.billing_plan IS NULL THEN 'default' ELSE 'billing' END::text AS source,
-  COALESCE(organization_usage.logs_retention_days, sqlc.arg(default_logs_retention_days)::integer) AS logs_retention_days,
-  COALESCE(organization_usage.traces_retention_days, sqlc.arg(default_traces_retention_days)::integer) AS traces_retention_days,
-  COALESCE(organization_usage.metrics_retention_days, sqlc.arg(default_metrics_retention_days)::integer) AS metrics_retention_days,
+  organization_usage.logs_retention_days AS logs_retention_days,
+  organization_usage.traces_retention_days AS traces_retention_days,
+  organization_usage.metrics_retention_days AS metrics_retention_days,
   organization_usage.ingest_limit_bytes AS logs_max_ingest_bytes_per_period,
   organization_usage.ingest_limit_bytes AS traces_max_ingest_bytes_per_period,
   organization_usage.ingest_limit_bytes AS metrics_max_ingest_bytes_per_period
@@ -144,3 +74,50 @@ FROM app
 JOIN organization ON organization.id = app.organization_id
 LEFT JOIN organization_usage ON organization_usage.organization_id = organization.id
 WHERE app.id = $1;
+
+-- name: InsertPgBossJob :one
+WITH queue_config AS (
+  SELECT
+    retry_limit,
+    retry_delay,
+    retry_backoff,
+    retry_delay_max,
+    expire_seconds,
+    retention_seconds,
+    deletion_seconds,
+    dead_letter,
+    policy
+  FROM pgboss.queue
+  WHERE name = $1
+)
+INSERT INTO pgboss.job (
+  name,
+  data,
+  priority,
+  start_after,
+  expire_seconds,
+  deletion_seconds,
+  keep_until,
+  retry_limit,
+  retry_delay,
+  retry_backoff,
+  retry_delay_max,
+  policy,
+  dead_letter
+)
+SELECT
+  $1,
+  $2,
+  0,
+  NOW(),
+  queue_config.expire_seconds,
+  queue_config.deletion_seconds,
+  NOW() + (queue_config.retention_seconds * interval '1 second'),
+  queue_config.retry_limit,
+  queue_config.retry_delay,
+  queue_config.retry_backoff,
+  queue_config.retry_delay_max,
+  queue_config.policy,
+  queue_config.dead_letter
+FROM queue_config
+RETURNING id::text;

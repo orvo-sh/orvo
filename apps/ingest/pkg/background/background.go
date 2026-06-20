@@ -8,20 +8,14 @@ import (
 	"time"
 )
 
-type Config struct {
-	DefaultTimeout time.Duration
-}
-
 type Manager struct {
 	logger *slog.Logger
-	config Config
 	wg     sync.WaitGroup
 }
 
-func New(logger *slog.Logger, config Config) *Manager {
+func New(logger *slog.Logger) *Manager {
 	return &Manager{
 		logger: logger,
-		config: config,
 	}
 }
 
@@ -40,7 +34,7 @@ func (manager *Manager) Run(fn func(ctx context.Context)) {
 			}
 		}()
 
-		ctx, cancel := context.WithTimeout(context.Background(), manager.config.DefaultTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
 		fn(ctx)

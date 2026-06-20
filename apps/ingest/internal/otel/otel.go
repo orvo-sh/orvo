@@ -17,8 +17,6 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
 )
 
-const SelfTelemetryHeader = "X-Orvo-Self-Telemetry"
-
 type Config struct {
 	ServiceName  string
 	Environment  string
@@ -54,7 +52,7 @@ func Init(ctx context.Context, config Config) (func(context.Context) error, erro
 		if config.IngestionKey != "" {
 			traceExporterOptions = append(traceExporterOptions, otlptracehttp.WithHeaders(map[string]string{
 				"Authorization":     "Bearer " + config.IngestionKey,
-				SelfTelemetryHeader: "true",
+				"X-Orvo-Self-Telemetry": "true",
 			}))
 		}
 
@@ -70,7 +68,7 @@ func Init(ctx context.Context, config Config) (func(context.Context) error, erro
 		if config.IngestionKey != "" {
 			logExporterOptions = append(logExporterOptions, otlploghttp.WithHeaders(map[string]string{
 				"Authorization":     "Bearer " + config.IngestionKey,
-				SelfTelemetryHeader: "true",
+				"X-Orvo-Self-Telemetry": "true",
 			}))
 		}
 

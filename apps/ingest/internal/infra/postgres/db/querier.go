@@ -9,29 +9,22 @@ import (
 )
 
 type Querier interface {
-	CreateOrganizationUsage(ctx context.Context, arg CreateOrganizationUsageParams) (OrganizationUsage, error)
 	GetActiveIngestionKeyByKey(ctx context.Context, key string) (GetActiveIngestionKeyByKeyRow, error)
-	GetAppRetentionPolicy(ctx context.Context, arg GetAppRetentionPolicyParams) (GetAppRetentionPolicyRow, error)
+	GetAppRetentionPolicy(ctx context.Context, id string) (GetAppRetentionPolicyRow, error)
 	GetBillingState(ctx context.Context, referenceID string) (GetBillingStateRow, error)
 	GetHeartbeatMonitorByToken(ctx context.Context, token string) (GetHeartbeatMonitorByTokenRow, error)
 	GetOrganizationUsageForUpdate(ctx context.Context, organizationID string) (OrganizationUsage, error)
 	InsertDeployment(ctx context.Context, arg InsertDeploymentParams) error
-	InsertNotificationDelivery(ctx context.Context, arg InsertNotificationDeliveryParams) error
-	ListHeartbeatMonitorDestinationIDs(ctx context.Context, heartbeatMonitorID string) ([]string, error)
+	InsertPgBossJob(ctx context.Context, arg InsertPgBossJobParams) (string, error)
 	MarkAppDeploymentsFirstReceived(ctx context.Context, id string) error
 	MarkAppHeartbeatsFirstReceived(ctx context.Context, arg MarkAppHeartbeatsFirstReceivedParams) error
 	MarkAppLogsFirstReceived(ctx context.Context, id string) error
 	MarkAppMetricsFirstReceived(ctx context.Context, id string) error
 	MarkAppTracesFirstReceived(ctx context.Context, id string) error
 	MarkHeartbeatMonitorHealthy(ctx context.Context, arg MarkHeartbeatMonitorHealthyParams) error
-	ReleaseOrganizationUsageLogs(ctx context.Context, arg ReleaseOrganizationUsageLogsParams) error
-	ReleaseOrganizationUsageMetrics(ctx context.Context, arg ReleaseOrganizationUsageMetricsParams) error
-	ReleaseOrganizationUsageTraces(ctx context.Context, arg ReleaseOrganizationUsageTracesParams) error
 	TouchIngestionKeyLastUsed(ctx context.Context, id string) error
 	UpdateDeployment(ctx context.Context, arg UpdateDeploymentParams) (int64, error)
-	UpdateOrganizationUsageLogs(ctx context.Context, arg UpdateOrganizationUsageLogsParams) error
-	UpdateOrganizationUsageMetrics(ctx context.Context, arg UpdateOrganizationUsageMetricsParams) error
-	UpdateOrganizationUsageTraces(ctx context.Context, arg UpdateOrganizationUsageTracesParams) error
+	UpdateOrganizationUsage(ctx context.Context, arg UpdateOrganizationUsageParams) error
 }
 
 var _ Querier = (*Queries)(nil)

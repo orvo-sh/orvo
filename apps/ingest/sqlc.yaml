@@ -2,7 +2,9 @@ version: "2"
 sql:
   - engine: "postgresql"
     queries: "internal/infra/postgres/queries"
-    schema: "internal/infra/postgres/migrations"
+    schema:
+      - "../../packages/db/drizzle"
+      - "internal/infra/postgres/sqlc/schema"
     gen:
       go:
         package: "pgdb"

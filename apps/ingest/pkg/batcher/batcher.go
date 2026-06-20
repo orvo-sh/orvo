@@ -23,7 +23,6 @@ type options struct {
 	batchSize     int
 	flushInterval time.Duration
 	maxQueueSize  int
-	writeTimeout  time.Duration
 }
 
 func WithBatchSize(size int) Option {
@@ -38,9 +37,6 @@ func WithMaxQueueSize(size int) Option {
 	return func(o *options) { o.maxQueueSize = size }
 }
 
-func WithWriteTimeout(timeout time.Duration) Option {
-	return func(o *options) { o.writeTimeout = timeout }
-}
 
 type Batcher[T any] struct {
 	logger  *slog.Logger
@@ -58,7 +54,6 @@ func New[T any](logger *slog.Logger, writer WriterFunc[T], opts ...Option) *Batc
 		batchSize:     1000,
 		flushInterval: 5 * time.Second,
 		maxQueueSize:  10000,
-		writeTimeout:  10 * time.Second,
 	}
 
 	for _, set := range opts {
@@ -121,7 +116,7 @@ func (b *Batcher[T]) loop() {
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), b.options.writeTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(),  120 * time.Second)
 		defer cancel()
 
 		if err := b.writeFn(ctx, batch); err != nil {

@@ -11,89 +11,14 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createOrganizationUsage = `-- name: CreateOrganizationUsage :one
-INSERT INTO organization_usage (
-  id,
-  organization_id,
-  logs_retention_days,
-  traces_retention_days,
-  metrics_retention_days,
-  current_period_start,
-  current_period_end,
-  ingest_limit_bytes
-)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING
-  id,
-  organization_id,
-  logs_retention_days,
-  traces_retention_days,
-  metrics_retention_days,
-  current_period_start,
-  current_period_end,
-  logs_ingested_bytes,
-  traces_ingested_bytes,
-  metrics_ingested_bytes,
-  ingest_limit_bytes,
-  notified_70_at,
-  notified_85_at,
-  notified_100_at,
-  created_at,
-  updated_at
-`
-
-type CreateOrganizationUsageParams struct {
-	ID                   string           `json:"id"`
-	OrganizationID       string           `json:"organization_id"`
-	LogsRetentionDays    int32            `json:"logs_retention_days"`
-	TracesRetentionDays  int32            `json:"traces_retention_days"`
-	MetricsRetentionDays int32            `json:"metrics_retention_days"`
-	CurrentPeriodStart   pgtype.Timestamp `json:"current_period_start"`
-	CurrentPeriodEnd     pgtype.Timestamp `json:"current_period_end"`
-	IngestLimitBytes     int64            `json:"ingest_limit_bytes"`
-}
-
-func (q *Queries) CreateOrganizationUsage(ctx context.Context, arg CreateOrganizationUsageParams) (OrganizationUsage, error) {
-	row := q.db.QueryRow(ctx, createOrganizationUsage,
-		arg.ID,
-		arg.OrganizationID,
-		arg.LogsRetentionDays,
-		arg.TracesRetentionDays,
-		arg.MetricsRetentionDays,
-		arg.CurrentPeriodStart,
-		arg.CurrentPeriodEnd,
-		arg.IngestLimitBytes,
-	)
-	var i OrganizationUsage
-	err := row.Scan(
-		&i.ID,
-		&i.OrganizationID,
-		&i.LogsRetentionDays,
-		&i.TracesRetentionDays,
-		&i.MetricsRetentionDays,
-		&i.CurrentPeriodStart,
-		&i.CurrentPeriodEnd,
-		&i.LogsIngestedBytes,
-		&i.TracesIngestedBytes,
-		&i.MetricsIngestedBytes,
-		&i.IngestLimitBytes,
-		&i.Notified70At,
-		&i.Notified85At,
-		&i.Notified100At,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const getAppRetentionPolicy = `-- name: GetAppRetentionPolicy :one
 SELECT
   app.organization_id,
   COALESCE(organization.billing_plan::text, ''::text)::text AS plan_key,
   CASE WHEN organization.billing_plan IS NULL THEN 'default' ELSE 'billing' END::text AS source,
-  COALESCE(organization_usage.logs_retention_days, $2::integer) AS logs_retention_days,
-  COALESCE(organization_usage.traces_retention_days, $3::integer) AS traces_retention_days,
-  COALESCE(organization_usage.metrics_retention_days, $4::integer) AS metrics_retention_days,
+  organization_usage.logs_retention_days AS logs_retention_days,
+  organization_usage.traces_retention_days AS traces_retention_days,
+  organization_usage.metrics_retention_days AS metrics_retention_days,
   organization_usage.ingest_limit_bytes AS logs_max_ingest_bytes_per_period,
   organization_usage.ingest_limit_bytes AS traces_max_ingest_bytes_per_period,
   organization_usage.ingest_limit_bytes AS metrics_max_ingest_bytes_per_period
@@ -102,13 +27,6 @@ JOIN organization ON organization.id = app.organization_id
 LEFT JOIN organization_usage ON organization_usage.organization_id = organization.id
 WHERE app.id = $1
 `
-
-type GetAppRetentionPolicyParams struct {
-	ID                          string `json:"id"`
-	DefaultLogsRetentionDays    int32  `json:"default_logs_retention_days"`
-	DefaultTracesRetentionDays  int32  `json:"default_traces_retention_days"`
-	DefaultMetricsRetentionDays int32  `json:"default_metrics_retention_days"`
-}
 
 type GetAppRetentionPolicyRow struct {
 	OrganizationID                 string      `json:"organization_id"`
@@ -122,13 +40,8 @@ type GetAppRetentionPolicyRow struct {
 	MetricsMaxIngestBytesPerPeriod pgtype.Int8 `json:"metrics_max_ingest_bytes_per_period"`
 }
 
-func (q *Queries) GetAppRetentionPolicy(ctx context.Context, arg GetAppRetentionPolicyParams) (GetAppRetentionPolicyRow, error) {
-	row := q.db.QueryRow(ctx, getAppRetentionPolicy,
-		arg.ID,
-		arg.DefaultLogsRetentionDays,
-		arg.DefaultTracesRetentionDays,
-		arg.DefaultMetricsRetentionDays,
-	)
+func (q *Queries) GetAppRetentionPolicy(ctx context.Context, id string) (GetAppRetentionPolicyRow, error) {
+	row := q.db.QueryRow(ctx, getAppRetentionPolicy, id)
 	var i GetAppRetentionPolicyRow
 	err := row.Scan(
 		&i.OrganizationID,
@@ -241,155 +154,94 @@ func (q *Queries) GetOrganizationUsageForUpdate(ctx context.Context, organizatio
 	return i, err
 }
 
-const releaseOrganizationUsageLogs = `-- name: ReleaseOrganizationUsageLogs :exec
-UPDATE organization_usage
-SET logs_ingested_bytes = GREATEST(logs_ingested_bytes - $2, 0),
-    updated_at = NOW()
-WHERE organization_id = $1
+const insertPgBossJob = `-- name: InsertPgBossJob :one
+WITH queue_config AS (
+  SELECT
+    retry_limit,
+    retry_delay,
+    retry_backoff,
+    retry_delay_max,
+    expire_seconds,
+    retention_seconds,
+    deletion_seconds,
+    dead_letter,
+    policy
+  FROM pgboss.queue
+  WHERE name = $1
+)
+INSERT INTO pgboss.job (
+  name,
+  data,
+  priority,
+  start_after,
+  expire_seconds,
+  deletion_seconds,
+  keep_until,
+  retry_limit,
+  retry_delay,
+  retry_backoff,
+  retry_delay_max,
+  policy,
+  dead_letter
+)
+SELECT
+  $1,
+  $2,
+  0,
+  NOW(),
+  queue_config.expire_seconds,
+  queue_config.deletion_seconds,
+  NOW() + (queue_config.retention_seconds * interval '1 second'),
+  queue_config.retry_limit,
+  queue_config.retry_delay,
+  queue_config.retry_backoff,
+  queue_config.retry_delay_max,
+  queue_config.policy,
+  queue_config.dead_letter
+FROM queue_config
+RETURNING id::text
 `
 
-type ReleaseOrganizationUsageLogsParams struct {
-	OrganizationID    string `json:"organization_id"`
-	LogsIngestedBytes int64  `json:"logs_ingested_bytes"`
+type InsertPgBossJobParams struct {
+	Name string `json:"name"`
+	Data []byte `json:"data"`
 }
 
-func (q *Queries) ReleaseOrganizationUsageLogs(ctx context.Context, arg ReleaseOrganizationUsageLogsParams) error {
-	_, err := q.db.Exec(ctx, releaseOrganizationUsageLogs, arg.OrganizationID, arg.LogsIngestedBytes)
-	return err
+func (q *Queries) InsertPgBossJob(ctx context.Context, arg InsertPgBossJobParams) (string, error) {
+	row := q.db.QueryRow(ctx, insertPgBossJob, arg.Name, arg.Data)
+	var id string
+	err := row.Scan(&id)
+	return id, err
 }
 
-const releaseOrganizationUsageMetrics = `-- name: ReleaseOrganizationUsageMetrics :exec
+const updateOrganizationUsage = `-- name: UpdateOrganizationUsage :exec
 UPDATE organization_usage
-SET metrics_ingested_bytes = GREATEST(metrics_ingested_bytes - $2, 0),
-    updated_at = NOW()
-WHERE organization_id = $1
-`
-
-type ReleaseOrganizationUsageMetricsParams struct {
-	OrganizationID       string `json:"organization_id"`
-	MetricsIngestedBytes int64  `json:"metrics_ingested_bytes"`
-}
-
-func (q *Queries) ReleaseOrganizationUsageMetrics(ctx context.Context, arg ReleaseOrganizationUsageMetricsParams) error {
-	_, err := q.db.Exec(ctx, releaseOrganizationUsageMetrics, arg.OrganizationID, arg.MetricsIngestedBytes)
-	return err
-}
-
-const releaseOrganizationUsageTraces = `-- name: ReleaseOrganizationUsageTraces :exec
-UPDATE organization_usage
-SET traces_ingested_bytes = GREATEST(traces_ingested_bytes - $2, 0),
-    updated_at = NOW()
-WHERE organization_id = $1
-`
-
-type ReleaseOrganizationUsageTracesParams struct {
-	OrganizationID      string `json:"organization_id"`
-	TracesIngestedBytes int64  `json:"traces_ingested_bytes"`
-}
-
-func (q *Queries) ReleaseOrganizationUsageTraces(ctx context.Context, arg ReleaseOrganizationUsageTracesParams) error {
-	_, err := q.db.Exec(ctx, releaseOrganizationUsageTraces, arg.OrganizationID, arg.TracesIngestedBytes)
-	return err
-}
-
-const updateOrganizationUsageLogs = `-- name: UpdateOrganizationUsageLogs :exec
-UPDATE organization_usage
-SET logs_ingested_bytes = $3,
-    ingest_limit_bytes = $4,
+SET metrics_ingested_bytes = $2,
+    traces_ingested_bytes = $3, 
+    logs_ingested_bytes = $4,
     notified_70_at = $5,
     notified_85_at = $6,
     notified_100_at = $7,
     updated_at = NOW()
 WHERE id = $1
-  AND organization_id = $2
 `
 
-type UpdateOrganizationUsageLogsParams struct {
-	ID                string           `json:"id"`
-	OrganizationID    string           `json:"organization_id"`
-	LogsIngestedBytes int64            `json:"logs_ingested_bytes"`
-	IngestLimitBytes  int64            `json:"ingest_limit_bytes"`
-	Notified70At      pgtype.Timestamp `json:"notified_70_at"`
-	Notified85At      pgtype.Timestamp `json:"notified_85_at"`
-	Notified100At     pgtype.Timestamp `json:"notified_100_at"`
-}
-
-func (q *Queries) UpdateOrganizationUsageLogs(ctx context.Context, arg UpdateOrganizationUsageLogsParams) error {
-	_, err := q.db.Exec(ctx, updateOrganizationUsageLogs,
-		arg.ID,
-		arg.OrganizationID,
-		arg.LogsIngestedBytes,
-		arg.IngestLimitBytes,
-		arg.Notified70At,
-		arg.Notified85At,
-		arg.Notified100At,
-	)
-	return err
-}
-
-const updateOrganizationUsageMetrics = `-- name: UpdateOrganizationUsageMetrics :exec
-UPDATE organization_usage
-SET metrics_ingested_bytes = $3,
-    ingest_limit_bytes = $4,
-    notified_70_at = $5,
-    notified_85_at = $6,
-    notified_100_at = $7,
-    updated_at = NOW()
-WHERE id = $1
-  AND organization_id = $2
-`
-
-type UpdateOrganizationUsageMetricsParams struct {
+type UpdateOrganizationUsageParams struct {
 	ID                   string           `json:"id"`
-	OrganizationID       string           `json:"organization_id"`
 	MetricsIngestedBytes int64            `json:"metrics_ingested_bytes"`
-	IngestLimitBytes     int64            `json:"ingest_limit_bytes"`
+	TracesIngestedBytes  int64            `json:"traces_ingested_bytes"`
+	LogsIngestedBytes    int64            `json:"logs_ingested_bytes"`
 	Notified70At         pgtype.Timestamp `json:"notified_70_at"`
 	Notified85At         pgtype.Timestamp `json:"notified_85_at"`
 	Notified100At        pgtype.Timestamp `json:"notified_100_at"`
 }
 
-func (q *Queries) UpdateOrganizationUsageMetrics(ctx context.Context, arg UpdateOrganizationUsageMetricsParams) error {
-	_, err := q.db.Exec(ctx, updateOrganizationUsageMetrics,
+func (q *Queries) UpdateOrganizationUsage(ctx context.Context, arg UpdateOrganizationUsageParams) error {
+	_, err := q.db.Exec(ctx, updateOrganizationUsage,
 		arg.ID,
-		arg.OrganizationID,
 		arg.MetricsIngestedBytes,
-		arg.IngestLimitBytes,
-		arg.Notified70At,
-		arg.Notified85At,
-		arg.Notified100At,
-	)
-	return err
-}
-
-const updateOrganizationUsageTraces = `-- name: UpdateOrganizationUsageTraces :exec
-UPDATE organization_usage
-SET traces_ingested_bytes = $3,
-    ingest_limit_bytes = $4,
-    notified_70_at = $5,
-    notified_85_at = $6,
-    notified_100_at = $7,
-    updated_at = NOW()
-WHERE id = $1
-  AND organization_id = $2
-`
-
-type UpdateOrganizationUsageTracesParams struct {
-	ID                  string           `json:"id"`
-	OrganizationID      string           `json:"organization_id"`
-	TracesIngestedBytes int64            `json:"traces_ingested_bytes"`
-	IngestLimitBytes    int64            `json:"ingest_limit_bytes"`
-	Notified70At        pgtype.Timestamp `json:"notified_70_at"`
-	Notified85At        pgtype.Timestamp `json:"notified_85_at"`
-	Notified100At       pgtype.Timestamp `json:"notified_100_at"`
-}
-
-func (q *Queries) UpdateOrganizationUsageTraces(ctx context.Context, arg UpdateOrganizationUsageTracesParams) error {
-	_, err := q.db.Exec(ctx, updateOrganizationUsageTraces,
-		arg.ID,
-		arg.OrganizationID,
 		arg.TracesIngestedBytes,
-		arg.IngestLimitBytes,
+		arg.LogsIngestedBytes,
 		arg.Notified70At,
 		arg.Notified85At,
 		arg.Notified100At,

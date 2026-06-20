@@ -7,6 +7,7 @@ type MessageMeta struct {
 	Signal         string
 	AppID          string
 	IngestionKeyID string
+	RetentionDays  int
 	ReceivedAt     time.Time
 }
 

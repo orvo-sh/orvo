@@ -98,18 +98,10 @@ type MetricsRaw struct {
 }
 
 type HeartbeatCheckIns struct {
-	ID                   string
-	AppID                string
-	HeartbeatMonitorID   string
-	HeartbeatName        string
-	CheckedInAt          time.Time
-	PreviousStatus       string
-	Recovered            bool
-	ExpectedEverySeconds uint32
-	GraceSeconds         uint32
-	LastCheckInAt        *time.Time
-	LastMissedAt         *time.Time
-	LastRecoveredAt      *time.Time
+	ID                 string
+	AppID              string
+	HeartbeatMonitorID string
+	CheckedInAt        time.Time
 }
 
 type InsertLogsRawParams = LogsRaw

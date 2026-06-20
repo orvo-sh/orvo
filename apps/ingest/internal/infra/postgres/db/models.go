@@ -709,6 +709,52 @@ func (ns NullNotificationSourceKind) Value() (driver.Value, error) {
 	return string(ns.NotificationSourceKind), nil
 }
 
+type PgbossJobState string
+
+const (
+	PgbossJobStateCreated   PgbossJobState = "created"
+	PgbossJobStateRetry     PgbossJobState = "retry"
+	PgbossJobStateActive    PgbossJobState = "active"
+	PgbossJobStateCompleted PgbossJobState = "completed"
+	PgbossJobStateCancelled PgbossJobState = "cancelled"
+	PgbossJobStateFailed    PgbossJobState = "failed"
+)
+
+func (e *PgbossJobState) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PgbossJobState(s)
+	case string:
+		*e = PgbossJobState(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PgbossJobState: %T", src)
+	}
+	return nil
+}
+
+type NullPgbossJobState struct {
+	PgbossJobState PgbossJobState `json:"pgboss_job_state"`
+	Valid          bool           `json:"valid"` // Valid is true if PgbossJobState is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPgbossJobState) Scan(value interface{}) error {
+	if value == nil {
+		ns.PgbossJobState, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PgbossJobState.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPgbossJobState) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PgbossJobState), nil
+}
+
 type Account struct {
 	ID                    string           `json:"id"`
 	AccountID             string           `json:"account_id"`
@@ -1028,6 +1074,48 @@ type OrganizationUsage struct {
 	Notified100At        pgtype.Timestamp `json:"notified_100_at"`
 	CreatedAt            pgtype.Timestamp `json:"created_at"`
 	UpdatedAt            pgtype.Timestamp `json:"updated_at"`
+}
+
+type PgbossJob struct {
+	ID              pgtype.UUID        `json:"id"`
+	Name            string             `json:"name"`
+	Priority        int32              `json:"priority"`
+	Data            []byte             `json:"data"`
+	State           PgbossJobState     `json:"state"`
+	RetryLimit      int32              `json:"retry_limit"`
+	RetryCount      int32              `json:"retry_count"`
+	RetryDelay      int32              `json:"retry_delay"`
+	RetryBackoff    bool               `json:"retry_backoff"`
+	RetryDelayMax   pgtype.Int4        `json:"retry_delay_max"`
+	ExpireSeconds   int32              `json:"expire_seconds"`
+	DeletionSeconds int32              `json:"deletion_seconds"`
+	SingletonKey    pgtype.Text        `json:"singleton_key"`
+	SingletonOn     pgtype.Timestamp   `json:"singleton_on"`
+	GroupID         pgtype.Text        `json:"group_id"`
+	GroupTier       pgtype.Text        `json:"group_tier"`
+	StartAfter      pgtype.Timestamptz `json:"start_after"`
+	CreatedOn       pgtype.Timestamptz `json:"created_on"`
+	StartedOn       pgtype.Timestamptz `json:"started_on"`
+	CompletedOn     pgtype.Timestamptz `json:"completed_on"`
+	KeepUntil       pgtype.Timestamptz `json:"keep_until"`
+	Output          []byte             `json:"output"`
+	DeadLetter      pgtype.Text        `json:"dead_letter"`
+	Policy          pgtype.Text        `json:"policy"`
+}
+
+type PgbossQueue struct {
+	Name             string      `json:"name"`
+	Policy           string      `json:"policy"`
+	RetryLimit       int32       `json:"retry_limit"`
+	RetryDelay       int32       `json:"retry_delay"`
+	RetryBackoff     bool        `json:"retry_backoff"`
+	RetryDelayMax    pgtype.Int4 `json:"retry_delay_max"`
+	ExpireSeconds    int32       `json:"expire_seconds"`
+	RetentionSeconds int32       `json:"retention_seconds"`
+	DeletionSeconds  int32       `json:"deletion_seconds"`
+	DeadLetter       pgtype.Text `json:"dead_letter"`
+	Partition        bool        `json:"partition"`
+	TableName        string      `json:"table_name"`
 }
 
 type Session struct {
