@@ -119,4 +119,6 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - Default to stdlib `net/http`, `context`, and focused dependencies. Do not introduce framework-heavy Go stacks unless there is a hard requirement.
 - Use `slog` with structured fields. Log operation entry with `InfoContext`, failures with `ErrorContext`, and include counts, IDs, and dependency state where useful.
 - Match the existing log tone: method-prefixed messages like `IngestTraces: ingesting traces`, no noisy debug spam, and no secrets or raw telemetry payloads in logs.
+- In Go services, if a method needs more than one business parameter, define an `Input` struct and pass that single input value instead of widening the parameter list.
+- Keep Go service logging structured and explicit. Prefer `slog.String`, `slog.Int`, `slog.Int64`, `slog.Bool`, and `slog.Any` fields over interpolated log strings so operation context stays queryable.
 - Keep helpers inside the app-local `internal/` package by default. Only introduce a local `pkg/` if there is a real second consumer and the split clearly pays for itself.
