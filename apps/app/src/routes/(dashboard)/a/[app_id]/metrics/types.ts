@@ -1,13 +1,29 @@
 import type { LogTimeFilter } from "../logs/types";
 
-type MetricAggregation = "avg" | "sum" | "min" | "max" | "count";
+type MetricAggregation =
+  | "p50"
+  | "p95"
+  | "p99"
+  | "avg"
+  | "min"
+  | "max"
+  | "count"
+  | "rate_per_sec"
+  | "rate_per_min"
+  | "increase"
+  | "total"
+  | "current";
 type MetricGroupBy = "none" | "metric" | "service" | "environment";
+type MetricEntityKind = "application" | "host" | "container";
 
 type MetricFilters = {
   search: string;
   metricName: string;
   services: string[];
   environments: string[];
+  hosts: string[];
+  containers: string[];
+  entityKinds: MetricEntityKind[];
 };
 
 type MetricFacetOption = {
@@ -22,8 +38,11 @@ type MetricCatalogItem = {
   description: string;
   points: number;
   services: number;
+  hosts: number;
+  containers: number;
   lastSeen: string;
   lastValue: number | null;
+  isMonotonic: boolean;
 };
 
 type MetricSeriesBucket = {
@@ -45,6 +64,9 @@ type MetricSample = {
   unit: string;
   serviceName: string;
   environment: string;
+  hostName: string;
+  containerName: string;
+  entityKind: string;
   time: string;
   value: number | null;
 };
@@ -61,6 +83,9 @@ type MetricsExplorerResult = {
     metrics: MetricFacetOption[];
     services: MetricFacetOption[];
     environments: MetricFacetOption[];
+    hosts: MetricFacetOption[];
+    containers: MetricFacetOption[];
+    entityKinds: MetricFacetOption[];
   };
   catalog: MetricCatalogItem[];
   series: MetricSeries[];
@@ -73,6 +98,7 @@ export type {
   LogTimeFilter,
   MetricAggregation,
   MetricCatalogItem,
+  MetricEntityKind,
   MetricFacetOption,
   MetricFilters,
   MetricGroupBy,
