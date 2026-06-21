@@ -1,12 +1,13 @@
 <script lang="ts">
+  import { cn } from "@repo/components";
   import * as Card from "@repo/components/ui/card";
   import {
     ChartContainer,
     ChartTooltip,
     type ChartConfig,
   } from "@repo/components/ui/chart";
-  import { formatNumber } from "@repo/utils";
-  import { AreaChart } from "layerchart";
+  import { Area, AreaChart, LinearGradient, Spline } from "layerchart";
+  import { formatMetricValue } from "../format";
   import type { MetricAggregation, MetricSeries } from "../types";
 
   type ChartRow = {
@@ -14,6 +15,7 @@
     [key: string]: Date | number | null;
   };
 
+  const uid = $props.id();
   const SERIES_COLORS = [
     "var(--color-chart-2)",
     "var(--color-primary)",
@@ -82,18 +84,27 @@
 
   const valueFormatter = (value: number) => {
     if (!Number.isFinite(value)) {
-      return "0";
+      return "n/a";
     }
 
-    const formatted =
-      Math.abs(value) >= 1000
-        ? formatNumber(value)
-        : Number.isInteger(value)
-          ? value.toString()
-          : value.toFixed(Math.abs(value) < 10 ? 2 : 1);
-
-    return unit && aggregation !== "count" ? `${formatted} ${unit}` : formatted;
+    return formatMetricValue(value, unit, aggregation);
   };
+
+  const latestValue = $derived.by(() => {
+    const firstSeries = displaySeries[0];
+    if (!firstSeries) {
+      return null;
+    }
+
+    for (let index = firstSeries.buckets.length - 1; index >= 0; index -= 1) {
+      const bucket = firstSeries.buckets[index];
+      if (bucket.value !== null) {
+        return bucket.value;
+      }
+    }
+
+    return null;
+  });
 
   const timeRangeMs = $derived(
     chartData.length > 1
@@ -101,39 +112,44 @@
           chartData[0].timestamp.getTime()
       : 0,
   );
+
+  const yAxisFormatter = (value: number) => valueFormatter(value);
 </script>
 
-<Card.Root class="min-h-[420px] overflow-hidden">
-  <Card.Header class="flex-row items-start justify-between gap-4 pb-3">
+<Card.Root
+  class={cn("relative overflow-hidden", loading && "pointer-events-none")}
+>
+  <div
+    class="absolute inset-0 z-10 bg-secondary opacity-0 transition-opacity"
+    class:opacity-50={loading}
+  ></div>
+
+  <Card.Header class="flex items-start justify-between gap-4">
     <div class="space-y-1">
-      <Card.Title class="text-sm font-medium">{title}</Card.Title>
-      <Card.Description>
-        {description ??
-          `${
-            aggregation === "avg"
-              ? "Average value"
-              : aggregation === "sum"
-                ? "Summed value"
-                : aggregation === "count"
-                  ? "Point count"
-                  : `${aggregation} value`
-          } over the selected range`}
-      </Card.Description>
+      <Card.Title>{title}</Card.Title>
+      {#if description}
+        <Card.Description>{description}</Card.Description>
+      {/if}
     </div>
-    {#if loading}
-      <div class="mt-1 h-2 w-2 rounded-full bg-primary"></div>
-    {/if}
+
+    <Card.Action class="pt-1.5">
+      <p
+        class="text-right text-base leading-none font-semibold tracking-normal tabular-nums"
+      >
+        {valueFormatter(latestValue ?? 0)}
+      </p>
+    </Card.Action>
   </Card.Header>
-  <Card.Content class="p-0">
-    <div class="h-[320px] w-full px-4 pb-4">
+
+  <Card.Content class="p-0 pt-0">
+    <div class="h-[190px] w-full px-4 pb-4">
       {#if hasData}
         <ChartContainer config={chartConfig} class="h-full w-full">
           <AreaChart
             data={chartData}
             x="timestamp"
-            yDomain={[0, null]}
-            padding={{ top: 8, right: 3, bottom: 3, left: 3 }}
-            axis="x"
+            padding={{ top: 10, right: 12, bottom: 4, left: 42 }}
+            axis={true}
             grid={{ x: false, y: true }}
             tooltipContext={{ mode: "band" }}
             highlight={{ lines: true, points: true }}
@@ -144,15 +160,18 @@
               color: `var(--color-series${index})`,
             }))}
             props={{
-              area: {
-                fillOpacity: displaySeries.length === 1 ? 0.16 : 0.06,
-              },
-              spline: {
-                strokeWidth: 2,
+              yAxis: {
+                format: yAxisFormatter,
+                tickLabelProps: {
+                  style:
+                    "font-weight: 600; font-family: var(--font-sans); font-variant-numeric: tabular-nums slashed-zero;",
+                  textAnchor: "start",
+                  dx: -42,
+                },
               },
               xAxis: {
                 tickLength: 8,
-                tickSpacing: 64,
+                tickSpacing: 60,
                 format: (() => {
                   const rangeHours = timeRangeMs / (1000 * 60 * 60);
 
@@ -175,11 +194,44 @@
               },
             }}
           >
+            {#snippet marks({ context })}
+              {#each context.series.visibleSeries as s, index (s.key)}
+                <LinearGradient
+                  id={`metrics-area-${uid}-${s.key}`}
+                  vertical={true}
+                >
+                  {#snippet stopsContent()}
+                    <stop
+                      offset="0%"
+                      stop-color={SERIES_COLORS[index % SERIES_COLORS.length]}
+                      stop-opacity={displaySeries.length === 1 ? 0.44 : 0.2}
+                    />
+                    <stop
+                      offset="100%"
+                      stop-color={SERIES_COLORS[index % SERIES_COLORS.length]}
+                      stop-opacity="0"
+                    />
+                  {/snippet}
+                </LinearGradient>
+                <Area
+                  seriesKey={s.key}
+                  fill={`url(#metrics-area-${uid}-${s.key})`}
+                  fillOpacity={1}
+                />
+                <Spline
+                  seriesKey={s.key}
+                  strokeWidth={2}
+                  stroke={`var(--color-${s.key})`}
+                />
+              {/each}
+            {/snippet}
+
             {#snippet tooltip()}
               {#snippet tooltipFormatter({ value }: { value: unknown })}
                 {valueFormatter(Number(value))}
               {/snippet}
               <ChartTooltip
+                class="border-transparent ring-1 ring-foreground/20"
                 labelFormatter={(value) =>
                   new Date(value).toLocaleString("en-US", {
                     month: "short",
@@ -201,22 +253,5 @@
         </div>
       {/if}
     </div>
-
-    {#if displaySeries.length > 0}
-      <div class="flex flex-wrap gap-2 border-t px-4 py-3">
-        {#each displaySeries as item, index}
-          <div
-            class="inline-flex items-center gap-2 text-xs text-muted-foreground"
-          >
-            <span
-              class="h-2 w-2 rounded-full"
-              style={`background: ${SERIES_COLORS[index % SERIES_COLORS.length]}`}
-            ></span>
-            <span class="max-w-48 truncate text-foreground">{item.name}</span>
-            <span>{formatNumber(item.points)} pts</span>
-          </div>
-        {/each}
-      </div>
-    {/if}
   </Card.Content>
 </Card.Root>
