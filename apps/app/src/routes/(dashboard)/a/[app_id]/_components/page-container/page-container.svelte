@@ -1,32 +1,29 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { cn } from "@repo/components";
-  import { buttonVariants } from "@repo/components/ui/button";
-  import * as HoverCard from "@repo/components/ui/hover-card";
   import * as Sidebar from "@repo/components/ui/sidebar";
-  import { IconArrowLeft, IconInfoCircle } from "@tabler/icons-svelte";
   import type { Snippet } from "svelte";
 
+  import { Button } from "@repo/components/ui/button";
+  import { IconChevronLeft } from "@tabler/icons-svelte";
   import PageContainerAppSwitcher from "./page-container-app-switcher.svelte";
 
   let {
     title,
-    back,
-    helper,
     actions,
     children,
     class: className = "",
     innerClass,
     scrollContent = true,
+    back,
   }: {
     title: string;
-    back?: string;
-    helper?: Snippet;
     actions?: Snippet;
     children?: Snippet;
     class?: string;
     innerClass?: string;
     scrollContent?: boolean;
+    back?: { href: string; title: string };
   } = $props();
 </script>
 
@@ -40,11 +37,24 @@
     class="sticky top-0 z-10 flex h-13 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border/90 bg-background p-2 px-3"
   >
     <div class="flex min-w-0 items-center gap-2 md:flex-1">
-      <div class="md:hidden">
+      {#if back}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="md:hidden"
+          href={back.href}
+        >
+          <IconChevronLeft />
+        </Button>
+      {/if}
+
+      <div class={cn("md:hidden", back && "hidden")}>
         <Sidebar.Trigger />
       </div>
 
-      <div class="flex min-w-0 items-center gap-0.5">
+      <div
+        class={cn("flex min-w-0 items-center gap-0.5", back && "not-md:hidden")}
+      >
         <div class="flex-1">
           <PageContainerAppSwitcher
             apps={page.data.apps}
@@ -55,37 +65,20 @@
       </div>
     </div>
 
-    <div class="flex flex-1 items-center gap-0.5 md:justify-center">
+    <div class="flex flex-1 items-center gap-2 md:justify-center">
       {#if back}
         <a
-          href={back}
-          class="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+          href={back.href}
+          class="text-sm font-normal tracking-tight text-muted-foreground not-md:hidden hover:text-secondary-foreground hover:underline"
+          >{back.title}</a
         >
-          <IconArrowLeft class="size-4" />
-          <span class="sr-only">Back</span>
-        </a>
+        <span class="font-normal text-muted-foreground/20 not-md:hidden">
+          /
+        </span>
       {/if}
-      <h1 class=" text-sm font-medium tracking-tight text-foreground">
+      <h1 class="text-sm font-normal tracking-tight text-foreground">
         {title}
       </h1>
-      {#if helper}
-        <HoverCard.Root>
-          <HoverCard.Trigger
-            class={buttonVariants({
-              variant: "ghost",
-              size: "icon-sm",
-              class: "size-6",
-            })}
-          >
-            <IconInfoCircle class="size-4 opacity-75" />
-            <span class="sr-only">Page information</span>
-          </HoverCard.Trigger>
-          <HoverCard.Content
-            class="max-w-sm min-w-72 text-sm text-secondary-foreground"
-            >{@render helper()}</HoverCard.Content
-          >
-        </HoverCard.Root>
-      {/if}
     </div>
 
     <div class="flex-1">

@@ -8,9 +8,9 @@
     variants: {
       variant: {
         default:
-          'bg-primary  border-primary text-primary-foreground [a]:hover:bg-primary/80 [a]:hover:border-primary/80  disabled:opacity-50',
+          'bg-primary not-disabled:inset-shadow-[0_1px_--theme(--color-white/16%)] border-[color-mix(in_oklab,_theme(colors.primary)_100%,_theme(colors.black)_10%)] text-primary-foreground hover:bg-[color-mix(in_oklab,_theme(colors.primary)_100%,_theme(colors.black)_5%)] disabled:opacity-50',
         outline:
-          'border-border bg-background disabled:text-muted-foreground disabled:bg-secondary hover:bg-muted hover:text-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 aria-expanded:bg-muted aria-expanded:text-foreground',
+          'border-input not-disabled:inset-shadow-[0_-2px_--theme(--color-muted)] bg-card disabled:text-muted-foreground disabled:bg-secondary hover:bg-muted hover:text-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 aria-expanded:bg-muted aria-expanded:text-foreground',
         secondary:
           'bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground disabled:opacity-50',
         ghost:
@@ -24,13 +24,13 @@
           'h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
         xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: 'h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
-        icon: 'size-8',
+        lg: 'h-10 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
+        icon: 'size-8 [&_svg]:opacity-100',
         'icon-xs':
-          "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
+          "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3 [&_svg]:opacity-100",
         'icon-sm':
-          'size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg',
-        'icon-lg': 'size-9'
+          'size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg [&_svg]:opacity-100',
+        'icon-lg': 'size-9 [&_svg]:opacity-100'
       }
     },
     defaultVariants: {

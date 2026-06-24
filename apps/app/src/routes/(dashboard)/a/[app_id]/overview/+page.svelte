@@ -2,27 +2,21 @@
   import { goto, invalidateAll } from "$app/navigation";
   import { page } from "$app/state";
   import { markOrganizationActivationTelemetryViewedCommand } from "$lib/api/organization-activation.remote";
+  import * as RightRail from "$lib/right-rail";
   import {
     completeOrganizationActivationStep,
     restoreOrganizationActivation,
   } from "$lib/stores/organization-activation.svelte";
   import { Button } from "@repo/components/ui/button";
-  import * as Dialog from "@repo/components/ui/dialog";
   import * as Select from "@repo/components/ui/select";
   import { formatNumber } from "@repo/utils";
-  import {
-    IconAlertTriangle,
-    IconChartBar,
-    IconChevronRight,
-    IconRoute,
-    IconTerminal2,
-  } from "@tabler/icons-svelte";
+  import { IconChartBar, IconRoute, IconTerminal2 } from "@tabler/icons-svelte";
 
-  import { getOpenIncidentsQuery } from "$lib/api/incidents.remote";
   import PageContainer from "../_components/page-container/page-container.svelte";
   import ChartCard from "./_components/chart-card.svelte";
   import IncidentsSection from "./_components/incidents-section.svelte";
   import { OnboardingBanner } from "./_components/onboarding-banner";
+  import ServiceSheet from "./_components/service-sheet.svelte";
   import ServicesSection from "./_components/services-section.svelte";
   import SignalSummaryCard from "./_components/signal-summary-card.svelte";
 
@@ -31,10 +25,68 @@
 
   let time = $state(data.time);
   let loading = $state(false);
-  let dialogOpen = $state(false);
-  let allIncidents = $state(data.incidents ?? []);
-  let dialogLoading = $state(false);
   let telemetryActivationSent = $state(false);
+  let selectedServiceName = $state<string | null>(null);
+
+  const rightRail = RightRail.useRightRail();
+
+  const selectedService = $derived(
+    (data.servicesNeedingAttention ?? []).find(
+      (service) => service.name === selectedServiceName,
+    ) ?? null,
+  );
+
+  const selectedServiceConnections = $derived.by(() => {
+    if (!selectedServiceName) {
+      return { incoming: [], outgoing: [] };
+    }
+
+    const incoming = new Map<
+      string,
+      { name: string; total: number; errors: number; errorRate: number }
+    >();
+    const outgoing = new Map<
+      string,
+      { name: string; total: number; errors: number; errorRate: number }
+    >();
+
+    for (const edge of data.serviceGraph?.edges ?? []) {
+      if (edge.target === selectedServiceName) {
+        incoming.set(edge.source, {
+          name: edge.source,
+          total: edge.total,
+          errors: edge.errors,
+          errorRate: edge.errorRate,
+        });
+      }
+
+      if (edge.source === selectedServiceName) {
+        outgoing.set(edge.target, {
+          name: edge.target,
+          total: edge.total,
+          errors: edge.errors,
+          errorRate: edge.errorRate,
+        });
+      }
+    }
+
+    return {
+      incoming: Array.from(incoming.values()).sort((left, right) => {
+        if (right.total !== left.total) {
+          return right.total - left.total;
+        }
+
+        return right.errors - left.errors;
+      }),
+      outgoing: Array.from(outgoing.values()).sort((left, right) => {
+        if (right.total !== left.total) {
+          return right.total - left.total;
+        }
+
+        return right.errors - left.errors;
+      }),
+    };
+  });
 
   const updateTime = async (nextTime: (typeof timeOptions)[number]) => {
     if (loading || time === nextTime) {
@@ -95,28 +147,6 @@
     })) ?? [],
   );
 
-  async function handleViewAll() {
-    dialogOpen = true;
-    if (allIncidents.length <= 3) {
-      dialogLoading = true;
-      const result = await getOpenIncidentsQuery({});
-      if (result.success) {
-        allIncidents = result.data.incidents;
-      }
-      dialogLoading = false;
-    }
-  }
-
-  function formatIncidentTimeAgo(value: Date) {
-    const seconds = Math.floor((Date.now() - new Date(value).getTime()) / 1000);
-    if (seconds < 60) return `${seconds}s`;
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h`;
-    return `${Math.floor(hours / 24)}d`;
-  }
-
   const markTelemetryViewed = async () => {
     if (telemetryActivationSent) {
       return;
@@ -154,21 +184,15 @@
 
     void markTelemetryViewed();
   });
+
+  $effect(() => {
+    if (selectedServiceName && !selectedService) {
+      selectedServiceName = null;
+    }
+  });
 </script>
 
 <PageContainer title="Overview">
-  {#snippet helper()}
-    <div class="space-y-2">
-      <p>
-        Overview shows a high-level summary of your app's health and recent
-        telemetry.
-      </p>
-      <p>
-        Use it to spot trends in logs, traces, and metrics, and to quickly see
-        any open incidents or services that need attention.
-      </p>
-    </div>
-  {/snippet}
   {#snippet actions()}
     <Select.Root
       type="single"
@@ -191,7 +215,7 @@
       </Select.Content>
     </Select.Root>
 
-    <div class="hidden gap-1 rounded-lg border bg-muted p-0.75 sm:flex">
+    <div class="hidden gap-1 rounded-lg border bg-secondary p-0.75 sm:flex">
       {#each timeOptions as t}
         <Button
           class="h-6"
@@ -264,7 +288,9 @@
     <IncidentsSection
       incidents={data.incidents ?? []}
       {loading}
-      onViewAll={handleViewAll}
+      onViewAll={() => {
+        void goto(`/a/${page.params.app_id}/incidents`);
+      }}
       appId={page.params.app_id ?? ""}
     />
 
@@ -278,69 +304,25 @@
         severity: "critical" | "warning" | "info";
         buckets: number[];
       }>}
+      {selectedServiceName}
+      onSelectService={(serviceName) => {
+        selectedServiceName =
+          selectedServiceName === serviceName ? null : serviceName;
+      }}
       {time}
       {loading}
     />
   </div>
+
+  {#if selectedService}
+    <ServiceSheet
+      service={selectedService}
+      incomingServices={selectedServiceConnections.incoming}
+      outgoingServices={selectedServiceConnections.outgoing}
+      {time}
+      onClose={() => {
+        selectedServiceName = null;
+      }}
+    />
+  {/if}
 </PageContainer>
-
-<Dialog.Root bind:open={dialogOpen}>
-  <Dialog.Content class="max-w-lg">
-    <Dialog.Header>
-      <div class="flex items-center gap-2">
-        <IconAlertTriangle class="size-4 text-destructive" />
-        <Dialog.Title class="text-sm font-semibold"
-          >All open incidents</Dialog.Title
-        >
-        {#if allIncidents.length > 0}
-          <span
-            class="inline-flex h-5 items-center justify-center rounded-full border border-transparent bg-secondary px-2 text-xs font-medium text-secondary-foreground"
-          >
-            {allIncidents.length}
-          </span>
-        {/if}
-      </div>
-      <Dialog.Description class="sr-only">
-        Full list of open alert incidents for this app.
-      </Dialog.Description>
-    </Dialog.Header>
-
-    {#if dialogLoading}
-      <div class="flex items-center justify-center py-8">
-        <div
-          class="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"
-        ></div>
-      </div>
-    {:else if allIncidents.length === 0}
-      <div class="py-6 text-center text-sm text-muted-foreground">
-        No open incidents.
-      </div>
-    {:else}
-      <div class="divide-y divide-border/70">
-        {#each allIncidents as incident (incident.id)}
-          <a
-            href={`/a/${page.params.app_id}/alerts`}
-            class="flex items-center gap-3 py-3"
-          >
-            <div
-              class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400"
-            >
-              <IconAlertTriangle class="size-4" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium">{incident.rule.name}</p>
-              <p class="line-clamp-2 text-xs text-muted-foreground">
-                {incident.rule.signalType}
-                {#if incident.lastObservedValue !== null}
-                  · value {incident.lastObservedValue}
-                {/if}
-                · open for {formatIncidentTimeAgo(incident.openedAt)}
-              </p>
-            </div>
-            <IconChevronRight class="size-4 shrink-0 text-muted-foreground" />
-          </a>
-        {/each}
-      </div>
-    {/if}
-  </Dialog.Content>
-</Dialog.Root>

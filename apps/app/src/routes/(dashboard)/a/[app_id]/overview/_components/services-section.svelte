@@ -1,14 +1,16 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { cn } from "@repo/components";
-  import { Button } from "@repo/components/ui/button";
+  import { Button, buttonVariants } from "@repo/components/ui/button";
   import * as Card from "@repo/components/ui/card";
+  import * as HoverCard from "@repo/components/ui/hover-card";
   import * as Table from "@repo/components/ui/table";
   import { formatNumber } from "@repo/utils";
   import {
     IconArrowDown,
     IconArrowUp,
     IconChevronRight,
+    IconInfoCircle,
   } from "@tabler/icons-svelte";
 
   type ServiceRow = {
@@ -24,10 +26,14 @@
   let {
     services,
     time,
+    selectedServiceName = null,
+    onSelectService,
     loading = false,
   }: {
     services: ServiceRow[];
     time: "30m" | "1h" | "4h" | "24h" | "7d";
+    selectedServiceName?: string | null;
+    onSelectService: (serviceName: string) => void;
     loading?: boolean;
   } = $props();
 
@@ -46,9 +52,6 @@
   const viewAllHref = $derived(
     `/a/${page.params.app_id}/service-map?t=${encodeURIComponent(timePreset)}`,
   );
-
-  const getServiceHref = (serviceName: string) =>
-    `/a/${page.params.app_id}/service-map?t=${encodeURIComponent(timePreset)}&service=${encodeURIComponent(serviceName)}`;
 
   const formatLatency = (value: number) => {
     if (value <= 0) {
@@ -73,10 +76,10 @@
   const formatThroughput = (value: number) => {
     const perSecond = value / timeSeconds;
     if (perSecond >= 1000) {
-      return `${(perSecond / 1000).toFixed(1)}k/s`;
+      return `${(perSecond / 1000).toFixed(1)}k traces/s`;
     }
 
-    return `${perSecond.toFixed(1)}/s`;
+    return `${perSecond.toFixed(1)} traces/s`;
   };
 
   const formatErrors = (value: number) => {
@@ -134,15 +137,39 @@
 </script>
 
 <section class="flex flex-col">
-  <div class="flex items-center justify-between">
-    <div class="flex flex-1 items-center gap-0 px-3 py-0.5">
+  <div
+    class="flex translate-y-2 items-center justify-between rounded-t-xl border border-foreground/10 bg-secondary pb-2 inset-shadow-[0px_1px_--theme(--color-white)]"
+  >
+    <div class="flex flex-1 items-center gap-1 px-3.5 py-0.5">
       <h2 class="text-sm font-normal tracking-tight text-secondary-foreground">
         Services
       </h2>
+      <HoverCard.Root openDelay={50} closeDelay={50}>
+        <HoverCard.Trigger
+          aria-label="What are services?"
+          class={buttonVariants({
+            variant: "ghost",
+            size: "icon-sm",
+          })}
+        >
+          <IconInfoCircle
+            class="size-3.5 text-secondary-foreground opacity-75"
+          />
+        </HoverCard.Trigger>
+        <HoverCard.Content class="w-64 text-sm" side="top" align="start">
+          <div class="space-y-2">
+            <p>Services ranked by health across the selected time window.</p>
+            <p>
+              Throughput is traces per second, Rate is the percentage of failed
+              traces, and P95 is the 95th percentile latency.
+            </p>
+          </div>
+        </HoverCard.Content>
+      </HoverCard.Root>
     </div>
     <Button
       variant="ghost"
-      class="gap-1 text-secondary-foreground"
+      class="gap-1 text-secondary-foreground underline"
       disabled={loading}
       href={viewAllHref}
     >
@@ -168,26 +195,30 @@
         <Table.Root>
           <Table.Header>
             <Table.Row class="hover:bg-transparent">
-              <Table.Head class="pl-4">Service</Table.Head>
-              <Table.Head>Throughput</Table.Head>
-              <Table.Head>Errors</Table.Head>
-              <Table.Head>Rate</Table.Head>
-              <Table.Head class="pr-4">P95</Table.Head>
+              <Table.Head class="pl-4 font-normal">Service</Table.Head>
+              <Table.Head class="font-normal">Throughput</Table.Head>
+              <Table.Head class="font-normal">Errors</Table.Head>
+              <Table.Head class="font-normal">Rate</Table.Head>
+              <Table.Head class="pr-4 font-normal">p95</Table.Head>
             </Table.Row>
           </Table.Header>
           <Table.Body>
             {#each services as service (service.name)}
               <Table.Row
-                class="cursor-pointer"
-                role="link"
+                class={cn(
+                  "cursor-pointer",
+                  selectedServiceName === service.name && "bg-muted/50",
+                )}
+                role="button"
                 tabindex={0}
+                aria-pressed={selectedServiceName === service.name}
                 onclick={() => {
-                  window.location.href = getServiceHref(service.name);
+                  onSelectService(service.name);
                 }}
                 onkeydown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    window.location.href = getServiceHref(service.name);
+                    onSelectService(service.name);
                   }
                 }}
               >

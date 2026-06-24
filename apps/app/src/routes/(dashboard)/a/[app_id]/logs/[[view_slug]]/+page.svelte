@@ -24,7 +24,6 @@
   import {
     IconChevronDown,
     IconDeviceFloppy,
-    IconFileDescription,
     IconPencil,
     IconReload,
     IconTrash,
@@ -832,29 +831,6 @@
   innerClass="p-0!"
   scrollContent={false}
 >
-  {#snippet helper()}
-    <div class="space-y-2">
-      <p>
-        Logs represent structured records emitted by your services and
-        infrastructure during runtime.
-      </p>
-      <p>
-        Each entry captures the log body along with metadata like severity,
-        service, environment, and trace context so you can filter operational
-        activity and correlate it back to the request or trace that produced it.
-      </p>
-      <Button
-        href="https://orvo.sh/docs/logs"
-        size="sm"
-        target="_blank"
-        variant="outline"
-        class="mt-2 w-full"
-      >
-        <IconFileDescription data-slot="button-icon" />
-        Logs docs
-      </Button>
-    </div>
-  {/snippet}
   {#snippet actions()}
     <ButtonGroup.Root>
       <Button

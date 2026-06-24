@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { mode } from 'mode-watcher';
   import {
-    IconAlertCircle as WarningIcon,
-    IconCircleCheck as CheckCircleIcon,
-    IconCircleX as XCircleIcon,
-    IconInfoCircle as InfoIcon,
-    IconLoader2 as SpinnerIcon
+    IconCircleCheckFilled as CheckCircleIcon,
+    IconInfoCircleFilled as InfoIcon,
+    IconLoader2 as SpinnerIcon,
+    IconAlertCircleFilled as WarningIcon,
+    IconCircleXFilled as XCircleIcon
   } from '@tabler/icons-svelte';
+  import { mode } from 'mode-watcher';
   import { Toaster as Sonner, type ToasterProps as SonnerProps } from 'svelte-sonner';
 
   let { ...restProps }: SonnerProps = $props();

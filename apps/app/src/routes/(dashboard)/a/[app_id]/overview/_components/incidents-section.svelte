@@ -1,9 +1,8 @@
 <script lang="ts">
   import { alertSignalOptions } from "$lib/alerts";
-  import { Button } from "@repo/components/ui/button";
+  import { Button, buttonVariants } from "@repo/components/ui/button";
   import * as Card from "@repo/components/ui/card";
   import * as HoverCard from "@repo/components/ui/hover-card";
-  import { buttonVariants } from "@repo/components/ui/button";
   import {
     IconAlertTriangle,
     IconChevronRight,
@@ -12,16 +11,18 @@
 
   type IncidentItem = {
     id: string;
-    status: "open" | "resolved";
+    status: "open" | "resolved" | "dismissed";
     openedAt: Date;
     lastObservedValue: number | null;
     entityType: "app" | "host" | "container";
     entityName: string | null;
-    rule: {
+    sourceType: "alert" | "heartbeat" | "host";
+    title: string;
+    rule?: {
       id: string;
       name: string;
       signalType: string;
-    };
+    } | null;
   };
 
   let {
@@ -38,7 +39,6 @@
 
   const limit = 3;
   const visible = $derived(incidents.slice(0, limit));
-  const hasMore = $derived(incidents.length > limit);
 
   const signalLabels = Object.fromEntries(
     alertSignalOptions.map((o) => [o.value, o.label]),
@@ -57,8 +57,10 @@
 </script>
 
 <section class="flex flex-col">
-  <div class="flex items-center justify-between">
-    <div class="flex flex-1 items-center gap-0 px-3 py-0.5">
+  <div
+    class="flex translate-y-2 items-center justify-between rounded-t-xl border border-foreground/10 bg-secondary pb-2 inset-shadow-[0px_1px_--theme(--color-white)]"
+  >
+    <div class="flex flex-1 items-center gap-0 px-3.5 py-0.5">
       <h2 class="text-sm font-normal tracking-tight text-secondary-foreground">
         Open incidents
       </h2>
@@ -77,15 +79,15 @@
           class="max-w-sm min-w-72 text-sm text-secondary-foreground"
         >
           <p>
-            Open incidents are created when an alert rule's signal crosses its
-            threshold. They are resolved automatically when the signal recovers.
+            Open incidents track active alert, heartbeat, and host failures.
+            They are resolved automatically when the underlying signal recovers.
           </p>
         </HoverCard.Content>
       </HoverCard.Root>
     </div>
     <Button
       variant="ghost"
-      class="gap-1 text-secondary-foreground"
+      class="gap-1 text-secondary-foreground underline"
       disabled={loading}
       onclick={onViewAll}
     >
@@ -105,13 +107,13 @@
         <div
           class="flex items-center justify-center py-8 text-sm text-muted-foreground"
         >
-          No open incidents. All alert rules are healthy.
+          No open incidents.
         </div>
       {:else}
         <div class="divide-y divide-border">
           {#each visible as incident (incident.id)}
             <a
-              href={`/a/${appId}/alerts`}
+              href={`/a/${appId}/incidents/${incident.id}`}
               class="flex cursor-pointer items-center gap-3 p-3 transition-colors hover:bg-muted/50"
             >
               <div
@@ -121,7 +123,9 @@
               </div>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
-                  <p class="text-sm font-medium">{incident.rule.name}</p>
+                  <p class="text-sm font-medium">
+                    {incident.rule?.name ?? incident.title}
+                  </p>
                   <span
                     class="inline-flex items-center rounded-full border border-transparent bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/20 dark:text-red-400"
                   >
@@ -129,8 +133,10 @@
                   </span>
                 </div>
                 <p class="line-clamp-2 text-xs text-muted-foreground">
-                  {signalLabels[incident.rule.signalType] ??
-                    incident.rule.signalType}
+                  {incident.rule
+                    ? (signalLabels[incident.rule.signalType] ??
+                        incident.rule.signalType)
+                    : incident.sourceType}
                   {#if incident.lastObservedValue !== null}
                     · value {incident.lastObservedValue}
                   {/if}

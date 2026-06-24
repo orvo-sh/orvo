@@ -17,7 +17,7 @@
 
 <Card.Root class={cn("relative", loading && "pointer-events-none")}>
   <div
-    class="absolute top-0 h-full w-full bg-secondary opacity-0 transition-opacity"
+    class="pointer-events-none absolute top-0 h-full w-full bg-secondary opacity-0 transition-opacity"
     class:opacity-50={loading}
   ></div>
 

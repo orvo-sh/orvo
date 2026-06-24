@@ -35,6 +35,7 @@ export const load = (async ({ url, locals, params, parent }) => {
     keyRes,
     incidentsRes,
     serviceSummaryRes,
+    serviceGraphRes,
   ] = await Promise.all([
     locals.container.logsService.getLogsTrend(
       { time: timeFilter },
@@ -73,6 +74,10 @@ export const load = (async ({ url, locals, params, parent }) => {
       { time: timeFilter },
       { appId: params.app_id },
     ),
+    locals.container.tracesService.getServiceGraph(
+      { time: timeFilter },
+      { appId: params.app_id },
+    ),
   ]);
 
   if (
@@ -82,7 +87,8 @@ export const load = (async ({ url, locals, params, parent }) => {
     !traceMetricsRes.success ||
     !keyRes.success ||
     !incidentsRes.success ||
-    !serviceSummaryRes.success
+    !serviceSummaryRes.success ||
+    !serviceGraphRes.success
   )
     error(500, "Failed to load overview data.");
 
@@ -144,5 +150,6 @@ export const load = (async ({ url, locals, params, parent }) => {
       !!currentApp.metricsFirstReceivedAt,
     incidents: incidentsRes.data.incidents,
     servicesNeedingAttention,
+    serviceGraph: serviceGraphRes.data,
   };
 }) satisfies PageServerLoad;

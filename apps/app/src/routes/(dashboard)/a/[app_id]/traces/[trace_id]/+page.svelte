@@ -1,20 +1,19 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { resolve } from "$app/paths";
   import { getTraceQuery } from "$lib/api/traces.remote";
+  import { Badge } from "@repo/components/ui/badge";
+  import { Button } from "@repo/components/ui/button";
   import {
-    IconAlertCircle as WarningCircleIcon,
-    IconBinaryTree2 as TreeStructureIcon,
     IconCheck as CheckIcon,
     IconCopy as CopyIcon,
+    IconBinaryTree2 as TreeStructureIcon,
+    IconAlertCircle as WarningCircleIcon,
   } from "@tabler/icons-svelte";
-  import { Button } from "@repo/components/ui/button";
-  import { Badge } from "@repo/components/ui/badge";
-  import { formatDuration } from "../utils";
-  import SpanWaterfall from "./_components/span-waterfall.svelte";
-  import SpanDetailPanel from "./_components/span-detail-panel.svelte";
   import PageContainer from "../../_components/page-container/page-container.svelte";
   import type { SpanRow } from "../types";
+  import { formatDuration } from "../utils";
+  import SpanDetailPanel from "./_components/span-detail-panel.svelte";
+  import SpanWaterfall from "./_components/span-waterfall.svelte";
 
   const traceId = $derived(page.params.trace_id ?? "");
   let spans = $state<SpanRow[]>([]);
@@ -104,7 +103,6 @@
 
 <PageContainer
   title={traceMeta?.name ?? "Trace"}
-  back={resolve(`/a/${page.params.app_id}/traces`)}
   class="min-h-0 overflow-hidden"
   innerClass="p-0!"
   scrollContent={false}

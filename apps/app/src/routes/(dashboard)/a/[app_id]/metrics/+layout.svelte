@@ -158,7 +158,7 @@
   >
     <aside class="relative min-h-0 border-r bg-background">
       <div
-        class="absolute inset-0 z-20 bg-secondary opacity-0 transition-opacity"
+        class="pointer-events-none absolute inset-0 z-20 bg-secondary opacity-0 transition-opacity"
         class:opacity-50={loading}
       ></div>
 

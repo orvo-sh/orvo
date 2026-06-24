@@ -7,8 +7,6 @@
     completeOrganizationActivationStep,
     restoreOrganizationActivation,
   } from "$lib/stores/organization-activation.svelte";
-  import { Button } from "@repo/components/ui/button";
-  import { IconFileDescription } from "@tabler/icons-svelte";
   import TraceSearchBar from "../_components/filter-builder/filter-builder.svelte";
   import LiveRefreshButtonGroup from "../_components/live-refresh-button-group.svelte";
   import PageContainer from "../_components/page-container/page-container.svelte";
@@ -192,30 +190,6 @@
 </script>
 
 <PageContainer title="Traces" class="min-h-0 overflow-hidden" innerClass="p-0!">
-  {#snippet helper()}
-    <div class="space-y-2">
-      <p>
-        Traces represent distributed request flows across your services and
-        infrastructure.
-      </p>
-      <p>
-        Each trace captures the full path of a request through your system,
-        including timing, service dependencies, and status so you can identify
-        bottlenecks and errors.
-      </p>
-      <Button
-        href="https://orvo.sh/docs/traces"
-        size="sm"
-        target="_blank"
-        variant="outline"
-        class="mt-2 w-full"
-      >
-        <IconFileDescription data-slot="button-icon" />
-        Traces docs
-      </Button>
-    </div>
-  {/snippet}
-
   {#snippet actions()}
     <LiveRefreshButtonGroup bind:live {refresh} />
   {/snippet}

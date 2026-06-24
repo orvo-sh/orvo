@@ -120,7 +120,7 @@
   class={cn("relative overflow-hidden", loading && "pointer-events-none")}
 >
   <div
-    class="absolute inset-0 z-10 bg-secondary opacity-0 transition-opacity"
+    class="pointer-events-none absolute inset-0 z-10 bg-secondary opacity-0 transition-opacity"
     class:opacity-50={loading}
   ></div>
 
