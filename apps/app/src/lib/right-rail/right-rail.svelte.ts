@@ -1,8 +1,7 @@
-import { getContext, setContext, type Snippet } from "svelte";
+import { getContext, setContext, type Component } from "svelte";
 
-type RightRailPortalConfig = {
+type RightRailOptions = {
   id: string;
-  open: boolean;
   persistOnNavigation?: boolean;
   widthClass?: string;
   class?: string;
@@ -14,7 +13,8 @@ type RightRailPanel = {
   persistOnNavigation: boolean;
   widthClass: string;
   className: string;
-  children: Snippet;
+  component: Component<any>;
+  props: Record<string, unknown>;
 };
 
 class RightRailState {
@@ -29,27 +29,21 @@ class RightRailState {
     return this.active !== null;
   }
 
-  props = (config: RightRailPortalConfig) => config;
-
-  mount = (
-    config: Omit<RightRailPortalConfig, "open"> & {
-      children: Snippet;
+  show = (
+    options: RightRailOptions & {
+      component: Component<any>;
+      props?: Record<string, unknown>;
     },
   ) => {
     this.active = {
-      id: config.id,
+      id: options.id,
       ownerPath: this.#getPath(),
-      persistOnNavigation: config.persistOnNavigation ?? false,
-      widthClass: config.widthClass ?? "w-96 min-w-96",
-      className: config.class ?? "",
-      children: config.children,
+      persistOnNavigation: options.persistOnNavigation ?? false,
+      widthClass: options.widthClass ?? "sm:max-w-3xl",
+      className: options.class ?? "",
+      component: options.component,
+      props: options.props ?? {},
     };
-  };
-
-  unmount = (id: string) => {
-    if (this.active?.id === id) {
-      this.active = null;
-    }
   };
 
   close = (id?: string) => {
@@ -83,4 +77,4 @@ const setRightRail = (getPath: () => string) =>
 const useRightRail = () => getContext<RightRailState>(RIGHT_RAIL_CONTEXT_KEY);
 
 export { setRightRail, useRightRail };
-export type { RightRailPortalConfig };
+export type { RightRailOptions };

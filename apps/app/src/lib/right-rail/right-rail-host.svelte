@@ -15,7 +15,10 @@
       class={`w-full p-0 sm:max-w-none ${rightRail.active.widthClass} ${rightRail.active.className}`.trim()}
       showCloseButton={false}
     >
-      {@render rightRail.active.children()}
+      <svelte:component
+        this={rightRail.active.component}
+        {...rightRail.active.props}
+      />
     </Sheet.Content>
   </Sheet.Root>
 {/if}

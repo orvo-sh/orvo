@@ -190,6 +190,29 @@
       selectedServiceName = null;
     }
   });
+
+  $effect(() => {
+    if (!selectedService) {
+      rightRail.close("overview-service");
+      return;
+    }
+
+    rightRail.show({
+      id: "overview-service",
+      component: ServiceSheet,
+      persistOnNavigation: false,
+      widthClass: "sm:max-w-3xl",
+      props: {
+        service: selectedService,
+        incomingServices: selectedServiceConnections.incoming,
+        outgoingServices: selectedServiceConnections.outgoing,
+        time,
+        onClose: () => {
+          selectedServiceName = null;
+        },
+      },
+    });
+  });
 </script>
 
 <PageContainer title="Overview">
@@ -313,16 +336,4 @@
       {loading}
     />
   </div>
-
-  {#if selectedService}
-    <ServiceSheet
-      service={selectedService}
-      incomingServices={selectedServiceConnections.incoming}
-      outgoingServices={selectedServiceConnections.outgoing}
-      {time}
-      onClose={() => {
-        selectedServiceName = null;
-      }}
-    />
-  {/if}
 </PageContainer>
