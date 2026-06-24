@@ -27,6 +27,7 @@ import { Encryption } from "@repo/encryption";
 import { Logger } from "@repo/logger";
 import { Storage } from "@repo/storage";
 import Stripe from "stripe";
+
 import { Email } from "./email";
 
 const db = getDb(env.POSTGRES_URL);
@@ -50,11 +51,6 @@ const email = new Email({
   transport: dev ? "console" : "resend",
 });
 const encryption = new Encryption({ secret: env.ENCRYPTION_SECRET });
-
-const cdnBaseUrl = process.env.CDN_BASE_URL ?? env.CDN_BASE_URL;
-
-//TODO: Make this configurable in the future, but for now, we can hardcode it to the public ingest endpoint.
-const publicOtlpBaseUrl = "https://ingest.orvo.sh";
 
 const createServerContainer = (logger: Logger) => {
   const ingestionKeyService = new IngestionKeyService(db, logger);
@@ -84,19 +80,27 @@ const createServerContainer = (logger: Logger) => {
   const incidentService = new IncidentService(db, logger);
   const metricsService = new MetricsService(clickhouse, logger);
   const deploymentService = new DeploymentService(db, clickhouse, logger);
-  const heartbeatService = new HeartbeatService(db, clickhouse, logger, {
-    ingestBaseUrl: publicOtlpBaseUrl,
-  });
   const hostMonitoringService = new HostMonitoringService(
     db,
     clickhouse,
     encryption,
     logger,
+    incidentService,
     ingestionKeyService,
     {
-      appBaseUrl: process.env.ORIGIN ?? env.ORIGIN,
-      cdnBaseUrl,
-      otlpBaseUrl: publicOtlpBaseUrl,
+      appBaseUrl: env.ORIGIN,
+      cdnBaseUrl: env.CDN_BASE_URL,
+      otlpBaseUrl: env.INGEST_BASE_URL,
+    },
+  );
+  const heartbeatService = new HeartbeatService(
+    db,
+    clickhouse,
+    logger,
+    incidentService,
+    {
+      appBaseUrl: env.ORIGIN,
+      ingestBaseUrl: env.INGEST_BASE_URL,
     },
   );
   const appService = new AppService(
@@ -111,7 +115,7 @@ const createServerContainer = (logger: Logger) => {
   );
   const onboardingService = new OnboardingService(
     ingestionKeyService,
-    { otlpBaseUrl: publicOtlpBaseUrl },
+    { otlpBaseUrl: env.INGEST_BASE_URL },
     logger,
   );
   const billingService = stripe
@@ -122,7 +126,7 @@ const createServerContainer = (logger: Logger) => {
     })
     : null;
   const uploadService = new UploadService(logger, storage, {
-    cdnBaseUrl,
+    cdnBaseUrl: env.CDN_BASE_URL,
     maxUploadSizeBytes: MAX_UPLOAD_FILE_SIZE_BYTES,
   });
 
@@ -176,14 +180,38 @@ const createWorkerContainer = (logger: Logger) => {
     encryption,
     email,
   );
-  const heartbeatService = new HeartbeatService(db, clickhouse, logger, {
-    ingestBaseUrl: publicOtlpBaseUrl,
-  });
+  const incidentService = new IncidentService(db, logger);
+  const heartbeatService = new HeartbeatService(
+    db,
+    clickhouse,
+    logger,
+    incidentService,
+    {
+      appBaseUrl: env.ORIGIN,
+      ingestBaseUrl: env.INGEST_BASE_URL,
+    },
+  );
+  const ingestionKeyService = new IngestionKeyService(db, logger);
+  const hostMonitoringService = new HostMonitoringService(
+    db,
+    clickhouse,
+    encryption,
+    logger,
+    incidentService,
+    ingestionKeyService,
+    {
+      appBaseUrl: env.ORIGIN,
+      cdnBaseUrl: env.CDN_BASE_URL,
+      otlpBaseUrl: env.INGEST_BASE_URL,
+    },
+  );
 
   return {
     clickhouse,
     db,
     heartbeatService,
+    hostMonitoringService,
+    incidentService,
     notificationDeliveryService,
   };
 };

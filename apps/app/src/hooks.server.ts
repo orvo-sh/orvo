@@ -7,7 +7,7 @@ import {
   themeModeCookieName,
 } from "$lib/theme/theme";
 import { Logger } from "@repo/logger";
-import { genId } from "@repo/utils";
+import { genId, sleep } from "@repo/utils";
 import { svelteKitHandler } from "better-auth/svelte-kit";
 import { loggerProvider } from "./instrumentation.server";
 
@@ -15,6 +15,11 @@ const baseLogger = new Logger("Orvo", { pretty: dev, loggerProvider });
 void ensureWorkersStarted(baseLogger);
 
 export const handle = async ({ event, resolve }) => {
+
+  if (dev) {
+    await sleep(1000)
+  }
+
   const startTime = Date.now();
   const requestId = genId("req");
   const themeMode = resolveThemeMode(event.cookies.get(themeModeCookieName));

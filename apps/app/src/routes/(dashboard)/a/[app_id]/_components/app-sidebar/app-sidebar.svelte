@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { kbdShortcut } from "$lib/utils/kbd-shortcut";
+  import { cn } from "@repo/components";
   import * as Sidebar from "@repo/components/ui/sidebar";
   import {
     IconBook2 as BookOpenTextIcon,
@@ -9,9 +8,9 @@
     IconCaretRightFilled,
   } from "@tabler/icons-svelte";
 
-  import { cn } from "@repo/components";
   import { generateAppNavigationGroups } from "./app-sidebar-naviagation-groups";
   import AppSidebarOrganizationSwitcher from "./app-sidebar-organization-switcher.svelte";
+  import AppSidebarTrialCard from "./app-sidebar-trial-card.svelte";
   import AppSidebarUsageCard from "./app-sidebar-usage-card.svelte";
   import AppSidebarUserNav from "./app-sidebar-user-nav.svelte";
 
@@ -35,6 +34,9 @@
     };
     billingSummary: {
       billingPlan: string | null;
+      billingStatus: "trialing" | "active" | "past_due" | null;
+      trialStart: Date | string | null;
+      trialEnd: Date | string | null;
       includedBytes: number;
       usedBytes: number;
       logsIngestedBytes: number;
@@ -54,6 +56,8 @@
       name: string;
     }>;
   };
+
+  const sidebar = Sidebar.useSidebar();
 
   const currentAppId = $derived(
     (page.data as DashboardPageData | undefined)?.currentApp?.id ?? "",
@@ -77,22 +81,6 @@
       [label]: !collapsedGroups[label],
     };
   };
-
-  $effect(() => {
-    return kbdShortcut({
-      ...Object.fromEntries(
-        navigationGroups
-          .flatMap((group) => group.items)
-          .filter((item: any) => item?.shortcut)
-          .map((item: any) => [
-            item.shortcut,
-            () => {
-              void goto(item.href);
-            },
-          ]),
-      ),
-    });
-  });
 </script>
 
 <Sidebar.Root
@@ -140,17 +128,23 @@
               <Sidebar.MenuItem>
                 {@const Icon = item.icon}
                 {@const href = item.href}
-                {@const isActive = page.url.pathname == href}
+                {@const isActive = page.url.pathname.includes(href)}
                 <Sidebar.MenuButton
                   class="group/menu-btn relative gap-2.5 overflow-visible"
                   {isActive}
                   tooltipContent={item.label}
                 >
                   {#snippet child({ props })}
-                    <a {href} {...props}>
+                    <a
+                      {href}
+                      {...props}
+                      onclick={() => {
+                        if (sidebar.isMobile) sidebar.setOpenMobile(false);
+                      }}
+                    >
                       {#if isActive}
                         <span
-                          class="absolute -left-2 h-5.5 w-1 rounded-r-md bg-primary/80"
+                          class="absolute -left-2 h-4 w-1 rounded-r-md bg-primary/80"
                         >
                         </span>
                       {/if}
@@ -165,7 +159,7 @@
                     {#each item.submenu as subitem (subitem.href)}
                       <Sidebar.MenuSubItem>
                         <Sidebar.MenuSubButton
-                          isActive={page.url.pathname === subitem.href}
+                          isActive={page.url.pathname.includes(subitem.href)}
                         >
                           {#snippet child({ props }: any)}
                             <a href={subitem.href} {...props}>
@@ -186,6 +180,13 @@
   </Sidebar.Content>
 
   <Sidebar.Footer class="gap-0 border-t border-sidebar-border/80 p-0">
+    {#if billingSummary?.billingStatus === "trialing" && billingSummary.trialEnd}
+      <AppSidebarTrialCard
+        href={`${settingsHref}/billing`}
+        trialStart={billingSummary.trialStart}
+        trialEnd={billingSummary.trialEnd}
+      />
+    {/if}
     <AppSidebarUsageCard
       includedBytes={billingSummary?.includedBytes ?? 0}
       logsIngestedBytes={billingSummary?.logsIngestedBytes ?? 0}
@@ -202,10 +203,16 @@
               tooltipContent="Settings"
             >
               {#snippet child({ props }: any)}
-                <a href={settingsHref} {...props}>
+                <a
+                  href={settingsHref}
+                  {...props}
+                  onclick={() => {
+                    if (sidebar.isMobile) sidebar.setOpenMobile(false);
+                  }}
+                >
                   {#if page.url.pathname.startsWith(settingsHref)}
                     <span
-                      class="absolute -left-2 h-5.5 w-1 rounded-r-md bg-primary/80"
+                      class="absolute -left-2 h-4 w-1 rounded-r-md bg-primary/80"
                     >
                     </span>
                   {/if}

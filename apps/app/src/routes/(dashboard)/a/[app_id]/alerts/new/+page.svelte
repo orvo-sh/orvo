@@ -6,42 +6,67 @@
     type AlertRuleFormValue,
   } from "$lib/alerts";
   import { createAlertRuleCommand } from "$lib/api/alert-rules.remote";
-  import { getNotificationDestinationsQuery } from "$lib/api/notification-destinations.remote";
   import {
     completeOrganizationActivationStep,
     restoreOrganizationActivation,
   } from "$lib/stores/organization-activation.svelte";
-  import { onMount } from "svelte";
   import PageContainer from "../../_components/page-container/page-container.svelte";
   import AlertRuleForm from "../_components/alert-rule-form.svelte";
 
-  let loading = $state(true);
+  let { data } = $props();
+
   let submitting = $state(false);
   let error = $state("");
-  let destinations = $state<
-    Array<{ id: string; name: string; isEnabled: boolean; kind: string }>
-  >([]);
-  let form = $state<AlertRuleFormValue>(createEmptyAlertRuleForm());
+  let form = $state<AlertRuleFormValue>((() => {
+    const next = createEmptyAlertRuleForm();
+    const signalType = page.url.searchParams.get("signalType");
+    const name = page.url.searchParams.get("name");
+    const hostNames = page.url.searchParams.get("hostNames");
+    const containerNames = page.url.searchParams.get("containerNames");
 
-  const loadDestinations = async () => {
-    loading = true;
-    error = "";
-
-    const result = await getNotificationDestinationsQuery({}).run();
-    if (result.success === false) {
-      error = result.error;
-      loading = false;
-      return;
+    if (
+      signalType &&
+      [
+        "host_cpu_utilization",
+        "host_memory_utilization",
+        "host_filesystem_utilization",
+        "host_reporting_stale",
+        "container_cpu_utilization",
+        "container_memory_utilization",
+        "container_reporting_stale",
+      ].includes(signalType)
+    ) {
+      next.signalType = signalType as AlertRuleFormValue["signalType"];
     }
 
-    destinations = result.data.destinations.map((destination) => ({
+    if (name) {
+      next.name = name;
+    }
+
+    if (hostNames) {
+      next.scope.hostNames.include = hostNames
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+    }
+
+    if (containerNames) {
+      next.scope.containerNames.include = containerNames
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+    }
+
+    return next;
+  })());
+  const destinations = $derived(
+    data.destinations.map((destination) => ({
       id: destination.id,
       name: destination.name,
       isEnabled: destination.isEnabled,
       kind: destination.kind,
-    }));
-    loading = false;
-  };
+    })),
+  );
 
   const submit = async () => {
     submitting = true;
@@ -64,25 +89,15 @@
     void invalidateAll();
     await goto(`/a/${page.params.app_id}/alerts/${result.data.id}`);
   };
-
-  onMount(() => {
-    void loadDestinations();
-  });
 </script>
 
 <PageContainer title="New alert rule">
-  {#if loading}
-    <div class="rounded-xl border px-4 py-8 text-sm text-muted-foreground">
-      Loading...
-    </div>
-  {:else}
-    <AlertRuleForm
-      bind:form
-      {destinations}
-      {submitting}
-      {error}
-      submitLabel="Create rule"
-      onSubmit={submit}
-    />
-  {/if}
+  <AlertRuleForm
+    bind:form
+    {destinations}
+    {submitting}
+    {error}
+    submitLabel="Create rule"
+    onSubmit={submit}
+  />
 </PageContainer>

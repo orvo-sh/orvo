@@ -74,6 +74,9 @@ importers:
       '@repo/encryption':
         specifier: workspace:*
         version: link:../../packages/encryption
+      '@repo/host-agent':
+        specifier: workspace:*
+        version: link:../../packages/host-agent
       '@repo/logger':
         specifier: workspace:*
         version: link:../../packages/logger

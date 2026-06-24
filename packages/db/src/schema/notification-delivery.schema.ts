@@ -1,6 +1,7 @@
 import { index, integer, jsonb, pgEnum, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
 import { app } from './app.schema.js';
+import { incident } from './incident.schema.js';
 import { notificationDestination } from './notification-destination.schema.js';
 
 const notificationSourceKind = pgEnum('notification_source_kind', ['heartbeat', 'alert']);
@@ -28,6 +29,9 @@ const notificationDelivery = pgTable(
     destinationId: text('destination_id')
       .notNull()
       .references(() => notificationDestination.id, { onDelete: 'cascade' }),
+    incidentId: text('incident_id').references(() => incident.id, {
+      onDelete: 'cascade',
+    }),
     sourceKind: notificationSourceKind('source_kind').notNull(),
     sourceId: text('source_id').notNull(),
     eventType: notificationEventType('event_type').notNull(),
@@ -48,6 +52,7 @@ const notificationDelivery = pgTable(
   (table) => [
     index('notification_delivery_app_id_idx').on(table.appId),
     index('notification_delivery_destination_id_idx').on(table.destinationId),
+    index('notification_delivery_incident_id_idx').on(table.incidentId),
     index('notification_delivery_status_next_attempt_at_idx').on(table.status, table.nextAttemptAt),
     index('notification_delivery_source_idx').on(table.sourceKind, table.sourceId)
   ]

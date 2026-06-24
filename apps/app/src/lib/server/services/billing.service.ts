@@ -52,31 +52,36 @@ class BillingService {
     });
 
     try {
-      const organization = await this.db.query.organization.findFirst({
-        columns: {
-          billingPlan: true,
-          billingStatus: true,
-        },
-        with: {
-          usage: {
-            columns: {
-              createdAt: false,
-              id: false,
-              organizationId: false,
-              updatedAt: false,
+      const [organization, currentSubscription] = await Promise.all([
+        this.db.query.organization.findFirst({
+          columns: {
+            billingPlan: true,
+            billingStatus: true,
+          },
+          with: {
+            usage: {
+              columns: {
+                createdAt: false,
+                id: false,
+                organizationId: false,
+                updatedAt: false,
+              },
             },
           },
-        },
-        where: ({ id }, { eq }) => {
-          return eq(id, context.organizationId);
-        },
-      });
+          where: ({ id }, { eq }) => {
+            return eq(id, context.organizationId);
+          },
+        }),
+        this.getCurrentSubscription(context.organizationId),
+      ]);
 
       if (!organization) return err("No organization found.");
 
       return ok({
         billingPlan: organization.billingPlan,
         billingStatus: organization.billingStatus,
+        trialStart: currentSubscription?.trialStart ?? null,
+        trialEnd: currentSubscription?.trialEnd ?? null,
         ...organization.usage,
       });
     } catch (error) {

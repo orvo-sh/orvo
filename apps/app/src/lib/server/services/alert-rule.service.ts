@@ -1,8 +1,9 @@
 import type { DB, Tx } from "@repo/db";
 import {
-  alertIncident,
   alertRule,
   alertRuleDestination,
+  incident,
+  incidentEvent,
   notificationDestination,
 } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
@@ -38,12 +39,13 @@ class AlertRuleService {
         this.db.query.alertRuleDestination.findMany({
           where: inArray(alertRuleDestination.ruleId, ruleIds),
         }),
-        this.db.query.alertIncident.findMany({
+        this.db.query.incident.findMany({
           where: and(
-            eq(alertIncident.appId, context.appId),
-            eq(alertIncident.status, "open"),
+            eq(incident.appId, context.appId),
+            eq(incident.sourceType, "alert"),
+            eq(incident.status, "open"),
           ),
-          orderBy: [desc(alertIncident.openedAt)],
+          orderBy: [desc(incident.openedAt)],
         }),
       ]);
       const destinationCountByRuleId = new Map<string, number>();
@@ -61,13 +63,13 @@ class AlertRuleService {
       }
 
       for (const incident of openIncidents) {
-        if (!openIncidentByRuleId.has(incident.ruleId)) {
-          openIncidentByRuleId.set(incident.ruleId, incident);
+        if (!openIncidentByRuleId.has(incident.sourceId)) {
+          openIncidentByRuleId.set(incident.sourceId, incident);
         }
 
         openIncidentCountByRuleId.set(
-          incident.ruleId,
-          (openIncidentCountByRuleId.get(incident.ruleId) ?? 0) + 1,
+          incident.sourceId,
+          (openIncidentCountByRuleId.get(incident.sourceId) ?? 0) + 1,
         );
       }
 
@@ -362,19 +364,47 @@ class AlertRuleService {
           .where(eq(alertRule.id, existing.id));
 
         if (!validated.data.isEnabled) {
-          await tx
-            .update(alertIncident)
-            .set({
-              status: "resolved",
-              resolvedAt: new Date(),
-            })
-            .where(
-              and(
-                eq(alertIncident.ruleId, existing.id),
-                eq(alertIncident.appId, context.appId),
-                eq(alertIncident.status, "open"),
-              ),
+          const now = new Date();
+          const openIncidents = await tx.query.incident.findMany({
+            where: and(
+              eq(incident.appId, context.appId),
+              eq(incident.sourceType, "alert"),
+              eq(incident.sourceId, existing.id),
+              eq(incident.status, "open"),
+            ),
+          });
+
+          if (openIncidents.length > 0) {
+            await tx
+              .update(incident)
+              .set({
+                status: "resolved",
+                resolvedAt: now,
+                lastObservedAt: now,
+              })
+              .where(
+                and(
+                  eq(incident.appId, context.appId),
+                  eq(incident.sourceType, "alert"),
+                  eq(incident.sourceId, existing.id),
+                  eq(incident.status, "open"),
+                ),
+              );
+
+            await tx.insert(incidentEvent).values(
+              openIncidents.map((openIncident) => ({
+                id: genId("inev"),
+                appId: context.appId,
+                incidentId: openIncident.id,
+                eventType: "incident.resolved" as const,
+                occurredAt: now,
+                actorUserId: context.userId,
+                metadata: {
+                  reason: "alert_rule_disabled",
+                },
+              })),
             );
+          }
         }
       });
 
@@ -403,14 +433,61 @@ class AlertRuleService {
     }
 
     try {
-      await this.db
-        .delete(alertRule)
-        .where(
-          and(
-            eq(alertRule.id, validated.data),
-            eq(alertRule.appId, context.appId),
+      const existing = await this.db.query.alertRule.findFirst({
+        where: and(
+          eq(alertRule.id, validated.data),
+          eq(alertRule.appId, context.appId),
+        ),
+      });
+
+      if (!existing) {
+        return err("Alert rule not found.");
+      }
+
+      await this.db.transaction(async (tx) => {
+        const now = new Date();
+        const openIncidents = await tx.query.incident.findMany({
+          where: and(
+            eq(incident.appId, context.appId),
+            eq(incident.sourceType, "alert"),
+            eq(incident.sourceId, existing.id),
+            eq(incident.status, "open"),
           ),
-        );
+        });
+
+        if (openIncidents.length > 0) {
+          await tx
+            .update(incident)
+            .set({
+              status: "resolved",
+              resolvedAt: now,
+              lastObservedAt: now,
+            })
+            .where(
+              and(
+                eq(incident.appId, context.appId),
+                eq(incident.sourceType, "alert"),
+                eq(incident.sourceId, existing.id),
+                eq(incident.status, "open"),
+              ),
+            );
+
+          await tx.insert(incidentEvent).values(
+            openIncidents.map((openIncident) => ({
+              id: genId("inev"),
+              appId: context.appId,
+              incidentId: openIncident.id,
+              eventType: "incident.resolved" as const,
+              occurredAt: now,
+              metadata: {
+                reason: "alert_rule_deleted",
+              },
+            })),
+          );
+        }
+
+        await tx.delete(alertRule).where(eq(alertRule.id, existing.id));
+      });
 
       return ok(undefined);
     } catch (error) {

@@ -197,7 +197,8 @@
       <h2 class="text-base font-semibold">Notification destinations</h2>
       <p class="max-w-2xl text-sm text-muted-foreground">
         Create reusable webhook and email destinations, then attach them to
-        heartbeat monitors and alert rules.
+        alert rules and heartbeat monitors so incident notifications route to
+        the right places.
       </p>
     </div>
 

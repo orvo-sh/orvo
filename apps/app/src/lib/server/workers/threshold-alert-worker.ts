@@ -1,16 +1,16 @@
 import type { ClickHouse } from "@repo/clickhouse";
 import type { DB } from "@repo/db";
 import {
-  alertEvent,
-  alertIncident,
   alertRule,
   alertRuleDestination,
   app,
+  incident,
   notificationDelivery,
 } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
 import { genId } from "@repo/utils";
 import { and, asc, desc, eq, inArray, isNull, lt, lte, or } from "drizzle-orm";
+import type { IncidentService } from "../services/incident.service";
 
 import { BaseWorker } from "./base-worker";
 
@@ -26,6 +26,8 @@ class ThresholdAlertWorker extends BaseWorker {
     logger: Logger,
     private db: DB,
     private clickhouse: ClickHouse,
+    private incidentService: IncidentService,
+    private config: { appBaseUrl: string },
   ) {
     super(logger, "ThresholdAlertWorker");
   }
@@ -102,9 +104,14 @@ class ThresholdAlertWorker extends BaseWorker {
     const windowStartAt = new Date(windowEndAt.getTime() - rule.windowMinutes * 60_000);
     const [signals, openIncidents, destinations, currentApp] = await Promise.all([
       this.queryRuleSignals(rule, windowStartAt, windowEndAt),
-      this.db.query.alertIncident.findMany({
-        where: and(eq(alertIncident.ruleId, rule.id), eq(alertIncident.status, "open")),
-        orderBy: [desc(alertIncident.openedAt)],
+      this.db.query.incident.findMany({
+        where: and(
+          eq(incident.appId, rule.appId),
+          eq(incident.sourceType, "alert"),
+          eq(incident.sourceId, rule.id),
+          eq(incident.status, "open"),
+        ),
+        orderBy: [desc(incident.openedAt)],
       }),
       this.db.query.alertRuleDestination.findMany({
         where: eq(alertRuleDestination.ruleId, rule.id),
@@ -207,35 +214,46 @@ class ThresholdAlertWorker extends BaseWorker {
     destinations: Array<typeof alertRuleDestination.$inferSelect>,
     appName: string,
   ) {
-    const incidentId = genId("alin");
-    const eventId = genId("alev");
     const now = new Date();
 
     await this.db.transaction(async (tx) => {
-      await tx.insert(alertIncident).values({
-        id: incidentId,
-        appId: rule.appId,
-        ruleId: rule.id,
-        entityType: signal.entityType,
-        entityId: signal.entityId,
-        entityName: signal.entityName,
-        status: "open",
-        openedAt: now,
-        lastObservedAt: windowEndAt,
-        lastObservedValue: signal.value,
-        lastNotifiedAt: destinations.length > 0 ? now : null,
-      });
-
-      await tx.insert(alertEvent).values({
-        id: eventId,
-        appId: rule.appId,
-        ruleId: rule.id,
-        incidentId,
-        eventType: "opened",
-        windowStartAt,
-        windowEndAt,
-        observedValue: signal.value,
-      });
+      const openedIncident = await this.incidentService.openOrGetIncident(
+        {
+          appId: rule.appId,
+          sourceType: "alert",
+          sourceId: rule.id,
+          sourceKey: buildAlertSourceKey(
+            rule.id,
+            signal.entityType,
+            signal.entityId,
+          ),
+          type: "alert_threshold",
+          title: rule.name,
+          severity: "critical",
+          serviceName:
+            rule.scopeServicesInclude.length === 1
+              ? rule.scopeServicesInclude[0]
+              : null,
+          entityType: signal.entityType,
+          entityId: signal.entityId,
+          entityName: signal.entityName,
+          sourceSnapshot: buildAlertIncidentSnapshot(
+            rule,
+            appName,
+            signal.entityType,
+            signal.entityId,
+            signal.entityName,
+          ),
+          triggerEventType: "alert.fired",
+          now,
+          lastObservedAt: windowEndAt,
+          lastObservedValue: signal.value,
+          lastNotifiedAt: destinations.length > 0 ? now : null,
+          openMetadata: buildAlertEventMetadata(windowStartAt, windowEndAt, signal.value),
+          triggerMetadata: buildAlertEventMetadata(windowStartAt, windowEndAt, signal.value),
+        },
+        tx,
+      );
 
       await tx
         .update(alertRule)
@@ -248,13 +266,14 @@ class ThresholdAlertWorker extends BaseWorker {
         })
         .where(eq(alertRule.id, rule.id));
 
-      if (destinations.length > 0) {
+      if (openedIncident.opened && destinations.length > 0) {
         await tx.insert(notificationDelivery).values(
           buildDeliveryRows(
             "alert.opened",
             rule,
             appName,
-            incidentId,
+            this.config.appBaseUrl,
+            openedIncident.incident.id,
             signal.entityType,
             signal.entityId,
             signal.entityName,
@@ -271,7 +290,7 @@ class ThresholdAlertWorker extends BaseWorker {
 
   private async renotifyIncident(
     rule: typeof alertRule.$inferSelect,
-    incident: typeof alertIncident.$inferSelect,
+    incident: SharedIncidentRow,
     value: number | null,
     windowStartAt: Date,
     windowEndAt: Date,
@@ -285,15 +304,23 @@ class ThresholdAlertWorker extends BaseWorker {
         now.getTime() - incident.lastNotifiedAt.getTime() >= rule.renotifyMinutes * 60_000);
 
     await this.db.transaction(async (tx) => {
-      await tx
-        .update(alertIncident)
-        .set({
+      await this.incidentService.touchIncident(
+        {
+          id: incident.id,
+          appId: incident.appId,
           lastObservedAt: windowEndAt,
           lastObservedValue: value,
           lastNotifiedAt: shouldRenotify ? now : incident.lastNotifiedAt,
-          renotifyCount: shouldRenotify ? incident.renotifyCount + 1 : incident.renotifyCount,
-        })
-        .where(eq(alertIncident.id, incident.id));
+          renotifyCount: shouldRenotify
+            ? incident.renotifyCount + 1
+            : incident.renotifyCount,
+          eventType: shouldRenotify ? "alert.fired" : undefined,
+          eventMetadata: shouldRenotify
+            ? buildAlertEventMetadata(windowStartAt, windowEndAt, value)
+            : undefined,
+        },
+        tx,
+      );
 
       await tx
         .update(alertRule)
@@ -307,22 +334,12 @@ class ThresholdAlertWorker extends BaseWorker {
         .where(eq(alertRule.id, rule.id));
 
       if (shouldRenotify && destinations.length > 0) {
-        await tx.insert(alertEvent).values({
-          id: genId("alev"),
-          appId: rule.appId,
-          ruleId: rule.id,
-          incidentId: incident.id,
-          eventType: "renotified",
-          windowStartAt,
-          windowEndAt,
-          observedValue: value,
-        });
-
         await tx.insert(notificationDelivery).values(
           buildDeliveryRows(
             "alert.renotified",
             rule,
             appName,
+            this.config.appBaseUrl,
             incident.id,
             incident.entityType,
             incident.entityId,
@@ -340,7 +357,7 @@ class ThresholdAlertWorker extends BaseWorker {
 
   private async resolveIncident(
     rule: typeof alertRule.$inferSelect,
-    incident: typeof alertIncident.$inferSelect,
+    incident: SharedIncidentRow,
     value: number | null,
     windowStartAt: Date,
     windowEndAt: Date,
@@ -348,29 +365,18 @@ class ThresholdAlertWorker extends BaseWorker {
     appName: string,
   ) {
     const now = new Date();
-    const eventId = genId("alev");
 
     await this.db.transaction(async (tx) => {
-      await tx
-        .update(alertIncident)
-        .set({
-          status: "resolved",
-          resolvedAt: now,
-          lastObservedAt: windowEndAt,
+      await this.incidentService.resolveOpenIncidentBySourceKey(
+        {
+          appId: rule.appId,
+          sourceKey: incident.sourceKey,
+          now,
+          metadata: buildAlertEventMetadata(windowStartAt, windowEndAt, value),
           lastObservedValue: value,
-        })
-        .where(eq(alertIncident.id, incident.id));
-
-      await tx.insert(alertEvent).values({
-        id: eventId,
-        appId: rule.appId,
-        ruleId: rule.id,
-        incidentId: incident.id,
-        eventType: "resolved",
-        windowStartAt,
-        windowEndAt,
-        observedValue: value,
-      });
+        },
+        tx,
+      );
 
       await tx
         .update(alertRule)
@@ -389,6 +395,7 @@ class ThresholdAlertWorker extends BaseWorker {
             "alert.resolved",
             rule,
             appName,
+            this.config.appBaseUrl,
             incident.id,
             incident.entityType,
             incident.entityId,
@@ -559,10 +566,10 @@ class ThresholdAlertWorker extends BaseWorker {
 }
 
 type AlertRuleRow = typeof alertRule.$inferSelect;
-type AlertIncidentRow = typeof alertIncident.$inferSelect;
+type SharedIncidentRow = typeof incident.$inferSelect;
 type AlertRuleDestinationRow = typeof alertRuleDestination.$inferSelect;
 type AlertEventName = "alert.opened" | "alert.renotified" | "alert.resolved";
-type AlertEntityType = AlertIncidentRow["entityType"];
+type AlertEntityType = SharedIncidentRow["entityType"];
 type AlertSignalType = AlertRuleRow["signalType"];
 type EvaluatedSignal =
   | {
@@ -600,6 +607,7 @@ const buildPayload = (
   eventType: AlertEventName,
   rule: AlertRuleRow,
   appName: string,
+  appBaseUrl: string,
   incidentId: string,
   entityType: AlertEntityType,
   entityId: string,
@@ -624,6 +632,7 @@ const buildPayload = (
   },
   incident: {
     id: incidentId,
+    url: buildIncidentUrl(appBaseUrl, rule.appId, incidentId),
     entity: {
       type: entityType,
       id: entityId,
@@ -641,6 +650,7 @@ const buildDeliveryRows = (
   eventType: AlertEventName,
   rule: AlertRuleRow,
   appName: string,
+  appBaseUrl: string,
   incidentId: string,
   entityType: AlertEntityType,
   entityId: string,
@@ -655,13 +665,15 @@ const buildDeliveryRows = (
     id: genId("ntdl"),
     appId: rule.appId,
     destinationId: destination.destinationId,
+    incidentId,
     sourceKind: "alert" as const,
-    sourceId: incidentId,
+    sourceId: rule.id,
     eventType,
     payload: buildPayload(
       eventType,
       rule,
       appName,
+      appBaseUrl,
       incidentId,
       entityType,
       entityId,
@@ -676,6 +688,50 @@ const buildDeliveryRows = (
 
 const buildEntityKey = (entityType: AlertEntityType, entityId: string) =>
   `${entityType}:${entityId}`;
+const buildAlertSourceKey = (
+  ruleId: string,
+  entityType: AlertEntityType,
+  entityId: string,
+) => `alert:${ruleId}:${entityType}:${entityId}`;
+const buildIncidentUrl = (
+  appBaseUrl: string,
+  appId: string,
+  incidentId: string,
+) =>
+  new URL(
+    `/a/${encodeURIComponent(appId)}/incidents/${encodeURIComponent(incidentId)}`,
+    appBaseUrl,
+  ).toString();
+
+const buildAlertIncidentSnapshot = (
+  rule: AlertRuleRow,
+  appName: string,
+  entityType: AlertEntityType,
+  entityId: string,
+  entityName: string | null,
+) => ({
+  appName,
+  ruleId: rule.id,
+  ruleName: rule.name,
+  signalType: rule.signalType,
+  comparator: rule.comparator,
+  threshold: rule.threshold,
+  windowMinutes: rule.windowMinutes,
+  renotifyMinutes: rule.renotifyMinutes,
+  entityType,
+  entityId,
+  entityName,
+});
+
+const buildAlertEventMetadata = (
+  windowStartAt: Date,
+  windowEndAt: Date,
+  value: number | null,
+) => ({
+  windowStartAt: windowStartAt.toISOString(),
+  windowEndAt: windowEndAt.toISOString(),
+  observedValue: value,
+});
 
 const isTraceSignal = (signalType: AlertSignalType) =>
   [

@@ -1,9 +1,8 @@
 import type { createServerContainer } from "$lib/server/container";
 import type { Session, User } from "better-auth";
 
-// See https://svelte.dev/docs/kit/types#app.d.ts
-// for information about these interfaces
 declare global {
+
   interface Window {
     sey?: {
       identify: (payload: {

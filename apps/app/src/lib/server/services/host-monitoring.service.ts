@@ -8,12 +8,13 @@ import {
 } from "@repo/host-agent";
 import type { ClickHouse } from "@repo/clickhouse";
 import type { DB } from "@repo/db";
-import { alertIncident, ingestionKey } from "@repo/db/schema";
+import { incident, ingestionKey } from "@repo/db/schema";
 import { Encryption } from "@repo/encryption";
 import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
+import type { IncidentService } from "./incident.service";
 import type { IngestionKeyService } from "./ingestion-key.service";
 import { quote, toDateTime64 } from "./shared/query-builders";
 import { resolveTimeFilter, timeFilterSchema } from "./shared/time-filter";
@@ -26,6 +27,7 @@ class HostMonitoringService {
     private clickhouse: ClickHouse,
     private encryption: Encryption,
     logger: Logger,
+    private incidentService: IncidentService,
     private ingestionKeyService: IngestionKeyService,
     private config: {
       appBaseUrl: string;
@@ -234,12 +236,12 @@ class HostMonitoringService {
             container_count: number | string;
           }>
         >,
-        this.db.query.alertIncident.findMany({
+        this.db.query.incident.findMany({
           where: and(
-            eq(alertIncident.appId, context.appId),
-            eq(alertIncident.status, "open"),
+            eq(incident.appId, context.appId),
+            eq(incident.status, "open"),
           ),
-          orderBy: [desc(alertIncident.openedAt)],
+          orderBy: [desc(incident.openedAt)],
         }),
       ]);
 
@@ -421,12 +423,12 @@ class HostMonitoringService {
               LIMIT 10
             `,
         }),
-        this.db.query.alertIncident.findMany({
+        this.db.query.incident.findMany({
           where: and(
-            eq(alertIncident.appId, context.appId),
-            eq(alertIncident.status, "open"),
+            eq(incident.appId, context.appId),
+            eq(incident.status, "open"),
           ),
-          orderBy: [desc(alertIncident.openedAt)],
+          orderBy: [desc(incident.openedAt)],
         }),
       ]);
 
@@ -560,6 +562,176 @@ class HostMonitoringService {
     }
   }
 
+  async evaluateHostIncidents() {
+    this.logger.info("evaluateHostIncidents: evaluating built-in host incidents");
+
+    try {
+      const now = new Date();
+      const discoveryStartAt = new Date(now.getTime() - 24 * 60 * 60_000);
+      const result = await this.clickhouse.query({
+        format: "JSONEachRow",
+        query: `
+          SELECT
+            app_id,
+            host_id,
+            argMax(host_name, time) AS host_name,
+            max(time) AS last_seen
+          FROM metrics_raw
+          WHERE entity_kind = 'host'
+            AND host_id != ''
+            AND time >= ${toDateTime64(discoveryStartAt)}
+            AND time <= ${toDateTime64(now)}
+          GROUP BY app_id, host_id
+        `,
+      });
+      const rows = (await result.json()) as Array<{
+        app_id: string;
+        host_id: string;
+        host_name: string;
+        last_seen: string;
+      }>;
+
+      let opened = 0;
+      let resolved = 0;
+
+      for (const row of rows) {
+        const lastSeenAt = new Date(normalizeDateTime(row.last_seen));
+        const ageMs = now.getTime() - lastSeenAt.getTime();
+        const agentDisconnectedKey = buildHostIncidentSourceKey(
+          row.host_id,
+          "agent_disconnected",
+        );
+        const offlineKey = buildHostIncidentSourceKey(row.host_id, "offline");
+
+        if (ageMs > 10 * 60_000) {
+          if (
+            await this.incidentService.resolveOpenIncidentBySourceKey({
+              appId: row.app_id,
+              sourceKey: agentDisconnectedKey,
+              now,
+              metadata: {
+                reason: "host_offline_escalated",
+              },
+            })
+          ) {
+            resolved += 1;
+          }
+
+          const openedIncident = await this.incidentService.openOrGetIncident({
+            appId: row.app_id,
+            sourceType: "host",
+            sourceId: row.host_id,
+            sourceKey: offlineKey,
+            type: "host_offline",
+            title: "Host offline",
+            severity: "critical",
+            entityType: "host",
+            entityId: row.host_id,
+            entityName: row.host_name || row.host_id,
+            sourceSnapshot: {
+              hostId: row.host_id,
+              hostName: row.host_name || row.host_id,
+              lastSeenAt: lastSeenAt.toISOString(),
+              incidentKind: "offline",
+            },
+            triggerEventType: "host.offline",
+            now,
+            lastObservedAt: now,
+            triggerMetadata: {
+              lastSeenAt: lastSeenAt.toISOString(),
+            },
+          });
+
+          if (openedIncident.opened) {
+            opened += 1;
+          }
+
+          continue;
+        }
+
+        if (ageMs > 2 * 60_000) {
+          if (
+            await this.incidentService.resolveOpenIncidentBySourceKey({
+              appId: row.app_id,
+              sourceKey: offlineKey,
+              now,
+              metadata: {
+                reason: "host_back_within_offline_threshold",
+              },
+            })
+          ) {
+            resolved += 1;
+          }
+
+          const openedIncident = await this.incidentService.openOrGetIncident({
+            appId: row.app_id,
+            sourceType: "host",
+            sourceId: row.host_id,
+            sourceKey: agentDisconnectedKey,
+            type: "host_agent_disconnected",
+            title: "Host agent disconnected",
+            severity: "warning",
+            entityType: "host",
+            entityId: row.host_id,
+            entityName: row.host_name || row.host_id,
+            sourceSnapshot: {
+              hostId: row.host_id,
+              hostName: row.host_name || row.host_id,
+              lastSeenAt: lastSeenAt.toISOString(),
+              incidentKind: "agent_disconnected",
+            },
+            triggerEventType: "host.agent_disconnected",
+            now,
+            lastObservedAt: now,
+            triggerMetadata: {
+              lastSeenAt: lastSeenAt.toISOString(),
+            },
+          });
+
+          if (openedIncident.opened) {
+            opened += 1;
+          }
+
+          continue;
+        }
+
+        const agentRecovered = await this.incidentService.recoverSourceIncident({
+          appId: row.app_id,
+          sourceKey: agentDisconnectedKey,
+          now,
+          eventType: "host.recovered",
+          eventMetadata: {
+            hostId: row.host_id,
+          },
+        });
+        const offlineRecovered = await this.incidentService.recoverSourceIncident({
+          appId: row.app_id,
+          sourceKey: offlineKey,
+          now,
+          eventType: "host.recovered",
+          eventMetadata: {
+            hostId: row.host_id,
+          },
+        });
+
+        if (agentRecovered.mode === "resolved_open") {
+          resolved += 1;
+        }
+        if (offlineRecovered.mode === "resolved_open") {
+          resolved += 1;
+        }
+      }
+
+      return ok({ opened, resolved });
+    } catch (error) {
+      this.logger.error(
+        "evaluateHostIncidents: failed to evaluate host incidents",
+        error instanceof Error ? error : undefined,
+      );
+      return err("Failed to evaluate host incidents.");
+    }
+  }
+
   private async getPrivateIngestionKey(appId: string) {
     const key = await this.db.query.ingestionKey.findFirst({
       where: and(
@@ -679,6 +851,10 @@ const buildHostSeries = (
 };
 
 const shellQuote = (value: string) => `'${value.replaceAll(`'`, `'\"'\"'`)}'`;
+const buildHostIncidentSourceKey = (
+  hostId: string,
+  type: "agent_disconnected" | "offline",
+) => `host:${hostId}:${type}`;
 
 export {
   createHostInstallSessionInputSchema,

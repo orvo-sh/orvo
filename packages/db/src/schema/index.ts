@@ -11,6 +11,8 @@ export * from './dashboard-log-view.schema.js';
 export * from './deployment.schema.js';
 export * from './heartbeat-monitor-destination.schema.js';
 export * from './heartbeat-monitor.schema.js';
+export * from './incident-event.schema.js';
+export * from './incident.schema.js';
 export * from './ingestion-key.schema.js';
 export * from './invitation.schema.js';
 export * from './member.schema.js';

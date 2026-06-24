@@ -1,9 +1,11 @@
 import {
-  IconAlertHexagon,
+  IconActivityHeartbeat,
+  IconAlertTriangle,
   IconChartBar,
-  IconCpu2,
-  IconHeartbeat,
+  IconFlame,
   IconLayoutGrid,
+  IconServer2,
+  IconSphere2,
   IconTelescope,
   IconTerminal2
 } from "@tabler/icons-svelte";
@@ -37,7 +39,12 @@ const generateAppNavigationGroups = (
         {
           href: `/a/${appId}/overview`,
           label: "Overview",
-          icon: IconLayoutGrid,
+          icon: IconSphere2,
+        },
+        {
+          href: `/a/${appId}/incidents`,
+          label: "Incidents",
+          icon: IconFlame,
         },
       ],
     },
@@ -71,17 +78,17 @@ const generateAppNavigationGroups = (
         {
           href: `/a/${appId}/hosts`,
           label: "Hosts",
-          icon: IconCpu2,
+          icon: IconServer2,
         },
         {
           href: `/a/${appId}/alerts`,
           label: "Alerts",
-          icon: IconAlertHexagon,
+          icon: IconAlertTriangle,
         },
         {
           href: `/a/${appId}/heartbeats`,
           label: "Heartbeats",
-          icon: IconHeartbeat,
+          icon: IconActivityHeartbeat,
         },
       ],
     },
