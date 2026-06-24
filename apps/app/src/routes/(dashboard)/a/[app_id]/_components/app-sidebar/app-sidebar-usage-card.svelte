@@ -61,10 +61,9 @@
 
     <Card.Content class="grid gap-2 px-2!">
       {@const percentage =
-        Math.round(
-          (logsIngestedBytes + metricsIngestedBytes + tracesIngestedBytes) /
-            includedBytes,
-        ) * 100}
+        ((logsIngestedBytes + metricsIngestedBytes + tracesIngestedBytes) /
+          includedBytes) *
+        100}
       <Progress
         value={percentage}
         class={cn(
