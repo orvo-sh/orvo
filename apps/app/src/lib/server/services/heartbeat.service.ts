@@ -8,9 +8,10 @@ import {
   notificationDestination,
 } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
-import { err, genId, ok } from "@repo/utils";
+import { err, generateRandomString, genId, ok } from "@repo/utils";
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
+import type { IncidentService } from "./incident.service";
 import { quote, toDateTime64 } from "./shared/query-builders";
 
 class HeartbeatService {
@@ -20,72 +21,49 @@ class HeartbeatService {
     private db: DB,
     private clickhouse: ClickHouse,
     logger: Logger,
-    private config: { ingestBaseUrl: string },
+    private incidentService: IncidentService,
+    private config: { ingestBaseUrl: string; appBaseUrl: string },
   ) {
     this.logger = logger.child("HeartbeatService");
   }
 
   async listHeartbeatMonitors(context: { appId: string }) {
-    this.logger.info("listHeartbeatMonitors: listing heartbeat monitors", {
-      context,
-    });
+    this.logger.info("listHeartbeatMonitors: listing heartbeat monitors", { context });
 
     try {
       const monitors = await this.db.query.heartbeatMonitor.findMany({
         where: eq(heartbeatMonitor.appId, context.appId),
+        with: {
+          destinations: {
+            columns: {
+              destinationId: true
+            }
+          }
+        },
         orderBy: [asc(heartbeatMonitor.name)],
       });
 
-      if (monitors.length === 0) {
-        return ok({ monitors: [] });
-      }
-
-      const monitorIds = monitors.map((monitor) => monitor.id);
-      const links = await this.db.query.heartbeatMonitorDestination.findMany({
-        where: inArray(
-          heartbeatMonitorDestination.heartbeatMonitorId,
-          monitorIds,
-        ),
-      });
-      const destinationIdsByMonitorId = new Map<string, string[]>();
-
-      for (const link of links) {
-        const existing =
-          destinationIdsByMonitorId.get(link.heartbeatMonitorId) ?? [];
-        existing.push(link.destinationId);
-        destinationIdsByMonitorId.set(link.heartbeatMonitorId, existing);
-      }
-
-      const now = new Date();
+      if (monitors.length === 0) return ok({ monitors: [] });
 
       return ok({
         monitors: monitors.map((monitor) => {
-          const destinationIds =
-            destinationIdsByMonitorId.get(monitor.id) ?? [];
-          const status = resolveHeartbeatStatus({
-            lastCheckInAt: monitor.lastCheckInAt,
-            expectedEverySeconds: monitor.expectedEverySeconds,
-            graceSeconds: monitor.graceSeconds,
-            now,
-          });
-
           return {
             ...monitor,
-            status,
-            isPaused: !!monitor.pausedAt,
-            destinationIds,
-            destinationCount: destinationIds.length,
-            secretUrl: buildHeartbeatUrl(
-              this.config.ingestBaseUrl,
-              monitor.token,
+            destinationIds: monitor.destinations.map(
+              (destination) => destination.destinationId,
             ),
+            isPaused: !!monitor.pausedAt,
+            url: new URL(
+              `/v1/heartbeats/${encodeURIComponent(monitor.token)}`,
+              this.config.ingestBaseUrl,
+            ).toString(),
           };
         }),
       });
     } catch (error) {
       this.logger.error(
         "listHeartbeatMonitors: failed to list heartbeat monitors",
-        error instanceof Error ? error : undefined,
+        error as Error,
       );
       return err("Failed to load heartbeat monitors.");
     }
@@ -122,27 +100,19 @@ class HeartbeatService {
       });
       const destinations = links.length
         ? await this.db.query.notificationDestination.findMany({
-            where: and(
-              eq(notificationDestination.appId, context.appId),
-              inArray(
-                notificationDestination.id,
-                links.map((link) => link.destinationId),
-              ),
+          where: and(
+            eq(notificationDestination.appId, context.appId),
+            inArray(
+              notificationDestination.id,
+              links.map((link) => link.destinationId),
             ),
-            orderBy: [asc(notificationDestination.name)],
-          })
+          ),
+          orderBy: [asc(notificationDestination.name)],
+        })
         : [];
-      const now = new Date();
-
       return ok({
         monitor: {
           ...monitor,
-          status: resolveHeartbeatStatus({
-            lastCheckInAt: monitor.lastCheckInAt,
-            expectedEverySeconds: monitor.expectedEverySeconds,
-            graceSeconds: monitor.graceSeconds,
-            now,
-          }),
           isPaused: !!monitor.pausedAt,
           destinationIds: links.map((link) => link.destinationId),
           destinations: destinations.map((destination) => ({
@@ -310,10 +280,10 @@ class HeartbeatService {
             averageIntervalSeconds:
               intervals.length > 0
                 ? Math.round(
-                    intervals.reduce((total, value) => total + value, 0) /
-                      intervals.length /
-                      1000,
-                  )
+                  intervals.reduce((total, value) => total + value, 0) /
+                  intervals.length /
+                  1000,
+                )
                 : null,
           },
         },
@@ -353,7 +323,7 @@ class HeartbeatService {
       }
 
       const id = genId("hbmt");
-      const token = genId("hbt");
+      const token = generateRandomString(48);
 
       await this.db.transaction(async (tx) => {
         await tx.insert(heartbeatMonitor).values({
@@ -478,14 +448,32 @@ class HeartbeatService {
     }
 
     try {
-      await this.db
-        .delete(heartbeatMonitor)
-        .where(
-          and(
-            eq(heartbeatMonitor.id, validated.data),
-            eq(heartbeatMonitor.appId, context.appId),
-          ),
+      const existing = await this.db.query.heartbeatMonitor.findFirst({
+        where: and(
+          eq(heartbeatMonitor.id, validated.data),
+          eq(heartbeatMonitor.appId, context.appId),
+        ),
+      });
+
+      if (!existing) {
+        return err("Heartbeat monitor not found.");
+      }
+
+      await this.db.transaction(async (tx) => {
+        await this.incidentService.resolveOpenIncidentBySourceKey(
+          {
+            appId: context.appId,
+            sourceKey: buildHeartbeatIncidentSourceKey(existing.id),
+            now: new Date(),
+            metadata: {
+              reason: "heartbeat_monitor_deleted",
+            },
+          },
+          tx,
         );
+
+        await tx.delete(heartbeatMonitor).where(eq(heartbeatMonitor.id, existing.id));
+      });
 
       return ok(undefined);
     } catch (error) {
@@ -577,13 +565,30 @@ class HeartbeatService {
 
       const pausedAt = existing.pausedAt ? null : new Date();
 
-      await this.db
-        .update(heartbeatMonitor)
-        .set({
-          pausedAt,
-          updatedBy: context.userId,
-        })
-        .where(eq(heartbeatMonitor.id, existing.id));
+      await this.db.transaction(async (tx) => {
+        await tx
+          .update(heartbeatMonitor)
+          .set({
+            pausedAt,
+            updatedBy: context.userId,
+          })
+          .where(eq(heartbeatMonitor.id, existing.id));
+
+        if (pausedAt) {
+          await this.incidentService.resolveOpenIncidentBySourceKey(
+            {
+              appId: context.appId,
+              sourceKey: buildHeartbeatIncidentSourceKey(existing.id),
+              now: pausedAt,
+              actorUserId: context.userId,
+              metadata: {
+                reason: "heartbeat_monitor_paused",
+              },
+            },
+            tx,
+          );
+        }
+      });
 
       return ok({ paused: !!pausedAt });
     } catch (error) {
@@ -705,15 +710,14 @@ class HeartbeatService {
       }
 
       const now = new Date();
-      const recovered = existing.lastStatus === "missed";
+      const recovered = existing.status === "missed";
 
       await this.db.transaction(async (tx) => {
         await tx
           .update(heartbeatMonitor)
           .set({
             lastCheckInAt: now,
-            lastStatus: "healthy",
-            lastRecoveredAt: recovered ? now : existing.lastRecoveredAt,
+            status: "healthy",
           })
           .where(eq(heartbeatMonitor.id, existing.id));
 
@@ -730,12 +734,28 @@ class HeartbeatService {
           );
 
         if (recovered) {
-          await this.insertHeartbeatDeliveries(
+          const recovery = await this.incidentService.recoverSourceIncident(
+            {
+              appId: existing.appId,
+              sourceKey: buildHeartbeatIncidentSourceKey(existing.id),
+              now,
+              eventType: "heartbeat.recovered",
+              eventMetadata: {
+                heartbeatMonitorId: existing.id,
+              },
+            },
             tx,
-            existing.id,
-            "heartbeat.recovered",
-            now,
           );
+
+          if (recovery.mode === "resolved_open" && recovery.incident) {
+            await this.insertHeartbeatDeliveries(
+              tx,
+              existing.id,
+              recovery.incident.id,
+              "heartbeat.recovered",
+              now,
+            );
+          }
         }
       });
 
@@ -775,28 +795,31 @@ class HeartbeatService {
           now,
         });
 
-        if (status === monitor.lastStatus) {
+        if (status === monitor.status) {
           continue;
         }
 
         await this.db
           .update(heartbeatMonitor)
           .set({
-            lastStatus: status,
-            lastMissedAt: status === "missed" ? now : monitor.lastMissedAt,
+            status,
           })
           .where(eq(heartbeatMonitor.id, monitor.id));
 
         updated += 1;
 
-        if (status === "missed" && monitor.lastStatus !== "missed") {
+        if (status === "missed" && monitor.status !== "missed") {
           newlyMissed += 1;
-          await this.insertHeartbeatDeliveries(
-            this.db,
-            monitor.id,
-            "heartbeat.missed",
-            now,
-          );
+          const opened = await this.openHeartbeatIncident(this.db, monitor.id, now);
+          if (opened?.opened && opened.incident) {
+            await this.insertHeartbeatDeliveries(
+              this.db,
+              monitor.id,
+              opened.incident.id,
+              "heartbeat.missed",
+              now,
+            );
+          }
         }
       }
 
@@ -829,9 +852,67 @@ class HeartbeatService {
     return ok({ destinations });
   }
 
+  private async openHeartbeatIncident(
+    db: DB | Tx,
+    heartbeatMonitorId: string,
+    now: Date,
+  ) {
+    const monitor = await db.query.heartbeatMonitor.findFirst({
+      where: eq(heartbeatMonitor.id, heartbeatMonitorId),
+    });
+
+    if (!monitor) {
+      return null;
+    }
+
+    const currentApp = await db.query.app.findFirst({
+      where: eq(app.id, monitor.appId),
+    });
+    if (!currentApp) {
+      return null;
+    }
+
+    return this.incidentService.openOrGetIncident(
+      {
+        appId: currentApp.id,
+        sourceType: "heartbeat",
+        sourceId: monitor.id,
+        sourceKey: buildHeartbeatIncidentSourceKey(monitor.id),
+        type: "heartbeat_missed",
+        title: monitor.name,
+        severity: "critical",
+        serviceName: null,
+        entityType: "app",
+        entityId: currentApp.id,
+        entityName: currentApp.name,
+        sourceSnapshot: {
+          appName: currentApp.name,
+          heartbeatMonitorId: monitor.id,
+          heartbeatName: monitor.name,
+          expectedEverySeconds: monitor.expectedEverySeconds,
+          graceSeconds: monitor.graceSeconds,
+          lastCheckInAt: monitor.lastCheckInAt?.toISOString() ?? null,
+          pingUrl: buildHeartbeatUrl(this.config.ingestBaseUrl, monitor.token),
+        },
+        triggerEventType: "heartbeat.missed",
+        now,
+        lastObservedAt: now,
+        lastNotifiedAt: now,
+        openMetadata: {
+          heartbeatMonitorId: monitor.id,
+        },
+        triggerMetadata: {
+          heartbeatMonitorId: monitor.id,
+        },
+      },
+      db === this.db ? undefined : db,
+    );
+  }
+
   private async insertHeartbeatDeliveries(
     db: DB | Tx,
     heartbeatMonitorId: string,
+    incidentId: string,
     eventType: "heartbeat.missed" | "heartbeat.recovered",
     now: Date,
   ) {
@@ -860,9 +941,11 @@ class HeartbeatService {
 
     const payload = buildHeartbeatEventPayload({
       eventType,
+      incidentId,
       now,
       monitor,
       app: currentApp,
+      appBaseUrl: this.config.appBaseUrl,
       secretUrl: buildHeartbeatUrl(
         this.config.ingestBaseUrl,
         monitor.token,
@@ -874,6 +957,7 @@ class HeartbeatService {
         id: genId("ntdl"),
         appId: currentApp.id,
         destinationId: link.destinationId,
+        incidentId,
         sourceKind: "heartbeat" as const,
         sourceId: monitor.id,
         eventType,
@@ -938,9 +1022,11 @@ const resolveHeartbeatStatus = (input: {
 
 const buildHeartbeatEventPayload = (input: {
   eventType: "heartbeat.missed" | "heartbeat.recovered";
+  incidentId: string;
   now: Date;
   monitor: typeof heartbeatMonitor.$inferSelect;
   app: typeof app.$inferSelect;
+  appBaseUrl: string;
   secretUrl: string;
 }) =>
   ({
@@ -950,14 +1036,17 @@ const buildHeartbeatEventPayload = (input: {
       id: input.app.id,
       name: input.app.name,
     },
+    incident: {
+      id: input.incidentId,
+      url: buildIncidentUrl(input.appBaseUrl, input.app.id, input.incidentId),
+    },
     heartbeat: {
       id: input.monitor.id,
       name: input.monitor.name,
       expectedEverySeconds: input.monitor.expectedEverySeconds,
       graceSeconds: input.monitor.graceSeconds,
       lastCheckInAt: input.monitor.lastCheckInAt?.toISOString() ?? null,
-      lastMissedAt: input.monitor.lastMissedAt?.toISOString() ?? null,
-      lastRecoveredAt: input.monitor.lastRecoveredAt?.toISOString() ?? null,
+      status: input.monitor.status,
       pingUrl: input.secretUrl,
     },
   }) satisfies Record<string, unknown>;
@@ -967,8 +1056,19 @@ const buildHeartbeatUrl = (ingestBaseUrl: string, secretToken: string) =>
     `/v1/heartbeats/${encodeURIComponent(secretToken)}`,
     ingestBaseUrl,
   ).toString();
+const buildIncidentUrl = (
+  appBaseUrl: string,
+  appId: string,
+  incidentId: string,
+) =>
+  new URL(
+    `/a/${encodeURIComponent(appId)}/incidents/${encodeURIComponent(incidentId)}`,
+    appBaseUrl,
+  ).toString();
 
 const uniqueValues = <T>(values: T[]) => [...new Set(values)];
+const buildHeartbeatIncidentSourceKey = (heartbeatMonitorId: string) =>
+  `heartbeat:${heartbeatMonitorId}:missed`;
 
 export {
   createHeartbeatMonitorInputSchema,

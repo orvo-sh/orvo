@@ -94,10 +94,10 @@ func TestIngestHeartbeatCheckIn(t *testing.T) {
 						}),
 						test.PostgresDBValidator(test.NewPostgresDBValidatorInput{
 							Name:  "heartbeat monitor is marked healthy",
-							Query: "SELECT last_status FROM heartbeat_monitor WHERE id = $1",
+							Query: "SELECT status FROM heartbeat_monitor WHERE id = $1",
 							Args:  []any{successHeartbeat.MonitorID},
 							Expected: []test.Row{{
-								"last_status": "healthy",
+								"status": "healthy",
 							}},
 						}),
 						test.EventuallyClickhouseDBValidator(test.NewClickhouseDBValidatorInput{
@@ -121,10 +121,10 @@ func TestIngestHeartbeatCheckIn(t *testing.T) {
 						test.HttpStatusCodeValidator(202),
 						test.PostgresDBValidator(test.NewPostgresDBValidatorInput{
 							Name:  "heartbeat monitor is marked healthy",
-							Query: "SELECT last_status FROM heartbeat_monitor WHERE id = $1",
+							Query: "SELECT status FROM heartbeat_monitor WHERE id = $1",
 							Args:  []any{missedHeartbeat.MonitorID},
 							Expected: []test.Row{{
-								"last_status": "healthy",
+								"status": "healthy",
 							}},
 						}),
 						test.PostgresDBValidator(test.NewPostgresDBValidatorInput{

@@ -13,7 +13,6 @@ export const load = (async ({ locals, params }) => {
     ),
   ]);
 
-
   if (!monitorsResult.success) error(500, monitorsResult.error);
   if (!destinationsResult.success) error(500, destinationsResult.error);
 

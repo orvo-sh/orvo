@@ -8,6 +8,10 @@ import (
 	"runtime/debug"
 	"sync"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var (
@@ -16,6 +20,12 @@ var (
 )
 
 type WriterFunc[T any] func(ctx context.Context, batch []T) error
+
+type queuedItem[T any] struct {
+	value       T
+	enqueuedAt  time.Time
+	spanContext trace.SpanContext
+}
 
 type Option func(*options)
 
@@ -37,12 +47,12 @@ func WithMaxQueueSize(size int) Option {
 	return func(o *options) { o.maxQueueSize = size }
 }
 
-
 type Batcher[T any] struct {
 	logger  *slog.Logger
 	options options
-	input   chan T
+	input   chan queuedItem[T]
 	writeFn WriterFunc[T]
+	tracer  trace.Tracer
 
 	done chan struct{}
 	wg   sync.WaitGroup
@@ -63,8 +73,9 @@ func New[T any](logger *slog.Logger, writer WriterFunc[T], opts ...Option) *Batc
 	b := &Batcher[T]{
 		logger:  logger,
 		options: o,
-		input:   make(chan T, o.maxQueueSize),
+		input:   make(chan queuedItem[T], o.maxQueueSize),
 		writeFn: writer,
+		tracer:  otel.Tracer("github.com/orvo-sh/orvo/apps/ingest/pkg/batcher"),
 		done:    make(chan struct{}),
 	}
 
@@ -75,12 +86,19 @@ func New[T any](logger *slog.Logger, writer WriterFunc[T], opts ...Option) *Batc
 }
 
 func (b *Batcher[T]) Push(ctx context.Context, item T) error {
+	enqueuedAt := time.Now().UTC()
+	spanContext := trace.SpanContextFromContext(ctx)
+
 	select {
 	case <-ctx.Done():
 		return fmt.Errorf("batcher: push canceled: %w", ctx.Err())
 	case <-b.done:
 		return ErrClosed
-	case b.input <- item:
+	case b.input <- queuedItem[T]{
+		value:       item,
+		enqueuedAt:  enqueuedAt,
+		spanContext: spanContext,
+	}:
 		return nil
 	default:
 		return ErrQueueFull
@@ -109,17 +127,54 @@ func (b *Batcher[T]) loop() {
 	ticker := time.NewTicker(b.options.flushInterval)
 	defer ticker.Stop()
 
-	batch := make([]T, 0, b.options.batchSize)
+	batch := make([]queuedItem[T], 0, b.options.batchSize)
 
 	flush := func(reason string) {
 		if len(batch) == 0 {
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(),  120 * time.Second)
+		links := make([]trace.Link, 0, len(batch))
+		values := make([]T, 0, len(batch))
+		now := time.Now().UTC()
+		oldestAge := time.Duration(0)
+		newestAge := time.Duration(0)
+
+		for index, item := range batch {
+			values = append(values, item.value)
+
+			if item.spanContext.IsValid() {
+				links = append(links, trace.Link{SpanContext: item.spanContext})
+			}
+
+			age := now.Sub(item.enqueuedAt)
+			if index == 0 || age > oldestAge {
+				oldestAge = age
+			}
+			if index == 0 || age < newestAge {
+				newestAge = age
+			}
+		}
+
+		ctx, flushSpan := b.tracer.Start(
+			context.Background(),
+			"batcher.flush",
+			trace.WithSpanKind(trace.SpanKindInternal),
+			trace.WithLinks(links...),
+			trace.WithAttributes(
+				attribute.String("batcher.flush.reason", reason),
+				attribute.Int("batcher.batch.size", len(batch)),
+				attribute.Int64("batcher.queue.oldest_ms", oldestAge.Milliseconds()),
+				attribute.Int64("batcher.queue.newest_ms", newestAge.Milliseconds()),
+			),
+		)
+		defer flushSpan.End()
+
+		ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
 		defer cancel()
 
-		if err := b.writeFn(ctx, batch); err != nil {
+		if err := b.writeFn(ctx, values); err != nil {
+			flushSpan.RecordError(err)
 			b.logger.Error("loop: batch flush failed",
 				slog.String("reason", reason),
 				slog.Int("count", len(batch)),

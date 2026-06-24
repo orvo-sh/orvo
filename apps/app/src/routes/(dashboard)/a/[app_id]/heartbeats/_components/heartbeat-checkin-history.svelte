@@ -1,10 +1,6 @@
 <script lang="ts">
-  import {
-    ChartContainer,
-    ChartTooltip,
-    type ChartConfig,
-  } from "@repo/components/ui/chart";
-  import { AreaChart } from "layerchart";
+  import * as Card from "@repo/components/ui/card";
+  import { Badge } from "@repo/components/ui/badge";
 
   let {
     history,
@@ -33,22 +29,6 @@
     expectedEverySeconds: number;
   } = $props();
 
-  const chartConfig = {
-    total: {
-      label: "Check-ins",
-      color: "var(--color-primary)",
-    },
-  } satisfies ChartConfig;
-
-  const chartData = $derived(
-    history.buckets.map((bucket) => ({
-      timestamp: new Date(bucket.startAt),
-      total: bucket.count,
-    })),
-  );
-
-  const hasData = $derived(history.buckets.some((bucket) => bucket.count > 0));
-
   const formatBucketLabel = (value: Date | string) =>
     new Intl.DateTimeFormat(undefined, {
       month: "short",
@@ -66,23 +46,23 @@
       return `${seconds}s`;
     }
 
-    if (seconds % 60 === 0) {
-      return `${seconds / 60}m`;
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+
+    if (hours > 0) {
+      return remainingSeconds > 0
+        ? `${hours}h ${minutes}m`
+        : minutes > 0
+          ? `${hours}h ${minutes}m`
+          : `${hours}h`;
     }
 
-    const minutes = Math.floor(seconds / 60);
-    return `${minutes}m ${seconds % 60}s`;
-  };
-
-  const statusClass = (status: "healthy" | "missed" | "grace") => {
-    switch (status) {
-      case "healthy":
-        return "bg-primary/80";
-      case "missed":
-        return "bg-destructive/80";
-      case "grace":
-        return "bg-muted";
+    if (remainingSeconds === 0) {
+      return `${minutes}m`;
     }
+
+    return `${minutes}m ${remainingSeconds}s`;
   };
 
   const formatTimeAgo = (value: Date | string) => {
@@ -98,174 +78,166 @@
     if (hours < 24) return `${hours}h ago`;
     return `${Math.floor(hours / 24)}d ago`;
   };
+
+  const bucketClass = (
+    status: "healthy" | "missed" | "grace",
+    count: number,
+  ) => {
+    if (count > 0 || status === "healthy") {
+      return "bg-emerald-500/85";
+    }
+
+    if (status === "missed") {
+      return "bg-destructive/80";
+    }
+
+    return "bg-amber-500/70";
+  };
+
+  const coveragePercent = $derived(
+    history.buckets.length === 0
+      ? 0
+      : Math.round(
+          (history.stats.receivedBuckets24h / history.buckets.length) * 100,
+        ),
+  );
 </script>
 
-<section class="rounded-xl border bg-background">
-  <div class="border-b border-border/70 px-4 py-3">
-    <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h3 class="text-sm font-medium">Check-in history</h3>
-        <p class="text-sm text-muted-foreground">
-          Last 24 hours, grouped into {formatInterval(history.bucketSizeSeconds)} buckets.
-        </p>
-      </div>
-      <p class="text-xs text-muted-foreground">
-        Expected every {formatInterval(expectedEverySeconds)}
-      </p>
+<Card.Root class="gap-0">
+  <Card.Header
+    class="gap-4 border-b px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
+  >
+    <div class="space-y-1">
+      <Card.Title class="text-base font-semibold">Heartbeat history</Card.Title>
+      <Card.Description>
+        Last 24 hours grouped into {formatInterval(history.bucketSizeSeconds)} buckets.
+      </Card.Description>
     </div>
-  </div>
 
-  <div class="grid gap-4 px-4 py-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.9fr)]">
-    <div class="space-y-4">
-      <div class="h-[260px] w-full">
-        {#if hasData}
-          <ChartContainer config={chartConfig} class="h-full w-full">
-            <AreaChart
-              data={chartData}
-              x="timestamp"
-              yDomain={[0, null]}
-              padding={{ top: 8, right: 4, bottom: 4, left: 4 }}
-              axis="x"
-              grid={{ x: false, y: true }}
-              tooltipContext={{ mode: "band" }}
-              highlight={{ lines: true, points: true }}
-              series={[
-                {
-                  key: "total",
-                  label: "Check-ins",
-                  value: (row: { total: number }) => row.total,
-                  color: "var(--color-total)",
-                },
-              ]}
-              props={{
-                area: {
-                  fillOpacity: 0.18,
-                },
-                spline: {
-                  strokeWidth: 2,
-                },
-                xAxis: {
-                  tickLength: 8,
-                  tickSpacing: 64,
-                  format: (value: Date) =>
-                    value.toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    }),
-                  tickLabelProps: {
-                    style:
-                      "font-weight: 600; font-family: var(--font-sans); font-variant-numeric: tabular-nums slashed-zero;",
-                    textAnchor: "middle",
-                  },
-                },
-              }}
+    <div
+      class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground"
+    >
+      <span class="inline-flex items-center gap-1.5">
+        <span class="size-2 rounded-full bg-emerald-500/85"></span>
+        Received
+      </span>
+      <span class="inline-flex items-center gap-1.5">
+        <span class="size-2 rounded-full bg-amber-500/70"></span>
+        Grace window
+      </span>
+      <span class="inline-flex items-center gap-1.5">
+        <span class="size-2 rounded-full bg-destructive/80"></span>
+        Missed
+      </span>
+    </div>
+  </Card.Header>
+
+  <Card.Content
+    class="grid gap-5 px-5 py-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(260px,0.95fr)]"
+  >
+    <div class="space-y-5">
+      <div class="space-y-3">
+        <div
+          class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"
+        >
+          <div>
+            <p
+              class="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase"
             >
-              {#snippet tooltip()}
-                {#snippet tooltipFormatter({ value }: { value: unknown })}
-                  {Number(value)} check-in{Number(value) === 1 ? "" : "s"}
-                {/snippet}
-                <ChartTooltip
-                  labelFormatter={(value) => formatBucketLabel(value)}
-                  formatter={tooltipFormatter}
-                />
-              {/snippet}
-            </AreaChart>
-          </ChartContainer>
-        {:else}
-          <div class="flex h-full items-center justify-center rounded-lg border border-dashed">
-            <p class="text-sm text-muted-foreground">
-              No heartbeat check-ins have been recorded yet.
+              Timeline coverage
+            </p>
+            <p class="mt-1 text-sm text-foreground">
+              {history.stats.receivedBuckets24h} active bucket{history.stats
+                .receivedBuckets24h === 1
+                ? ""
+                : "s"} in the last 24 hours
             </p>
           </div>
-        {/if}
-      </div>
-
-      <div class="space-y-2">
-        <div class="flex items-center justify-between">
-          <p class="text-xs uppercase tracking-wide text-muted-foreground">
-            Bucket coverage
+          <p class="text-xs font-medium text-muted-foreground">
+            {coveragePercent}% coverage
           </p>
-          <div class="flex items-center gap-3 text-xs text-muted-foreground">
-            <span class="inline-flex items-center gap-1.5">
-              <span class="size-2 rounded-full bg-primary/80"></span>
-              Received
-            </span>
-            <span class="inline-flex items-center gap-1.5">
-              <span class="size-2 rounded-full bg-destructive/80"></span>
-              Missed
-            </span>
-          </div>
         </div>
-        <div class="grid grid-cols-12 gap-1 sm:grid-cols-16 lg:grid-cols-12 xl:grid-cols-16">
+
+        <div class="grid grid-cols-12 gap-1 sm:grid-cols-16 xl:grid-cols-24">
           {#each history.buckets as bucket}
             <div
-              class={`h-3 rounded-sm ${statusClass(bucket.status)}`}
+              class={`h-9 rounded-sm transition-opacity hover:opacity-85 ${bucketClass(bucket.status, bucket.count)}`}
               title={`${formatBucketLabel(bucket.startAt)} · ${bucket.count} check-in${bucket.count === 1 ? "" : "s"}`}
             ></div>
           {/each}
         </div>
-      </div>
-    </div>
 
-    <div class="space-y-4">
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-        <div class="rounded-lg border bg-muted/20 px-3 py-3">
-          <p class="text-xs uppercase tracking-wide text-muted-foreground">
-            Check-ins in 24h
-          </p>
-          <p class="mt-1 text-2xl font-semibold">
+        <div
+          class="flex items-center justify-between gap-3 font-mono text-[11px] text-muted-foreground"
+        >
+          <span>{formatBucketLabel(history.rangeStartAt)}</span>
+          <span>{formatBucketLabel(history.rangeEndAt)}</span>
+        </div>
+      </div>
+
+      <div class="grid gap-3 sm:grid-cols-3">
+        <div class="rounded-xl border bg-muted/20 px-3 py-3">
+          <p class="text-xs text-muted-foreground">Check-ins in 24h</p>
+          <p class="mt-1 text-xl font-semibold">
             {history.stats.totalCheckIns24h}
           </p>
         </div>
-        <div class="rounded-lg border bg-muted/20 px-3 py-3">
-          <p class="text-xs uppercase tracking-wide text-muted-foreground">
-            Missed buckets
-          </p>
-          <p class="mt-1 text-2xl font-semibold">
-            {history.stats.missedBuckets24h}
-          </p>
-        </div>
-        <div class="rounded-lg border bg-muted/20 px-3 py-3">
-          <p class="text-xs uppercase tracking-wide text-muted-foreground">
-            Buckets with activity
-          </p>
-          <p class="mt-1 text-2xl font-semibold">
-            {history.stats.receivedBuckets24h}
-          </p>
-        </div>
-        <div class="rounded-lg border bg-muted/20 px-3 py-3">
-          <p class="text-xs uppercase tracking-wide text-muted-foreground">
-            Average interval
-          </p>
-          <p class="mt-1 text-2xl font-semibold">
+        <div class="rounded-xl border bg-muted/20 px-3 py-3">
+          <p class="text-xs text-muted-foreground">Average interval</p>
+          <p class="mt-1 text-xl font-semibold">
             {formatInterval(history.stats.averageIntervalSeconds)}
           </p>
         </div>
-      </div>
-
-      <div class="rounded-lg border">
-        <div class="border-b border-border/70 px-3 py-2">
-          <p class="text-sm font-medium">Recent check-ins</p>
-        </div>
-        <div class="max-h-[260px] space-y-0.5 overflow-y-auto px-3 py-2">
-          {#if history.recentCheckIns.length === 0}
-            <p class="py-4 text-sm text-muted-foreground">
-              No check-ins recorded yet.
-            </p>
-          {:else}
-            {#each history.recentCheckIns as item}
-              <div class="flex items-center justify-between gap-3 py-1.5">
-                <p class="text-sm font-medium">
-                  {formatTimeAgo(item.checkedInAt)}
-                </p>
-                <p class="text-xs text-muted-foreground">
-                  {formatBucketLabel(item.checkedInAt)}
-                </p>
-              </div>
-            {/each}
-          {/if}
+        <div class="rounded-xl border bg-muted/20 px-3 py-3">
+          <p class="text-xs text-muted-foreground">Expected cadence</p>
+          <p class="mt-1 text-xl font-semibold">
+            {formatInterval(expectedEverySeconds)}
+          </p>
         </div>
       </div>
     </div>
-  </div>
-</section>
+
+    <div class="rounded-xl border bg-muted/15">
+      <div class="flex items-center justify-between border-b px-4 py-3">
+        <div>
+          <p class="text-sm font-medium">Recent check-ins</p>
+          <p class="text-xs text-muted-foreground">
+            Most recent delivery timestamps
+          </p>
+        </div>
+        <Badge variant="outline" class="text-xs">
+          {history.recentCheckIns.length}
+        </Badge>
+      </div>
+
+      <div class="max-h-[320px] overflow-y-auto px-4 py-2">
+        {#if history.recentCheckIns.length === 0}
+          <p class="py-8 text-sm text-muted-foreground">
+            No heartbeat check-ins have been recorded yet.
+          </p>
+        {:else}
+          <div class="divide-y divide-border/70">
+            {#each history.recentCheckIns as item}
+              <div class="flex items-center justify-between gap-3 py-3">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium">
+                    Received {formatTimeAgo(item.checkedInAt)}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {formatBucketLabel(item.checkedInAt)}
+                  </p>
+                </div>
+                <Badge
+                  variant="outline"
+                  class="border-emerald-500/20 bg-emerald-500/8 text-emerald-700"
+                >
+                  Healthy
+                </Badge>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    </div>
+  </Card.Content>
+</Card.Root>

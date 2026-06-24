@@ -1,6 +1,6 @@
-import { fileURLToPath } from "node:url";
-import tailwindcss from "@tailwindcss/vite";
 import { sveltekit } from "@sveltejs/kit/vite";
+import tailwindcss from "@tailwindcss/vite";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
 export default defineConfig({
@@ -12,4 +12,7 @@ export default defineConfig({
     },
   },
   plugins: [tailwindcss(), sveltekit()],
+  server: {
+    allowedHosts: ["decie2.local"]
+  }
 });

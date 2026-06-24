@@ -24,9 +24,7 @@ const heartbeatMonitor = pgTable(
     expectedEverySeconds: integer('expected_every_seconds').notNull(),
     graceSeconds: integer('grace_seconds').notNull(),
     lastCheckInAt: timestamp('last_check_in_at'),
-    lastStatus: heartbeatMonitorStatus('last_status').notNull().default('never_received'),
-    lastMissedAt: timestamp('last_missed_at'),
-    lastRecoveredAt: timestamp('last_recovered_at'),
+    status: heartbeatMonitorStatus('status').notNull().default('never_received'),
     pausedAt: timestamp('paused_at'),
     createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
     updatedBy: text('updated_by').references(() => user.id, { onDelete: 'set null' }),
@@ -38,7 +36,7 @@ const heartbeatMonitor = pgTable(
   },
   (table) => [
     index('heartbeat_monitor_app_id_idx').on(table.appId),
-    index('heartbeat_monitor_app_status_idx').on(table.appId, table.lastStatus),
+    index('heartbeat_monitor_app_status_idx').on(table.appId, table.status),
   ]
 );
 

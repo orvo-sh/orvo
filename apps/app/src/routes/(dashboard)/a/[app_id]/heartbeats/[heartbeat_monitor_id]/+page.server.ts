@@ -26,7 +26,11 @@ export const load = (async ({ locals, params, parent }) => {
       },
     ),
     locals.container.incidentService.getOpenIncidents(
-      {},
+      {
+        sourceType: "heartbeat",
+        sourceId: params.heartbeat_monitor_id,
+        limit: 20,
+      },
       { appId: params.app_id },
     ),
   ]);

@@ -8,15 +8,15 @@
   let {
     heartbeatMonitor,
     children,
+    open = $bindable(false),
   }: {
     heartbeatMonitor: {
       id: string;
       name: string;
     };
     children?: Snippet<[{ openDialog: () => void }]>;
+    open?: boolean;
   } = $props();
-
-  let open = $state(false);
 
   const submit = async () => {
     const result = await deleteHeartbeatMonitorCommand(heartbeatMonitor.id);
@@ -44,8 +44,8 @@
     <AlertDialog.Header>
       <AlertDialog.Title>Delete heartbeat monitor?</AlertDialog.Title>
       <AlertDialog.Description>
-        This action cannot be undone. {heartbeatMonitor.name} and its
-        configuration will be permanently removed.
+        This action cannot be undone. {heartbeatMonitor.name} and its configuration
+        will be permanently removed.
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>

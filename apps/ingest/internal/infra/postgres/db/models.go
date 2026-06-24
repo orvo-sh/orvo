@@ -956,9 +956,7 @@ type HeartbeatMonitor struct {
 	ExpectedEverySeconds int32                  `json:"expected_every_seconds"`
 	GraceSeconds         int32                  `json:"grace_seconds"`
 	LastCheckInAt        pgtype.Timestamp       `json:"last_check_in_at"`
-	LastStatus           HeartbeatMonitorStatus `json:"last_status"`
-	LastMissedAt         pgtype.Timestamp       `json:"last_missed_at"`
-	LastRecoveredAt      pgtype.Timestamp       `json:"last_recovered_at"`
+	Status               HeartbeatMonitorStatus `json:"status"`
 	CreatedBy            pgtype.Text            `json:"created_by"`
 	UpdatedBy            pgtype.Text            `json:"updated_by"`
 	CreatedAt            pgtype.Timestamp       `json:"created_at"`

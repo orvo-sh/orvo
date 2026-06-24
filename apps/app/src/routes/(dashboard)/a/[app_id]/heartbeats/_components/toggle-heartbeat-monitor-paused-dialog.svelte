@@ -6,9 +6,11 @@
   import type { Snippet } from "svelte";
 
   let {
+    open = $bindable(false),
     heartbeatMonitor,
     children,
   }: {
+    open: boolean;
     heartbeatMonitor: {
       id: string;
       name: string;
@@ -17,10 +19,10 @@
     children?: Snippet<[{ openDialog: () => void }]>;
   } = $props();
 
-  let open = $state(false);
-
   const submit = async () => {
-    const result = await toggleHeartbeatMonitorPausedCommand(heartbeatMonitor.id);
+    const result = await toggleHeartbeatMonitorPausedCommand(
+      heartbeatMonitor.id,
+    );
 
     if (!result.success) {
       toast.error(result.error);
@@ -29,7 +31,9 @@
 
     open = false;
     await invalidateAll();
-    toast.success(result.data.paused ? "Heartbeat paused." : "Heartbeat resumed.");
+    toast.success(
+      result.data.paused ? "Heartbeat paused." : "Heartbeat resumed.",
+    );
   };
 </script>
 
@@ -50,10 +54,10 @@
       </AlertDialog.Title>
       <AlertDialog.Description>
         {#if heartbeatMonitor.isPaused}
-          Resume missed-heartbeat evaluations and notifications for{" "}
+          Resume monitoring the heartbeat '{" "}'
           {heartbeatMonitor.name}.
         {:else}
-          Pause missed-heartbeat evaluations and notifications for{" "}
+          Pause monitoring the heartbeat '{" "}'
           {heartbeatMonitor.name} until you resume it.
         {/if}
       </AlertDialog.Description>

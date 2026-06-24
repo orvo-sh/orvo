@@ -27,10 +27,7 @@ type GetHeartbeatMonitorByTokenRow struct {
 func (q *Queries) GetHeartbeatMonitorByToken(ctx context.Context, token string) (GetHeartbeatMonitorByTokenRow, error) {
 	row := q.db.QueryRow(ctx, getHeartbeatMonitorByToken, token)
 	var i GetHeartbeatMonitorByTokenRow
-	err := row.Scan(
-		&i.ID,
-		&i.AppID,
-	)
+	err := row.Scan(&i.ID, &i.AppID)
 	return i, err
 }
 
@@ -38,7 +35,7 @@ const markHeartbeatMonitorHealthy = `-- name: MarkHeartbeatMonitorHealthy :exec
 UPDATE heartbeat_monitor
 SET
   last_check_in_at = $2,
-  last_status = 'healthy',
+  status = 'healthy',
   updated_at = $2
 WHERE id = $1
 `

@@ -103,13 +103,12 @@ func SeedHeartbeat(ctx context.Context, postgresDB *pgclient.Client, input SeedH
 			expected_every_seconds,
 			grace_seconds,
 			last_check_in_at,
-			last_status,
-			last_missed_at,
+			status,
 			created_at,
 			updated_at
 		)
-		VALUES ($1, $2, $3, $4, 60, 30, $5, $6::heartbeat_monitor_status, $7, $8, $8)
-	`, monitorID, input.AppID, "API health "+input.Suffix, token, now, input.Status, now, now); err != nil {
+		VALUES ($1, $2, $3, $4, 60, 30, $5, $6::heartbeat_monitor_status, $7, $7)
+	`, monitorID, input.AppID, "API health "+input.Suffix, token, now, input.Status, now); err != nil {
 		return nil, fmt.Errorf("insert heartbeat monitor: %w", err)
 	}
 

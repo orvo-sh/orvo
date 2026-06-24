@@ -2,20 +2,24 @@
   import { invalidateAll } from "$app/navigation";
   import { startAutoRefresh } from "$lib/browser/auto-refresh";
   import { createNowStore } from "$lib/stores/now";
-  import { Button, buttonVariants } from "@repo/components/ui/button";
+  import { buttonVariants } from "@repo/components/ui/button";
   import * as Card from "@repo/components/ui/card";
   import * as DropdownMenu from "@repo/components/ui/dropdown-menu";
+  import { toast } from "@repo/components/ui/sonner";
   import * as Tabs from "@repo/components/ui/tabs";
   import {
     IconAlertTriangle,
     IconChecks,
     IconCircle,
     IconCircleFilled,
+    IconCopy,
     IconDotsVertical,
-    IconFileDescription,
     IconList,
+    IconPencilMinus,
     IconPlayerPause,
+    IconPlayerPlay,
     IconPlus,
+    IconTrash,
   } from "@tabler/icons-svelte";
   import { onMount } from "svelte";
 
@@ -27,12 +31,23 @@
   import PageContainer from "../_components/page-container/page-container.svelte";
   import CreateEditHeartbeatMonitor from "./_components/create-edit-heartbeat-monitor.svelte";
   import DeleteHeartbeatMonitorDialog from "./_components/delete-heartbeat-monitor-dialog.svelte";
-  import EditHeartbeatMonitorDialog from "./_components/edit-heartbeat-monitor-dialog.svelte";
   import ToggleHeartbeatMonitorPausedDialog from "./_components/toggle-heartbeat-monitor-paused-dialog.svelte";
 
   let { data } = $props();
 
   const nowStore = createNowStore(1000);
+
+  let selectedHeartbeatMonitor = $state<{
+    id: string;
+    name: string;
+    expectedEverySeconds: number;
+    isPaused: boolean;
+    graceSeconds: number;
+    destinationIds: string[];
+  } | null>(null);
+  let isEditModalOpen = $state(false);
+  let isDeleteDialogOpen = $state(false);
+  let isPauseDialogOpen = $state(false);
 
   onMount(() => {
     return startAutoRefresh({
@@ -45,32 +60,8 @@
 <PageContainer
   title="Heartbeats"
   scrollContent={false}
-  innerClass="min-h-0 px-0! gap-2 overflow-hidden"
+  innerClass="min-h-0 p-0! gap-2 overflow-hidden"
 >
-  {#snippet helper()}
-    <div class="space-y-2">
-      <p>
-        Heartbeats let you monitor scheduled jobs, workers, and external checks
-        that should report in on a fixed cadence.
-      </p>
-      <p>
-        Each monitor gets a secret URL that accepts <code>GET</code> or
-        <code>POST</code>. If a check-in is missed past the cadence and grace
-        window, Orvo sends the attached webhook and email notifications once,
-        then sends a recovery notification when the monitor checks in again.
-      </p>
-      <Button
-        href="https://orvo.sh/docs/heartbeats"
-        size="sm"
-        target="_blank"
-        variant="outline"
-        class="mt-2 w-full"
-      >
-        <IconFileDescription data-slot="button-icon" />
-        Heartbeats docs
-      </Button>
-    </div>
-  {/snippet}
   {#snippet actions()}
     <CreateEditHeartbeatMonitor
       destinations={data.destinations}
@@ -90,42 +81,42 @@
   <Tabs.Root value="all" class="flex min-h-0 flex-1 flex-col gap-0">
     <Tabs.List
       variant="line"
-      class="flex h-8! w-full justify-start border-b px-3"
+      class="flex h-13! w-full justify-start border-b px-3"
     >
-      <Tabs.Trigger value="all" class="px-3 pb-3">
-        <IconList class="size-3.5" />
+      <Tabs.Trigger value="all" class="px-3 not-sm:flex-1">
+        <IconList class="size-3.5 not-sm:hidden" />
         All
         <span
-          class="items-center justify-center rounded-sm border border-primary/40 bg-primary/10 px-1 font-mono text-xs text-blue-800 tabular-nums"
+          class="items-center justify-center rounded-sm border border-primary/40 bg-primary/10 px-1 font-mono text-xs text-blue-800 tabular-nums not-sm:hidden"
           >{data.monitors.length}</span
         >
       </Tabs.Trigger>
-      <Tabs.Trigger value="healthy" class="px-3 pb-3">
-        <IconChecks class="size-3.5" />
+      <Tabs.Trigger value="healthy" class="px-3 not-sm:flex-1 ">
+        <IconChecks class="size-3.5 not-sm:hidden" />
         Healthy
         <span
-          class="items-center justify-center rounded-sm border border-green-600/40 bg-green-600/10 px-1 font-mono text-xs text-green-800 tabular-nums"
+          class="items-center justify-center rounded-sm border border-green-600/40 bg-green-600/10 px-1 font-mono text-xs text-green-800 tabular-nums not-sm:hidden"
         >
           {data.monitors.filter(
             (monitor) => monitor.status === "healthy" && !monitor.isPaused,
           ).length}
         </span>
       </Tabs.Trigger>
-      <Tabs.Trigger value="missed" class="px-3 pb-3">
-        <IconAlertTriangle class="size-3.5" />
+      <Tabs.Trigger value="missed" class="px-3 not-sm:flex-1 ">
+        <IconAlertTriangle class="size-3.5 not-sm:hidden" />
         Missed
         <span
-          class="items-center justify-center rounded-sm border border-red-600/40 bg-red-600/10 px-1 font-mono text-xs text-red-800 tabular-nums"
+          class="items-center justify-center rounded-sm border border-red-600/40 bg-red-600/10 px-1 font-mono text-xs text-red-800 tabular-nums not-sm:hidden"
         >
           {data.monitors.filter((monitor) => monitor.status === "missed")
             .length}
         </span>
       </Tabs.Trigger>
-      <Tabs.Trigger value="paused" class="px-3 pb-3">
-        <IconPlayerPause class="size-3.5" />
+      <Tabs.Trigger value="paused" class="px-3 not-sm:flex-1">
+        <IconPlayerPause class="size-3.5 not-sm:hidden" />
         Paused
         <span
-          class="items-center justify-center rounded-sm border border-muted-foreground/30 bg-muted-foreground/7 px-1 font-mono text-xs text-muted-foreground tabular-nums"
+          class="items-center justify-center rounded-sm border border-muted-foreground/30 bg-muted-foreground/7 px-1 font-mono text-xs text-muted-foreground tabular-nums not-sm:hidden"
         >
           {data.monitors.filter((monitor) => monitor.isPaused).length}
         </span>
@@ -158,7 +149,7 @@
   })()}
   <Card.Root
     data-empty={filteredMonitors.length === 0 ? "true" : undefined}
-    class="min-h-0 gap-0 divide-y overflow-y-auto rounded-xl p-0 data-empty:ring-0"
+    class="max-h-full min-h-0 gap-0 divide-y overflow-y-auto rounded-xl p-0 data-empty:ring-0"
   >
     {#each filteredMonitors as monitor (monitor.id)}
       <div
@@ -234,47 +225,52 @@
             <IconDotsVertical />
           </DropdownMenu.Trigger>
           <DropdownMenu.Content align="end" class="w-40">
-            <EditHeartbeatMonitorDialog
-              heartbeatMonitor={monitor}
-              destinations={data.destinations}
+            <DropdownMenu.Item
+              onSelect={async () => {
+                try {
+                  await navigator.clipboard.writeText(monitor.url);
+                  toast.success("Heartbeat URL copied.");
+                } catch {
+                  toast.error("Failed to copy heartbeat URL.");
+                }
+              }}
             >
-              {#snippet children({ openDialog })}
-                <DropdownMenu.Item
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    openDialog();
-                  }}
-                >
-                  Edit
-                </DropdownMenu.Item>
-              {/snippet}
-            </EditHeartbeatMonitorDialog>
-            <ToggleHeartbeatMonitorPausedDialog heartbeatMonitor={monitor}>
-              {#snippet children({ openDialog })}
-                <DropdownMenu.Item
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    openDialog();
-                  }}
-                >
-                  {monitor.isPaused ? "Resume" : "Pause"}
-                </DropdownMenu.Item>
-              {/snippet}
-            </ToggleHeartbeatMonitorPausedDialog>
-            <DropdownMenu.Separator />
-            <DeleteHeartbeatMonitorDialog heartbeatMonitor={monitor}>
-              {#snippet children({ openDialog })}
-                <DropdownMenu.Item
-                  variant="destructive"
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    openDialog();
-                  }}
-                >
-                  Delete
-                </DropdownMenu.Item>
-              {/snippet}
-            </DeleteHeartbeatMonitorDialog>
+              <IconCopy class="size-3" />
+              Copy URL
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              onSelect={() => {
+                selectedHeartbeatMonitor = monitor;
+                queueMicrotask(() => (isPauseDialogOpen = true));
+              }}
+            >
+              {#if monitor.isPaused}
+                <IconPlayerPlay />
+                Resume
+              {:else}
+                <IconPlayerPause class="size-3" />
+                Pause
+              {/if}
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              onSelect={() => {
+                selectedHeartbeatMonitor = monitor;
+                queueMicrotask(() => (isEditModalOpen = true));
+              }}
+            >
+              <IconPencilMinus class="size-3" />
+              Edit
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              variant="destructive"
+              onSelect={() => {
+                selectedHeartbeatMonitor = monitor;
+                queueMicrotask(() => (isDeleteDialogOpen = true));
+              }}
+            >
+              <IconTrash class="size-3" />
+              Delete
+            </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
       </div>
@@ -287,3 +283,19 @@
     {/each}
   </Card.Root>
 {/snippet}
+
+{#if selectedHeartbeatMonitor}
+  <DeleteHeartbeatMonitorDialog
+    bind:open={isDeleteDialogOpen}
+    heartbeatMonitor={selectedHeartbeatMonitor}
+  />
+  <CreateEditHeartbeatMonitor
+    bind:open={isEditModalOpen}
+    heartbeatMonitor={selectedHeartbeatMonitor}
+    destinations={data.destinations}
+  />
+  <ToggleHeartbeatMonitorPausedDialog
+    bind:open={isPauseDialogOpen}
+    heartbeatMonitor={selectedHeartbeatMonitor}
+  />
+{/if}
