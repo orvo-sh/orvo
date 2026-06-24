@@ -43,6 +43,7 @@ env:
     HOST: 0.0.0.0
     PORT: '3000'
     ORIGIN: https://app.orvo.sh
+    INGEST_BASE_URL: https://ingest.orvo.sh
     PUBLIC_ORVO_OTLP_BASE_URL: https://ingest.orvo.sh
     PROD_OTEL_BASE_URL: https://ingest.orvo.sh
   secret:

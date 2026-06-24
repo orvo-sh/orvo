@@ -109,8 +109,7 @@ jobs:
         run: |
           for config_file in \
             config/deploy.app.yml \
-            config/deploy.ingest.yml \
-            config/deploy.alerts-worker.yml
+            config/deploy.ingest.yml
           do
             kamal -c "${config_file}" config > /dev/null
           done
@@ -130,17 +129,11 @@ jobs:
       - name: Build and push ingest image
         run: kamal build push -c config/deploy.ingest.yml --version "${DEPLOY_VERSION}"
 
-      - name: Build and push alerts worker image
-        run: kamal build push -c config/deploy.alerts-worker.yml --version "${DEPLOY_VERSION}"
-
       - name: Pull app image to server
         run: kamal build pull -c config/deploy.app.yml --version "${DEPLOY_VERSION}"
 
       - name: Pull ingest image to server
         run: kamal build pull -c config/deploy.ingest.yml --version "${DEPLOY_VERSION}"
-
-      - name: Pull alerts worker image to server
-        run: kamal build pull -c config/deploy.alerts-worker.yml --version "${DEPLOY_VERSION}"
 
       - name: Prepare migration env file
         env:
@@ -169,8 +162,10 @@ jobs:
       - name: Deploy app
         run: kamal deploy -c config/deploy.app.yml --skip-push --version "${DEPLOY_VERSION}"
 
-      - name: Deploy alerts worker
-        run: kamal deploy -c config/deploy.alerts-worker.yml --skip-push --version "${DEPLOY_VERSION}"
+      - name: Remove obsolete worker containers
+        run: |
+          ssh -i "${KAMAL_SSH_KEY_PATH}" -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "${KAMAL_SSH_USER}@${KAMAL_HOST}" \
+            "docker ps -aq --filter name=orvo-alerts-worker --filter name=orvo-telemetry-writer | xargs -r docker rm -f"
 
       - name: Verify production endpoints
         run: |
