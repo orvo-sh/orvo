@@ -1,182 +1,65 @@
 import { Instrument } from "$lib/instrumentation";
-import { and, desc, eq, isNull, type DB, type Tx } from "@repo/db";
-import { ingestionKey } from "@repo/db/schema";
+import type { DB, Tx } from "@repo/db";
 import type { Logger } from "@repo/logger";
-import { err, genId, ok } from "@repo/utils";
 import { z } from "zod";
+
+import { createCreateIngestionKey } from "./methods/create-ingestion-key";
+import { createGetIngestionKey } from "./methods/get-ingestion-key";
+import { createRotateIngestionKey } from "./methods/rotate-ingestion-key";
+import {
+  createIngestionKeyInputSchema,
+  getIngestionKeyInputSchema,
+  rotateIngestionKeyInputSchema,
+} from "./schema";
 
 @Instrument({ prefix: "ingestionKey" })
 class IngestionKeyService {
   private logger: Logger;
+  private getIngestionKeyMethod: ReturnType<typeof createGetIngestionKey>;
+  private createIngestionKeyMethod: ReturnType<typeof createCreateIngestionKey>;
+  private rotateIngestionKeyMethod: ReturnType<typeof createRotateIngestionKey>;
 
   constructor(
     private db: DB,
     logger: Logger,
   ) {
     this.logger = logger.child("IngestionKeyService");
+    this.getIngestionKeyMethod = createGetIngestionKey({
+      db: this.db,
+      logger: this.logger,
+    });
+    this.createIngestionKeyMethod = createCreateIngestionKey({
+      db: this.db,
+      logger: this.logger,
+    });
+    this.rotateIngestionKeyMethod = createRotateIngestionKey({
+      db: this.db,
+      logger: this.logger,
+    });
   }
 
   async getIngestionKey(
-    input: z.infer<typeof getIngestionKeyInputSchema>,
+    input: z.input<typeof getIngestionKeyInputSchema>,
     context: { appId: string },
   ) {
-    this.logger.info("getIngestionKey: getting ingestion key", {
-      input,
-      context,
-    });
-
-    const validated = getIngestionKeyInputSchema.safeParse(input);
-    if (!validated.success) {
-      return err(validated.error.message);
-    }
-
-    try {
-      const key = await this.db.query.ingestionKey.findFirst({
-        where: and(
-          eq(ingestionKey.appId, context.appId),
-          eq(ingestionKey.kind, validated.data.kind),
-          isNull(ingestionKey.revokedAt),
-        ),
-        orderBy: [desc(ingestionKey.createdAt)],
-      });
-
-      return ok({ key: key ?? null });
-    } catch (error) {
-      this.logger.error(
-        "getIngestionKey: failed to get ingestion key",
-        error as Error,
-      );
-      return err("Failed to get ingestion key.");
-    }
+    return this.getIngestionKeyMethod(input, context);
   }
 
   async createIngestionKey(
-    input: z.infer<typeof createIngestionKeyInputSchema>,
+    input: z.input<typeof createIngestionKeyInputSchema>,
     context: { appId: string; userId: string },
     tx?: Tx,
   ) {
-    this.logger.info("createIngestionKey: creating ingestion key", {
-      input,
-      context,
-    });
-
-    const validated = createIngestionKeyInputSchema.safeParse(input);
-    if (!validated.success) {
-      return err(validated.error.message);
-    }
-
-    try {
-      const db = tx ?? this.db;
-
-      const activeKey = await db.query.ingestionKey.findFirst({
-        where: and(
-          eq(ingestionKey.appId, context.appId),
-          eq(ingestionKey.kind, validated.data.kind),
-          isNull(ingestionKey.revokedAt),
-        ),
-      });
-
-      if (activeKey) {
-        return ok({ id: activeKey.id, key: activeKey.key });
-      }
-
-      const key = genId(validated.data.kind === "public" ? "pk" : "sk");
-      const id = genId("ingk");
-
-      await db
-        .insert(ingestionKey)
-        .values({
-          id,
-          appId: context.appId,
-          kind: validated.data.kind,
-          key,
-          createdBy: context.userId,
-        })
-        .execute();
-
-      return ok({ id, key });
-    } catch (error) {
-      this.logger.error(
-        "createIngestionKey: failed to create ingestion key",
-        error as Error,
-      );
-      return err("Failed to create ingestion key.");
-    }
+    return this.createIngestionKeyMethod(input, context, tx);
   }
 
   async rotateIngestionKey(
-    input: z.infer<typeof rotateIngestionKeyInputSchema>,
+    input: z.input<typeof rotateIngestionKeyInputSchema>,
     context: { appId: string; userId: string },
   ) {
-    this.logger.info("rotateIngestionKey: rotating ingestion key", {
-      input,
-      context,
-    });
-
-    const validated = rotateIngestionKeyInputSchema.safeParse(input);
-    if (!validated.success) {
-      return err(validated.error.message);
-    }
-
-    try {
-      const activeKey = await this.db.query.ingestionKey.findFirst({
-        where: and(
-          eq(ingestionKey.appId, context.appId),
-          eq(ingestionKey.kind, validated.data.kind),
-          isNull(ingestionKey.revokedAt),
-        ),
-      });
-
-      if (activeKey) {
-        await this.db
-          .update(ingestionKey)
-          .set({ revokedAt: new Date() })
-          .where(eq(ingestionKey.id, activeKey.id))
-          .execute();
-      }
-
-      const key = genId(validated.data.kind === "public" ? "pk" : "sk");
-      const id = genId("ingk");
-
-      await this.db
-        .insert(ingestionKey)
-        .values({
-          id,
-          appId: context.appId,
-          kind: validated.data.kind,
-          key,
-          createdBy: context.userId,
-        })
-        .execute();
-
-      return ok({ id, key });
-    } catch (error) {
-      this.logger.error(
-        "rotateIngestionKey: failed to rotate ingestion key",
-        error as Error,
-      );
-      return err("Failed to rotate ingestion key.");
-    }
+    return this.rotateIngestionKeyMethod(input, context);
   }
 }
 
-const ingestionKeyKindSchema = z.enum(["public", "private"]);
-
-const getIngestionKeyInputSchema = z.object({
-  kind: ingestionKeyKindSchema,
-});
-
-const createIngestionKeyInputSchema = z.object({
-  kind: ingestionKeyKindSchema,
-});
-
-const rotateIngestionKeyInputSchema = z.object({
-  kind: ingestionKeyKindSchema,
-});
-
-export {
-  createIngestionKeyInputSchema,
-  getIngestionKeyInputSchema,
-  IngestionKeyService,
-  rotateIngestionKeyInputSchema,
-};
+export * from "./schema";
+export { IngestionKeyService };

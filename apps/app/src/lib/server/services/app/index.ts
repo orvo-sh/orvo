@@ -1,17 +1,21 @@
 import { Instrument } from "$lib/instrumentation";
 import type { DB } from "@repo/db";
-import { app } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
-import { err, genId, ok } from "@repo/utils";
-import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { AlertRuleService } from "../alert-rule";
 import { IngestionKeyService } from "../ingestion-key";
+import { createCreateApp } from "./methods/create-app";
+import { createGetApp } from "./methods/get-app";
+import { createListApps } from "./methods/list-apps";
+import { createAppInputSchema, getAppInputSchema } from "./schema";
 
 @Instrument({ prefix: "app" })
 class AppService {
   private logger: Logger;
+  private listAppsMethod: ReturnType<typeof createListApps>;
+  private getAppMethod: ReturnType<typeof createGetApp>;
+  private createAppMethod: ReturnType<typeof createCreateApp>;
 
   constructor(
     private db: DB,
@@ -20,115 +24,40 @@ class AppService {
     private alertRuleService: AlertRuleService,
   ) {
     this.logger = logger.child("AppService");
+    this.listAppsMethod = createListApps({
+      db: this.db,
+      logger: this.logger,
+    });
+    this.getAppMethod = createGetApp({
+      db: this.db,
+      logger: this.logger,
+    });
+    this.createAppMethod = createCreateApp({
+      db: this.db,
+      logger: this.logger,
+      ingestionKeyService: this.ingestionKeyService,
+      alertRuleService: this.alertRuleService,
+    });
   }
 
   async listApps(context: { organizationId: string }) {
-    this.logger.info("listApps: listing apps", { context });
-
-    try {
-      const apps = await this.db.query.app.findMany({
-        where: eq(app.organizationId, context.organizationId),
-        orderBy: [asc(app.createdAt), asc(app.name)],
-      });
-
-      return ok({ apps });
-    } catch (error) {
-      this.logger.error("listApps: failed to list apps", error as Error);
-      return err("Failed to load apps.");
-    }
+    return this.listAppsMethod(context);
   }
 
   async getApp(
-    input: z.infer<typeof getAppInputSchema>,
+    input: z.input<typeof getAppInputSchema>,
     context: { organizationId: string },
   ) {
-    this.logger.info("getApp: getting app", { input, context });
-
-    const validated = getAppInputSchema.safeParse(input);
-    if (!validated.success) {
-      return err(validated.error.message);
-    }
-
-    try {
-      const currentApp = await this.db.query.app.findFirst({
-        where: and(
-          eq(app.id, validated.data.id),
-          eq(app.organizationId, context.organizationId),
-        ),
-      });
-
-      if (!currentApp) {
-        return err("App not found.");
-      }
-
-      return ok({ app: currentApp });
-    } catch (error) {
-      this.logger.error("getApp: failed to get app", error as Error);
-      return err("Failed to load app.");
-    }
+    return this.getAppMethod(input, context);
   }
 
   async createApp(
-    input: z.infer<typeof createAppInputSchema>,
+    input: z.input<typeof createAppInputSchema>,
     context: { organizationId: string; userId: string },
   ) {
-    this.logger.info("createApp: creating app", { input, context });
-
-    const validated = createAppInputSchema.safeParse(input);
-    if (!validated.success) {
-      return err(validated.error.message);
-    }
-
-    try {
-      const id = genId("app");
-
-      await this.db.transaction(async (tx) => {
-        await tx.insert(app).values({
-          id,
-          organizationId: context.organizationId,
-          name: validated.data.name,
-          createdBy: context.userId,
-          updatedBy: context.userId,
-        });
-
-        const results = await Promise.all([
-          this.ingestionKeyService.createIngestionKey(
-            { kind: "public" },
-            { appId: id, userId: context.userId },
-            tx,
-          ),
-          this.ingestionKeyService.createIngestionKey(
-            { kind: "private" },
-            { appId: id, userId: context.userId },
-            tx,
-          ),
-          this.alertRuleService.seedDefaultAlertRules(
-            { appId: id, userId: context.userId },
-            tx,
-          ),
-        ]);
-
-        for (const result of results) {
-          if (!result.success) {
-            throw new Error(result.error);
-          }
-        }
-      });
-
-      return ok({ id });
-    } catch (error) {
-      this.logger.error("createApp: failed to create app", error as Error);
-      return err("Failed to create app.");
-    }
+    return this.createAppMethod(input, context);
   }
 }
 
-const getAppInputSchema = z.object({
-  id: z.string().trim().min(1),
-});
-
-const createAppInputSchema = z.object({
-  name: z.string().trim().min(2).max(64),
-});
-
-export { AppService, createAppInputSchema, getAppInputSchema };
+export * from "./schema";
+export { AppService };

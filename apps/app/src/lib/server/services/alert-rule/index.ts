@@ -1,723 +1,117 @@
 import { Instrument } from "$lib/instrumentation";
 import type { DB, Tx } from "@repo/db";
-import {
-  alertRule,
-  alertRuleDestination,
-  incident,
-  incidentEvent,
-  notificationDestination,
-} from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
-import { err, genId, ok } from "@repo/utils";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
+
+import { createCreateAlertRule } from "./methods/create-alert-rule";
+import { createDeleteAlertRule } from "./methods/delete-alert-rule";
+import { createGetAlertRule } from "./methods/get-alert-rule";
+import { createGetAlertRules } from "./methods/get-alert-rules";
+import { createSeedDefaultAlertRules } from "./methods/seed-default-alert-rules";
+import { createSetAlertRuleEnabled } from "./methods/set-alert-rule-enabled";
+import { createUpdateAlertRule } from "./methods/update-alert-rule";
+import {
+  createAlertRuleInputSchema,
+  deleteAlertRuleInputSchema,
+  getAlertRuleInputSchema,
+  setAlertRuleEnabledInputSchema,
+  updateAlertRuleInputSchema,
+} from "./schema";
 
 @Instrument({ prefix: "alertRule" })
 class AlertRuleService {
   private logger: Logger;
+  private getAlertRulesMethod: ReturnType<typeof createGetAlertRules>;
+  private getAlertRuleMethod: ReturnType<typeof createGetAlertRule>;
+  private createAlertRuleMethod: ReturnType<typeof createCreateAlertRule>;
+  private updateAlertRuleMethod: ReturnType<typeof createUpdateAlertRule>;
+  private setAlertRuleEnabledMethod: ReturnType<typeof createSetAlertRuleEnabled>;
+  private deleteAlertRuleMethod: ReturnType<typeof createDeleteAlertRule>;
+  private seedDefaultAlertRulesMethod: ReturnType<
+    typeof createSeedDefaultAlertRules
+  >;
 
   constructor(
-    private db: DB,
+    db: DB,
     logger: Logger,
   ) {
     this.logger = logger.child("AlertRuleService");
+    this.getAlertRulesMethod = createGetAlertRules({
+      db,
+      logger: this.logger,
+    });
+    this.getAlertRuleMethod = createGetAlertRule({
+      db,
+      logger: this.logger,
+    });
+    this.createAlertRuleMethod = createCreateAlertRule({
+      db,
+      logger: this.logger,
+    });
+    this.updateAlertRuleMethod = createUpdateAlertRule({
+      db,
+      logger: this.logger,
+    });
+    this.setAlertRuleEnabledMethod = createSetAlertRuleEnabled({
+      db,
+      logger: this.logger,
+    });
+    this.deleteAlertRuleMethod = createDeleteAlertRule({
+      db,
+      logger: this.logger,
+    });
+    this.seedDefaultAlertRulesMethod = createSeedDefaultAlertRules({
+      db,
+      logger: this.logger,
+    });
   }
 
   async getAlertRules(context: { appId: string }) {
-    this.logger.info("getAlertRules: getting alert rules", { context });
-
-    try {
-      const rules = await this.db.query.alertRule.findMany({
-        where: eq(alertRule.appId, context.appId),
-        orderBy: [desc(alertRule.updatedAt)],
-      });
-
-      if (rules.length === 0) {
-        return ok({ rules: [] });
-      }
-
-      const ruleIds = rules.map((rule) => rule.id);
-      const [ruleDestinations, openIncidents] = await Promise.all([
-        this.db.query.alertRuleDestination.findMany({
-          where: inArray(alertRuleDestination.ruleId, ruleIds),
-        }),
-        this.db.query.incident.findMany({
-          where: and(
-            eq(incident.appId, context.appId),
-            eq(incident.sourceType, "alert"),
-            eq(incident.status, "open"),
-          ),
-          orderBy: [desc(incident.openedAt)],
-        }),
-      ]);
-      const destinationCountByRuleId = new Map<string, number>();
-      const openIncidentByRuleId = new Map<
-        string,
-        (typeof openIncidents)[number]
-      >();
-      const openIncidentCountByRuleId = new Map<string, number>();
-
-      for (const destination of ruleDestinations) {
-        destinationCountByRuleId.set(
-          destination.ruleId,
-          (destinationCountByRuleId.get(destination.ruleId) ?? 0) + 1,
-        );
-      }
-
-      for (const incident of openIncidents) {
-        if (!openIncidentByRuleId.has(incident.sourceId)) {
-          openIncidentByRuleId.set(incident.sourceId, incident);
-        }
-
-        openIncidentCountByRuleId.set(
-          incident.sourceId,
-          (openIncidentCountByRuleId.get(incident.sourceId) ?? 0) + 1,
-        );
-      }
-
-      return ok({
-        rules: rules.map((rule) => ({
-          ...rule,
-          destinationCount: destinationCountByRuleId.get(rule.id) ?? 0,
-          openIncident: openIncidentByRuleId.get(rule.id) ?? null,
-          openIncidentCount: openIncidentCountByRuleId.get(rule.id) ?? 0,
-        })),
-      });
-    } catch (error) {
-      this.logger.error(
-        "getAlertRules: failed to get alert rules",
-        error instanceof Error ? error : undefined,
-      );
-      return err("Failed to get alert rules.");
-    }
+    return this.getAlertRulesMethod(context);
   }
 
   async getAlertRule(
-    input: z.infer<typeof getAlertRuleInputSchema>,
+    input: z.input<typeof getAlertRuleInputSchema>,
     context: { appId: string },
   ) {
-    this.logger.info("getAlertRule: getting alert rule", { input, context });
-
-    const validated = getAlertRuleInputSchema.safeParse(input);
-    if (!validated.success) {
-      return err(validated.error.message);
-    }
-
-    try {
-      const rule = await this.db.query.alertRule.findFirst({
-        where: and(
-          eq(alertRule.id, validated.data),
-          eq(alertRule.appId, context.appId),
-        ),
-      });
-
-      if (!rule) {
-        return err("Alert rule not found.");
-      }
-
-      const destinations = await this.db.query.alertRuleDestination.findMany({
-        where: eq(alertRuleDestination.ruleId, rule.id),
-        orderBy: [asc(alertRuleDestination.destinationId)],
-      });
-
-      return ok({
-        rule: {
-          ...rule,
-          destinationIds: destinations.map(
-            (destination) => destination.destinationId,
-          ),
-        },
-      });
-    } catch (error) {
-      this.logger.error(
-        "getAlertRule: failed to get alert rule",
-        error instanceof Error ? error : undefined,
-      );
-      return err("Failed to get alert rule.");
-    }
+    return this.getAlertRuleMethod(input, context);
   }
 
   async createAlertRule(
-    input: z.infer<typeof createAlertRuleInputSchema>,
+    input: z.input<typeof createAlertRuleInputSchema>,
     context: { appId: string; userId: string },
   ) {
-    this.logger.info("createAlertRule: creating alert rule", {
-      input,
-      context,
-    });
-
-    const validated = createAlertRuleInputSchema.safeParse(input);
-    if (!validated.success) {
-      return err(validated.error.message);
-    }
-
-    const ruleValidationError = validateRuleConfig(validated.data);
-    if (ruleValidationError) {
-      return err(ruleValidationError);
-    }
-
-    try {
-      const destinationIds = uniqueValues(validated.data.destinationIds);
-      const destinations =
-        destinationIds.length === 0
-          ? []
-          : await this.db.query.notificationDestination.findMany({
-              where: and(
-                eq(notificationDestination.appId, context.appId),
-                inArray(notificationDestination.id, destinationIds),
-              ),
-              orderBy: [asc(notificationDestination.name)],
-            });
-
-      if (destinations.length !== destinationIds.length) {
-        return err("One or more notification destinations could not be found.");
-      }
-
-      const id = genId("alrt");
-
-      await this.db.transaction(async (tx) => {
-        await tx.insert(alertRule).values({
-          id,
-          appId: context.appId,
-          name: validated.data.name,
-          signalType: validated.data.signalType,
-          comparator: validated.data.comparator,
-          threshold: validated.data.threshold,
-          windowMinutes: validated.data.windowMinutes,
-          renotifyMinutes: validated.data.renotifyMinutes,
-          apdexTargetMs: validated.data.apdexTargetMs,
-          scopeServicesInclude: validated.data.scope.services.include,
-          scopeServicesExclude: validated.data.scope.services.exclude,
-          scopeSpanNamesInclude: validated.data.scope.spanNames.include,
-          scopeSpanNamesExclude: validated.data.scope.spanNames.exclude,
-          scopeEnvironmentsInclude: validated.data.scope.environments.include,
-          scopeEnvironmentsExclude: validated.data.scope.environments.exclude,
-          scopeScopesInclude: validated.data.scope.scopes.include,
-          scopeScopesExclude: validated.data.scope.scopes.exclude,
-          scopeHostNamesInclude: validated.data.scope.hostNames.include,
-          scopeHostNamesExclude: validated.data.scope.hostNames.exclude,
-          scopeContainerNamesInclude:
-            validated.data.scope.containerNames.include,
-          scopeContainerNamesExclude:
-            validated.data.scope.containerNames.exclude,
-          createdBy: context.userId,
-          updatedBy: context.userId,
-        });
-
-        if (destinationIds.length > 0) {
-          await tx.insert(alertRuleDestination).values(
-            destinationIds.map((destinationId) => ({
-              ruleId: id,
-              destinationId,
-            })),
-          );
-        }
-      });
-
-      return ok({ id });
-    } catch (error) {
-      this.logger.error(
-        "createAlertRule: failed to create alert rule",
-        error instanceof Error ? error : undefined,
-      );
-      return err("Failed to create alert rule.");
-    }
+    return this.createAlertRuleMethod(input, context);
   }
 
   async updateAlertRule(
-    input: z.infer<typeof updateAlertRuleInputSchema>,
+    input: z.input<typeof updateAlertRuleInputSchema>,
     context: { appId: string; userId: string },
   ) {
-    this.logger.info("updateAlertRule: updating alert rule", {
-      input,
-      context,
-    });
-
-    const validated = updateAlertRuleInputSchema.safeParse(input);
-    if (!validated.success) {
-      return err(validated.error.message);
-    }
-
-    const ruleValidationError = validateRuleConfig(validated.data);
-    if (ruleValidationError) {
-      return err(ruleValidationError);
-    }
-
-    try {
-      const existing = await this.db.query.alertRule.findFirst({
-        where: and(
-          eq(alertRule.id, validated.data.id),
-          eq(alertRule.appId, context.appId),
-        ),
-      });
-
-      if (!existing) {
-        return err("Alert rule not found.");
-      }
-
-      const destinationIds = uniqueValues(validated.data.destinationIds);
-      const destinations =
-        destinationIds.length === 0
-          ? []
-          : await this.db.query.notificationDestination.findMany({
-              where: and(
-                eq(notificationDestination.appId, context.appId),
-                inArray(notificationDestination.id, destinationIds),
-              ),
-              orderBy: [asc(notificationDestination.name)],
-            });
-
-      if (destinations.length !== destinationIds.length) {
-        return err("One or more notification destinations could not be found.");
-      }
-
-      await this.db.transaction(async (tx) => {
-        await tx
-          .update(alertRule)
-          .set({
-            name: validated.data.name,
-            signalType: validated.data.signalType,
-            comparator: validated.data.comparator,
-            threshold: validated.data.threshold,
-            windowMinutes: validated.data.windowMinutes,
-            renotifyMinutes: validated.data.renotifyMinutes,
-            apdexTargetMs: validated.data.apdexTargetMs,
-            scopeServicesInclude: validated.data.scope.services.include,
-            scopeServicesExclude: validated.data.scope.services.exclude,
-            scopeSpanNamesInclude: validated.data.scope.spanNames.include,
-            scopeSpanNamesExclude: validated.data.scope.spanNames.exclude,
-            scopeEnvironmentsInclude: validated.data.scope.environments.include,
-            scopeEnvironmentsExclude: validated.data.scope.environments.exclude,
-            scopeScopesInclude: validated.data.scope.scopes.include,
-            scopeScopesExclude: validated.data.scope.scopes.exclude,
-            scopeHostNamesInclude: validated.data.scope.hostNames.include,
-            scopeHostNamesExclude: validated.data.scope.hostNames.exclude,
-            scopeContainerNamesInclude:
-              validated.data.scope.containerNames.include,
-            scopeContainerNamesExclude:
-              validated.data.scope.containerNames.exclude,
-            updatedBy: context.userId,
-            nextEvaluationAt: new Date(),
-            evaluationLeaseToken: null,
-            evaluationLeaseExpiresAt: null,
-          })
-          .where(eq(alertRule.id, existing.id));
-
-        await tx
-          .delete(alertRuleDestination)
-          .where(eq(alertRuleDestination.ruleId, existing.id));
-
-        if (destinationIds.length > 0) {
-          await tx.insert(alertRuleDestination).values(
-            destinationIds.map((destinationId) => ({
-              ruleId: existing.id,
-              destinationId,
-            })),
-          );
-        }
-      });
-
-      return ok(undefined);
-    } catch (error) {
-      this.logger.error(
-        "updateAlertRule: failed to update alert rule",
-        error instanceof Error ? error : undefined,
-      );
-      return err("Failed to update alert rule.");
-    }
+    return this.updateAlertRuleMethod(input, context);
   }
 
   async setAlertRuleEnabled(
-    input: z.infer<typeof setAlertRuleEnabledInputSchema>,
+    input: z.input<typeof setAlertRuleEnabledInputSchema>,
     context: { appId: string; userId: string },
   ) {
-    this.logger.info("setAlertRuleEnabled: updating alert rule enabled state", {
-      input,
-      context,
-    });
-
-    const validated = setAlertRuleEnabledInputSchema.safeParse(input);
-    if (!validated.success) {
-      return err(validated.error.message);
-    }
-
-    try {
-      const existing = await this.db.query.alertRule.findFirst({
-        where: and(
-          eq(alertRule.id, validated.data.id),
-          eq(alertRule.appId, context.appId),
-        ),
-      });
-
-      if (!existing) {
-        return err("Alert rule not found.");
-      }
-
-      await this.db.transaction(async (tx) => {
-        await tx
-          .update(alertRule)
-          .set({
-            isEnabled: validated.data.isEnabled,
-            updatedBy: context.userId,
-            nextEvaluationAt: new Date(),
-            evaluationLeaseToken: null,
-            evaluationLeaseExpiresAt: null,
-          })
-          .where(eq(alertRule.id, existing.id));
-
-        if (!validated.data.isEnabled) {
-          const now = new Date();
-          const openIncidents = await tx.query.incident.findMany({
-            where: and(
-              eq(incident.appId, context.appId),
-              eq(incident.sourceType, "alert"),
-              eq(incident.sourceId, existing.id),
-              eq(incident.status, "open"),
-            ),
-          });
-
-          if (openIncidents.length > 0) {
-            await tx
-              .update(incident)
-              .set({
-                status: "resolved",
-                resolvedAt: now,
-                lastObservedAt: now,
-              })
-              .where(
-                and(
-                  eq(incident.appId, context.appId),
-                  eq(incident.sourceType, "alert"),
-                  eq(incident.sourceId, existing.id),
-                  eq(incident.status, "open"),
-                ),
-              );
-
-            await tx.insert(incidentEvent).values(
-              openIncidents.map((openIncident) => ({
-                id: genId("inev"),
-                appId: context.appId,
-                incidentId: openIncident.id,
-                eventType: "incident.resolved" as const,
-                occurredAt: now,
-                actorUserId: context.userId,
-                metadata: {
-                  reason: "alert_rule_disabled",
-                },
-              })),
-            );
-          }
-        }
-      });
-
-      return ok(undefined);
-    } catch (error) {
-      this.logger.error(
-        "setAlertRuleEnabled: failed to update alert rule enabled state",
-        error instanceof Error ? error : undefined,
-      );
-      return err("Failed to update alert rule.");
-    }
+    return this.setAlertRuleEnabledMethod(input, context);
   }
 
   async deleteAlertRule(
-    input: z.infer<typeof deleteAlertRuleInputSchema>,
+    input: z.input<typeof deleteAlertRuleInputSchema>,
     context: { appId: string },
   ) {
-    this.logger.info("deleteAlertRule: deleting alert rule", {
-      input,
-      context,
-    });
-
-    const validated = deleteAlertRuleInputSchema.safeParse(input);
-    if (!validated.success) {
-      return err(validated.error.message);
-    }
-
-    try {
-      const existing = await this.db.query.alertRule.findFirst({
-        where: and(
-          eq(alertRule.id, validated.data),
-          eq(alertRule.appId, context.appId),
-        ),
-      });
-
-      if (!existing) {
-        return err("Alert rule not found.");
-      }
-
-      await this.db.transaction(async (tx) => {
-        const now = new Date();
-        const openIncidents = await tx.query.incident.findMany({
-          where: and(
-            eq(incident.appId, context.appId),
-            eq(incident.sourceType, "alert"),
-            eq(incident.sourceId, existing.id),
-            eq(incident.status, "open"),
-          ),
-        });
-
-        if (openIncidents.length > 0) {
-          await tx
-            .update(incident)
-            .set({
-              status: "resolved",
-              resolvedAt: now,
-              lastObservedAt: now,
-            })
-            .where(
-              and(
-                eq(incident.appId, context.appId),
-                eq(incident.sourceType, "alert"),
-                eq(incident.sourceId, existing.id),
-                eq(incident.status, "open"),
-              ),
-            );
-
-          await tx.insert(incidentEvent).values(
-            openIncidents.map((openIncident) => ({
-              id: genId("inev"),
-              appId: context.appId,
-              incidentId: openIncident.id,
-              eventType: "incident.resolved" as const,
-              occurredAt: now,
-              metadata: {
-                reason: "alert_rule_deleted",
-              },
-            })),
-          );
-        }
-
-        await tx.delete(alertRule).where(eq(alertRule.id, existing.id));
-      });
-
-      return ok(undefined);
-    } catch (error) {
-      this.logger.error(
-        "deleteAlertRule: failed to delete alert rule",
-        error instanceof Error ? error : undefined,
-      );
-      return err("Failed to delete alert rule.");
-    }
+    return this.deleteAlertRuleMethod(input, context);
   }
 
   async seedDefaultAlertRules(
     context: { appId: string; userId: string },
     tx?: Tx,
   ) {
-    this.logger.info("seedDefaultAlertRules: seeding default alert rules", {
-      context,
-    });
-
-    try {
-      const db = tx ?? this.db;
-
-      const existingRule = await db.query.alertRule.findFirst({
-        where: eq(alertRule.appId, context.appId),
-      });
-
-      if (existingRule) {
-        return ok(undefined);
-      }
-
-      await db.insert(alertRule).values(
-        defaultAlertRules.map((rule) => ({
-          id: genId("alrt"),
-          appId: context.appId,
-          name: rule.name,
-          signalType: rule.signalType,
-          comparator: rule.comparator,
-          threshold: rule.threshold,
-          windowMinutes: rule.windowMinutes,
-          renotifyMinutes: rule.renotifyMinutes,
-          apdexTargetMs: rule.apdexTargetMs,
-          scopeServicesInclude: [],
-          scopeServicesExclude: [],
-          scopeSpanNamesInclude: [],
-          scopeSpanNamesExclude: [],
-          scopeEnvironmentsInclude: [],
-          scopeEnvironmentsExclude: [],
-          scopeScopesInclude: [],
-          scopeScopesExclude: [],
-          scopeHostNamesInclude: [],
-          scopeHostNamesExclude: [],
-          scopeContainerNamesInclude: [],
-          scopeContainerNamesExclude: [],
-          createdBy: context.userId,
-          updatedBy: context.userId,
-        })),
-      );
-
-      return ok(undefined);
-    } catch (error) {
-      this.logger.error(
-        "seedDefaultAlertRules: failed to seed default alert rules",
-        error instanceof Error ? error : undefined,
-      );
-      return err("Failed to seed default alert rules.");
-    }
+    return this.seedDefaultAlertRulesMethod(context, tx);
   }
 }
 
-const alertIdSchema = z.string().trim().min(1);
-
-const alertScopeArraySchema = z
-  .array(z.string().trim().min(1).max(255))
-  .max(50)
-  .default([]);
-
-const alertScopeInputSchema = z.object({
-  services: z
-    .object({
-      include: alertScopeArraySchema,
-      exclude: alertScopeArraySchema,
-    })
-    .default({ include: [], exclude: [] }),
-  spanNames: z
-    .object({
-      include: alertScopeArraySchema,
-      exclude: alertScopeArraySchema,
-    })
-    .default({ include: [], exclude: [] }),
-  environments: z
-    .object({
-      include: alertScopeArraySchema,
-      exclude: alertScopeArraySchema,
-    })
-    .default({ include: [], exclude: [] }),
-  scopes: z
-    .object({
-      include: alertScopeArraySchema,
-      exclude: alertScopeArraySchema,
-    })
-    .default({ include: [], exclude: [] }),
-  hostNames: z
-    .object({
-      include: alertScopeArraySchema,
-      exclude: alertScopeArraySchema,
-    })
-    .default({ include: [], exclude: [] }),
-  containerNames: z
-    .object({
-      include: alertScopeArraySchema,
-      exclude: alertScopeArraySchema,
-    })
-    .default({ include: [], exclude: [] }),
-});
-
-const alertRuleInputSchema = z.object({
-  name: z.string().trim().min(1).max(64),
-  signalType: z.enum([
-    "error_rate",
-    "latency_p95_ms",
-    "latency_p99_ms",
-    "apdex",
-    "throughput_per_min",
-    "availability_percent",
-    "host_cpu_utilization",
-    "host_memory_utilization",
-    "host_filesystem_utilization",
-    "host_reporting_stale",
-    "container_cpu_utilization",
-    "container_memory_utilization",
-    "container_reporting_stale",
-  ]),
-  comparator: z.enum(["gt", "gte", "lt", "lte"]),
-  threshold: z.number().finite(),
-  windowMinutes: z.number().int().min(1).max(1440),
-  renotifyMinutes: z.number().int().min(1).max(10080).nullable().default(null),
-  apdexTargetMs: z.number().int().min(1).max(600000).nullable().default(null),
-  scope: alertScopeInputSchema,
-  destinationIds: z.array(alertIdSchema).max(50).default([]),
-});
-
-const getAlertRuleInputSchema = alertIdSchema;
-
-const createAlertRuleInputSchema = alertRuleInputSchema;
-
-const updateAlertRuleInputSchema = alertRuleInputSchema.extend({
-  id: alertIdSchema,
-});
-
-const setAlertRuleEnabledInputSchema = z.object({
-  id: alertIdSchema,
-  isEnabled: z.boolean(),
-});
-
-const deleteAlertRuleInputSchema = alertIdSchema;
-
-const validateRuleConfig = (input: z.infer<typeof alertRuleInputSchema>) => {
-  if (input.signalType === "apdex" && !input.apdexTargetMs) {
-    return "Apdex rules require an apdex target.";
-  }
-
-  if (input.signalType !== "apdex" && input.apdexTargetMs) {
-    return "Only apdex rules can set an apdex target.";
-  }
-
-  if (
-    (input.signalType === "error_rate" ||
-      input.signalType === "availability_percent" ||
-      input.signalType === "apdex" ||
-      input.signalType === "host_cpu_utilization" ||
-      input.signalType === "host_memory_utilization" ||
-      input.signalType === "host_filesystem_utilization" ||
-      input.signalType === "container_cpu_utilization" ||
-      input.signalType === "container_memory_utilization") &&
-    (input.threshold < 0 || input.threshold > 100)
-  ) {
-    return "This signal expects a threshold between 0 and 100.";
-  }
-
-  return null;
-};
-
-const uniqueValues = (values: string[]) => Array.from(new Set(values));
-
-const defaultAlertRules = [
-  {
-    name: "High error rate",
-    signalType: "error_rate",
-    comparator: "gt",
-    threshold: 5,
-    windowMinutes: 5,
-    renotifyMinutes: 15,
-    apdexTargetMs: null,
-  },
-  {
-    name: "High p95 latency",
-    signalType: "latency_p95_ms",
-    comparator: "gt",
-    threshold: 1000,
-    windowMinutes: 15,
-    renotifyMinutes: 30,
-    apdexTargetMs: null,
-  },
-  {
-    name: "High p99 latency",
-    signalType: "latency_p99_ms",
-    comparator: "gt",
-    threshold: 2000,
-    windowMinutes: 15,
-    renotifyMinutes: 30,
-    apdexTargetMs: null,
-  },
-  {
-    name: "Low apdex",
-    signalType: "apdex",
-    comparator: "lt",
-    threshold: 0.9,
-    windowMinutes: 15,
-    renotifyMinutes: 30,
-    apdexTargetMs: 300,
-  },
-] as const;
-
-export {
-  AlertRuleService,
-  createAlertRuleInputSchema,
-  deleteAlertRuleInputSchema,
-  getAlertRuleInputSchema,
-  setAlertRuleEnabledInputSchema,
-  updateAlertRuleInputSchema,
-};
+export * from "./schema";
+export { AlertRuleService };

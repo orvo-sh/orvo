@@ -4,10 +4,10 @@ import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
 import { z } from "zod";
 
-import { createQueryBindings } from "../../shared/query-builders";
+import { createQueryBindings, normalizeDateTime } from "../../shared/query-builders";
 import { resolveTimeFilter } from "../../shared/time-filter";
 import { getLogServiceSummaryInputSchema } from "../schema";
-import { buildWhereClause, normalizeDateTime } from "./shared";
+import { buildWhereClause } from "./shared";
 
 const createGetLogServiceSummary = ({
   clickhouse,
