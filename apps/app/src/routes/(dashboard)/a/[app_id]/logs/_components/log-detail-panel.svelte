@@ -1,6 +1,11 @@
 <script lang="ts">
-  import { IconX as XIcon, IconCopy as CopyIcon } from "@tabler/icons-svelte";
+  import { IconCopy as CopyIcon, IconX as XIcon } from "@tabler/icons-svelte";
   import type { LogRecord } from "../types";
+  import LogAttributeChip from "./log-attribute-chip.svelte";
+  import {
+    buildBodyAttributeChips,
+    formatLogBodyForDisplay,
+  } from "./log-attribute-display";
 
   type SeverityMeta = { label: string; text: string };
   type AttributeSection = {
@@ -59,6 +64,8 @@
   } = $props();
 
   const meta = $derived(severityMeta(log.severity_text));
+  const bodyAttributeChips = $derived(buildBodyAttributeChips(log.body));
+  const formattedBody = $derived(formatLogBodyForDisplay(log.body));
 
   const hasAttributes = $derived(
     Object.keys(log.log_attributes ?? {}).length > 0 ||
@@ -99,7 +106,7 @@
     <XIcon class="size-4" />
   </button>
 
-  <div class="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+  <div class="flex-1 space-y-3 overflow-y-auto px-1 py-1">
     <!-- Timeline: Log received -->
     <div class="flex items-center gap-2 pr-8">
       <div
@@ -261,9 +268,19 @@
           Copy
         </button>
       </div>
+      {#if bodyAttributeChips.length > 0}
+        <div class="flex flex-wrap gap-1 border-b px-4 py-2.5">
+          {#each bodyAttributeChips as chip}
+            <LogAttributeChip
+              label={chip.key}
+              value={chip.value}
+              fullValue={chip.fullValue}
+            />
+          {/each}
+        </div>
+      {/if}
       <pre
-        class="overflow-x-auto px-4 py-2.5 font-mono text-sm break-all whitespace-pre-wrap text-foreground">{log.body ||
-          "(empty body)"}</pre>
+        class="overflow-x-auto px-4 py-2.5 font-mono text-sm break-all whitespace-pre-wrap text-foreground">{formattedBody}</pre>
     </div>
 
     <!-- Attribute cards -->

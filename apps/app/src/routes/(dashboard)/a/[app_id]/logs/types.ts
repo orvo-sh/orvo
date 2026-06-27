@@ -1,3 +1,9 @@
+import type {
+  FilterBuilderAttribute,
+  FilterBuilderFilter,
+  FilterBuilderOperator,
+} from "../_components/filter-builder";
+
 type LogTimePreset =
   | "last_hour"
   | "today"
@@ -30,6 +36,10 @@ type LogTimeFilter =
     };
 
 export type { LogTime, LogTimeFilter, LogTimePreset };
+
+export type LogFilterOperator = FilterBuilderOperator;
+export type LogFilterAttribute = FilterBuilderAttribute;
+export type ActiveLogFilter = FilterBuilderFilter;
 
 export type LogRecord = {
   id?: string;
@@ -68,23 +78,6 @@ export type LogVolumeBucket = {
   total: number;
 };
 
-export type LogFacetOption = {
-  value: string;
-  count: number;
-};
-
-export type LogFacets = {
-  levels: LogFacetOption[];
-  services: LogFacetOption[];
-  environments: LogFacetOption[];
-  scopes: LogFacetOption[];
-  ingestionKeyIds: LogFacetOption[];
-};
-
 export type LogFilters = {
-  search: string;
-  levels: string[];
-  services: string[];
-  environments: string[];
-  traceId: string;
+  activeFilters: ActiveLogFilter[];
 };

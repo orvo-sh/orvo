@@ -152,7 +152,12 @@
     <CaretDownIcon class="ml-0.5 size-3 text-muted-foreground" />
   </Popover.Trigger>
 
-  <Popover.Content class="w-auto overflow-hidden p-0" align="start">
+  <Popover.Content
+    class="w-auto overflow-hidden p-0"
+    align="end"
+    side="bottom"
+    sideOffset={9}
+  >
     <div class="flex">
       <div class="flex min-w-36 flex-col gap-0.5 border-r p-2">
         {#each PRESET_OPTIONS as preset}

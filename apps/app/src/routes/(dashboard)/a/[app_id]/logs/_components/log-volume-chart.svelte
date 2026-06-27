@@ -269,7 +269,10 @@
   };
 </script>
 
-<div class="shrink-0 bg-secondary px-4 pt-1 pb-1" bind:clientWidth={chartWidth}>
+<div
+  class="shrink-0 bg-background px-4 pt-1 pb-1"
+  bind:clientWidth={chartWidth}
+>
   <div class="w-full select-none">
     <div
       class="relative w-full"
@@ -282,9 +285,7 @@
           style={`height: ${CHART_HEIGHT}px;`}
         >
           {#each chartBars as bar (bar.key)}
-            <div
-              class="relative z-10 flex min-w-0 flex-1 items-end justify-center"
-            >
+            <div class="relative flex min-w-0 flex-1 items-end justify-center">
               {#if bar.bucket}
                 {@const bucket = bar.bucket}
                 <HoverCard.Root openDelay={50} closeDelay={50}>

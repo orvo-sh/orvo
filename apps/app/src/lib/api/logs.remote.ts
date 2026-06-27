@@ -1,10 +1,11 @@
 import { getRequestEvent, query } from "$app/server";
+import { resolveRequestAppContext } from "$lib/server/request-context";
 import {
+  getLogByIdInputSchema,
+  getLogFilterValueSuggestionsInputSchema,
   getLogsInputSchema,
   getLogVolumeInputSchema,
-} from "$lib/server/services/logs.service";
-import { getLogFacetsInputSchema } from "$lib/server/services/log-facets.service";
-import { resolveRequestAppContext } from "$lib/server/request-context";
+} from "$lib/server/services/logs";
 import { err } from "@repo/utils";
 
 export const getLogsQuery = query(getLogsInputSchema, async (input) => {
@@ -16,6 +17,19 @@ export const getLogsQuery = query(getLogsInputSchema, async (input) => {
   }
 
   return event.locals.container.logsService.getLogs(input, {
+    appId: appContext.data.appId,
+  });
+});
+
+export const getLogByIdQuery = query(getLogByIdInputSchema, async (input) => {
+  const event = getRequestEvent();
+  const appContext = await resolveRequestAppContext(event);
+
+  if (!appContext.success) {
+    return err(appContext.error);
+  }
+
+  return event.locals.container.logsService.getLogById(input, {
     appId: appContext.data.appId,
   });
 });
@@ -36,8 +50,8 @@ export const getLogVolumeQuery = query(
   },
 );
 
-export const getLogFacetsQuery = query(
-  getLogFacetsInputSchema,
+export const getLogFilterValueSuggestionsQuery = query(
+  getLogFilterValueSuggestionsInputSchema,
   async (input) => {
     const event = getRequestEvent();
     const appContext = await resolveRequestAppContext(event);
@@ -46,8 +60,11 @@ export const getLogFacetsQuery = query(
       return err(appContext.error);
     }
 
-    return event.locals.container.logFacetsService.getLogFacets(input, {
-      appId: appContext.data.appId,
-    });
+    return event.locals.container.logsService.getLogFilterValueSuggestions(
+      input,
+      {
+        appId: appContext.data.appId,
+      },
+    );
   },
 );

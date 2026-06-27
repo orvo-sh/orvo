@@ -6,14 +6,11 @@ import { AlertRuleService } from "$lib/server/services/alert-rule.service";
 import { AlertWebhookDestinationService } from "$lib/server/services/alert-webhook-destination.service";
 import { AppService } from "$lib/server/services/app.service";
 import { BillingService } from "$lib/server/services/billing.service";
-import { DashboardLogViewService } from "$lib/server/services/dashboard-log-view.service";
-import { DeploymentService } from "$lib/server/services/deployment.service";
 import { HeartbeatService } from "$lib/server/services/heartbeat.service";
 import { HostMonitoringService } from "$lib/server/services/host-monitoring.service";
 import { IncidentService } from "$lib/server/services/incident.service";
 import { IngestionKeyService } from "$lib/server/services/ingestion-key.service";
-import { LogFacetsService } from "$lib/server/services/log-facets.service";
-import { LogsService } from "$lib/server/services/logs.service";
+import { LogsService } from "$lib/server/services/logs";
 import { MetricsService } from "$lib/server/services/metrics.service";
 import { NotificationDeliveryService } from "$lib/server/services/notification-delivery.service";
 import { NotificationDestinationService } from "$lib/server/services/notification-destination.service";
@@ -74,12 +71,9 @@ const createServerContainer = (logger: Logger) => {
     notificationDeliveryService,
   );
   const logsService = new LogsService(clickhouse, logger);
-  const logFacetsService = new LogFacetsService(clickhouse, logger);
-  const dashboardLogViewService = new DashboardLogViewService(db, logger);
   const tracesService = new TracesService(clickhouse, logger);
   const incidentService = new IncidentService(db, logger);
   const metricsService = new MetricsService(clickhouse, logger);
-  const deploymentService = new DeploymentService(db, clickhouse, logger);
   const hostMonitoringService = new HostMonitoringService(
     db,
     clickhouse,
@@ -157,13 +151,10 @@ const createServerContainer = (logger: Logger) => {
     appService,
     alertRuleService,
     alertWebhookDestinationService,
-    dashboardLogViewService,
-    deploymentService,
     heartbeatService,
     ingestionKeyService,
     incidentService,
     logsService,
-    logFacetsService,
     metricsService,
     notificationDestinationService,
     onboardingService,
