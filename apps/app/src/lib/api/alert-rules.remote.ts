@@ -5,7 +5,7 @@ import {
   getAlertRuleInputSchema,
   setAlertRuleEnabledInputSchema,
   updateAlertRuleInputSchema,
-} from "$lib/server/services/alert-rule.service";
+} from "$lib/server/services/alert-rule";
 import { resolveRequestAppContext } from "$lib/server/request-context";
 import { err } from "@repo/utils";
 import { z } from "zod";

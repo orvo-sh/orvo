@@ -1,3 +1,4 @@
+import { Instrument } from "$lib/instrumentation";
 import { PLANS } from "$lib/constants";
 import type { Auth } from "$lib/server/auth";
 import type { Email } from "$lib/server/email";
@@ -31,6 +32,7 @@ type BillingPlan = {
   overagePricePerGb: number | null;
 };
 
+@Instrument({ prefix: "billing" })
 class BillingService {
   constructor(
     private db: DB,

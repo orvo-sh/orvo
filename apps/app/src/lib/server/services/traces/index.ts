@@ -1,9 +1,11 @@
+import { Instrument } from "$lib/instrumentation";
 import type { ClickHouse } from "@repo/clickhouse";
 import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
 import { z } from "zod";
-import { resolveTimeFilter, timeFilterSchema } from "./shared/time-filter";
+import { resolveTimeFilter, timeFilterSchema } from "../shared/time-filter";
 
+@Instrument({ prefix: "traces" })
 class TracesService {
   private logger: Logger;
 
@@ -991,6 +993,7 @@ const traceSearchBaseAttributes = [
     source: "trace",
     type: "string",
     availableOperators: traceStringOperators,
+    isCommon: true,
   },
   {
     key: "trace.name",
@@ -998,6 +1001,7 @@ const traceSearchBaseAttributes = [
     source: "trace",
     type: "string",
     availableOperators: traceStringOperators,
+    isCommon: true,
   },
   {
     key: "trace.status",
@@ -1005,6 +1009,7 @@ const traceSearchBaseAttributes = [
     source: "trace",
     type: "enum",
     availableOperators: traceStatusOperators,
+    isCommon: true,
   },
   {
     key: "trace.duration",
@@ -1019,6 +1024,7 @@ const traceSearchBaseAttributes = [
     source: "trace",
     type: "string",
     availableOperators: traceStringOperators,
+    isCommon: true,
   },
   {
     key: "deployment.environment",
@@ -1026,6 +1032,7 @@ const traceSearchBaseAttributes = [
     source: "trace",
     type: "string",
     availableOperators: traceStringOperators,
+    isCommon: true,
   },
   {
     key: "scope.name",

@@ -1,3 +1,4 @@
+import { Instrument } from "$lib/instrumentation";
 import { readFile } from "node:fs/promises";
 
 import {
@@ -14,11 +15,12 @@ import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
-import type { IncidentService } from "./incident.service";
-import type { IngestionKeyService } from "./ingestion-key.service";
-import { quote, toDateTime64 } from "./shared/query-builders";
-import { resolveTimeFilter, timeFilterSchema } from "./shared/time-filter";
+import type { IncidentService } from "../incident";
+import type { IngestionKeyService } from "../ingestion-key";
+import { quote, toDateTime64 } from "../shared/query-builders";
+import { resolveTimeFilter, timeFilterSchema } from "../shared/time-filter";
 
+@Instrument({ prefix: "hostMonitoring" })
 class HostMonitoringService {
   private logger: Logger;
 

@@ -2,7 +2,7 @@ import { command, getRequestEvent, query } from "$app/server";
 import {
   getIngestionKeyInputSchema,
   rotateIngestionKeyInputSchema,
-} from "$lib/server/services/ingestion-key.service";
+} from "$lib/server/services/ingestion-key";
 import { resolveRequestAppContext } from "$lib/server/request-context";
 import { err } from "@repo/utils";
 

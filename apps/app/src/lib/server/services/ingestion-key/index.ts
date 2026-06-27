@@ -1,9 +1,11 @@
+import { Instrument } from "$lib/instrumentation";
 import { and, desc, eq, isNull, type DB, type Tx } from "@repo/db";
 import { ingestionKey } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
 import { err, genId, ok } from "@repo/utils";
 import { z } from "zod";
 
+@Instrument({ prefix: "ingestionKey" })
 class IngestionKeyService {
   private logger: Logger;
 

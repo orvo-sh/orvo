@@ -1,3 +1,4 @@
+import { Instrument } from "$lib/instrumentation";
 import type { DB } from "@repo/db";
 import { app } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
@@ -5,9 +6,10 @@ import { err, genId, ok } from "@repo/utils";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { AlertRuleService } from "./alert-rule.service";
-import { IngestionKeyService } from "./ingestion-key.service";
+import { AlertRuleService } from "../alert-rule";
+import { IngestionKeyService } from "../ingestion-key";
 
+@Instrument({ prefix: "app" })
 class AppService {
   private logger: Logger;
 

@@ -4,7 +4,7 @@ import {
   getServiceGraphInputSchema,
   getTraceInputSchema,
   getTracesInputSchema,
-} from "$lib/server/services/traces.service";
+} from "$lib/server/services/traces";
 import { resolveRequestAppContext } from "$lib/server/request-context";
 import { err } from "@repo/utils";
 

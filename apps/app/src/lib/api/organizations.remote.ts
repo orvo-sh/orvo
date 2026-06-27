@@ -1,6 +1,6 @@
 import { command, getRequestEvent } from "$app/server";
-import { createOrganizationActivationInputSchema } from "$lib/server/services/organization-activation.service";
-import { createUploadUrlInputSchema } from "$lib/server/services/upload.service";
+import { createOrganizationActivationInputSchema } from "$lib/server/services/organization-activation";
+import { createUploadUrlInputSchema } from "$lib/server/services/upload";
 
 export const createOrganizationLogoUploadUrlCommand = command(
   createUploadUrlInputSchema,

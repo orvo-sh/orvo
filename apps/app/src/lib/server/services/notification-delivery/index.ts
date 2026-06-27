@@ -1,3 +1,4 @@
+import { Instrument } from "$lib/instrumentation";
 import type { Email } from "$lib/server/email";
 import type { DB } from "@repo/db";
 import {
@@ -11,6 +12,7 @@ import type { Logger } from "@repo/logger";
 import { formatDuration, genId } from "@repo/utils";
 import { and, asc, eq, lte } from "drizzle-orm";
 
+@Instrument({ prefix: "notificationDelivery" })
 class NotificationDeliveryService {
   private logger: Logger;
 

@@ -1,3 +1,4 @@
+import { Instrument } from "$lib/instrumentation";
 import type { DB, Tx } from "@repo/db";
 import {
   alertRule,
@@ -11,6 +12,7 @@ import { err, genId, ok } from "@repo/utils";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
+@Instrument({ prefix: "alertRule" })
 class AlertRuleService {
   private logger: Logger;
 

@@ -13,7 +13,7 @@ import Stripe from "stripe";
 
 import type { Logger } from "@repo/logger";
 import type { Email } from "./email";
-import { BillingService } from "./services/billing.service";
+import { BillingService } from "./services/billing";
 
 const createAuth = (
   db: DB,

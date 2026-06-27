@@ -1,6 +1,6 @@
 import { command, getRequestEvent } from "$app/server";
 
-import { createAppInputSchema } from "$lib/server/services/app.service";
+import { createAppInputSchema } from "$lib/server/services/app";
 import { getActiveOrganizationId } from "$lib/server/request-context";
 import { err } from "@repo/utils";
 

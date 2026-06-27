@@ -1,8 +1,10 @@
-import type { IngestionKeyService } from "$lib/server/services/ingestion-key.service";
+import { Instrument } from "$lib/instrumentation";
+import type { IngestionKeyService } from "$lib/server/services/ingestion-key";
 import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
 import { z } from "zod";
 
+@Instrument({ prefix: "onboarding" })
 class OnboardingService {
   private logger: Logger;
 

@@ -1,3 +1,4 @@
+import { Instrument } from "$lib/instrumentation";
 import type { DB } from "@repo/db";
 import { member, notificationDestination } from "@repo/db/schema";
 import { Encryption } from "@repo/encryption";
@@ -6,8 +7,9 @@ import { err, genId, ok } from "@repo/utils";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
-import { NotificationDeliveryService } from "./notification-delivery.service";
+import { NotificationDeliveryService } from "../notification-delivery";
 
+@Instrument({ prefix: "notificationDestination" })
 class NotificationDestinationService {
   private logger: Logger;
 

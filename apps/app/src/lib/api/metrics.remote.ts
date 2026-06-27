@@ -1,6 +1,6 @@
 import { getRequestEvent, query } from "$app/server";
 import { resolveRequestAppContext } from "$lib/server/request-context";
-import { getMetricsExplorerInputSchema } from "$lib/server/services/metrics.service";
+import { getMetricsExplorerInputSchema } from "$lib/server/services/metrics";
 import { err } from "@repo/utils";
 
 export const getMetricsExplorerQuery = query(

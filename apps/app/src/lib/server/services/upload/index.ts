@@ -1,8 +1,10 @@
+import { Instrument } from "$lib/instrumentation";
 import type { Logger } from "@repo/logger";
 import { Storage } from "@repo/storage";
 import { err, genId, ok } from "@repo/utils";
 import { z } from "zod";
 
+@Instrument({ prefix: "upload" })
 class UploadService {
   private logger: Logger;
 

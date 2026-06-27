@@ -10,7 +10,7 @@ import {
 import type { Logger } from "@repo/logger";
 import { genId } from "@repo/utils";
 import { and, asc, desc, eq, inArray, isNull, lt, lte, or } from "drizzle-orm";
-import type { IncidentService } from "../services/incident.service";
+import type { IncidentService } from "../services/incident";
 
 import { BaseWorker } from "./base-worker";
 

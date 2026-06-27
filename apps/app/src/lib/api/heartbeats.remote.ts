@@ -8,7 +8,7 @@ import {
   sendHeartbeatMonitorTestAlertInputSchema,
   toggleHeartbeatMonitorPausedInputSchema,
   updateHeartbeatMonitorInputSchema,
-} from "$lib/server/services/heartbeat.service";
+} from "$lib/server/services/heartbeat";
 import { err } from "@repo/utils";
 import { z } from "zod";
 

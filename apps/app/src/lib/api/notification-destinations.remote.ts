@@ -5,7 +5,7 @@ import {
   deleteNotificationDestinationInputSchema,
   testNotificationDestinationInputSchema,
   updateNotificationDestinationInputSchema,
-} from "$lib/server/services/notification-destination.service";
+} from "$lib/server/services/notification-destination";
 import { err } from "@repo/utils";
 import { z } from "zod";
 

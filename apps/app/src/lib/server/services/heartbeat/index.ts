@@ -1,3 +1,4 @@
+import { Instrument } from "$lib/instrumentation";
 import type { ClickHouse } from "@repo/clickhouse";
 import type { DB, Tx } from "@repo/db";
 import {
@@ -11,9 +12,10 @@ import type { Logger } from "@repo/logger";
 import { err, generateRandomString, genId, ok } from "@repo/utils";
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
-import type { IncidentService } from "./incident.service";
-import { quote, toDateTime64 } from "./shared/query-builders";
+import type { IncidentService } from "../incident";
+import { quote, toDateTime64 } from "../shared/query-builders";
 
+@Instrument({ prefix: "heartbeat" })
 class HeartbeatService {
   private logger: Logger;
 

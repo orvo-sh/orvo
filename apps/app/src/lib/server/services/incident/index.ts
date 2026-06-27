@@ -1,3 +1,4 @@
+import { Instrument } from "$lib/instrumentation";
 import type { DB, Tx } from "@repo/db";
 import {
   incident,
@@ -10,6 +11,7 @@ import { err, genId, ok } from "@repo/utils";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
+@Instrument({ prefix: "incident" })
 class IncidentService {
   private logger: Logger;
 

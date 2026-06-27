@@ -6,7 +6,7 @@ import {
   getOpenIncidentsInputSchema,
   listIncidentsInputSchema,
   resolveIncidentInputSchema,
-} from "$lib/server/services/incident.service";
+} from "$lib/server/services/incident";
 import { err } from "@repo/utils";
 
 export const getIncidentsQuery = query(

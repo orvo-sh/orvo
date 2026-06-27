@@ -4,7 +4,7 @@ import {
   createHostInstallSessionInputSchema,
   getHostDetailInputSchema,
   getHostsInputSchema,
-} from "$lib/server/services/host-monitoring.service";
+} from "$lib/server/services/host-monitoring";
 import { err } from "@repo/utils";
 
 export const createHostInstallSessionCommand = command(

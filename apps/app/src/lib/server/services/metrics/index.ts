@@ -1,10 +1,12 @@
+import { Instrument } from "$lib/instrumentation";
 import type { ClickHouse } from "@repo/clickhouse";
 import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
 import { z } from "zod";
-import { buildInClause, quote, toDateTime64 } from "./shared/query-builders";
-import { resolveTimeFilter, timeFilterSchema } from "./shared/time-filter";
+import { buildInClause, quote, toDateTime64 } from "../shared/query-builders";
+import { resolveTimeFilter, timeFilterSchema } from "../shared/time-filter";
 
+@Instrument({ prefix: "metrics" })
 class MetricsService {
   private logger: Logger;
 

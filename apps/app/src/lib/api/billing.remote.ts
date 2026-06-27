@@ -4,7 +4,7 @@ import {
   getBillingStateInputSchema,
   startFreeTrialInputSchema,
   updateBillingEmailInputSchema,
-} from "$lib/server/services/billing.service";
+} from "$lib/server/services/billing";
 import { getActiveOrganizationId } from "$lib/server/request-context";
 import { err } from "@repo/utils";
 

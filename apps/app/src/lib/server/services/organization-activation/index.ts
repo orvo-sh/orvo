@@ -1,3 +1,4 @@
+import { Instrument } from "$lib/instrumentation";
 import type { DB } from "@repo/db";
 import {
   app,
@@ -10,6 +11,7 @@ import { err, ok } from "@repo/utils";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+@Instrument({ prefix: "organizationActivation" })
 class OrganizationActivationService {
   private logger: Logger;
 

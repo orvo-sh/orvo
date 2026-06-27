@@ -4,7 +4,7 @@ import {
   deleteAlertWebhookDestinationInputSchema,
   testAlertWebhookDestinationInputSchema,
   updateAlertWebhookDestinationInputSchema,
-} from "$lib/server/services/alert-webhook-destination.service";
+} from "$lib/server/services/alert-webhook-destination";
 import { resolveRequestAppContext } from "$lib/server/request-context";
 import { err } from "@repo/utils";
 import { z } from "zod";
