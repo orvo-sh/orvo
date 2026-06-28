@@ -247,7 +247,7 @@ const buildBodyAttributeChips = (body: string): LogAttributeChip[] => {
 const mapAttributeEntriesToChips = (
   attributes: Record<string, string> | undefined,
   prefix?: string,
-) =>
+) : LogAttributeChip[] =>
   Object.entries(attributes ?? {}).map(([key, value]) => ({
     key: prefix ? `${prefix}.${key}` : key,
     value,
@@ -257,7 +257,7 @@ const shouldRenderRowChip = (key: string) =>
   !HIDDEN_ROW_CHIP_KEYS.has(key) &&
   !HIDDEN_ROW_CHIP_PREFIXES.some((prefix) => key.startsWith(prefix));
 
-const buildLogAttributeChips = (log: LogRecord) => [
+const buildLogAttributeChips = (log: LogRecord): LogAttributeChip[] => [
   ...buildBodyAttributeChips(log.body),
   ...mapAttributeEntriesToChips(log.log_attributes),
   ...mapAttributeEntriesToChips(log.resource_attributes, "resource"),

@@ -1,57 +1,85 @@
 <script lang="ts">
-  import { IconCopy as CopyIcon, IconX as XIcon } from "@tabler/icons-svelte";
+  import { Button } from "@repo/components/ui/button";
+  import * as Card from "@repo/components/ui/card";
+  import * as HoverCard from "@repo/components/ui/hover-card";
+  import { toast } from "@repo/components/ui/sonner";
+  import { IconCopy as CopyIcon, IconCircleFilled } from "@tabler/icons-svelte";
   import type { LogRecord } from "../types";
-  import LogAttributeChip from "./log-attribute-chip.svelte";
-  import {
-    buildBodyAttributeChips,
-    formatLogBodyForDisplay,
-  } from "./log-attribute-display";
+  import { formatLogBodyForDisplay } from "./log-attribute-display";
 
-  type SeverityMeta = { label: string; text: string };
-  type AttributeSection = {
-    label: string;
-    entries: Array<[string, string]>;
-  };
-
-  function severityMeta(sev: string): SeverityMeta {
-    const s = (sev ?? "").toLowerCase();
-    if (s === "fatal") return { label: "FATAL", text: "text-destructive" };
-    if (s.includes("err") || s === "error")
-      return { label: "ERROR", text: "text-destructive" };
-    if (s.includes("warn")) return { label: "WARN", text: "text-amber-500" };
-    if (s.includes("debug"))
-      return { label: "DEBUG", text: "text-muted-foreground" };
-    if (s === "trace")
-      return { label: "TRACE", text: "text-muted-foreground/60" };
-    return { label: "INFO", text: "text-primary" };
-  }
-
-  function fmtTimestamp(ts: string, timezone: string): string {
-    const d = new Date(ts);
-    const parts = new Intl.DateTimeFormat("en-US", {
+  const fmtTimestamp = (ts: string) => {
+    return new Intl.DateTimeFormat("en-US", {
       month: "short",
-      day: "numeric",
+      day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
-      fractionalSecondDigits: 2,
       hour12: false,
       timeZone: timezone,
-      timeZoneName: "short",
-    }).formatToParts(d);
+    }).format(new Date(ts));
+  };
 
-    const get = (type: string) =>
-      parts.find((p) => p.type === type)?.value ?? "";
-    return `${get("month").toUpperCase()} ${get("day")} ${get("hour")}:${get("minute")}:${get("second")}.${get("fractionalSecond")} ${get("timeZoneName")}`;
-  }
+  const parseJsonValue = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+      return null;
+    }
 
-  function copyText(text: string) {
-    navigator.clipboard.writeText(text);
-  }
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return null;
+    }
+  };
 
-  function getAttributeEntries(attributes: Record<string, string> | undefined) {
-    return Object.entries(attributes ?? {});
-  }
+  const toJsonPreview = (value: unknown) => {
+    const preview = JSON.stringify(value).replace(/\s+/g, " ");
+    return preview.length <= 96 ? preview : `${preview.slice(0, 95)}…`;
+  };
+
+  const formatJsonTokens = (value: unknown) => {
+    const formatted = JSON.stringify(value, null, 2);
+    const tokens: Array<{ text: string; className: string }> = [];
+    const pattern =
+      /("(?:\\.|[^"\\])*"(?=\s*:))|("(?:\\.|[^"\\])*")|\b(true|false)\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
+    let lastIndex = 0;
+
+    for (const match of formatted.matchAll(pattern)) {
+      const token = match[0];
+      const index = match.index ?? 0;
+
+      if (index > lastIndex) {
+        tokens.push({
+          text: formatted.slice(lastIndex, index),
+          className: "text-foreground",
+        });
+      }
+
+      tokens.push({
+        text: token,
+        className: match[1]
+          ? "text-sky-600"
+          : match[2]
+            ? "text-emerald-600"
+            : token === "null"
+              ? "text-rose-600"
+              : token === "true" || token === "false"
+                ? "text-violet-600"
+                : "text-amber-600",
+      });
+
+      lastIndex = index + token.length;
+    }
+
+    if (lastIndex < formatted.length) {
+      tokens.push({
+        text: formatted.slice(lastIndex),
+        className: "text-foreground",
+      });
+    }
+
+    return tokens;
+  };
 
   let {
     log,
@@ -63,248 +91,174 @@
     onClose: () => void;
   } = $props();
 
-  const meta = $derived(severityMeta(log.severity_text));
-  const bodyAttributeChips = $derived(buildBodyAttributeChips(log.body));
   const formattedBody = $derived(formatLogBodyForDisplay(log.body));
-
-  const hasAttributes = $derived(
-    Object.keys(log.log_attributes ?? {}).length > 0 ||
-      Object.keys(log.resource_attributes ?? {}).length > 0 ||
-      Object.keys(log.scope_attributes ?? {}).length > 0,
-  );
-
-  const attributeSections = $derived<AttributeSection[]>(
-    [
-      {
-        label: "Resource attributes",
-        entries: getAttributeEntries(log.resource_attributes),
-      },
-      {
-        label: "Scope attributes",
-        entries: getAttributeEntries(log.scope_attributes),
-      },
-      {
-        label: "Log attributes",
-        entries: getAttributeEntries(log.log_attributes),
-      },
-    ].filter((section) => section.entries.length > 0),
-  );
-
-  function handleKeydown(e: KeyboardEvent) {
+  const handleKeydown = (e: KeyboardEvent) => {
     if (e.key === "Escape") onClose();
-  }
+  };
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="relative flex h-full flex-col bg-background">
-  <button
-    onclick={onClose}
-    class="absolute top-3 right-3 z-10 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-    aria-label="Close detail panel"
-  >
-    <XIcon class="size-4" />
-  </button>
-
-  <div class="flex-1 space-y-3 overflow-y-auto px-1 py-1">
-    <!-- Timeline: Log received -->
-    <div class="flex items-center gap-2 pr-8">
-      <div
-        class="size-2 shrink-0 rounded-full border-2 border-muted-foreground/40"
-      ></div>
-      <span class="text-sm text-muted-foreground">Log received</span>
-      <span class="ml-auto text-sm text-muted-foreground"
-        >{fmtTimestamp(log.timestamp, timezone)}</span
+<div
+  data-testid="log-detail-panel"
+  class="relative flex h-full min-h-0 w-full flex-col gap-3 overflow-x-hidden overflow-y-auto bg-background p-3 pt-1"
+>
+  <div class="flex min-w-0 flex-col">
+    <div
+      class="flex min-h-10 flex-1 translate-y-2 items-center justify-between rounded-t-xl border border-foreground/10 bg-secondary pr-2 pb-2 pl-3.5 text-sm text-secondary-foreground inset-shadow-[0px_1px_--theme(--color-white)]"
+    >
+      Message
+      <Button
+        size="icon-sm"
+        variant="ghost"
+        onclick={() => {
+          navigator.clipboard
+            .writeText(formattedBody)
+            .then(() => toast.success("Message copied to clipboard."))
+            .catch(() => toast.error("Failed to copy to clipboard."));
+        }}
       >
+        <CopyIcon class="size-3.5" />
+      </Button>
     </div>
+    <Card.Root class="z-10 w-full min-w-0 p-0">
+      <pre
+        class="overflow-x-auto px-4 py-2.5 font-mono text-sm leading-5 break-words whitespace-pre-wrap text-foreground">{formattedBody}</pre>
+    </Card.Root>
+  </div>
 
-    <!-- Core info card -->
-    <div class="ml-4 overflow-hidden rounded-lg border">
-      <div class="divide-y">
-        <div class="flex items-start px-4 py-2.5">
-          <span class="w-36 shrink-0 text-sm text-muted-foreground"
-            >Severity</span
-          >
-          <span class="text-sm font-medium {meta.text}"
-            >{log.severity_text}{log.severity_number
-              ? ` (${log.severity_number})`
-              : ""}</span
-          >
-        </div>
+  {@render cantFigureAName_Card(
+    "Meta",
+    (() => {
+      let vals = [{ label: "Severity", value: log.severity_text }];
+      if (log.deployment_environment)
+        vals.push({ label: "Environment", value: log.deployment_environment });
+      if (log.scope_name)
+        vals.push({
+          label: "Scope",
+          value: `${log.scope_name}${
+            log.scope_version ? ` @ ${log.scope_version}` : ""
+          }`,
+        });
+      if (log.observed_timestamp && log.observed_timestamp !== log.timestamp)
+        vals.push({
+          label: "Observed at",
+          value: fmtTimestamp(log.observed_timestamp),
+        });
+      if (log.received_at)
+        vals.push({
+          label: "Received at",
+          value: fmtTimestamp(log.received_at),
+        });
+      if (log.expires_at)
+        vals.push({
+          label: "Expires at",
+          value: fmtTimestamp(log.expires_at),
+        });
+      return vals;
+    })(),
+  )}
 
-        {#if log.service_name}
-          <div class="flex items-start px-4 py-2.5">
-            <span class="w-36 shrink-0 text-sm text-muted-foreground"
-              >Service</span
-            >
-            <span class="text-sm break-all text-foreground"
-              >{log.service_name}</span
-            >
-          </div>
-        {/if}
+  {@render cantFigureAName_Card(
+    "Log attributes",
+    Object.entries(log.log_attributes).map(([k, v]) => ({
+      label: k,
+      value: v,
+    })),
+  )}
+  {@render cantFigureAName_Card(
+    "Resource attributes",
+    Object.entries(log.resource_attributes).map(([k, v]) => ({
+      label: k,
+      value: v,
+    })),
+  )}
+  {@render cantFigureAName_Card(
+    "Scope attributes",
+    Object.entries(log.scope_attributes).map(([k, v]) => ({
+      label: k,
+      value: v,
+    })),
+  )}
+</div>
 
-        {#if log.deployment_environment}
-          <div class="flex items-start px-4 py-2.5">
-            <span class="w-36 shrink-0 text-sm text-muted-foreground"
-              >Environment</span
-            >
-            <span class="text-sm break-all text-foreground"
-              >{log.deployment_environment}</span
-            >
-          </div>
-        {/if}
-
-        {#if log.scope_name}
-          <div class="flex items-start px-4 py-2.5">
-            <span class="w-36 shrink-0 text-sm text-muted-foreground"
-              >Scope</span
-            >
-            <span class="text-sm break-all text-foreground"
-              >{log.scope_name}{log.scope_version
-                ? ` @ ${log.scope_version}`
-                : ""}</span
-            >
-          </div>
-        {/if}
-
-        {#if log.id}
-          <div class="flex items-start px-4 py-2.5">
-            <span class="w-36 shrink-0 text-sm text-muted-foreground"
-              >Log ID</span
-            >
-            <span class="font-mono text-sm break-all text-foreground"
-              >{log.id}</span
-            >
-          </div>
-        {/if}
-
-        {#if log.trace_id}
-          <div class="flex items-start px-4 py-2.5">
-            <span class="w-36 shrink-0 text-sm text-muted-foreground"
-              >Trace ID</span
-            >
-            <span class="font-mono text-sm break-all text-foreground"
-              >{log.trace_id}</span
-            >
-          </div>
-        {/if}
-
-        {#if log.span_id}
-          <div class="flex items-start px-4 py-2.5">
-            <span class="w-36 shrink-0 text-sm text-muted-foreground"
-              >Span ID</span
-            >
-            <span class="font-mono text-sm text-foreground">{log.span_id}</span>
-          </div>
-        {/if}
-
-        {#if log.trace_flags !== undefined}
-          <div class="flex items-start px-4 py-2.5">
-            <span class="w-36 shrink-0 text-sm text-muted-foreground"
-              >Trace Flags</span
-            >
-            <span class="font-mono text-sm text-foreground"
-              >{log.trace_flags}</span
-            >
-          </div>
-        {/if}
-
-        {#if log.ingestion_key_id}
-          <div class="flex items-start px-4 py-2.5">
-            <span class="w-36 shrink-0 text-sm text-muted-foreground"
-              >Ingestion Key</span
-            >
-            <span class="font-mono text-sm break-all text-foreground"
-              >{log.ingestion_key_id}</span
-            >
-          </div>
-        {/if}
-
-        {#if log.observed_timestamp && log.observed_timestamp !== log.timestamp}
-          <div class="flex items-start px-4 py-2.5">
-            <span class="w-36 shrink-0 text-sm text-muted-foreground"
-              >Observed at</span
-            >
-            <span class="text-sm text-foreground"
-              >{fmtTimestamp(log.observed_timestamp, timezone)}</span
-            >
-          </div>
-        {/if}
-
-        {#if log.received_at}
-          <div class="flex items-start px-4 py-2.5">
-            <span class="w-36 shrink-0 text-sm text-muted-foreground"
-              >Received at</span
-            >
-            <span class="text-sm text-foreground"
-              >{fmtTimestamp(log.received_at, timezone)}</span
-            >
-          </div>
-        {/if}
-
-        {#if log.expires_at}
-          <div class="flex items-start px-4 py-2.5">
-            <span class="w-36 shrink-0 text-sm text-muted-foreground"
-              >Expires at</span
-            >
-            <span class="text-sm text-foreground"
-              >{fmtTimestamp(log.expires_at, timezone)}</span
-            >
-          </div>
-        {/if}
+{#snippet cantFigureAName_Card(
+  title: string,
+  fields: { label: string; value: string }[],
+)}
+  {#if fields.length > 0}
+    <div class="flex min-w-0 flex-col">
+      <div
+        class="flex min-h-10 flex-1 translate-y-2 items-center justify-between rounded-t-xl border border-foreground/10 bg-secondary px-3.5 pb-2 text-sm text-secondary-foreground inset-shadow-[0px_1px_--theme(--color-white)]"
+      >
+        {title}
       </div>
-    </div>
-
-    <!-- Body card -->
-    <div class="ml-4 overflow-hidden rounded-lg border">
-      <div class="flex items-center justify-between border-b px-4 py-2.5">
-        <span class="text-sm text-muted-foreground">Message</span>
-        <button
-          type="button"
-          class="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          onclick={() => copyText(log.body)}
-        >
-          <CopyIcon class="size-3.5" />
-          Copy
-        </button>
-      </div>
-      {#if bodyAttributeChips.length > 0}
-        <div class="flex flex-wrap gap-1 border-b px-4 py-2.5">
-          {#each bodyAttributeChips as chip}
-            <LogAttributeChip
-              label={chip.key}
-              value={chip.value}
-              fullValue={chip.fullValue}
-            />
+      <Card.Root class="z-10 w-full min-w-0 p-0">
+        <div class="divide-y">
+          {#each fields as field}
+            {@const json = parseJsonValue(field.value)}
+            <div class="flex min-w-0 items-start gap-3 px-4 py-2.5">
+              <span
+                title={field.label}
+                class="w-24 shrink-0 truncate text-sm text-muted-foreground"
+                >{field.label}</span
+              >
+              <div
+                class="min-w-0 flex-1 text-sm font-medium text-secondary-foreground"
+              >
+                {#if json}
+                  {@const jsonPreview = toJsonPreview(json)}
+                  {@const jsonTokens = formatJsonTokens(json)}
+                  <HoverCard.Root openDelay={50} closeDelay={50}>
+                    <HoverCard.Trigger
+                      type="button"
+                      class="max-w-full min-w-0 rounded-md text-left"
+                    >
+                      <span
+                        class="flex min-w-0 items-start gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-muted/60"
+                      >
+                        <span
+                          class="mt-0.5 flex h-fit w-fit shrink-0 gap-0.5 rounded-sm border border-foreground/10 bg-muted px-1 py-1 text-muted-foreground"
+                        >
+                          <IconCircleFilled class="size-1.5" />
+                          <IconCircleFilled class="size-1.5" />
+                          <IconCircleFilled class="size-1.5" />
+                        </span>
+                        <span
+                          class="min-w-0 truncate font-mono text-xs text-muted-foreground"
+                        >
+                          {jsonPreview}
+                        </span>
+                      </span>
+                    </HoverCard.Trigger>
+                    <HoverCard.Content
+                      side="left"
+                      align="start"
+                      class="w-[28rem] max-w-[min(42rem,calc(100vw-2rem))] p-0"
+                    >
+                      <div
+                        class="border-b px-3 py-2 text-xs font-medium text-muted-foreground"
+                      >
+                        {field.label}
+                      </div>
+                      <div class="max-h-96 overflow-auto p-3">
+                        <pre
+                          class="rounded-md bg-muted/50 p-3 font-mono text-xs leading-5 break-words whitespace-pre-wrap">{#each jsonTokens as token}<span
+                              class={token.className}>{token.text}</span
+                            >{/each}</pre>
+                      </div>
+                    </HoverCard.Content>
+                  </HoverCard.Root>
+                {:else}
+                  <span class="break-all whitespace-pre-wrap"
+                    >{field.value}</span
+                  >
+                {/if}
+              </div>
+            </div>
           {/each}
         </div>
-      {/if}
-      <pre
-        class="overflow-x-auto px-4 py-2.5 font-mono text-sm break-all whitespace-pre-wrap text-foreground">{formattedBody}</pre>
+      </Card.Root>
     </div>
-
-    <!-- Attribute cards -->
-    {#if hasAttributes}
-      {#each attributeSections as section}
-        <div class="ml-4 overflow-hidden rounded-lg border">
-          <div class="border-b px-4 py-2.5">
-            <span class="text-sm text-muted-foreground">{section.label}</span>
-          </div>
-          <div class="divide-y">
-            {#each section.entries as [k, v]}
-              <div class="flex items-start px-4 py-2.5">
-                <span
-                  class="w-36 shrink-0 truncate font-mono text-sm text-muted-foreground"
-                  >{k}</span
-                >
-                <span class="font-mono text-sm break-all text-foreground"
-                  >{v}</span
-                >
-              </div>
-            {/each}
-          </div>
-        </div>
-      {/each}
-    {/if}
-  </div>
-</div>
+  {/if}
+{/snippet}

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import * as HoverCard from "@repo/components/ui/hover-card";
   import { Badge } from "@repo/components/ui/badge";
+  import * as HoverCard from "@repo/components/ui/hover-card";
 
   let {
     label,
@@ -16,7 +16,7 @@
 {#snippet chip()}
   <Badge
     variant="outline"
-    class="h-auto max-w-full gap-0.5 rounded-md px-1.5 py-[1px] text-[11px] font-normal"
+    class="h-6 h-auto max-w-full gap-0.5 rounded-md border-foreground/10 bg-linear-to-t from-secondary to-transparent px-1.5 py-[1px] text-[11px] font-normal inset-shadow-[0px_1px_--theme(--color-white)]"
   >
     <span class="truncate text-muted-foreground">{label}:</span>
     <span class="max-w-64 truncate text-foreground">{value}</span>
@@ -38,8 +38,7 @@
         {label}
       </div>
       <pre
-        class="max-h-80 overflow-auto px-3 py-2 font-mono text-xs whitespace-pre-wrap text-foreground"
-      >{fullValue}</pre>
+        class="max-h-80 overflow-auto px-3 py-2 font-mono text-xs whitespace-pre-wrap text-foreground">{fullValue}</pre>
     </HoverCard.Content>
   </HoverCard.Root>
 {:else}

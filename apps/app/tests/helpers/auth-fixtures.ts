@@ -1,8 +1,6 @@
-import { getDb } from "@repo/db";
+import type { DB } from "@repo/db";
 
-const db = getDb(process.env.POSTGRES_URL!);
-
-export const getOtpFromDb = async (email: string) => {
+const findVerificationOtp = async (db: DB, email: string) => {
   const record = await db.query.verification.findFirst({
     where: ({ identifier }, { like }) =>
       like(identifier, `%email-verification-otp-${email}`),
@@ -10,13 +8,15 @@ export const getOtpFromDb = async (email: string) => {
   return record?.value?.split(":")[0] ?? null;
 };
 
-export const waitForOtp = async (email: string) => {
+const waitForVerificationOtp = async (db: DB, email: string) => {
   let otp: string | null = null;
   const start = Date.now();
   while (Date.now() - start < 10_000) {
-    otp = await getOtpFromDb(email);
+    otp = await findVerificationOtp(db, email);
     if (otp && otp.length === 6) break;
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
   return otp;
 };
+
+export { findVerificationOtp, waitForVerificationOtp };

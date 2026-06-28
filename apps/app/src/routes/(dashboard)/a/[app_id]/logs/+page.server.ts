@@ -1,27 +1,29 @@
+import { resolveTimeFilter } from "$lib/core/time-filter";
 import { error } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 import {
-  createLogsServiceInput,
   resolveLogStateFromSearchParams,
-  resolveLogTimeRange,
-  resolveLogVolumeBucketCount,
+  resolveLogVolumeBucketCount
 } from "./state";
 
-export const load: PageServerLoad = async ({ locals, params, url }) => {
+export const load: PageServerLoad = async ({ depends, locals, params, url }) => {
+  depends(`app:logs:${params.app_id}`);
+
   const state = resolveLogStateFromSearchParams(url.searchParams);
-  const timeRange = resolveLogTimeRange(state.time);
-  const serviceInput = createLogsServiceInput(state.time, state.filters);
+  const timeRange = resolveTimeFilter(state.time);
   const [logsResult, volumeResult, filterAttributesResult] = await Promise.all([
     locals.container.logsService.getLogs(
       {
-        ...serviceInput,
+        time: state.time,
+        activeFilters: state.filters.activeFilters,
         limit: 250,
       },
       { appId: params.app_id },
     ),
     locals.container.logsService.getLogVolume(
       {
-        ...serviceInput,
+        time: state.time,
+        activeFilters: state.filters.activeFilters,
         bucketCount: resolveLogVolumeBucketCount(timeRange.start, timeRange.end),
       },
       { appId: params.app_id },
@@ -51,10 +53,14 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
   const selectedLogResult =
     state.selectedLogId !== null && selectedLog === null
       ? await locals.container.logsService.getLogById(
-          { id: state.selectedLogId },
-          { appId: params.app_id },
-        )
+        { id: state.selectedLogId },
+        { appId: params.app_id },
+      )
       : null;
+
+  if (selectedLogResult && !selectedLogResult.success) {
+    throw error(500, selectedLogResult.error);
+  }
 
   return {
     live: state.live,
@@ -63,10 +69,9 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     filters: state.filters,
     logs,
     selectedLog:
-      selectedLog ??
-      (selectedLogResult?.success ? selectedLogResult.data.log : null),
+      selectedLog ?? selectedLogResult?.data.log ?? null,
+    nextCursor: logsResult.data.nextCursor,
     volumeBuckets: volumeResult.data.buckets,
     filterAttributes: filterAttributesResult.data.attributes,
-    error: "",
   };
 };

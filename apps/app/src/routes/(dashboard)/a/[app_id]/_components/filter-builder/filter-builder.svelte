@@ -72,18 +72,16 @@
 </script>
 
 <script lang="ts">
-  import { kbdShortcut } from "$lib/utils/kbd-shortcut";
   import { cn } from "@repo/components";
   import { Button } from "@repo/components/ui/button";
-  import { Kbd } from "@repo/components/ui/kbd";
   import { IconCircleX, IconSearch } from "@tabler/icons-svelte";
-  import { onMount } from "svelte";
   import FilterBuilderState from "./filter-builder-state.svelte";
 
   let {
     attributes = [],
     filters = [],
     subjectLabel = "items",
+    class: className,
     loadValueSuggestions,
     onAddFilter,
     onRemoveFilter,
@@ -91,12 +89,11 @@
     attributes?: FilterBuilderAttribute[];
     filters?: FilterBuilderFilter[];
     subjectLabel?: string;
+    class?: string;
     loadValueSuggestions: FilterBuilderValueSuggestionsLoader;
     onAddFilter: (filter: FilterBuilderFilter) => void;
     onRemoveFilter: (filter: FilterBuilderFilter) => void;
   } = $props();
-
-  let isInputElFocused = $state(false);
 
   const filterBuilderState = new FilterBuilderState(
     attributes,
@@ -111,18 +108,13 @@
   };
 
   const focusBuilderInput = (event?: MouseEvent) => {
-    if (event?.target instanceof HTMLButtonElement) {
-      return;
-    }
-
+    if (event?.target instanceof HTMLButtonElement) return;
     filterBuilderState.inputElement?.focus();
-    openPopover();
+    filterBuilderState.isPopoverOpen = true;
   };
-
-  onMount(() => kbdShortcut({ "/": () => focusBuilderInput() }));
 </script>
 
-<div class="relative" role="presentation">
+<div class={cn("relative", className)} role="presentation">
   <div
     class={cn(
       "z-10 flex min-h-8 w-full flex-wrap items-center gap-1 rounded-md border border-border bg-background pr-4 pl-8 transition-colors",
@@ -135,11 +127,6 @@
     <IconSearch
       class="absolute top-2 left-3 size-4 text-muted-foreground opacity-80"
     />
-    {#if !isInputElFocused && !filterBuilderState.draft && filters.length === 0}
-      <Kbd class="absolute top-1.5 right-1.5  text-muted-foreground opacity-80"
-        >/</Kbd
-      >
-    {/if}
     {#if filterBuilderState.draft || filters.length > 0}
       <Button
         class="absolute top-1 right-1 size-6 opacity-80"
@@ -155,7 +142,7 @@
     {/if}
     {#each filters as filter}
       <div
-        class="inline-flex h-5 items-center gap-1 rounded-md border bg-secondary px-2 text-sm"
+        class="inline-flex h-6 items-center gap-1 rounded-md border bg-secondary px-2 text-sm"
       >
         <span class="text-muted-foreground">{filter.attribute}</span>
         <span class="text-muted-foreground">
@@ -229,7 +216,6 @@
         ? ""
         : `Filter and search ${subjectLabel}`}
       onfocus={() => {
-        isInputElFocused = true;
         openPopover();
       }}
       oninput={() => {
@@ -237,7 +223,6 @@
       }}
       onblur={() => {
         setTimeout(() => {
-          isInputElFocused = false;
           filterBuilderState.isPopoverOpen = false;
         }, 120);
       }}
@@ -307,7 +292,7 @@
           {/if}
         </div>
       {:else}
-        <div class="flex max-h-80 flex-col gap-1 overflow-y-auto py-1">
+        <div class="flex max-h-80 flex-col gap-1 overflow-y-auto">
           {#each filterBuilderState.suggestions as suggestion, index}
             <button
               type="button"

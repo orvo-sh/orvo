@@ -74,9 +74,7 @@ class FilterBuilderState {
 
     switch (this.builder.stage) {
       case "select_attribute":
-        const sorted = [...this.attributes].sort((left, right) =>
-          left.label.localeCompare(right.label),
-        );
+        const sorted = [...this.attributes].sort((left, right) => left.label.localeCompare(right.label));
         const attribs = !query
           ? sorted
           : sorted.filter((attr) => attr.label.toLowerCase().includes(query));
@@ -97,6 +95,7 @@ class FilterBuilderState {
           key: operator.operator,
           title: operator.label,
           kind: "operator" as const,
+          isCommon: false,
         }));
       case "select_value":
         if (this.#_expectsMultiValue(this.builder.operator)) {
@@ -106,8 +105,8 @@ class FilterBuilderState {
           const vals = !query
             ? this.valueSuggestions
             : this.valueSuggestions.filter((suggestion) =>
-                suggestion.value.toLowerCase().includes(query),
-              );
+              suggestion.value.toLowerCase().includes(query),
+            );
 
           return vals
             .filter(
@@ -117,6 +116,7 @@ class FilterBuilderState {
               key: suggestion.value,
               title: suggestion.value,
               kind: "value" as const,
+              isCommon: false,
             }));
         }
         if (
@@ -130,12 +130,13 @@ class FilterBuilderState {
         const vals = !query
           ? this.valueSuggestions
           : this.valueSuggestions.filter((suggestion) =>
-              suggestion.value.toLowerCase().includes(query),
-            );
+            suggestion.value.toLowerCase().includes(query),
+          );
         return vals.map((suggestion) => ({
           key: suggestion.value,
           title: suggestion.value,
           kind: "value" as const,
+          isCommon: false,
         }));
     }
   });
@@ -322,6 +323,18 @@ class FilterBuilderState {
   };
 
   confirmSelection = () => {
+    if (
+      this.builder.stage === "select_value" &&
+      this.#_expectsMultiValue(this.builder.operator) &&
+      this.builder.values.length > 0 &&
+      !this.draft.trim()
+    ) {
+      this.commitFilter(
+        this.builder.values.join(` ${filterBuilderMultiValueDelimiter} `),
+      );
+      return;
+    }
+
     if (this.builder.stage === "select_attribute") {
       const exactMatch = this.attributes.find(
         (attribute) =>

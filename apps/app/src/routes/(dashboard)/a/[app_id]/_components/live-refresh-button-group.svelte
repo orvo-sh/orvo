@@ -7,16 +7,24 @@
   let {
     live = $bindable(),
     refresh,
+    disabled = false,
   }: {
     live: boolean;
     refresh: () => Promise<void>;
+    disabled?: boolean;
   } = $props();
 
   let isReloading = $state(false);
 </script>
 
 <ButtonGroup.Root>
-  <Button variant="outline" onclick={() => (live = !live)}>
+  <Button
+    {disabled}
+    variant="outline"
+    aria-label="Live mode"
+    data-testid="live-refresh-toggle"
+    onclick={() => (live = !live)}
+  >
     <span
       data-slot="button-icon"
       class="relative mt-px flex size-4 items-center justify-center"
@@ -40,7 +48,11 @@
     variant="outline"
     size="icon"
     loading={isReloading}
+    {disabled}
+    aria-label="Refresh data"
+    data-testid="live-refresh-button"
     onclick={async () => {
+      if (!refresh) return;
       isReloading = true;
       await refresh();
       isReloading = false;

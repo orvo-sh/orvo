@@ -1,19 +1,9 @@
+import { timeFilterPresets, type TimeFilter } from "$lib/core/time-filter";
 import type {
   ActiveLogFilter,
   LogFilters,
-  LogTimeFilter,
-  LogTimePreset,
+  LogTimePreset
 } from "./types";
-
-const logTimePresets = [
-  "last_hour",
-  "today",
-  "last_24_hours",
-  "last_3_days",
-  "last_7_days",
-  "last_2_weeks",
-  "last_month",
-] satisfies LogTimePreset[];
 
 const MIN_VOLUME_BUCKET_COUNT = 24;
 const MAX_VOLUME_BUCKET_COUNT = 120;
@@ -33,7 +23,7 @@ const AUTO_VOLUME_BUCKET_SIZES_MS = [
 ] as const;
 
 const isLogTimePreset = (value: string): value is LogTimePreset =>
-  logTimePresets.includes(value as LogTimePreset);
+  timeFilterPresets.includes(value as LogTimePreset);
 
 const parseLogFilter = (value: string): ActiveLogFilter | null => {
   try {
@@ -60,8 +50,8 @@ const parseLogFilter = (value: string): ActiveLogFilter | null => {
 };
 
 const resolveLogStateFromSearchParams = (searchParams: URLSearchParams) => {
-  const startAtUtc = searchParams.get("start");
-  const endAtUtc = searchParams.get("end");
+  const start = searchParams.get("start");
+  const end = searchParams.get("end");
   const preset = searchParams.get("preset");
   const serializedFilters = searchParams
     .getAll("filter")
@@ -69,24 +59,24 @@ const resolveLogStateFromSearchParams = (searchParams: URLSearchParams) => {
     .filter((filter): filter is ActiveLogFilter => filter !== null);
 
   const time =
-    startAtUtc &&
-    endAtUtc &&
-    !Number.isNaN(new Date(startAtUtc).getTime()) &&
-    !Number.isNaN(new Date(endAtUtc).getTime())
+    start &&
+      end &&
+      !Number.isNaN(new Date(start).getTime()) &&
+      !Number.isNaN(new Date(end).getTime())
       ? ({
-          kind: "range",
-          startAtUtc,
-          endAtUtc,
-        } as const)
+        kind: "range",
+        start: start,
+        end: end,
+      } as const)
       : preset && isLogTimePreset(preset)
         ? ({
-            kind: "preset",
-            preset,
-          } as const)
+          kind: "preset",
+          preset,
+        } as const)
         : ({
-            kind: "preset",
-            preset: "last_24_hours",
-          } as const);
+          kind: "preset",
+          preset: "last_24_hours",
+        } as const);
 
   return {
     live: searchParams.get("live") === "true",
@@ -101,7 +91,7 @@ const resolveLogStateFromSearchParams = (searchParams: URLSearchParams) => {
 
 const createLogStateSearchParams = (
   live: boolean,
-  time: LogTimeFilter,
+  time: TimeFilter,
   filters: LogFilters,
   selectedLogId: string | null,
 ) => {
@@ -112,8 +102,8 @@ const createLogStateSearchParams = (
   }
 
   if (time.kind === "range") {
-    searchParams.set("start", time.startAtUtc);
-    searchParams.set("end", time.endAtUtc);
+    searchParams.set("start", time.start);
+    searchParams.set("end", time.end);
   } else {
     searchParams.set("preset", time.preset);
   }
@@ -129,51 +119,6 @@ const createLogStateSearchParams = (
   return searchParams;
 };
 
-const resolveLogPresetRange = (preset: LogTimePreset, now = new Date()) => {
-  switch (preset) {
-    case "last_hour":
-      return { start: new Date(now.getTime() - 60 * 60 * 1000), end: now };
-    case "today": {
-      const start = new Date(now);
-      start.setHours(0, 0, 0, 0);
-      return { start, end: now };
-    }
-    case "last_24_hours":
-      return { start: new Date(now.getTime() - 24 * 60 * 60 * 1000), end: now };
-    case "last_3_days":
-      return {
-        start: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
-        end: now,
-      };
-    case "last_7_days":
-      return {
-        start: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
-        end: now,
-      };
-    case "last_2_weeks":
-      return {
-        start: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000),
-        end: now,
-      };
-    case "last_month":
-      return {
-        start: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
-        end: now,
-      };
-  }
-};
-
-const resolveLogTimeRange = (time: LogTimeFilter, now = new Date()) => {
-  if (time.kind === "range") {
-    return {
-      start: new Date(time.startAtUtc),
-      end: new Date(time.endAtUtc),
-    };
-  }
-
-  return resolveLogPresetRange(time.preset, now);
-};
-
 const resolveLogVolumeBucketCount = (start: Date, end: Date) => {
   const rangeMs = Math.max(end.getTime() - start.getTime(), 1);
   const bucketSizeMs =
@@ -186,18 +131,8 @@ const resolveLogVolumeBucketCount = (start: Date, end: Date) => {
   );
 };
 
-const createLogsServiceInput = (
-  time: LogTimeFilter,
-  filters: { activeFilters: ActiveLogFilter[] },
-) => ({
-  time,
-  activeFilters: filters.activeFilters,
-});
-
 export {
-  createLogsServiceInput,
   createLogStateSearchParams,
   resolveLogStateFromSearchParams,
-  resolveLogTimeRange,
-  resolveLogVolumeBucketCount,
+  resolveLogVolumeBucketCount
 };

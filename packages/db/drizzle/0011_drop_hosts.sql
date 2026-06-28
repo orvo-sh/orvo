@@ -41,10 +41,12 @@ DROP TYPE "public"."alert_signal_type__old";--> statement-breakpoint
 
 ALTER TYPE "public"."alert_incident_entity_type" RENAME TO "alert_incident_entity_type__old";--> statement-breakpoint
 CREATE TYPE "public"."alert_incident_entity_type" AS ENUM('app', 'container');--> statement-breakpoint
+ALTER TABLE "alert_incident" ALTER COLUMN "entity_type" DROP DEFAULT;--> statement-breakpoint
 ALTER TABLE "alert_incident"
   ALTER COLUMN "entity_type"
   TYPE "public"."alert_incident_entity_type"
   USING ("entity_type"::text::"public"."alert_incident_entity_type");--> statement-breakpoint
+ALTER TABLE "alert_incident" ALTER COLUMN "entity_type" SET DEFAULT 'app';--> statement-breakpoint
 DROP TYPE "public"."alert_incident_entity_type__old";--> statement-breakpoint
 
 ALTER TYPE "public"."incident_source_type" RENAME TO "incident_source_type__old";--> statement-breakpoint
@@ -57,10 +59,12 @@ DROP TYPE "public"."incident_source_type__old";--> statement-breakpoint
 
 ALTER TYPE "public"."incident_entity_type" RENAME TO "incident_entity_type__old";--> statement-breakpoint
 CREATE TYPE "public"."incident_entity_type" AS ENUM('app', 'container');--> statement-breakpoint
+ALTER TABLE "incident" ALTER COLUMN "entity_type" DROP DEFAULT;--> statement-breakpoint
 ALTER TABLE "incident"
   ALTER COLUMN "entity_type"
   TYPE "public"."incident_entity_type"
   USING ("entity_type"::text::"public"."incident_entity_type");--> statement-breakpoint
+ALTER TABLE "incident" ALTER COLUMN "entity_type" SET DEFAULT 'app';--> statement-breakpoint
 DROP TYPE "public"."incident_entity_type__old";--> statement-breakpoint
 
 ALTER TYPE "public"."incident_type" RENAME TO "incident_type__old";--> statement-breakpoint

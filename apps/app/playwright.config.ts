@@ -16,6 +16,12 @@ const chromeOptions = {
 export default defineConfig({
   testDir: "tests",
   testMatch: /(.+\.)?(test|spec)\.[jt]s/,
+  testIgnore: [
+    "tests/unit/**",
+    "tests/integration/**",
+    "tests/helpers/**",
+    "tests/setup/**",
+  ],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 2,
@@ -25,8 +31,8 @@ export default defineConfig({
     baseURL: TEST_APP_ORIGIN,
     trace: "on-first-retry",
   },
-  globalSetup: "./tests/global-setup.ts",
-  globalTeardown: "./tests/global-teardown.ts",
+  globalSetup: "./tests/setup/global-e2e-setup.ts",
+  globalTeardown: "./tests/setup/global-e2e-teardown.ts",
   projects: [
     {
       name: "setup",

@@ -176,6 +176,9 @@
   } = $props();
   let chartWidth = $state(0);
 
+  const showSkeleton = $derived(loading && buckets.length === 0);
+  const isRefreshing = $derived(loading && buckets.length > 0);
+
   const maxCount = $derived(
     Math.max(1, ...buckets.map((bucket) => bucket.total)),
   );
@@ -209,7 +212,7 @@
   );
 
   const chartBars = $derived.by(() =>
-    loading
+    showSkeleton
       ? (skeletonBars as ChartBar[])
       : (buckets.map((bucket, index) => ({
           bucket,
@@ -270,6 +273,7 @@
 </script>
 
 <div
+  data-testid="log-volume-chart"
   class="shrink-0 bg-background px-4 pt-1 pb-1"
   bind:clientWidth={chartWidth}
 >
@@ -277,11 +281,12 @@
     <div
       class="relative w-full"
       role="img"
-      aria-label={loading ? "Loading log volume chart" : "Log volume over time"}
+      aria-label={showSkeleton ? "Loading log volume chart" : "Log volume over time"}
     >
       <div class="rounded-md px-2 pt-2 pb-0">
         <div
-          class="relative flex items-end gap-0.5"
+          class="relative flex items-end gap-0.5 transition-opacity duration-200"
+          class:opacity-70={isRefreshing}
           style={`height: ${CHART_HEIGHT}px;`}
         >
           {#each chartBars as bar (bar.key)}
@@ -290,8 +295,9 @@
                 {@const bucket = bar.bucket}
                 <HoverCard.Root openDelay={50} closeDelay={50}>
                   <HoverCard.Trigger
+                    data-testid="log-volume-bucket"
                     type="button"
-                    class={`w-full overflow-hidden rounded-t-[2px] rounded-b-none transition-opacity focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:outline-none ${
+                    class={`w-full overflow-hidden rounded-t-[2px] rounded-b-none bg-linear-to-t from-foreground/30 to-transparent transition-opacity focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:outline-none ${
                       bucket.total > 0
                         ? "cursor-pointer opacity-85 hover:opacity-100 focus-visible:opacity-100"
                         : "cursor-default opacity-40 hover:opacity-60"
@@ -379,6 +385,13 @@
               {/if}
             </div>
           {/each}
+
+          {#if isRefreshing}
+            <div
+              class="pointer-events-none absolute inset-0 rounded-sm bg-background/10"
+              aria-hidden="true"
+            ></div>
+          {/if}
         </div>
 
         <div class="-mx-2 h-px bg-border"></div>

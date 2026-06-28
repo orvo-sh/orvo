@@ -193,8 +193,8 @@ const createGetLogServiceVolume = ({
 
           return {
             startAtUtc: bucketStart.toISOString(),
-            total: row?.total ?? 0,
-            errors: row?.errors ?? 0,
+            total: Number(row?.total ?? 0),
+            errors: Number(row?.errors ?? 0),
           };
         });
 

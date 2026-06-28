@@ -1,45 +1,29 @@
-import type {
-  FilterBuilderAttribute,
-  FilterBuilderFilter,
-  FilterBuilderOperator,
-} from "../_components/filter-builder";
+import type { TimeFilter, TimeFilterPreset } from "$lib/core/time-filter";
+import type { FilterBuilderAttribute } from "../_components/filter-builder";
 
-type LogTimePreset =
-  | "last_hour"
-  | "today"
-  | "last_24_hours"
-  | "last_3_days"
-  | "last_7_days"
-  | "last_2_weeks"
-  | "last_month";
-
-type LogTime =
-  | {
-      kind: "preset";
-      preset: LogTimePreset;
-    }
-  | {
-      kind: "range";
-      start: Date;
-      end: Date;
-    };
-
-type LogTimeFilter =
-  | {
-      kind: "preset";
-      preset: LogTimePreset;
-    }
-  | {
-      kind: "range";
-      startAtUtc: string;
-      endAtUtc: string;
-    };
+type LogTime = TimeFilter extends infer T
+  ? T extends { kind: "range"; start: string; end: string }
+    ? { kind: "range"; start: Date; end: Date }
+    : T
+  : never;
+type LogTimeFilter = TimeFilter;
+type LogTimePreset = TimeFilterPreset;
 
 export type { LogTime, LogTimeFilter, LogTimePreset };
 
-export type LogFilterOperator = FilterBuilderOperator;
+export type LogFilterOperator =
+  | "eq"
+  | "neq"
+  | "contains"
+  | "not_contains"
+  | "in"
+  | "not_in";
 export type LogFilterAttribute = FilterBuilderAttribute;
-export type ActiveLogFilter = FilterBuilderFilter;
+export type ActiveLogFilter = {
+  attribute: string;
+  operator: LogFilterOperator;
+  value: string;
+};
 
 export type LogRecord = {
   id?: string;
@@ -76,6 +60,11 @@ export type LogVolumeBucket = {
   debug: number;
   trace: number;
   total: number;
+};
+
+export type LogCursor = {
+  timestamp: string;
+  id: string;
 };
 
 export type LogFilters = {

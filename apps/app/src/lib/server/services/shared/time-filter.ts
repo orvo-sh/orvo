@@ -20,16 +20,16 @@ const timeFilterSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal("range"),
-      startAtUtc: z.iso.datetime({ offset: true }),
-      endAtUtc: z.iso.datetime({ offset: true }),
+      start: z.iso.datetime({ offset: true }),
+      end: z.iso.datetime({ offset: true }),
     })
     .refine(
       (value) =>
-        new Date(value.startAtUtc).getTime() <=
-        new Date(value.endAtUtc).getTime(),
+        new Date(value.start).getTime() <=
+        new Date(value.end).getTime(),
       {
-        message: "startAtUtc must be less than or equal to endAtUtc",
-        path: ["endAtUtc"],
+        message: "start must be less than or equal to end",
+        path: ["end"],
       },
     ),
 ]);
@@ -42,8 +42,8 @@ const resolveTimeFilter = (timeFilter: TimeFilter) => {
 
   if (timeFilter.kind === "range")
     return {
-      startAtUtc: new Date(timeFilter.startAtUtc),
-      endAtUtc: new Date(timeFilter.endAtUtc),
+      startAtUtc: new Date(timeFilter.start),
+      endAtUtc: new Date(timeFilter.end),
     };
 
   if (timeFilter.preset === "today") {

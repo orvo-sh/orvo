@@ -40,12 +40,6 @@
   const second = $derived(
     timestampParts.find((part) => part.type === "second")?.value ?? "00",
   );
-  const fractionalSecond = $derived(
-    (
-      timestampParts.find((part) => part.type === "fractionalSecond")?.value ??
-      "000"
-    ).slice(0, 2),
-  );
 </script>
 
 <div class="flex">
