@@ -132,12 +132,6 @@ const buildMetricsWhereClause = (
     );
   }
 
-  if (input.hosts.length > 0) {
-    whereClauses.push(
-      buildInClause("if(host_name = '', host_id, host_name)", input.hosts),
-    );
-  }
-
   if (input.containers.length > 0) {
     whereClauses.push(
       buildInClause(

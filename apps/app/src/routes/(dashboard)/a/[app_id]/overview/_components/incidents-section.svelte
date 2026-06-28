@@ -3,6 +3,7 @@
   import { Button, buttonVariants } from "@repo/components/ui/button";
   import * as Card from "@repo/components/ui/card";
   import * as HoverCard from "@repo/components/ui/hover-card";
+  import { formatNumber } from "@repo/utils";
   import {
     IconAlertTriangle,
     IconChevronRight,
@@ -14,9 +15,9 @@
     status: "open" | "resolved" | "dismissed";
     openedAt: Date;
     lastObservedValue: number | null;
-    entityType: "app" | "host" | "container";
+    entityType: "app" | "container";
     entityName: string | null;
-    sourceType: "alert" | "heartbeat" | "host";
+    sourceType: "alert" | "heartbeat";
     title: string;
     rule?: {
       id: string;
@@ -60,7 +61,7 @@
   <div
     class="flex translate-y-2 items-center justify-between rounded-t-xl border border-foreground/10 bg-secondary pb-2 inset-shadow-[0px_1px_--theme(--color-white)]"
   >
-    <div class="flex flex-1 items-center gap-0 px-3.5 py-0.5">
+    <div class="flex flex-1 items-center px-3.5 py-0.75">
       <h2 class="text-sm font-normal tracking-tight text-secondary-foreground">
         Open incidents
       </h2>
@@ -79,7 +80,7 @@
           class="max-w-sm min-w-72 text-sm text-secondary-foreground"
         >
           <p>
-            Open incidents track active alert, heartbeat, and host failures.
+            Open incidents track active alert and heartbeat failures.
             They are resolved automatically when the underlying signal recovers.
           </p>
         </HoverCard.Content>
@@ -126,19 +127,14 @@
                   <p class="text-sm font-medium">
                     {incident.rule?.name ?? incident.title}
                   </p>
-                  <span
-                    class="inline-flex items-center rounded-full border border-transparent bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/20 dark:text-red-400"
-                  >
-                    Open
-                  </span>
                 </div>
                 <p class="line-clamp-2 text-xs text-muted-foreground">
                   {incident.rule
                     ? (signalLabels[incident.rule.signalType] ??
-                        incident.rule.signalType)
+                      incident.rule.signalType)
                     : incident.sourceType}
                   {#if incident.lastObservedValue !== null}
-                    · value {incident.lastObservedValue}
+                    · value {formatNumber(incident.lastObservedValue)}
                   {/if}
                   · open for {formatTimeAgo(incident.openedAt)}
                 </p>

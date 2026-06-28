@@ -745,21 +745,13 @@ const isTraceSignal = (signalType: AlertSignalType) =>
 
 const isEntityScopedSignal = (signalType: AlertSignalType) =>
   [
-    "host_cpu_utilization",
-    "host_memory_utilization",
-    "host_filesystem_utilization",
-    "host_reporting_stale",
     "container_cpu_utilization",
     "container_memory_utilization",
     "container_reporting_stale",
   ].includes(signalType);
 
 const resolveEntityType = (signalType: AlertSignalType): AlertEntityType =>
-  signalType.startsWith("host_")
-    ? "host"
-    : signalType.startsWith("container_")
-      ? "container"
-      : "app";
+  signalType.startsWith("container_") ? "container" : "app";
 
 const buildTraceRuleWhereClause = (
   rule: AlertRuleRow,
@@ -799,54 +791,6 @@ const buildMetricSignalQuery = (
   const baseClauses = buildMetricScopeClauses(rule, windowStartAt, windowEndAt);
 
   switch (rule.signalType) {
-    case "host_cpu_utilization":
-    case "host_memory_utilization":
-      return `
-        SELECT
-          host_id AS entity_id,
-          argMax(host_name, time) AS entity_name,
-          avg(coalesce(value_double, toFloat64(value_int))) * 100 AS value
-        FROM metrics_raw
-        WHERE ${[
-          ...baseClauses,
-          `metric_name = ${quote(
-            rule.signalType === "host_cpu_utilization"
-              ? "system.cpu.utilization"
-              : "system.memory.utilization",
-          )}`,
-        ].join(" AND ")}
-        GROUP BY host_id
-      `;
-    case "host_filesystem_utilization":
-      return `
-        SELECT
-          host_id AS entity_id,
-          argMax(host_name, time) AS entity_name,
-          max(coalesce(value_double, toFloat64(value_int))) * 100 AS value
-        FROM metrics_raw
-        WHERE ${[...baseClauses, `metric_name = ${quote("system.filesystem.utilization")}`].join(" AND ")}
-        GROUP BY host_id
-      `;
-    case "host_reporting_stale": {
-      const discoveryStartAt = new Date(windowEndAt.getTime() - 24 * 60 * 60_000);
-
-      return `
-        SELECT
-          host_id AS entity_id,
-          argMax(host_name, time) AS entity_name,
-          greatest(dateDiff('second', max(time), now()), 0) / 60.0 AS value
-        FROM metrics_raw
-        WHERE ${[
-          `app_id = ${quote(rule.appId)}`,
-          "entity_kind = 'host'",
-          "host_id != ''",
-          `time >= ${toDateTime64(discoveryStartAt)}`,
-          `time <= ${toDateTime64(windowEndAt)}`,
-          ...buildHostScopeClauses(rule),
-        ].join(" AND ")}
-        GROUP BY host_id
-      `;
-    }
     case "container_cpu_utilization":
       return `
         SELECT
@@ -893,7 +837,6 @@ const buildMetricSignalQuery = (
           "container_id != ''",
           `time >= ${toDateTime64(discoveryStartAt)}`,
           `time <= ${toDateTime64(windowEndAt)}`,
-          ...buildHostScopeClauses(rule),
           ...buildContainerScopeClauses(rule),
         ].join(" AND ")}
         GROUP BY container_id
@@ -915,30 +858,13 @@ const buildMetricScopeClauses = (
     `time <= ${toDateTime64(windowEndAt)}`,
   ];
 
-  if (rule.signalType.startsWith("host_")) {
-    clauses.push("entity_kind = 'host'", "host_id != ''", ...buildHostScopeClauses(rule));
-  }
-
   if (rule.signalType.startsWith("container_")) {
     clauses.push(
       "entity_kind = 'container'",
       "container_id != ''",
-      ...buildHostScopeClauses(rule),
       ...buildContainerScopeClauses(rule),
     );
   }
-
-  return clauses;
-};
-
-const buildHostScopeClauses = (rule: AlertRuleRow) => {
-  const clauses: string[] = [];
-  appendInclusionClauses(
-    clauses,
-    "host_name",
-    rule.scopeHostNamesInclude,
-    rule.scopeHostNamesExclude,
-  );
 
   return clauses;
 };

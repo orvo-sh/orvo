@@ -138,7 +138,7 @@
           <MetricsSummaryCard
             title="Services"
             value={formatNumber(selectedMetric.services)}
-            meta={`${formatNumber(selectedMetric.hosts)} hosts · ${formatNumber(selectedMetric.containers)} containers`}
+            meta={`${formatNumber(selectedMetric.containers)} containers`}
             {loading}
           />
           <MetricsSummaryCard

@@ -40,10 +40,6 @@
         include: data.rule.scopeScopesInclude,
         exclude: data.rule.scopeScopesExclude,
       },
-      hostNames: {
-        include: data.rule.scopeHostNamesInclude,
-        exclude: data.rule.scopeHostNamesExclude,
-      },
       containerNames: {
         include: data.rule.scopeContainerNamesInclude,
         exclude: data.rule.scopeContainerNamesExclude,

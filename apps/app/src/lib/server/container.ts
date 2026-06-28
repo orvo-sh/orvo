@@ -7,7 +7,6 @@ import { AlertWebhookDestinationService } from "$lib/server/services/alert-webho
 import { AppService } from "$lib/server/services/app";
 import { BillingService } from "$lib/server/services/billing";
 import { HeartbeatService } from "$lib/server/services/heartbeat";
-import { HostMonitoringService } from "$lib/server/services/host-monitoring";
 import { IncidentService } from "$lib/server/services/incident";
 import { IngestionKeyService } from "$lib/server/services/ingestion-key";
 import { LogsService } from "$lib/server/services/logs";
@@ -15,7 +14,6 @@ import { MetricsService } from "$lib/server/services/metrics";
 import { NotificationDeliveryService } from "$lib/server/services/notification-delivery";
 import { NotificationDestinationService } from "$lib/server/services/notification-destination";
 import { OnboardingService } from "$lib/server/services/onboarding";
-import { OrganizationActivationService } from "$lib/server/services/organization-activation";
 import { TracesService } from "$lib/server/services/traces";
 import { UploadService } from "$lib/server/services/upload";
 import { getClickHouseClient } from "@repo/clickhouse";
@@ -74,19 +72,6 @@ const createServerContainer = (logger: Logger) => {
   const tracesService = new TracesService(clickhouse, logger);
   const incidentService = new IncidentService(db, logger);
   const metricsService = new MetricsService(clickhouse, logger);
-  const hostMonitoringService = new HostMonitoringService(
-    db,
-    clickhouse,
-    encryption,
-    logger,
-    incidentService,
-    ingestionKeyService,
-    {
-      appBaseUrl: env.ORIGIN,
-      cdnBaseUrl: env.CDN_BASE_URL,
-      otlpBaseUrl: env.INGEST_BASE_URL,
-    },
-  );
   const heartbeatService = new HeartbeatService(
     db,
     clickhouse,
@@ -102,10 +87,6 @@ const createServerContainer = (logger: Logger) => {
     logger,
     ingestionKeyService,
     alertRuleService,
-  );
-  const organizationActivationService = new OrganizationActivationService(
-    db,
-    logger,
   );
   const onboardingService = new OnboardingService(
     ingestionKeyService,
@@ -158,8 +139,6 @@ const createServerContainer = (logger: Logger) => {
     metricsService,
     notificationDestinationService,
     onboardingService,
-    organizationActivationService,
-    hostMonitoringService,
     tracesService,
   };
 };
@@ -182,26 +161,11 @@ const createWorkerContainer = (logger: Logger) => {
       ingestBaseUrl: env.INGEST_BASE_URL,
     },
   );
-  const ingestionKeyService = new IngestionKeyService(db, logger);
-  const hostMonitoringService = new HostMonitoringService(
-    db,
-    clickhouse,
-    encryption,
-    logger,
-    incidentService,
-    ingestionKeyService,
-    {
-      appBaseUrl: env.ORIGIN,
-      cdnBaseUrl: env.CDN_BASE_URL,
-      otlpBaseUrl: env.INGEST_BASE_URL,
-    },
-  );
 
   return {
     clickhouse,
     db,
     heartbeatService,
-    hostMonitoringService,
     incidentService,
     notificationDeliveryService,
   };

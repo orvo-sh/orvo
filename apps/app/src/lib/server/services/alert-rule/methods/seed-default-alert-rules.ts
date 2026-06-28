@@ -47,8 +47,6 @@ const createSeedDefaultAlertRules = ({
         scopeEnvironmentsExclude: [],
         scopeScopesInclude: [],
         scopeScopesExclude: [],
-        scopeHostNamesInclude: [],
-        scopeHostNamesExclude: [],
         scopeContainerNamesInclude: [],
         scopeContainerNamesExclude: [],
         createdBy: context.userId,

@@ -38,7 +38,6 @@ export const load = (async ({ locals, params, parent, url }) => {
         metricName,
         services: [],
         environments: [],
-        hosts: [],
         containers: [],
         entityKinds: [],
         aggregation: nextAggregation,

@@ -76,8 +76,6 @@ const createUpdateAlertRule = ({
           scopeEnvironmentsExclude: validated.data.scope.environments.exclude,
           scopeScopesInclude: validated.data.scope.scopes.include,
           scopeScopesExclude: validated.data.scope.scopes.exclude,
-          scopeHostNamesInclude: validated.data.scope.hostNames.include,
-          scopeHostNamesExclude: validated.data.scope.hostNames.exclude,
           scopeContainerNamesInclude: validated.data.scope.containerNames.include,
           scopeContainerNamesExclude: validated.data.scope.containerNames.exclude,
           updatedBy: context.userId,

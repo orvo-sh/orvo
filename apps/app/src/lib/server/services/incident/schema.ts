@@ -1,15 +1,10 @@
 import { z } from "zod";
 
 const incidentStatusSchema = z.enum(["all", "open", "resolved", "dismissed"]);
-const incidentSourceTypeSchema = z.enum(["alert", "heartbeat", "host"]);
+const incidentSourceTypeSchema = z.enum(["alert", "heartbeat"]);
 const incidentSeveritySchema = z.enum(["critical", "warning", "info"]);
-const incidentEntityTypeSchema = z.enum(["app", "host", "container"]);
-const incidentTypeSchema = z.enum([
-  "alert_threshold",
-  "heartbeat_missed",
-  "host_agent_disconnected",
-  "host_offline",
-]);
+const incidentEntityTypeSchema = z.enum(["app", "container"]);
+const incidentTypeSchema = z.enum(["alert_threshold", "heartbeat_missed"]);
 const incidentEventTypeSchema = z.enum([
   "incident.opened",
   "incident.resolved",
@@ -17,9 +12,6 @@ const incidentEventTypeSchema = z.enum([
   "alert.fired",
   "heartbeat.missed",
   "heartbeat.recovered",
-  "host.agent_disconnected",
-  "host.offline",
-  "host.recovered",
 ]);
 
 const listIncidentsInputSchema = z.object({

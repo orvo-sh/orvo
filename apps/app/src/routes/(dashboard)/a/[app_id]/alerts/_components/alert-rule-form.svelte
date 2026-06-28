@@ -78,14 +78,6 @@
       "availability_percent",
     ].includes(signalType);
 
-  const isHostSignal = (signalType: AlertRuleFormValue["signalType"]) =>
-    [
-      "host_cpu_utilization",
-      "host_memory_utilization",
-      "host_filesystem_utilization",
-      "host_reporting_stale",
-    ].includes(signalType);
-
   const isContainerSignal = (signalType: AlertRuleFormValue["signalType"]) =>
     [
       "container_cpu_utilization",
@@ -133,17 +125,6 @@
           excludePlaceholder: "custom-test-scope",
         },
       );
-    }
-
-    if (isHostSignal(form.signalType) || isContainerSignal(form.signalType)) {
-      groups.push({
-        key: "hostNames",
-        label: "Host names",
-        description:
-          "Match the displayed host name from the collector resource.",
-        includePlaceholder: "api-1, worker-2",
-        excludePlaceholder: "canary-host",
-      });
     }
 
     if (isContainerSignal(form.signalType)) {

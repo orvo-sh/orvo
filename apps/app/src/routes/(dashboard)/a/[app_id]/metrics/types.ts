@@ -14,14 +14,13 @@ type MetricAggregation =
   | "total"
   | "current";
 type MetricGroupBy = "none" | "metric" | "service" | "environment";
-type MetricEntityKind = "application" | "host" | "container";
+type MetricEntityKind = "application" | "container";
 
 type MetricFilters = {
   search: string;
   metricName: string;
   services: string[];
   environments: string[];
-  hosts: string[];
   containers: string[];
   entityKinds: MetricEntityKind[];
 };
@@ -38,7 +37,6 @@ type MetricCatalogItem = {
   description: string;
   points: number;
   services: number;
-  hosts: number;
   containers: number;
   lastSeen: string;
   lastValue: number | null;
@@ -64,7 +62,6 @@ type MetricSample = {
   unit: string;
   serviceName: string;
   environment: string;
-  hostName: string;
   containerName: string;
   entityKind: string;
   time: string;
@@ -83,7 +80,6 @@ type MetricsExplorerResult = {
     metrics: MetricFacetOption[];
     services: MetricFacetOption[];
     environments: MetricFacetOption[];
-    hosts: MetricFacetOption[];
     containers: MetricFacetOption[];
     entityKinds: MetricFacetOption[];
   };

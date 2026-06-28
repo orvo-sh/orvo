@@ -20,7 +20,6 @@
     IconBell,
     IconClock,
     IconLink,
-    IconServer,
   } from "@tabler/icons-svelte";
 
   import PageContainer from "../../_components/page-container/page-container.svelte";
@@ -42,18 +41,19 @@
   const sourceTypeLabel = {
     alert: "Alert",
     heartbeat: "Heartbeat",
-    host: "Host",
   } as const;
   const severityClasses = {
     critical: "border-destructive/30 bg-destructive/10 text-destructive",
-    warning: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    warning:
+      "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
     info: "border-primary/20 bg-primary/8 text-primary",
   } as const;
   const statusClasses = {
     open: "border-destructive/30 bg-destructive/10 text-destructive",
     resolved:
       "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300",
-    dismissed: "border-muted-foreground/20 bg-muted-foreground/8 text-muted-foreground",
+    dismissed:
+      "border-muted-foreground/20 bg-muted-foreground/8 text-muted-foreground",
   } as const;
 
   const incidentWindow = $derived.by(() => {
@@ -91,7 +91,7 @@
       return `/a/${page.params.app_id}/heartbeats/${incident.sourceId}`;
     }
 
-    return `/a/${page.params.app_id}/hosts/${incident.sourceId}`;
+    return `/a/${page.params.app_id}/incidents/${incident.id}`;
   });
 
   const sourceName = $derived.by(() => {
@@ -103,7 +103,7 @@
       return String(snapshot.heartbeatName ?? incident.title);
     }
 
-    return String(snapshot.hostName ?? incident.entityName ?? incident.sourceId);
+    return incident.title;
   });
 
   const durationSeconds = $derived.by(() => {
@@ -111,7 +111,8 @@
     return Math.max(
       0,
       Math.floor(
-        (new Date(end).getTime() - new Date(incident.openedAt).getTime()) / 1000,
+        (new Date(end).getTime() - new Date(incident.openedAt).getTime()) /
+          1000,
       ),
     );
   });
@@ -119,15 +120,6 @@
   const explanation = $derived.by(() => {
     if (incident.sourceType === "heartbeat") {
       return `${snapshot.heartbeatName ?? incident.title} missed its expected check-in window. Expected every ${formatDuration(Number(snapshot.expectedEverySeconds ?? 0))} with a ${formatDuration(Number(snapshot.graceSeconds ?? 0))} grace period.`;
-    }
-
-    if (incident.sourceType === "host") {
-      const hostName = String(snapshot.hostName ?? incident.entityName ?? incident.sourceId);
-      if (incident.type === "host_offline") {
-        return `${hostName} has been offline longer than the offline threshold. Last seen ${snapshot.lastSeenAt ? new Date(String(snapshot.lastSeenAt)).toLocaleString() : "recently"}.`;
-      }
-
-      return `${hostName} stopped reporting host metrics and appears disconnected. Last seen ${snapshot.lastSeenAt ? new Date(String(snapshot.lastSeenAt)).toLocaleString() : "recently"}.`;
     }
 
     const comparator = String(snapshot.comparator ?? ">");
@@ -160,14 +152,8 @@
         ? `${delivery.destinationName} · ${delivery.eventType}`
         : delivery.eventType,
     }));
-    const deploymentItems = data.deployments.map((deployment) => ({
-      id: deployment.id,
-      occurredAt: new Date(deployment.startedAt),
-      label: "deployment.detected",
-      detail: deployment.serviceName,
-    }));
 
-    return [...eventItems, ...deliveryItems, ...deploymentItems].sort(
+    return [...eventItems, ...deliveryItems].sort(
       (left, right) => left.occurredAt.getTime() - right.occurredAt.getTime(),
     );
   });
@@ -262,7 +248,9 @@
       </Card.Root>
       <Card.Root class="p-4">
         <p class="text-xs text-muted-foreground">Duration</p>
-        <p class="mt-1 text-sm font-medium">{formatDuration(durationSeconds)}</p>
+        <p class="mt-1 text-sm font-medium">
+          {formatDuration(durationSeconds)}
+        </p>
       </Card.Root>
       <Card.Root class="p-4">
         <p class="text-xs text-muted-foreground">Source</p>
@@ -307,32 +295,9 @@
       </section>
     {/if}
 
-    {#if incident.sourceType === "host"}
-      <section class="grid gap-3 sm:grid-cols-3">
-        <Card.Root class="p-4">
-          <p class="text-xs text-muted-foreground">Host</p>
-          <p class="mt-1 text-sm font-medium">
-            {String(snapshot.hostName ?? incident.entityName ?? incident.sourceId)}
-          </p>
-        </Card.Root>
-        <Card.Root class="p-4">
-          <p class="text-xs text-muted-foreground">Last seen</p>
-          <p class="mt-1 text-sm font-medium">
-            {snapshot.lastSeenAt
-              ? new Date(String(snapshot.lastSeenAt)).toLocaleString()
-              : "Unknown"}
-          </p>
-        </Card.Root>
-        <Card.Root class="p-4">
-          <p class="text-xs text-muted-foreground">Agent</p>
-          <p class="mt-1 text-sm font-medium">
-            {incident.type === "host_offline" ? "Offline" : "Disconnected"}
-          </p>
-        </Card.Root>
-      </section>
-    {/if}
-
-    <section class="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.95fr)]">
+    <section
+      class="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.95fr)]"
+    >
       <div class="grid gap-3">
         <Card.Root class="p-5">
           <div class="flex items-center gap-2">
@@ -389,16 +354,6 @@
             <Button href={metricsHref} variant="outline" class="justify-start">
               View metrics
             </Button>
-            {#if incident.sourceType === "host"}
-              <Button
-                href={`/a/${page.params.app_id}/hosts/${incident.sourceId}`}
-                variant="outline"
-                class="justify-start"
-              >
-                <IconServer data-slot="button-icon" />
-                View host
-              </Button>
-            {/if}
           </div>
         </Card.Root>
 
@@ -421,7 +376,9 @@
               {#each data.deliveries as delivery (delivery.id)}
                 <Table.Row>
                   <Table.Cell>{delivery.eventType}</Table.Cell>
-                  <Table.Cell>{delivery.destinationName ?? "Unknown"}</Table.Cell>
+                  <Table.Cell
+                    >{delivery.destinationName ?? "Unknown"}</Table.Cell
+                  >
                   <Table.Cell>{delivery.status}</Table.Cell>
                   <Table.Cell>
                     {new Date(

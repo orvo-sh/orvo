@@ -32,12 +32,6 @@ const alertScopeInputSchema = z.object({
       exclude: alertScopeArraySchema,
     })
     .default({ include: [], exclude: [] }),
-  hostNames: z
-    .object({
-      include: alertScopeArraySchema,
-      exclude: alertScopeArraySchema,
-    })
-    .default({ include: [], exclude: [] }),
   containerNames: z
     .object({
       include: alertScopeArraySchema,
@@ -55,10 +49,6 @@ const alertRuleInputSchema = z.object({
     "apdex",
     "throughput_per_min",
     "availability_percent",
-    "host_cpu_utilization",
-    "host_memory_utilization",
-    "host_filesystem_utilization",
-    "host_reporting_stale",
     "container_cpu_utilization",
     "container_memory_utilization",
     "container_reporting_stale",

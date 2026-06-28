@@ -5,7 +5,6 @@ import { Logger } from "@repo/logger";
 import { PgBoss } from "pg-boss";
 
 import { HeartbeatWorker } from "./heartbeat-worker";
-import { HostIncidentWorker } from "./host-incident-worker";
 import { NotificationDeliveryWorker } from "./notification-delivery-worker";
 import { ThresholdAlertWorker } from "./threshold-alert-worker";
 import { WorkerManager } from "./worker-manager";
@@ -35,7 +34,6 @@ const startWorkers = async (logger: Logger) => {
   const container = createWorkerContainer(workerLogger);
   const manager = new WorkerManager(boss, workerLogger, [
     new HeartbeatWorker(workerLogger, container.heartbeatService),
-    new HostIncidentWorker(workerLogger, container.hostMonitoringService),
     new ThresholdAlertWorker(
       workerLogger,
       container.db,

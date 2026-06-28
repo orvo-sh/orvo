@@ -15,9 +15,6 @@ const validateRuleConfig = (input: z.infer<typeof alertRuleInputSchema>) => {
     (input.signalType === "error_rate" ||
       input.signalType === "availability_percent" ||
       input.signalType === "apdex" ||
-      input.signalType === "host_cpu_utilization" ||
-      input.signalType === "host_memory_utilization" ||
-      input.signalType === "host_filesystem_utilization" ||
       input.signalType === "container_cpu_utilization" ||
       input.signalType === "container_memory_utilization") &&
     (input.threshold < 0 || input.threshold > 100)

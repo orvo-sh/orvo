@@ -64,6 +64,27 @@
       "when": 1782780000000,
       "tag": "0008_shared_incidents",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782920000000,
+      "tag": "0009_drop_vintage_features",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783360000000,
+      "tag": "0010_drop_organization_activation",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1783640000000,
+      "tag": "0011_drop_hosts",
+      "breakpoints": true
     }
   ]
 }

@@ -22,7 +22,7 @@ const metricGroupByValues = [
   "service",
   "environment",
 ] as const;
-const metricEntityKindValues = ["application", "host", "container"] as const;
+const metricEntityKindValues = ["application", "container"] as const;
 
 const stringArrayFilterSchema = z
   .array(z.string().trim().min(1).max(255))
@@ -41,7 +41,6 @@ const metricsQueryFiltersSchema = z.object({
   groupBy: metricGroupBySchema.default("none"),
   services: stringArrayFilterSchema.optional().default([]),
   environments: stringArrayFilterSchema.optional().default([]),
-  hosts: stringArrayFilterSchema.optional().default([]),
   containers: stringArrayFilterSchema.optional().default([]),
   entityKinds: z.array(metricEntityKindSchema).max(10).default([]),
 });

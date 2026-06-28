@@ -41,7 +41,6 @@
     "@repo/components": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/encryption": "workspace:*",
-    "@repo/host-agent": "workspace:*",
     "@repo/logger": "workspace:*",
     "@repo/storage": "workspace:*",
     "@repo/utils": "workspace:*",

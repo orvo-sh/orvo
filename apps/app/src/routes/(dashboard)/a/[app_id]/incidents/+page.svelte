@@ -10,9 +10,9 @@
   import * as Card from "@repo/components/ui/card";
   import * as Dialog from "@repo/components/ui/dialog";
   import * as Select from "@repo/components/ui/select";
+  import { toast } from "@repo/components/ui/sonner";
   import * as Tabs from "@repo/components/ui/tabs";
   import { Textarea } from "@repo/components/ui/textarea";
-  import { toast } from "@repo/components/ui/sonner";
   import {
     IconAlertTriangle,
     IconArrowUpRight,
@@ -36,22 +36,25 @@
 
   const counts = $derived({
     all: data.incidents.length,
-    open: data.incidents.filter((incident) => incident.status === "open").length,
-    resolved: data.incidents.filter((incident) => incident.status === "resolved")
+    open: data.incidents.filter((incident) => incident.status === "open")
       .length,
-    dismissed: data.incidents.filter((incident) => incident.status === "dismissed")
-      .length,
+    resolved: data.incidents.filter(
+      (incident) => incident.status === "resolved",
+    ).length,
+    dismissed: data.incidents.filter(
+      (incident) => incident.status === "dismissed",
+    ).length,
   });
 
   const sourceLabels = {
     alert: "Alert",
     heartbeat: "Heartbeat",
-    host: "Host",
   } as const;
 
   const severityClasses = {
     critical: "border-destructive/30 bg-destructive/10 text-destructive",
-    warning: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    warning:
+      "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
     info: "border-primary/20 bg-primary/8 text-primary",
   } as const;
 
@@ -59,7 +62,8 @@
     open: "border-destructive/30 bg-destructive/10 text-destructive",
     resolved:
       "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300",
-    dismissed: "border-muted-foreground/20 bg-muted-foreground/8 text-muted-foreground",
+    dismissed:
+      "border-muted-foreground/20 bg-muted-foreground/8 text-muted-foreground",
   } as const;
 
   const formatTimeAgo = (value: string | Date) => {
@@ -88,7 +92,7 @@
       return `/a/${page.params.app_id}/heartbeats/${incident.sourceId}`;
     }
 
-    return `/a/${page.params.app_id}/hosts/${incident.sourceId}`;
+    return `/a/${page.params.app_id}/incidents/${incident.id}`;
   };
 
   const sourceLabel = (incident: (typeof data.incidents)[number]) => {
@@ -101,7 +105,7 @@
       return String(snapshot.heartbeatName ?? incident.title);
     }
 
-    return String(snapshot.hostName ?? incident.entityName ?? incident.sourceId);
+    return incident.title;
   };
 
   const resolve = async (incidentId: string) => {
@@ -148,7 +152,7 @@
 <PageContainer
   title="Incidents"
   scrollContent={false}
-  innerClass="min-h-0 p-0! gap-2 overflow-hidden"
+  contentClass="min-h-0 p-0! gap-2 overflow-hidden"
 >
   <Tabs.Root value="all" class="flex min-h-0 flex-1 flex-col gap-0">
     <Tabs.List

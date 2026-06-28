@@ -5,10 +5,6 @@ const alertSignalOptions = [
   { value: "apdex", label: "Apdex" },
   { value: "throughput_per_min", label: "Throughput" },
   { value: "availability_percent", label: "Availability" },
-  { value: "host_cpu_utilization", label: "Host CPU" },
-  { value: "host_memory_utilization", label: "Host memory" },
-  { value: "host_filesystem_utilization", label: "Host filesystem" },
-  { value: "host_reporting_stale", label: "Host reporting stale" },
   { value: "container_cpu_utilization", label: "Container CPU" },
   { value: "container_memory_utilization", label: "Container memory" },
   { value: "container_reporting_stale", label: "Container reporting stale" },
@@ -31,13 +27,6 @@ const alertSignalDescriptions: Record<
   apdex: "Apdex score using the configured target latency.",
   throughput_per_min: "Matching entry spans per minute across the rule window.",
   availability_percent: "100 minus the error rate percentage.",
-  host_cpu_utilization:
-    "Average host CPU utilization percentage over the rule window.",
-  host_memory_utilization:
-    "Average host memory utilization percentage over the rule window.",
-  host_filesystem_utilization:
-    "Average host filesystem utilization percentage over the rule window.",
-  host_reporting_stale: "Minutes since a host last reported a system metric.",
   container_cpu_utilization:
     "Average container CPU utilization percentage over the rule window.",
   container_memory_utilization:
@@ -62,7 +51,6 @@ type AlertRuleFormValue = {
     spanNames: { include: string[]; exclude: string[] };
     environments: { include: string[]; exclude: string[] };
     scopes: { include: string[]; exclude: string[] };
-    hostNames: { include: string[]; exclude: string[] };
     containerNames: { include: string[]; exclude: string[] };
   };
   destinationIds: string[];
@@ -81,7 +69,6 @@ const createEmptyAlertRuleForm = (): AlertRuleFormValue => ({
     spanNames: { include: [], exclude: [] },
     environments: { include: [], exclude: [] },
     scopes: { include: [], exclude: [] },
-    hostNames: { include: [], exclude: [] },
     containerNames: { include: [], exclude: [] },
   },
   destinationIds: [],

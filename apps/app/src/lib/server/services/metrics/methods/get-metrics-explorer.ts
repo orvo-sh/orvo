@@ -54,7 +54,6 @@ const createGetMetricsExplorer = ({
       metricFacetsResult,
       serviceFacetsResult,
       environmentFacetsResult,
-      hostFacetsResult,
       containerFacetsResult,
       entityKindFacetsResult,
       catalogResult,
@@ -119,20 +118,6 @@ const createGetMetricsExplorer = ({
         format: "JSONEachRow",
         query: `
           SELECT
-            if(host_name = '', host_id, host_name) AS value,
-            count() AS count
-          FROM metrics_raw
-          WHERE ${summaryWhereClause}
-            AND (host_name != '' OR host_id != '')
-          GROUP BY value
-          ORDER BY count DESC
-          LIMIT 50
-        `,
-      }),
-      clickhouse.query({
-        format: "JSONEachRow",
-        query: `
-          SELECT
             if(container_name = '', container_id, container_name) AS value,
             count() AS count
           FROM metrics_raw
@@ -167,7 +152,6 @@ const createGetMetricsExplorer = ({
             any(description) AS description,
             count() AS points,
             uniqExactIf(service_name, service_name != '') AS services,
-            uniqExactIf(host_id, host_id != '') AS hosts,
             uniqExactIf(container_id, container_id != '') AS containers,
             any(is_monotonic) AS is_monotonic,
             max(time) AS last_seen,
@@ -205,8 +189,6 @@ const createGetMetricsExplorer = ({
             metric_unit,
             service_name,
             deployment_environment,
-            host_name,
-            host_id,
             container_name,
             container_id,
             entity_kind,
@@ -240,10 +222,6 @@ const createGetMetricsExplorer = ({
         value: string;
         count: number | string;
       }>;
-    const hostFacetRows = (await hostFacetsResult.json()) as unknown as Array<{
-      value: string;
-      count: number | string;
-    }>;
     const containerFacetRows =
       (await containerFacetsResult.json()) as unknown as Array<{
         value: string;
@@ -261,7 +239,6 @@ const createGetMetricsExplorer = ({
       description: string;
       points: number | string;
       services: number | string;
-      hosts: number | string;
       containers: number | string;
       is_monotonic: boolean | number;
       last_seen: string | Date;
@@ -279,8 +256,6 @@ const createGetMetricsExplorer = ({
       metric_unit: string;
       service_name: string;
       deployment_environment: string;
-      host_name: string;
-      host_id: string;
       container_name: string;
       container_id: string;
       entity_kind: string;
@@ -302,7 +277,6 @@ const createGetMetricsExplorer = ({
         metrics: normalizeFacetRows(metricFacetRows),
         services: normalizeFacetRows(serviceFacetRows),
         environments: normalizeFacetRows(environmentFacetRows),
-        hosts: normalizeFacetRows(hostFacetRows),
         containers: normalizeFacetRows(containerFacetRows),
         entityKinds: normalizeFacetRows(entityKindFacetRows),
       },
@@ -313,7 +287,6 @@ const createGetMetricsExplorer = ({
         description: row.description,
         points: Number(row.points),
         services: Number(row.services),
-        hosts: Number(row.hosts),
         containers: Number(row.containers),
         isMonotonic: Boolean(row.is_monotonic),
         lastSeen: normalizeDateTime(row.last_seen),
@@ -331,7 +304,6 @@ const createGetMetricsExplorer = ({
         unit: row.metric_unit,
         serviceName: row.service_name,
         environment: row.deployment_environment,
-        hostName: row.host_name || row.host_id,
         containerName: row.container_name || row.container_id,
         entityKind: row.entity_kind || "application",
         time: normalizeDateTime(row.time),

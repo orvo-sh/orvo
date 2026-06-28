@@ -16,15 +16,10 @@ import { app } from './app.schema.js';
 import { user } from './user.schema.js';
 
 const incidentStatus = pgEnum('incident_status', ['open', 'resolved', 'dismissed']);
-const incidentSourceType = pgEnum('incident_source_type', ['alert', 'heartbeat', 'host']);
+const incidentSourceType = pgEnum('incident_source_type', ['alert', 'heartbeat']);
 const incidentSeverity = pgEnum('incident_severity', ['critical', 'warning', 'info']);
-const incidentEntityType = pgEnum('incident_entity_type', ['app', 'host', 'container']);
-const incidentType = pgEnum('incident_type', [
-  'alert_threshold',
-  'heartbeat_missed',
-  'host_agent_disconnected',
-  'host_offline'
-]);
+const incidentEntityType = pgEnum('incident_entity_type', ['app', 'container']);
+const incidentType = pgEnum('incident_type', ['alert_threshold', 'heartbeat_missed']);
 const incidentDismissReason = pgEnum('incident_dismiss_reason', [
   'expected',
   'false_positive',

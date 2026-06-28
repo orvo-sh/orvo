@@ -1,9 +1,42 @@
-<script>
+<script lang="ts">
   import { cn } from '@repo/components';
   import { OrvoLogo } from '@repo/components/icons/orvo-logo';
   import { Button } from '@repo/components/ui/button';
+  import * as NavigationMenu from '@repo/components/ui/navigation-menu';
+  import * as Sheet from '@repo/components/ui/sheet';
+  import { IconMenu } from '@tabler/icons-svelte';
+  import type { HTMLAttributes } from 'svelte/elements';
+
+  const productFeatures = [
+    {
+      href: '/product/tracing',
+      title: 'Distributed Tracing',
+      content: 'Follow requests across services and dependencies.'
+    },
+    {
+      href: '/product/logs',
+      title: 'Log Management',
+      content: 'Search, filter, and investigate application logs.'
+    },
+    {
+      href: '/product/metrics',
+      title: 'Metrics Monitoring',
+      content: 'Track performance, errors, and system health.'
+    },
+    {
+      href: '/product/alerts',
+      title: 'Alerting',
+      content: 'Get notified before small issues escalate.'
+    },
+    {
+      href: '/product/heartbeats',
+      title: 'Heartbeat Monitoring',
+      content: 'Detect failed jobs and missing check-ins.'
+    }
+  ];
 
   let scrollTop = $state(0);
+  let mobileSheetOpen = $state(false);
 </script>
 
 <svelte:document
@@ -18,23 +51,193 @@
     scrollTop > 50 && 'border-b'
   )}
 >
-  <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 lg:px-8">
-    <a href="#top" class="flex items-center gap-3 font-medium tracking-tight">
-      <OrvoLogo class="size-7 rounded-md" />
-      <span>Orvo</span>
+  <div class="mx-auto flex max-w-6xl items-center justify-between px-3 py-2 sm:px-6 sm:py-3">
+    <a href="/" class="flex-1">
+      <OrvoLogo class="size-10" />
     </a>
 
-    <nav class="text-muted-foreground hidden items-center gap-8 text-sm md:flex">
-      <a href="#features" class="hover:text-foreground transition-colors">Features</a>
-      <a href="#pricing" class="hover:text-foreground transition-colors">Pricing</a>
-      <a href="https://orvo.sh/docs" class="hover:text-foreground transition-colors">Docs</a>
-    </nav>
+    <NavigationMenu.Root class="hidden flex-1 justify-end sm:flex">
+      <NavigationMenu.List class="gap-2">
+        <NavigationMenu.Item>
+          <NavigationMenu.Trigger class="h-8!">Product</NavigationMenu.Trigger>
+          <NavigationMenu.Content class="p-0!">
+            <ul class="grid w-90 p-0">
+              {#each productFeatures as productFeatures, i (i)}
+                {@render ListItem(productFeatures)}
+              {/each}
+            </ul>
+          </NavigationMenu.Content>
+        </NavigationMenu.Item>
 
-    <div class="flex items-center gap-2">
-      <Button href="https://app.orvo.sh/sign-in" variant="ghost" class="hidden sm:inline-flex">
-        Sign in
-      </Button>
-      <Button href="https://app.orvo.sh/sign-up">Start free trial</Button>
-    </div>
+        <NavigationMenu.Item>
+          <NavigationMenu.Link>
+            {#snippet child()}
+              <Button href="#pricing" variant="ghost">Pricing</Button>
+            {/snippet}
+          </NavigationMenu.Link>
+        </NavigationMenu.Item>
+
+        <NavigationMenu.Item>
+          <NavigationMenu.Link>
+            {#snippet child()}
+              <Button href="https://orvo.sh/docs" variant="ghost">Docs</Button>
+            {/snippet}
+          </NavigationMenu.Link>
+        </NavigationMenu.Item>
+
+        <NavigationMenu.Item>
+          <NavigationMenu.Link>
+            {#snippet child()}
+              <Button href="https://app.orvo.sh/sign-in" variant="ghost">Sign in</Button>
+            {/snippet}
+          </NavigationMenu.Link>
+        </NavigationMenu.Item>
+
+        <NavigationMenu.Item>
+          <NavigationMenu.Link>
+            {#snippet child()}
+              <Button href="https://app.orvo.sh/sign-up">Start free trial</Button>
+            {/snippet}
+          </NavigationMenu.Link>
+        </NavigationMenu.Item>
+      </NavigationMenu.List>
+    </NavigationMenu.Root>
+    <Sheet.Root bind:open={mobileSheetOpen}>
+      <Sheet.Trigger>
+        {#snippet child({ props })}
+          <Button variant="outline" size="icon" class="sm:hidden" {...props}>
+            <IconMenu data-slot="button-icon" />
+            <span class="sr-only">Open menu</span>
+          </Button>
+        {/snippet}
+      </Sheet.Trigger>
+
+      <Sheet.Content side="right" class="w-full max-w-sm gap-0 p-0 sm:hidden">
+        <Sheet.Header class="border-b">
+          <Sheet.Title>Menu</Sheet.Title>
+        </Sheet.Header>
+        <div class="flex flex-1 flex-col overflow-y-auto p-1 pt-2">
+          <div class="space-y-1">
+            <Button
+              href="#pricing"
+              variant="ghost"
+              class="w-full justify-start"
+              onclick={() => {
+                queueMicrotask(() => {
+                  mobileSheetOpen = false;
+                });
+              }}
+            >
+              Pricing
+            </Button>
+
+            <Button
+              href="https://orvo.sh/docs"
+              variant="ghost"
+              class="w-full justify-start"
+              onclick={() => {
+                queueMicrotask(() => {
+                  mobileSheetOpen = false;
+                });
+              }}
+            >
+              Docs
+            </Button>
+
+            <Button
+              href="https://app.orvo.sh/sign-in"
+              variant="ghost"
+              class="w-full justify-start"
+              onclick={() => {
+                queueMicrotask(() => {
+                  mobileSheetOpen = false;
+                });
+              }}
+            >
+              Sign in
+            </Button>
+          </div>
+
+          <div class="border-border mt-2 space-y-1">
+            <p class="text-primary px-3 py-3 text-xs font-medium tracking-[0.16em] uppercase">
+              Product
+            </p>
+
+            {#each productFeatures as productFeature, i (i)}
+              <Button
+                href={productFeature.href}
+                variant="ghost"
+                class="w-full justify-start"
+                onclick={() => {
+                  queueMicrotask(() => {
+                    mobileSheetOpen = false;
+                  });
+                }}
+              >
+                {productFeature.title}
+              </Button>
+            {/each}
+          </div>
+        </div>
+
+        <Sheet.Footer class="bg-secondary gap-2 border-t p-3 pb-4">
+          <Button
+            href="https://app.orvo.sh/sign-up"
+            class="w-full"
+            onclick={() => {
+              queueMicrotask(() => {
+                mobileSheetOpen = false;
+              });
+            }}
+          >
+            Start free trial
+          </Button>
+          <Button
+            href="https://app.orvo.sh/sign-in"
+            class="w-full"
+            variant="outline"
+            onclick={() => {
+              queueMicrotask(() => {
+                mobileSheetOpen = false;
+              });
+            }}
+          >
+            Sign in
+          </Button>
+        </Sheet.Footer>
+      </Sheet.Content>
+    </Sheet.Root>
   </div>
 </header>
+
+{#snippet ListItem({
+  title,
+  content,
+  href,
+  class: className,
+  ...restProps
+}: HTMLAttributes<HTMLAnchorElement> & {
+  title: string;
+  href: string;
+  content: string;
+})}
+  <li>
+    <NavigationMenu.Link>
+      {#snippet child()}
+        <a
+          {href}
+          class={cn(
+            'hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground block space-y-1 rounded-md p-3 pb-2 leading-none no-underline transition-colors outline-none select-none',
+            className
+          )}
+          {...restProps}
+        >
+          <div class="text-sm leading-none font-medium">{title}</div>
+          <p class="text-muted-foreground line-clamp-2 text-sm leading-snug">
+            {content}
+          </p>
+        </a>
+      {/snippet}
+    </NavigationMenu.Link>
+  </li>
+{/snippet}

@@ -40,7 +40,6 @@ const createGetMetricCatalog = ({
           any(description) AS description,
           count() AS points,
           uniqExactIf(service_name, service_name != '') AS services,
-          uniqExactIf(host_id, host_id != '') AS hosts,
           uniqExactIf(container_id, container_id != '') AS containers,
           any(is_monotonic) AS is_monotonic,
           max(time) AS last_seen,
@@ -59,7 +58,6 @@ const createGetMetricCatalog = ({
       description: string;
       points: number | string;
       services: number | string;
-      hosts: number | string;
       containers: number | string;
       is_monotonic: boolean | number;
       last_seen: string | Date;
@@ -74,7 +72,6 @@ const createGetMetricCatalog = ({
         description: row.description,
         points: Number(row.points),
         services: Number(row.services),
-        hosts: Number(row.hosts),
         containers: Number(row.containers),
         isMonotonic: Boolean(row.is_monotonic),
         lastSeen: normalizeDateTime(row.last_seen),

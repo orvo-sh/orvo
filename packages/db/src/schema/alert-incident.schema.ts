@@ -14,7 +14,7 @@ import { app } from './app.schema.js';
 import { alertRule } from './alert-rule.schema.js';
 
 const alertIncidentStatus = pgEnum('alert_incident_status', ['open', 'resolved']);
-const alertIncidentEntityType = pgEnum('alert_incident_entity_type', ['app', 'host', 'container']);
+const alertIncidentEntityType = pgEnum('alert_incident_entity_type', ['app', 'container']);
 
 const alertIncident = pgTable(
   'alert_incident',

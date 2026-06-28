@@ -11,10 +11,7 @@ const incidentEventType = pgEnum('incident_event_type', [
   'incident.dismissed',
   'alert.fired',
   'heartbeat.missed',
-  'heartbeat.recovered',
-  'host.agent_disconnected',
-  'host.offline',
-  'host.recovered'
+  'heartbeat.recovered'
 ]);
 
 const incidentEvent = pgTable(
