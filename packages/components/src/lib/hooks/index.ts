@@ -1,1 +1,1 @@
-export * from './is-mobile.svelte.js';
+export * from "./is-mobile.svelte.js";

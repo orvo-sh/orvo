@@ -1,12 +1,17 @@
 export * from './utils.js';
 export * from './hooks/index.js';
+export * as Aws from './components/icons/aws/index.js';
+export * as Docker from './components/icons/docker/index.js';
 export * as Github from './components/icons/github/index.js';
 export * as Golang from './components/icons/golang/index.js';
 export * as Java from './components/icons/java/index.js';
 export * as Nodejs from './components/icons/nodejs/index.js';
 export * as OrvoLogo from './components/icons/orvo-logo/index.js';
+export * as Postgresql from './components/icons/postgresql/index.js';
 export * as Python from './components/icons/python/index.js';
 export * as Rust from './components/icons/rust/index.js';
+export * as Stripe from './components/icons/stripe/index.js';
+export * as Zig from './components/icons/zig/index.js';
 export * as Accordion from './components/ui/accordion/index.js';
 export * as Alert from './components/ui/alert/index.js';
 export * as AlertDialog from './components/ui/alert-dialog/index.js';

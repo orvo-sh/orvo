@@ -47,7 +47,7 @@
 
 <header
   class={cn(
-    'border-foreground/10 bg-background fixed top-0 z-30 w-full transition-colors',
+    'border-foreground/10 bg-background fixed top-0 z-30 w-full border-b transition-colors',
     scrollTop > 50 && 'border-b'
   )}
 >
@@ -80,7 +80,7 @@
         <NavigationMenu.Item>
           <NavigationMenu.Link>
             {#snippet child()}
-              <Button href="https://orvo.sh/docs" variant="ghost">Docs</Button>
+              <Button href="/docs" variant="ghost">Docs</Button>
             {/snippet}
           </NavigationMenu.Link>
         </NavigationMenu.Item>
@@ -132,7 +132,7 @@
             </Button>
 
             <Button
-              href="https://orvo.sh/docs"
+              href="/docs"
               variant="ghost"
               class="w-full justify-start"
               onclick={() => {
