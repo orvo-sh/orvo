@@ -50,11 +50,6 @@
     currentApp?: {
       id: string;
     };
-    logViews?: Array<{
-      id: string;
-      slug: string;
-      name: string;
-    }>;
   };
 
   const sidebar = Sidebar.useSidebar();
@@ -62,12 +57,9 @@
   const currentAppId = $derived(
     (page.data as DashboardPageData | undefined)?.currentApp?.id ?? "",
   );
-  const logViews = $derived(
-    (page.data as DashboardPageData | undefined)?.logViews ?? [],
-  );
 
   const navigationGroups = $derived(
-    currentAppId ? generateAppNavigationGroups(currentAppId, logViews) : [],
+    currentAppId ? generateAppNavigationGroups(currentAppId) : [],
   );
   const settingsHref = $derived(
     currentAppId ? `/a/${currentAppId}/settings` : "/settings",
@@ -88,7 +80,7 @@
   class="border-e border-sidebar-border/80 bg-sidebar"
 >
   <Sidebar.Header
-    class="h-13 justify-center gap-0 border-b border-sidebar-border/80 px-1.5 py-3"
+    class="h-14 justify-center gap-0 border-b border-sidebar-border/80 px-1.5 py-3"
   >
     <AppSidebarOrganizationSwitcher {organizations} {activeOrganizationId} />
   </Sidebar.Header>
@@ -179,7 +171,7 @@
     {/each}
   </Sidebar.Content>
 
-  <Sidebar.Footer class="gap-0 border-t border-sidebar-border/80 p-0">
+  <Sidebar.Footer class="gap-0 p-0">
     {#if billingSummary?.billingStatus === "trialing" && billingSummary.trialEnd}
       <AppSidebarTrialCard
         href={`${settingsHref}/billing`}

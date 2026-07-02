@@ -3,7 +3,6 @@ import { pgEnum, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-co
 
 import { invitation } from './invitation.schema.js';
 import { member } from './member.schema.js';
-import { organizationActivation } from './organization-activation.schema.js';
 import { organizationUsage } from './organization-usage.schema.js';
 
 const billingPlan = pgEnum('billing_plan', ['starter', 'pro', 'enterprise']);
@@ -30,10 +29,6 @@ const organization = pgTable(
 const organizationRelations = relations(organization, ({ many, one }) => ({
   members: many(member),
   invitations: many(invitation),
-  activation: one(organizationActivation, {
-    fields: [organization.id],
-    references: [organizationActivation.organizationId]
-  }),
   usage: one(organizationUsage, {
     fields: [organization.id],
     references: [organizationUsage.organizationId]

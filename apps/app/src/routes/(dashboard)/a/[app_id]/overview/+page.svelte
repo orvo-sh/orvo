@@ -1,17 +1,12 @@
 <script lang="ts">
-  import { goto, invalidateAll } from "$app/navigation";
-  import { page } from "$app/state";
-  import { markOrganizationActivationTelemetryViewedCommand } from "$lib/api/organization-activation.remote";
+  import { goto } from "$app/navigation";
   import * as RightRail from "$lib/right-rail";
-  import {
-    completeOrganizationActivationStep,
-    restoreOrganizationActivation,
-  } from "$lib/stores/organization-activation.svelte";
   import { Button } from "@repo/components/ui/button";
   import * as Select from "@repo/components/ui/select";
   import { formatNumber } from "@repo/utils";
   import { IconChartBar, IconRoute, IconTerminal2 } from "@tabler/icons-svelte";
 
+  import { page } from "$app/state";
   import PageContainer from "../_components/page-container/page-container.svelte";
   import ChartCard from "./_components/chart-card.svelte";
   import IncidentsSection from "./_components/incidents-section.svelte";
@@ -25,7 +20,6 @@
 
   let time = $state(data.time);
   let loading = $state(false);
-  let telemetryActivationSent = $state(false);
   let selectedServiceName = $state<string | null>(null);
 
   const rightRail = RightRail.useRightRail();
@@ -146,44 +140,6 @@
       value: b.p95LatencyMs,
     })) ?? [],
   );
-
-  const markTelemetryViewed = async () => {
-    if (telemetryActivationSent) {
-      return;
-    }
-
-    telemetryActivationSent = true;
-    const previousActivation =
-      completeOrganizationActivationStep("hasViewedTelemetry");
-    const result = await markOrganizationActivationTelemetryViewedCommand({});
-
-    if (result.success === false) {
-      telemetryActivationSent = false;
-      restoreOrganizationActivation(
-        page.data.activeOrganizationId,
-        previousActivation,
-      );
-      return;
-    }
-
-    void invalidateAll();
-  };
-
-  $effect(() => {
-    if (!page.data.organizationActivation) {
-      return;
-    }
-
-    if (page.data.organizationActivation.hasViewedTelemetry) {
-      return;
-    }
-
-    if (!data.hasReceivedFirstSignal) {
-      return;
-    }
-
-    void markTelemetryViewed();
-  });
 
   $effect(() => {
     if (selectedServiceName && !selectedService) {

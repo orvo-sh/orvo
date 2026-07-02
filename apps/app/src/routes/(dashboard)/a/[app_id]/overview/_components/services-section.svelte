@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { cn } from "@repo/components";
-  import { Button, buttonVariants } from "@repo/components/ui/button";
+  import { buttonVariants } from "@repo/components/ui/button";
   import * as Card from "@repo/components/ui/card";
   import * as HoverCard from "@repo/components/ui/hover-card";
   import * as Table from "@repo/components/ui/table";
@@ -9,7 +9,6 @@
   import {
     IconArrowDown,
     IconArrowUp,
-    IconChevronRight,
     IconInfoCircle,
   } from "@tabler/icons-svelte";
 
@@ -140,7 +139,7 @@
   <div
     class="flex translate-y-2 items-center justify-between rounded-t-xl border border-foreground/10 bg-secondary pb-2 inset-shadow-[0px_1px_--theme(--color-white)]"
   >
-    <div class="flex flex-1 items-center gap-1 px-3.5 py-0.5">
+    <div class="flex flex-1 items-center px-3.5 py-0.75">
       <h2 class="text-sm font-normal tracking-tight text-secondary-foreground">
         Services
       </h2>
@@ -167,15 +166,6 @@
         </HoverCard.Content>
       </HoverCard.Root>
     </div>
-    <Button
-      variant="ghost"
-      class="gap-1 text-secondary-foreground underline"
-      disabled={loading}
-      href={viewAllHref}
-    >
-      View all
-      <IconChevronRight />
-    </Button>
   </div>
 
   <Card.Root class="relative p-0">
@@ -222,7 +212,7 @@
                   }
                 }}
               >
-                <Table.Cell class="pl-4">
+                <Table.Cell class="h-10 pl-4">
                   <div class="min-w-0">
                     <div class="flex items-center gap-2">
                       <span

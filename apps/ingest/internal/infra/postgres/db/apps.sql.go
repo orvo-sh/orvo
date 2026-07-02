@@ -11,18 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const markAppDeploymentsFirstReceived = `-- name: MarkAppDeploymentsFirstReceived :exec
-UPDATE app
-SET deployments_first_received_at = NOW()
-WHERE id = $1
-  AND deployments_first_received_at IS NULL
-`
-
-func (q *Queries) MarkAppDeploymentsFirstReceived(ctx context.Context, id string) error {
-	_, err := q.db.Exec(ctx, markAppDeploymentsFirstReceived, id)
-	return err
-}
-
 const markAppHeartbeatsFirstReceived = `-- name: MarkAppHeartbeatsFirstReceived :exec
 UPDATE app
 SET heartbeats_first_received_at = $2

@@ -16,12 +16,6 @@ SET metrics_first_received_at = NOW()
 WHERE id = $1
   AND metrics_first_received_at IS NULL;
 
--- name: MarkAppDeploymentsFirstReceived :exec
-UPDATE app
-SET deployments_first_received_at = NOW()
-WHERE id = $1
-  AND deployments_first_received_at IS NULL;
-
 -- name: MarkAppHeartbeatsFirstReceived :exec
 UPDATE app
 SET heartbeats_first_received_at = $2

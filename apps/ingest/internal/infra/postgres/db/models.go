@@ -366,94 +366,6 @@ func (ns NullBillingStatus) Value() (driver.Value, error) {
 	return string(ns.BillingStatus), nil
 }
 
-type DeploymentCorrelationStrategy string
-
-const (
-	DeploymentCorrelationStrategyTimeWindow     DeploymentCorrelationStrategy = "time_window"
-	DeploymentCorrelationStrategyExplicitID     DeploymentCorrelationStrategy = "explicit_id"
-	DeploymentCorrelationStrategyServiceVersion DeploymentCorrelationStrategy = "service_version"
-)
-
-func (e *DeploymentCorrelationStrategy) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = DeploymentCorrelationStrategy(s)
-	case string:
-		*e = DeploymentCorrelationStrategy(s)
-	default:
-		return fmt.Errorf("unsupported scan type for DeploymentCorrelationStrategy: %T", src)
-	}
-	return nil
-}
-
-type NullDeploymentCorrelationStrategy struct {
-	DeploymentCorrelationStrategy DeploymentCorrelationStrategy `json:"deployment_correlation_strategy"`
-	Valid                         bool                          `json:"valid"` // Valid is true if DeploymentCorrelationStrategy is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullDeploymentCorrelationStrategy) Scan(value interface{}) error {
-	if value == nil {
-		ns.DeploymentCorrelationStrategy, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.DeploymentCorrelationStrategy.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullDeploymentCorrelationStrategy) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.DeploymentCorrelationStrategy), nil
-}
-
-type DeploymentStatus string
-
-const (
-	DeploymentStatusPending    DeploymentStatus = "pending"
-	DeploymentStatusInProgress DeploymentStatus = "in_progress"
-	DeploymentStatusSucceeded  DeploymentStatus = "succeeded"
-	DeploymentStatusFailed     DeploymentStatus = "failed"
-	DeploymentStatusRolledBack DeploymentStatus = "rolled_back"
-)
-
-func (e *DeploymentStatus) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = DeploymentStatus(s)
-	case string:
-		*e = DeploymentStatus(s)
-	default:
-		return fmt.Errorf("unsupported scan type for DeploymentStatus: %T", src)
-	}
-	return nil
-}
-
-type NullDeploymentStatus struct {
-	DeploymentStatus DeploymentStatus `json:"deployment_status"`
-	Valid            bool             `json:"valid"` // Valid is true if DeploymentStatus is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullDeploymentStatus) Scan(value interface{}) error {
-	if value == nil {
-		ns.DeploymentStatus, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.DeploymentStatus.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullDeploymentStatus) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.DeploymentStatus), nil
-}
-
 type HeartbeatMonitorStatus string
 
 const (
@@ -877,18 +789,17 @@ type AlertWebhookDestination struct {
 }
 
 type App struct {
-	ID                         string           `json:"id"`
-	OrganizationID             string           `json:"organization_id"`
-	Name                       string           `json:"name"`
-	CreatedBy                  pgtype.Text      `json:"created_by"`
-	UpdatedBy                  pgtype.Text      `json:"updated_by"`
-	LogsFirstReceivedAt        pgtype.Timestamp `json:"logs_first_received_at"`
-	TracesFirstReceivedAt      pgtype.Timestamp `json:"traces_first_received_at"`
-	MetricsFirstReceivedAt     pgtype.Timestamp `json:"metrics_first_received_at"`
-	DeploymentsFirstReceivedAt pgtype.Timestamp `json:"deployments_first_received_at"`
-	CreatedAt                  pgtype.Timestamp `json:"created_at"`
-	UpdatedAt                  pgtype.Timestamp `json:"updated_at"`
-	HeartbeatsFirstReceivedAt  pgtype.Timestamp `json:"heartbeats_first_received_at"`
+	ID                        string           `json:"id"`
+	OrganizationID            string           `json:"organization_id"`
+	Name                      string           `json:"name"`
+	CreatedBy                 pgtype.Text      `json:"created_by"`
+	UpdatedBy                 pgtype.Text      `json:"updated_by"`
+	LogsFirstReceivedAt       pgtype.Timestamp `json:"logs_first_received_at"`
+	TracesFirstReceivedAt     pgtype.Timestamp `json:"traces_first_received_at"`
+	MetricsFirstReceivedAt    pgtype.Timestamp `json:"metrics_first_received_at"`
+	CreatedAt                 pgtype.Timestamp `json:"created_at"`
+	UpdatedAt                 pgtype.Timestamp `json:"updated_at"`
+	HeartbeatsFirstReceivedAt pgtype.Timestamp `json:"heartbeats_first_received_at"`
 }
 
 type AssistantChat struct {
@@ -911,41 +822,6 @@ type AssistantMessage struct {
 	Parts     []byte           `json:"parts"`
 	Metadata  []byte           `json:"metadata"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
-}
-
-type DashboardLogView struct {
-	ID         string           `json:"id"`
-	AppID      string           `json:"app_id"`
-	Slug       string           `json:"slug"`
-	Name       string           `json:"name"`
-	Definition []byte           `json:"definition"`
-	CreatedBy  pgtype.Text      `json:"created_by"`
-	UpdatedBy  pgtype.Text      `json:"updated_by"`
-	CreatedAt  pgtype.Timestamp `json:"created_at"`
-	UpdatedAt  pgtype.Timestamp `json:"updated_at"`
-}
-
-type Deployment struct {
-	ID                    string                        `json:"id"`
-	AppID                 string                        `json:"app_id"`
-	ServiceName           string                        `json:"service_name"`
-	EnvironmentName       string                        `json:"environment_name"`
-	Version               pgtype.Text                   `json:"version"`
-	Status                DeploymentStatus              `json:"status"`
-	StartedAt             pgtype.Timestamp              `json:"started_at"`
-	FinishedAt            pgtype.Timestamp              `json:"finished_at"`
-	GitSha                pgtype.Text                   `json:"git_sha"`
-	GitBranch             pgtype.Text                   `json:"git_branch"`
-	GitRepository         pgtype.Text                   `json:"git_repository"`
-	GitActor              pgtype.Text                   `json:"git_actor"`
-	CommitMessage         pgtype.Text                   `json:"commit_message"`
-	ExternalUrl           pgtype.Text                   `json:"external_url"`
-	CorrelationStrategy   DeploymentCorrelationStrategy `json:"correlation_strategy"`
-	DeploymentIDAttribute pgtype.Text                   `json:"deployment_id_attribute"`
-	ServiceVersion        pgtype.Text                   `json:"service_version"`
-	Metadata              []byte                        `json:"metadata"`
-	CreatedAt             pgtype.Timestamp              `json:"created_at"`
-	UpdatedAt             pgtype.Timestamp              `json:"updated_at"`
 }
 
 type HeartbeatMonitor struct {

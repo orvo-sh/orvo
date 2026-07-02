@@ -61,11 +61,6 @@ export const load = (async (event) => {
     throw redirect(302, `/a/${apps[0].id}`);
   }
 
-  const logViewsResult =
-    await event.locals.container.dashboardLogViewService.getDashboardLogViews({
-      appId: currentApp.id,
-    });
-
   const accessResult =
     await event.locals.container.billingService?.getOrganizationAccessState({
       organizationId: activeOrganizationId,
@@ -80,14 +75,6 @@ export const load = (async (event) => {
       organizationId: activeOrganizationId,
     });
 
-  const activationResult =
-    await event.locals.container.organizationActivationService.getOrganizationActivation(
-      {
-        organizationId: activeOrganizationId,
-      },
-    );
-  const activationCookieName = `organization_activation_open_${activeOrganizationId}`;
-
   return {
     user: auth.user,
     organizations,
@@ -95,7 +82,6 @@ export const load = (async (event) => {
     currentOrganization,
     apps,
     currentApp,
-    logViews: logViewsResult.success ? logViewsResult.data.views : [],
     billingSummary:
       billingStateResult && billingStateResult.success
         ? {
@@ -126,9 +112,5 @@ export const load = (async (event) => {
                 : 0,
           }
         : null,
-    organizationActivation: activationResult.success
-      ? activationResult.data.activation
-      : null,
-    organizationActivationOpen: event.cookies.get(activationCookieName) !== "0",
   };
 }) satisfies LayoutServerLoad;

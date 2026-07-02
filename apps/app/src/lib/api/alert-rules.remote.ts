@@ -9,7 +9,6 @@ import {
 import { resolveRequestAppContext } from "$lib/server/request-context";
 import { err } from "@repo/utils";
 import { z } from "zod";
-import { getActiveOrganizationId } from "$lib/server/request-context";
 
 export const getAlertRulesQuery = query(z.object({}), async () => {
   const event = getRequestEvent();
@@ -45,31 +44,15 @@ export const createAlertRuleCommand = command(
   async (input) => {
     const event = getRequestEvent();
     const appContext = await resolveRequestAppContext(event);
-    const organizationId = getActiveOrganizationId(event);
 
     if (!appContext.success) {
       return err(appContext.error);
     }
 
-    if (!organizationId) {
-      return err("No active organization selected.");
-    }
-
-    const result =
-      await event.locals.container.alertRuleService.createAlertRule(input, {
-        appId: appContext.data.appId,
-        userId: event.locals.auth!.user.id,
-      });
-
-    if (result.success) {
-      await event.locals.container.organizationActivationService.markFirstAlertCreated(
-        {
-          organizationId,
-        },
-      );
-    }
-
-    return result;
+    return event.locals.container.alertRuleService.createAlertRule(input, {
+      appId: appContext.data.appId,
+      userId: event.locals.auth!.user.id,
+    });
   },
 );
 

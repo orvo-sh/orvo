@@ -4,7 +4,6 @@ import {
   IconChartBar,
   IconFlame,
   IconLayoutGrid,
-  IconServer2,
   IconSphere2,
   IconTelescope,
   IconTerminal2
@@ -26,11 +25,6 @@ type NavigationGroup = {
 
 const generateAppNavigationGroups = (
   appId: string,
-  logViews: {
-    id: string;
-    slug: string;
-    name: string;
-  }[],
 ): NavigationGroup[] => {
   return [
     {
@@ -55,10 +49,6 @@ const generateAppNavigationGroups = (
           href: `/a/${appId}/logs`,
           label: "Logs",
           icon: IconTerminal2,
-          submenu: logViews.map((view) => ({
-            href: `/a/${appId}/logs/${view.slug}`,
-            label: view.name,
-          })),
         },
         {
           href: `/a/${appId}/traces`,
@@ -75,11 +65,6 @@ const generateAppNavigationGroups = (
     {
       label: "Monitoring",
       items: [
-        {
-          href: `/a/${appId}/hosts`,
-          label: "Hosts",
-          icon: IconServer2,
-        },
         {
           href: `/a/${appId}/alerts`,
           label: "Alerts",
