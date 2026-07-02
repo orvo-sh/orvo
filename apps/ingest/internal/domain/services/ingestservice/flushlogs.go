@@ -2,7 +2,6 @@ package ingestservice
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/orvo-sh/orvo/apps/ingest/internal/domain/models"
@@ -12,7 +11,6 @@ import (
 )
 
 func (service *service) flushLogs(ctx context.Context, batch []models.LogsMessage) error {
-	service.logger.Info("flushLogs: flushing logs", slog.Int("batch_count", len(batch)))
 	rows := make([]chdb.InsertLogsRawParams, 0)
 
 	for _, message := range batch {

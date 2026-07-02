@@ -24,6 +24,7 @@ func TestIngestTraces(t *testing.T) {
 		}
 
 		tracesBody := mustMarshal(t, buildTracesRequest())
+		tracesJSONBody := mustMarshalJSON(t, buildTracesJSONRequest())
 
 		test.Run(t, test.RunConfig{
 			Addr:          addr,
@@ -70,6 +71,31 @@ func TestIngestTraces(t *testing.T) {
 								"name":             "GET /checkout",
 								"service_name":     "checkout",
 								"duration_ns":      int64(5000000),
+							}},
+						}),
+					},
+				},
+				{
+					Name: "successful json traces ingest preserves trace correlation ids",
+					Input: test.HttpRequest{
+						Method: "POST",
+						URL:    "/v1/traces",
+						Body:   tracesJSONBody,
+						Headers: map[string]string{
+							"Authorization": "Bearer " + tracesApp.IngestionKey,
+							"Content-Type":  "application/json",
+						},
+					},
+					Validators: []test.Validator{
+						test.HttpStatusCodeValidator(202),
+						test.EventuallyClickhouseDBValidator(test.NewClickhouseDBValidatorInput{
+							Name:  "json trace row keeps 32-char trace id and 16-char span id",
+							Query: "SELECT trace_id, span_id, name FROM traces_raw WHERE app_id = ? AND name = 'GET /checkout'",
+							Args:  []any{tracesApp.AppID},
+							Expected: []test.Row{{
+								"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+								"span_id":  "00f067aa0ba902b7",
+								"name":     "GET /checkout",
 							}},
 						}),
 					},

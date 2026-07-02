@@ -2,6 +2,9 @@ package helpers
 
 import (
 	"compress/gzip"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -49,7 +52,11 @@ func ReadOTLPBody(writer http.ResponseWriter, request *http.Request) ([]byte, ap
 func UnmarshalOTLP(contentType string, body []byte, message proto.Message) apperr.Error {
 	switch contentType {
 	case "application/json":
-		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(body, message); err != nil {
+		normalizedBody, err := normalizeOTLPJSON(body)
+		if err != nil {
+			return errs.ErrMalformedPayload
+		}
+		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(normalizedBody, message); err != nil {
 			return errs.ErrMalformedPayload
 		}
 	case "application/x-protobuf":
@@ -61,6 +68,51 @@ func UnmarshalOTLP(contentType string, body []byte, message proto.Message) apper
 	}
 
 	return nil
+}
+
+func normalizeOTLPJSON(body []byte) ([]byte, error) {
+	var payload any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, err
+	}
+
+	normalizeOTLPJSONValue(payload)
+
+	return json.Marshal(payload)
+}
+
+func normalizeOTLPJSONValue(value any) {
+	switch current := value.(type) {
+	case map[string]any:
+		for key, child := range current {
+			switch key {
+			case "traceId", "trace_id":
+				current[key] = normalizeOTLPJSONIDString(child, 16)
+			case "spanId", "span_id", "parentSpanId", "parent_span_id":
+				current[key] = normalizeOTLPJSONIDString(child, 8)
+			default:
+				normalizeOTLPJSONValue(child)
+			}
+		}
+	case []any:
+		for _, child := range current {
+			normalizeOTLPJSONValue(child)
+		}
+	}
+}
+
+func normalizeOTLPJSONIDString(value any, expectedByteLength int) any {
+	raw, ok := value.(string)
+	if !ok || raw == "" || len(raw) != expectedByteLength*2 {
+		return value
+	}
+
+	decoded, err := hex.DecodeString(raw)
+	if err != nil || len(decoded) != expectedByteLength {
+		return value
+	}
+
+	return base64.StdEncoding.EncodeToString(decoded)
 }
 
 func WriteOTLPResponse(writer http.ResponseWriter, requestContentType string, message proto.Message) {

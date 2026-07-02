@@ -3,6 +3,8 @@ package ingest_test
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
+	"strconv"
 	"testing"
 	"time"
 
@@ -49,6 +51,17 @@ func mustMarshal(t *testing.T, message proto.Message) []byte {
 	return body
 }
 
+func mustMarshalJSON(t *testing.T, value any) []byte {
+	t.Helper()
+
+	body, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("marshal json: %v", err)
+	}
+
+	return body
+}
+
 func buildLogsRequest() *collectorlogspb.ExportLogsServiceRequest {
 	now := time.Now().UTC()
 	timestamp := uint64(now.UnixNano())
@@ -87,6 +100,44 @@ func buildLogsRequest() *collectorlogspb.ExportLogsServiceRequest {
 	}
 }
 
+func buildLogsJSONRequest() map[string]any {
+	now := time.Now().UTC()
+	timestamp := strconv.FormatUint(uint64(now.UnixNano()), 10)
+	observedTimestamp := strconv.FormatUint(uint64(now.Add(time.Second).UnixNano()), 10)
+
+	return map[string]any{
+		"resourceLogs": []any{
+			map[string]any{
+				"resource": map[string]any{
+					"attributes": []any{
+						map[string]any{"key": "service.name", "value": map[string]any{"stringValue": "checkout"}},
+						map[string]any{"key": "deployment.environment", "value": map[string]any{"stringValue": "production"}},
+					},
+				},
+				"scopeLogs": []any{
+					map[string]any{
+						"scope": map[string]any{
+							"name":    "logger",
+							"version": "1.0.0",
+						},
+						"logRecords": []any{
+							map[string]any{
+								"timeUnixNano":         timestamp,
+								"observedTimeUnixNano": observedTimestamp,
+								"severityNumber":       int(logspb.SeverityNumber_SEVERITY_NUMBER_INFO),
+								"severityText":         "INFO",
+								"body":                 map[string]any{"stringValue": "hello from json logs"},
+								"traceId":              "4bf92f3577b34da6a3ce929d0e0e4736",
+								"spanId":               "00f067aa0ba902b7",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func buildTracesRequest() *collectortracepb.ExportTraceServiceRequest {
 	now := time.Now().UTC()
 	startTimestamp := uint64(now.UnixNano())
@@ -115,6 +166,43 @@ func buildTracesRequest() *collectortracepb.ExportTraceServiceRequest {
 								Kind:              tracepb.Span_SPAN_KIND_SERVER,
 								StartTimeUnixNano: startTimestamp,
 								EndTimeUnixNano:   endTimestamp,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func buildTracesJSONRequest() map[string]any {
+	now := time.Now().UTC()
+	startTimestamp := strconv.FormatUint(uint64(now.UnixNano()), 10)
+	endTimestamp := strconv.FormatUint(uint64(now.Add(5*time.Millisecond).UnixNano()), 10)
+
+	return map[string]any{
+		"resourceSpans": []any{
+			map[string]any{
+				"resource": map[string]any{
+					"attributes": []any{
+						map[string]any{"key": "service.name", "value": map[string]any{"stringValue": "checkout"}},
+						map[string]any{"key": "deployment.environment", "value": map[string]any{"stringValue": "production"}},
+					},
+				},
+				"scopeSpans": []any{
+					map[string]any{
+						"scope": map[string]any{
+							"name":    "tracer",
+							"version": "1.0.0",
+						},
+						"spans": []any{
+							map[string]any{
+								"traceId":           "4bf92f3577b34da6a3ce929d0e0e4736",
+								"spanId":            "00f067aa0ba902b7",
+								"name":              "GET /checkout",
+								"kind":              int(tracepb.Span_SPAN_KIND_SERVER),
+								"startTimeUnixNano": startTimestamp,
+								"endTimeUnixNano":   endTimestamp,
 							},
 						},
 					},

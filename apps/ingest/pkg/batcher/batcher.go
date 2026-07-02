@@ -182,11 +182,6 @@ func (b *Batcher[T]) loop() {
 			)
 			return
 		}
-
-		b.logger.Info("loop: batch flushed",
-			slog.String("reason", reason),
-			slog.Int("count", len(batch)),
-		)
 		batch = batch[:0]
 	}
 

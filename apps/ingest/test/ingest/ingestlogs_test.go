@@ -34,6 +34,7 @@ func TestIngestLogs(t *testing.T) {
 		}
 
 		logsBody := mustMarshal(t, buildLogsRequest())
+		logsJSONBody := mustMarshalJSON(t, buildLogsJSONRequest())
 
 		test.Run(t, test.RunConfig{
 			Addr:          addr,
@@ -86,13 +87,38 @@ func TestIngestLogs(t *testing.T) {
 					},
 				},
 				{
+					Name: "successful json logs ingest preserves trace correlation ids",
+					Input: test.HttpRequest{
+						Method: "POST",
+						URL:    "/v1/logs",
+						Body:   logsJSONBody,
+						Headers: map[string]string{
+							"Authorization": "Bearer " + logsApp.IngestionKey,
+							"Content-Type":  "application/json",
+						},
+					},
+					Validators: []test.Validator{
+						test.HttpStatusCodeValidator(202),
+						test.EventuallyClickhouseDBValidator(test.NewClickhouseDBValidatorInput{
+							Name:  "json log row keeps 32-char trace id and 16-char span id",
+							Query: "SELECT trace_id, span_id, body FROM logs_raw WHERE app_id = ? AND body = 'hello from json logs'",
+							Args:  []any{logsApp.AppID},
+							Expected: []test.Row{{
+								"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+								"span_id":  "00f067aa0ba902b7",
+								"body":     "hello from json logs",
+							}},
+						}),
+					},
+				},
+				{
 					Name: "invalid ingestion key is rejected",
 					Input: test.HttpRequest{
 						Method: "POST",
 						URL:    "/v1/logs",
 						Body:   logsBody,
 						Headers: map[string]string{
-							"Authorization": "Bearer pk_test_invalid",
+							"Authorization": "Bearer ing_test_invalid",
 							"Content-Type":  "application/x-protobuf",
 						},
 					},
