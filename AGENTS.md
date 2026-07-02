@@ -62,6 +62,7 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - Environment-based implementation choice belongs in `container.ts`. For example, choose console vs external email providers there and inject the selected implementation into auth.
 - If email templates change, regenerate `src/lib/server/email/email.generated.ts` from the `.html` templates instead of editing the generated file by hand.
 - Prefer server-side route guardrails for auth and onboarding flows. Redirect logic for unauthenticated, unverified, or already-onboarded users should live in `+layout.server.ts` or `+page.server.ts`, not only in client navigation code.
+- In SvelteKit `load` functions, treat failed server fetches as page-load failures: throw with `error(...)` instead of returning error strings through page data. Reserve client-side fetch failures for toast feedback, not inline page-level `error` props.
 - Keep app services in `apps/app/src/lib/server/services`, name files `*.service.ts`, export the zod input schemas from the same file, and keep remote functions thin over those schemas.
 - In service files, put the service class first after imports, then exported zod input schemas, then type aliases. Keep helper schemas and type aliases to the minimum needed.
 - Prefer implicit TypeScript inference in services. Do not create row/result/input type aliases when the value can be inferred clearly from zod, Drizzle, or the returned object.
