@@ -1,10 +1,8 @@
-import { relations, sql } from 'drizzle-orm';
-import { check, index, pgEnum, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
+import { index, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 import { app } from './app.schema.js';
 import { user } from './user.schema.js';
-
-const ingestionKeyKind = pgEnum('ingestion_key_kind', ['public', 'private']);
 
 const ingestionKey = pgTable(
   'ingestion_key',
@@ -13,7 +11,7 @@ const ingestionKey = pgTable(
     appId: text('app_id')
       .notNull()
       .references(() => app.id, { onDelete: 'cascade' }),
-    kind: ingestionKeyKind('kind').notNull(),
+    name: text('name').notNull(),
     key: text('key').notNull(),
     createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
     lastUsedAt: timestamp('last_used_at'),
@@ -23,18 +21,7 @@ const ingestionKey = pgTable(
   (table) => [
     index('ingestion_key_app_id_idx').on(table.appId),
     index('ingestion_key_created_by_idx').on(table.createdBy),
-    uniqueIndex('ingestion_key_key_uidx').on(table.key),
-    uniqueIndex('ingestion_key_one_active_kind_per_app_uidx')
-      .on(table.appId, table.kind)
-      .where(sql`${table.revokedAt} IS NULL`),
-    check(
-      'ingestion_key_public_prefix_check',
-      sql`(${table.kind} <> 'public'::ingestion_key_kind OR ${table.key} LIKE 'pk_%')`
-    ),
-    check(
-      'ingestion_key_private_prefix_check',
-      sql`(${table.kind} <> 'private'::ingestion_key_kind OR ${table.key} LIKE 'sk_%')`
-    )
+    uniqueIndex('ingestion_key_key_uidx').on(table.key)
   ]
 );
 
@@ -49,4 +36,4 @@ const ingestionKeyRelations = relations(ingestionKey, ({ one }) => ({
   })
 }));
 
-export { ingestionKey, ingestionKeyKind, ingestionKeyRelations };
+export { ingestionKey, ingestionKeyRelations };

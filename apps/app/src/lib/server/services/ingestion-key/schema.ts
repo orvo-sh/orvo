@@ -1,22 +1,24 @@
 import { z } from "zod";
 
-const ingestionKeyKindSchema = z.enum(["public", "private"]);
-
 const getIngestionKeyInputSchema = z.object({
-  kind: ingestionKeyKindSchema,
+  id: z.string().trim().min(1).optional(),
+});
+
+const listIngestionKeysInputSchema = z.object({
+  includeRevoked: z.boolean().optional().default(false),
 });
 
 const createIngestionKeyInputSchema = z.object({
-  kind: ingestionKeyKindSchema,
+  name: z.string().trim().min(1).max(64),
 });
 
-const rotateIngestionKeyInputSchema = z.object({
-  kind: ingestionKeyKindSchema,
+const revokeIngestionKeyInputSchema = z.object({
+  id: z.string().trim().min(1),
 });
 
 export {
   createIngestionKeyInputSchema,
   getIngestionKeyInputSchema,
-  ingestionKeyKindSchema,
-  rotateIngestionKeyInputSchema,
+  listIngestionKeysInputSchema,
+  revokeIngestionKeyInputSchema,
 };

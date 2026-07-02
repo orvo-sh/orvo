@@ -35,7 +35,6 @@ func (service *service) ResolveIngestionKey(ctx context.Context, rawKey string) 
 		OrganizationID: row.OrganizationID,
 		AppID:          row.AppID,
 		IngestionKeyID: row.IngestionKeyID,
-		Kind:           row.Kind,
 	}
 
 	service.mu.Lock()

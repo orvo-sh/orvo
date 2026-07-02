@@ -8,7 +8,12 @@ import { IngestionKeyService } from "../ingestion-key";
 import { createCreateApp } from "./methods/create-app";
 import { createGetApp } from "./methods/get-app";
 import { createListApps } from "./methods/list-apps";
-import { createAppInputSchema, getAppInputSchema } from "./schema";
+import { createUpdateApp } from "./methods/update-app";
+import {
+  createAppInputSchema,
+  getAppInputSchema,
+  updateAppInputSchema,
+} from "./schema";
 
 @Instrument({ prefix: "app" })
 class AppService {
@@ -16,6 +21,7 @@ class AppService {
   private listAppsMethod: ReturnType<typeof createListApps>;
   private getAppMethod: ReturnType<typeof createGetApp>;
   private createAppMethod: ReturnType<typeof createCreateApp>;
+  private updateAppMethod: ReturnType<typeof createUpdateApp>;
 
   constructor(
     private db: DB,
@@ -38,6 +44,10 @@ class AppService {
       ingestionKeyService: this.ingestionKeyService,
       alertRuleService: this.alertRuleService,
     });
+    this.updateAppMethod = createUpdateApp({
+      db: this.db,
+      logger: this.logger,
+    });
   }
 
   async listApps(context: { organizationId: string }) {
@@ -56,6 +66,13 @@ class AppService {
     context: { organizationId: string; userId: string },
   ) {
     return this.createAppMethod(input, context);
+  }
+
+  async updateApp(
+    input: z.input<typeof updateAppInputSchema>,
+    context: { organizationId: string; userId: string },
+  ) {
+    return this.updateAppMethod(input, context);
   }
 }
 

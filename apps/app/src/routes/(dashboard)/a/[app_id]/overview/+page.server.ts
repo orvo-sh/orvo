@@ -60,7 +60,7 @@ export const load = (async ({ url, locals, params, parent }) => {
         !currentApp.metricsFirstReceivedAt
       ) {
         return locals.container.ingestionKeyService.getIngestionKey(
-          { kind: "private" },
+          {},
           { appId: params.app_id },
         );
       }

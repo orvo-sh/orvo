@@ -28,7 +28,7 @@ func SeedApp(ctx context.Context, postgresDB *pgclient.Client, input SeedAppInpu
 	organizationID := fmt.Sprintf("org_%s", input.Suffix)
 	appID := fmt.Sprintf("app_%s", input.Suffix)
 	ingestionKeyID := fmt.Sprintf("ingk_%s", input.Suffix)
-	ingestionKey := fmt.Sprintf("pk_test_%s", input.Suffix)
+	ingestionKey := fmt.Sprintf("ing_test_%s", input.Suffix)
 	usageID := fmt.Sprintf("orgu_%s", input.Suffix)
 
 	if _, err := postgresDB.Pool().Exec(ctx, `
@@ -46,8 +46,8 @@ func SeedApp(ctx context.Context, postgresDB *pgclient.Client, input SeedAppInpu
 	}
 
 	if _, err := postgresDB.Pool().Exec(ctx, `
-		INSERT INTO ingestion_key (id, app_id, kind, key, created_at)
-		VALUES ($1, $2, 'public', $3, $4)
+		INSERT INTO ingestion_key (id, app_id, name, key, created_at)
+		VALUES ($1, $2, 'Test key', $3, $4)
 	`, ingestionKeyID, appID, ingestionKey, now); err != nil {
 		return nil, fmt.Errorf("insert ingestion key: %w", err)
 	}

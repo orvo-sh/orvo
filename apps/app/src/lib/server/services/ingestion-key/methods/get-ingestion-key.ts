@@ -24,11 +24,13 @@ const createGetIngestionKey = ({
 
   try {
     const key = await db.query.ingestionKey.findFirst({
-      where: and(
-        eq(ingestionKey.appId, context.appId),
-        eq(ingestionKey.kind, validated.data.kind),
-        isNull(ingestionKey.revokedAt),
-      ),
+      where: validated.data.id
+        ? and(
+            eq(ingestionKey.id, validated.data.id),
+            eq(ingestionKey.appId, context.appId),
+            isNull(ingestionKey.revokedAt),
+          )
+        : and(eq(ingestionKey.appId, context.appId), isNull(ingestionKey.revokedAt)),
       orderBy: [desc(ingestionKey.createdAt)],
     });
 

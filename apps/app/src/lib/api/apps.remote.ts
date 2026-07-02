@@ -1,6 +1,9 @@
 import { command, getRequestEvent } from "$app/server";
 
-import { createAppInputSchema } from "$lib/server/services/app";
+import {
+  createAppInputSchema,
+  updateAppInputSchema,
+} from "$lib/server/services/app";
 import { getActiveOrganizationId } from "$lib/server/request-context";
 import { err } from "@repo/utils";
 
@@ -28,4 +31,18 @@ export const createAppCommand = command(createAppInputSchema, (input) => {
         userId: event.locals.auth!.user.id,
       });
     });
+});
+
+export const updateAppCommand = command(updateAppInputSchema, (input) => {
+  const event = getRequestEvent();
+  const organizationId = getActiveOrganizationId(event);
+
+  if (!organizationId) {
+    return err("No active organization selected.");
+  }
+
+  return event.locals.container.appService.updateApp(input, {
+    organizationId,
+    userId: event.locals.auth!.user.id,
+  });
 });

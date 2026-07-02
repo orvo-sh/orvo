@@ -1,8 +1,8 @@
 import { recordError } from "$lib/instrumentation";
-import { and, eq, isNull, type DB, type Tx } from "@repo/db";
+import { type DB, type Tx } from "@repo/db";
 import { ingestionKey } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
-import { err, genId, ok } from "@repo/utils";
+import { err, genId, generateRandomString, ok } from "@repo/utils";
 import { z } from "zod";
 
 import { createIngestionKeyInputSchema } from "../schema";
@@ -25,20 +25,7 @@ const createCreateIngestionKey = ({
 
   try {
     const currentDb = tx ?? db;
-
-    const activeKey = await currentDb.query.ingestionKey.findFirst({
-      where: and(
-        eq(ingestionKey.appId, context.appId),
-        eq(ingestionKey.kind, validated.data.kind),
-        isNull(ingestionKey.revokedAt),
-      ),
-    });
-
-    if (activeKey) {
-      return ok({ id: activeKey.id, key: activeKey.key });
-    }
-
-    const key = genId(validated.data.kind === "public" ? "pk" : "sk");
+    const key = `ing_${generateRandomString(48)}`;
     const id = genId("ingk");
 
     await currentDb
@@ -46,13 +33,13 @@ const createCreateIngestionKey = ({
       .values({
         id,
         appId: context.appId,
-        kind: validated.data.kind,
+        name: validated.data.name,
         key,
         createdBy: context.userId,
       })
       .execute();
 
-    return ok({ id, key });
+    return ok({ id, key, name: validated.data.name });
   } catch (error) {
     recordError(error);
     logger.error("Failed to create ingestion key", error as Error);

@@ -189,12 +189,10 @@
   };
 </script>
 
-<div class="mx-auto flex w-full max-w-5xl flex-col gap-5 py-1">
-  <section
-    class="flex flex-col gap-4 rounded-xl border bg-background px-5 py-5 sm:flex-row sm:items-center sm:justify-between"
-  >
+<div class="flex w-full max-w-4xl flex-col gap-8">
+  <section class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
     <div class="space-y-1">
-      <h2 class="text-base font-semibold">Notification destinations</h2>
+      <h2 class="text-base font-medium">Notification destinations</h2>
       <p class="max-w-2xl text-sm text-muted-foreground">
         Create reusable webhook and email destinations, then attach them to
         alert rules and heartbeat monitors so incident notifications route to
@@ -223,8 +221,8 @@
   {/if}
 
   {#if destinations.length === 0}
-    <section class="rounded-xl border border-dashed bg-background px-5 py-10 text-center">
-      <h3 class="text-base font-semibold">No notification destinations yet</h3>
+    <section class="rounded-lg border border-dashed px-5 py-10 text-center">
+      <h3 class="text-base font-medium">No notification destinations yet</h3>
       <p class="mt-2 text-sm text-muted-foreground">
         Start with a webhook for automation or an email destination for human
         responders.
@@ -243,13 +241,13 @@
   {:else}
     <section class="grid gap-3">
       {#each destinations as destination (destination.id)}
-        <article class="rounded-xl border bg-background px-5 py-4">
+        <article class="rounded-lg border px-5 py-4">
           <div
             class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
           >
             <div class="space-y-2">
               <div class="flex items-center gap-2">
-                <h3 class="text-sm font-semibold">{destination.name}</h3>
+                <h3 class="text-sm font-medium">{destination.name}</h3>
                 <Badge variant="outline">
                   {destination.kind === "webhook" ? "Webhook" : "Email"}
                 </Badge>
@@ -370,7 +368,7 @@
         </label>
       {/if}
 
-      <label class="flex items-center justify-between rounded-xl border px-4 py-3">
+      <label class="flex items-center justify-between rounded-lg border px-4 py-3">
         <div>
           <p class="text-sm font-medium">Enabled</p>
           <p class="text-xs text-muted-foreground">

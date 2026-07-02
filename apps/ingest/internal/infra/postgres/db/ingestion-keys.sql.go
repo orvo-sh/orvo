@@ -13,8 +13,7 @@ const getActiveIngestionKeyByKey = `-- name: GetActiveIngestionKeyByKey :one
 SELECT
   ingestion_key.id AS ingestion_key_id,
   app.organization_id,
-  ingestion_key.app_id,
-  ingestion_key.kind::text AS kind
+  ingestion_key.app_id
 FROM ingestion_key
 JOIN app ON app.id = ingestion_key.app_id
 WHERE ingestion_key.key = $1
@@ -25,7 +24,6 @@ type GetActiveIngestionKeyByKeyRow struct {
 	IngestionKeyID string `json:"ingestion_key_id"`
 	OrganizationID string `json:"organization_id"`
 	AppID          string `json:"app_id"`
-	Kind           string `json:"kind"`
 }
 
 func (q *Queries) GetActiveIngestionKeyByKey(ctx context.Context, key string) (GetActiveIngestionKeyByKeyRow, error) {
@@ -35,7 +33,6 @@ func (q *Queries) GetActiveIngestionKeyByKey(ctx context.Context, key string) (G
 		&i.IngestionKeyID,
 		&i.OrganizationID,
 		&i.AppID,
-		&i.Kind,
 	)
 	return i, err
 }

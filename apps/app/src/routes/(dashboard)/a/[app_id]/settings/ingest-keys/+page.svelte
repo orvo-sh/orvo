@@ -1,165 +1,229 @@
 <script lang="ts">
+  import { invalidateAll } from "$app/navigation";
   import {
-    getIngestionKeyQuery,
-    rotateIngestionKeyCommand,
+    createIngestionKeyCommand,
+    listIngestionKeysQuery,
+    revokeIngestionKeyCommand,
   } from "$lib/api/ingestion-key.remote";
-  import { IconCopy as CopyIcon } from "@tabler/icons-svelte";
   import { Button } from "@repo/components/ui/button";
+  import * as Dialog from "@repo/components/ui/dialog";
+  import { Input } from "@repo/components/ui/input";
+  import { Label } from "@repo/components/ui/label";
+  import { toast } from "@repo/components/ui/sonner";
+  import {
+    IconCopy as CopyIcon,
+    IconKey as KeyIcon,
+    IconPlus,
+    IconTrash,
+  } from "@tabler/icons-svelte";
   import { onMount } from "svelte";
 
   let loading = $state(true);
-  let rotatingKind = $state<"public" | "private" | null>(null);
+  let creating = $state(false);
+  let revokingId = $state("");
+  let dialogOpen = $state(false);
   let error = $state("");
-  let publicKey = $state("");
-  let privateKey = $state("");
+  let name = $state("");
+  let keys = $state<
+    Array<{
+      id: string;
+      name: string;
+      key: string;
+      createdAt: Date | string;
+      lastUsedAt: Date | string | null;
+      revokedAt: Date | string | null;
+    }>
+  >([]);
 
-  const loadIngestionKeys = async () => {
+  const loadKeys = async () => {
     loading = true;
     error = "";
 
-    const [publicResult, privateResult] = await Promise.all([
-      getIngestionKeyQuery({ kind: "public" }),
-      getIngestionKeyQuery({ kind: "private" }),
-    ]);
+    const result = await listIngestionKeysQuery({ includeRevoked: false });
 
-    if (publicResult.success === false) {
-      error = publicResult.error;
+    if (!result.success) {
+      error = result.error;
       loading = false;
       return;
     }
 
-    if (privateResult.success === false) {
-      error = privateResult.error;
-      loading = false;
-      return;
-    }
-
-    publicKey = publicResult.data.key?.key ?? "";
-    privateKey = privateResult.data.key?.key ?? "";
+    keys = result.data.keys;
     loading = false;
   };
 
   const copyKey = async (value: string) => {
     await navigator.clipboard.writeText(value);
+    toast.success("Ingestion key copied.");
   };
 
-  const rotateKey = async (kind: "public" | "private") => {
-    rotatingKind = kind;
+  const createKey = async () => {
     error = "";
 
-    const result = await rotateIngestionKeyCommand({ kind });
-    if (result.success === false) {
-      error = result.error;
-      rotatingKind = null;
+    if (name.trim().length === 0) {
+      error = "Name is required.";
       return;
     }
 
-    if (kind === "public") {
-      publicKey = result.data.key;
-    } else {
-      privateKey = result.data.key;
+    creating = true;
+
+    const result = await createIngestionKeyCommand({
+      name: name.trim(),
+    });
+
+    if (!result.success) {
+      error = result.error;
+      creating = false;
+      return;
     }
 
-    rotatingKind = null;
+    dialogOpen = false;
+    name = "";
+    creating = false;
+    await invalidateAll();
+    await loadKeys();
+    toast.success("Ingestion key created.");
+  };
+
+  const revokeKey = async (id: string) => {
+    revokingId = id;
+
+    const result = await revokeIngestionKeyCommand({ id });
+    revokingId = "";
+
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+
+    await invalidateAll();
+    await loadKeys();
+    toast.success("Ingestion key revoked.");
   };
 
   onMount(() => {
-    void loadIngestionKeys();
+    void loadKeys();
   });
 </script>
 
-<div class="mx-auto flex w-full max-w-5xl flex-col gap-12 py-1">
-  {#if error}
-    <div
-      class="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
-    >
-      {error}
+<div class="flex w-full max-w-4xl flex-col gap-10">
+  <section class="flex flex-wrap items-start justify-between gap-4">
+    <div class="space-y-1">
+      <h2 class="text-base font-medium">Ingestion keys</h2>
+      <p class="max-w-2xl text-sm text-muted-foreground">
+        Use these keys with OTLP HTTP exporters and send them as
+        `Authorization: Bearer ...`. Create separate keys per environment or
+        workload so you can revoke them independently.
+      </p>
     </div>
+
+    <Button
+      type="button"
+      onclick={() => {
+        name = "";
+        error = "";
+        dialogOpen = true;
+      }}
+    >
+      <IconPlus data-slot="button-icon" />
+      New ingestion key
+    </Button>
+  </section>
+
+  {#if error && !dialogOpen}
+    <p class="text-sm text-destructive">{error}</p>
   {/if}
 
-  <section class="space-y-4">
-    <div class="space-y-1.5">
-      <h2 class="text-2xl font-semibold tracking-tight text-foreground">
-        Public
-      </h2>
-      <p class="text-sm text-muted-foreground">
-        For browser and client-side OpenTelemetry SDKs. Send it as
-        `Authorization: Bearer pk_...`.
-      </p>
-    </div>
-
-    <div class="flex flex-col gap-3 rounded-xl border p-4">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div
-          class="flex h-12 min-w-0 flex-1 items-center rounded-lg border border-input bg-background px-4"
-        >
-          <code class="block min-w-0 truncate text-sm text-foreground">
-            {loading ? "Loading..." : publicKey}
-          </code>
-        </div>
-
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Copy public ingestion key"
-          disabled={!publicKey}
-          onclick={() => copyKey(publicKey)}
-        >
-          <CopyIcon data-slot="button-icon" />
-        </Button>
-
-        <Button
-          variant="outline"
-          disabled={loading || rotatingKind === "private"}
-          loading={rotatingKind === "public"}
-          onclick={() => rotateKey("public")}
-        >
-          Rotate
-        </Button>
+  <section class="space-y-3">
+    {#if loading}
+      <p class="text-sm text-muted-foreground">Loading ingestion keys...</p>
+    {:else if keys.length === 0}
+      <div class="rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground">
+        No ingestion keys yet.
       </div>
-    </div>
-  </section>
+    {:else}
+      {#each keys as key (key.id)}
+        <div class="space-y-3 rounded-lg border px-4 py-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <KeyIcon class="size-4 text-muted-foreground" />
+                <p class="text-sm font-medium">{key.name}</p>
+              </div>
+              <p class="text-xs text-muted-foreground">
+                Created {new Date(key.createdAt).toLocaleString()}
+                {#if key.lastUsedAt}
+                  · Last used {new Date(key.lastUsedAt).toLocaleString()}
+                {/if}
+              </p>
+            </div>
 
-  <section class="space-y-4">
-    <div class="space-y-1.5">
-      <h2 class="text-2xl font-semibold tracking-tight text-foreground">
-        Private
-      </h2>
-      <p class="text-sm text-muted-foreground">
-        For server-side ingestion and backend services. Send it as
-        `Authorization: Bearer sk_...`.
-      </p>
-    </div>
+            <div class="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label={`Copy ${key.name} ingestion key`}
+                onclick={() => copyKey(key.key)}
+              >
+                <CopyIcon data-slot="button-icon" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                loading={revokingId === key.id}
+                disabled={revokingId.length > 0}
+                onclick={() => revokeKey(key.id)}
+              >
+                <IconTrash data-slot="button-icon" />
+                Revoke
+              </Button>
+            </div>
+          </div>
 
-    <div class="flex flex-col gap-3 rounded-xl border p-4">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div
-          class="flex h-12 min-w-0 flex-1 items-center rounded-lg border border-input bg-background px-4"
-        >
-          <code class="block min-w-0 truncate text-sm text-foreground">
-            {loading ? "Loading..." : privateKey}
-          </code>
+          <div class="flex min-h-11 items-center rounded-lg border border-input bg-background px-4">
+            <code class="block min-w-0 truncate text-sm text-foreground">
+              {key.key}
+            </code>
+          </div>
         </div>
-
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Copy private ingestion key"
-          disabled={!privateKey}
-          onclick={() => copyKey(privateKey)}
-        >
-          <CopyIcon data-slot="button-icon" />
-        </Button>
-
-        <Button
-          variant="outline"
-          disabled={loading || rotatingKind === "public"}
-          loading={rotatingKind === "private"}
-          onclick={() => rotateKey("private")}
-        >
-          Rotate
-        </Button>
-      </div>
-    </div>
+      {/each}
+    {/if}
   </section>
 </div>
+
+<Dialog.Root bind:open={dialogOpen}>
+  <Dialog.Content class="sm:max-w-md">
+    <Dialog.Header>
+      <Dialog.Title>New ingestion key</Dialog.Title>
+      <Dialog.Description>
+        Create a named key for one environment, service, or deploy target.
+      </Dialog.Description>
+    </Dialog.Header>
+
+    <div class="space-y-4">
+      <div class="space-y-2">
+        <Label for="ingestion-key-name">Name</Label>
+        <Input
+          id="ingestion-key-name"
+          bind:value={name}
+          maxlength={64}
+          placeholder="Production API"
+        />
+      </div>
+
+      {#if error}
+        <p class="text-sm text-destructive">{error}</p>
+      {/if}
+    </div>
+
+    <Dialog.Footer>
+      <Button type="button" variant="outline" onclick={() => (dialogOpen = false)}>
+        Cancel
+      </Button>
+      <Button type="button" loading={creating} onclick={createKey}>
+        <IconPlus data-slot="button-icon" />
+        Create key
+      </Button>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>

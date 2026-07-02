@@ -8,7 +8,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { emailOTP, organization } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import Stripe from "stripe";
 
 import type { Logger } from "@repo/logger";
@@ -73,6 +73,33 @@ const createAuth = (
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
+    },
+    user: {
+      deleteUser: {
+        enabled: true,
+        beforeDelete: async (user) => {
+          const soleOrganizationRows = await db
+            .select({ organizationId: dbSchema.member.organizationId })
+            .from(dbSchema.member)
+            .groupBy(dbSchema.member.organizationId)
+            .having(
+              sql`count(*) = 1 and max(${dbSchema.member.userId}) = ${user.id}`,
+            );
+
+          if (soleOrganizationRows.length === 0) {
+            return;
+          }
+
+          await db
+            .delete(dbSchema.organization)
+            .where(
+              inArray(
+                dbSchema.organization.id,
+                soleOrganizationRows.map((row) => row.organizationId),
+              ),
+            );
+        },
+      },
     },
     emailVerification:
       email != null

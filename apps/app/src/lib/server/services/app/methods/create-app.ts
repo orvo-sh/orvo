@@ -42,12 +42,7 @@ const createCreateApp = ({
 
       const results = await Promise.all([
         ingestionKeyService.createIngestionKey(
-          { kind: "public" },
-          { appId: id, userId: context.userId },
-          tx,
-        ),
-        ingestionKeyService.createIngestionKey(
-          { kind: "private" },
+          { name: "Default key" },
           { appId: id, userId: context.userId },
           tx,
         ),

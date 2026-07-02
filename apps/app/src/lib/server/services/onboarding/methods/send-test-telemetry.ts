@@ -29,10 +29,21 @@ const createSendTestTelemetry = ({
   }
 
   try {
-    const keyResult = await ingestionKeyService.createIngestionKey(
-      { kind: "private" },
-      { appId: context.appId, userId: context.userId },
-    );
+    const existingKeyResult = await ingestionKeyService.getIngestionKey({}, {
+      appId: context.appId,
+    });
+
+    if (!existingKeyResult.success) {
+      return err(existingKeyResult.error);
+    }
+
+    const keyResult =
+      existingKeyResult.data.key
+        ? ok({ key: existingKeyResult.data.key.key })
+        : await ingestionKeyService.createIngestionKey(
+            { name: "Default key" },
+            { appId: context.appId, userId: context.userId },
+          );
 
     if (!keyResult.success) {
       return err(keyResult.error);

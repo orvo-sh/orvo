@@ -1,12 +1,15 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import { Button } from "@repo/components/ui/button";
   import * as Sidebar from "@repo/components/ui/sidebar";
   import {
-    IconCreditCard as CreditCardIcon,
-    IconSettings as GearSixIcon,
-    IconKey as KeyIcon,
     IconBell as BellIcon,
-    IconWebhook as WebhookIcon,
+    IconCreditCard as CreditCardIcon,
+    IconPlus as PlusIcon,
+    IconSettings as GearSixIcon,
+    IconUserCircle,
+    IconUsers as UsersIcon,
+    IconKey as KeyIcon,
   } from "@tabler/icons-svelte";
   import type { Snippet } from "svelte";
 
@@ -18,7 +21,7 @@
 
   const sections = $derived([
     {
-      label: "Data",
+      label: "App",
       items: [
         {
           href: settingsBasePath,
@@ -33,11 +36,6 @@
           isActive: (pathname: string) =>
             pathname.startsWith(`${settingsBasePath}/ingest-keys`),
         },
-      ],
-    },
-    {
-      label: "Alerts",
-      items: [
         {
           href: `${settingsBasePath}/notifications`,
           label: "Notifications",
@@ -45,24 +43,43 @@
           isActive: (pathname: string) =>
             pathname.startsWith(`${settingsBasePath}/notifications`),
         },
-        {
-          href: `${settingsBasePath}/alerts/webhooks`,
-          label: "Webhooks",
-          icon: WebhookIcon,
-          isActive: (pathname: string) =>
-            pathname.startsWith(`${settingsBasePath}/alerts/webhooks`),
-        },
       ],
     },
     {
       label: "Organization",
       items: [
         {
+          href: `${settingsBasePath}/organization/general`,
+          label: "General",
+          icon: GearSixIcon,
+          isActive: (pathname: string) =>
+            pathname.startsWith(`${settingsBasePath}/organization/general`),
+        },
+        {
+          href: `${settingsBasePath}/organization/members`,
+          label: "Members",
+          icon: UsersIcon,
+          isActive: (pathname: string) =>
+            pathname.startsWith(`${settingsBasePath}/organization/members`),
+        },
+        {
           href: `${settingsBasePath}/billing`,
           label: "Billing & usage",
           icon: CreditCardIcon,
           isActive: (pathname: string) =>
             pathname.startsWith(`${settingsBasePath}/billing`),
+        },
+      ],
+    },
+    {
+      label: "Account",
+      items: [
+        {
+          href: `${settingsBasePath}/account/profile`,
+          label: "Profile",
+          icon: IconUserCircle,
+          isActive: (pathname: string) =>
+            pathname.startsWith(`${settingsBasePath}/account/profile`),
         },
       ],
     },
@@ -75,8 +92,17 @@
   );
 </script>
 
-<PageContainer title={activeItem?.label || "Settings"} innerClass="p-0!">
-  <div class="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
+<PageContainer title={activeItem?.label || "Settings"} contentClass="p-0!">
+  {#snippet actions()}
+    {#if page.url.pathname.startsWith(`${settingsBasePath}/organization/members`)}
+      <Button href={`${page.url.pathname}?invite=1`}>
+        <PlusIcon data-slot="button-icon" />
+        Invite member
+      </Button>
+    {/if}
+  {/snippet}
+
+  <div class="flex min-h-0 flex-1 flex-col lg:flex-row">
     <aside class="w-64 shrink-0 border-r not-lg:hidden">
       {#each sections as section}
         <Sidebar.Group>
@@ -104,7 +130,7 @@
       {/each}
     </aside>
 
-    <div class="min-h-0 min-w-0 flex-1">
+    <div class="min-h-0 min-w-0 flex-1 overflow-y-auto p-6">
       {@render children?.()}
     </div>
   </div>

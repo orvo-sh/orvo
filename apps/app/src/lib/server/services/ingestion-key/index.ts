@@ -5,19 +5,22 @@ import { z } from "zod";
 
 import { createCreateIngestionKey } from "./methods/create-ingestion-key";
 import { createGetIngestionKey } from "./methods/get-ingestion-key";
-import { createRotateIngestionKey } from "./methods/rotate-ingestion-key";
+import { createListIngestionKeys } from "./methods/list-ingestion-keys";
+import { createRevokeIngestionKey } from "./methods/revoke-ingestion-key";
 import {
   createIngestionKeyInputSchema,
   getIngestionKeyInputSchema,
-  rotateIngestionKeyInputSchema,
+  listIngestionKeysInputSchema,
+  revokeIngestionKeyInputSchema,
 } from "./schema";
 
 @Instrument({ prefix: "ingestionKey" })
 class IngestionKeyService {
   private logger: Logger;
   private getIngestionKeyMethod: ReturnType<typeof createGetIngestionKey>;
+  private listIngestionKeysMethod: ReturnType<typeof createListIngestionKeys>;
   private createIngestionKeyMethod: ReturnType<typeof createCreateIngestionKey>;
-  private rotateIngestionKeyMethod: ReturnType<typeof createRotateIngestionKey>;
+  private revokeIngestionKeyMethod: ReturnType<typeof createRevokeIngestionKey>;
 
   constructor(
     private db: DB,
@@ -28,11 +31,15 @@ class IngestionKeyService {
       db: this.db,
       logger: this.logger,
     });
+    this.listIngestionKeysMethod = createListIngestionKeys({
+      db: this.db,
+      logger: this.logger,
+    });
     this.createIngestionKeyMethod = createCreateIngestionKey({
       db: this.db,
       logger: this.logger,
     });
-    this.rotateIngestionKeyMethod = createRotateIngestionKey({
+    this.revokeIngestionKeyMethod = createRevokeIngestionKey({
       db: this.db,
       logger: this.logger,
     });
@@ -45,6 +52,13 @@ class IngestionKeyService {
     return this.getIngestionKeyMethod(input, context);
   }
 
+  async listIngestionKeys(
+    input: z.input<typeof listIngestionKeysInputSchema>,
+    context: { appId: string },
+  ) {
+    return this.listIngestionKeysMethod(input, context);
+  }
+
   async createIngestionKey(
     input: z.input<typeof createIngestionKeyInputSchema>,
     context: { appId: string; userId: string },
@@ -53,11 +67,11 @@ class IngestionKeyService {
     return this.createIngestionKeyMethod(input, context, tx);
   }
 
-  async rotateIngestionKey(
-    input: z.input<typeof rotateIngestionKeyInputSchema>,
-    context: { appId: string; userId: string },
+  async revokeIngestionKey(
+    input: z.input<typeof revokeIngestionKeyInputSchema>,
+    context: { appId: string },
   ) {
-    return this.rotateIngestionKeyMethod(input, context);
+    return this.revokeIngestionKeyMethod(input, context);
   }
 }
 

@@ -1,6 +1,5 @@
 <script lang="ts">
   import {
-    createOrganizationActivationCommand,
     createOrganizationLogoUploadUrlCommand,
   } from "$lib/api/organizations.remote";
   import { authClient } from "$lib/auth-client";
@@ -147,10 +146,6 @@
       loading = false;
       return;
     }
-
-    await createOrganizationActivationCommand({
-      organizationId: result.data.id,
-    });
 
     await authClient.organization.setActive(
       { organizationId: result.data.id },

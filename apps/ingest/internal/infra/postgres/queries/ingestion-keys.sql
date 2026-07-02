@@ -2,8 +2,7 @@
 SELECT
   ingestion_key.id AS ingestion_key_id,
   app.organization_id,
-  ingestion_key.app_id,
-  ingestion_key.kind::text AS kind
+  ingestion_key.app_id
 FROM ingestion_key
 JOIN app ON app.id = ingestion_key.app_id
 WHERE ingestion_key.key = $1

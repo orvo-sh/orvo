@@ -38,6 +38,13 @@
     window.location.href = billingHref;
   };
 
+  const handleSettingsNavigation = () => {
+    const accountHref = settingsHref.startsWith("/a/")
+      ? `${settingsHref}/account/profile`
+      : "/settings/account/profile";
+    window.location.href = accountHref;
+  };
+
   const handleThemeToggle = () => {
     const nextMode = mode.current === "dark" ? "light" : "dark";
     setMode(nextMode);
@@ -117,7 +124,7 @@
           <DropdownMenu.Separator />
 
           <DropdownMenu.Group>
-            <DropdownMenu.Item>
+            <DropdownMenu.Item onSelect={handleSettingsNavigation}>
               <GearIcon />
               Account settings
             </DropdownMenu.Item>
