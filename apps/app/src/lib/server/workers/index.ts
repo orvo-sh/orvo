@@ -1,6 +1,8 @@
 import { building } from "$app/environment";
 import { env } from "$env/dynamic/private";
 import { createWorkerContainer } from "$lib/server/container";
+import { context } from "@opentelemetry/api";
+import { suppressTracing } from "@opentelemetry/core";
 import { Logger } from "@repo/logger";
 import { PgBoss } from "pg-boss";
 
@@ -49,7 +51,9 @@ const startWorkers = async (logger: Logger) => {
     ),
   ]);
 
-  await manager.start();
+  await context.with(suppressTracing(context.active()), async () => {
+    await manager.start();
+  });
 };
 
 export { ensureWorkersStarted };

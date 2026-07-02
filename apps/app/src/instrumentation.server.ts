@@ -47,7 +47,11 @@ if (orvoOtlpBaseUrl && orvoIngestKey) {
         "X-Orvo-Self-Telemetry": "true",
       },
     }),
-    instrumentations: [getNodeAutoInstrumentations()],
+    instrumentations: [getNodeAutoInstrumentations({
+      "@opentelemetry/instrumentation-pg": {
+        requireParentSpan: true,
+      }
+    })],
   });
 
   void sdk.start();

@@ -7,7 +7,7 @@ import {
   themeModeCookieName,
 } from "$lib/theme/theme";
 import { Logger } from "@repo/logger";
-import { genId, sleep } from "@repo/utils";
+import { genId } from "@repo/utils";
 import { svelteKitHandler } from "better-auth/svelte-kit";
 import { loggerProvider } from "./instrumentation.server";
 
@@ -16,17 +16,8 @@ void ensureWorkersStarted(baseLogger);
 
 export const handle = async ({ event, resolve }) => {
 
-  if (dev) {
-    await sleep(1000)
-  }
-
-  const startTime = Date.now();
   const requestId = genId("req");
   const themeMode = resolveThemeMode(event.cookies.get(themeModeCookieName));
-
-  const route = event.route.id ?? event.url.pathname;
-  event.tracing.root.updateName(`${event.request.method} ${route}`);
-  event.tracing.root.setAttribute("http.route", route);
 
   const logger = baseLogger.child("Orvo", {
     requestId,
@@ -64,13 +55,6 @@ export const handle = async ({ event, resolve }) => {
       }),
     auth: authService,
     building,
-  });
-
-  logger.info("HTTP request handled", {
-    method: event.request.method,
-    url: event.url.pathname,
-    status: response.status,
-    duration: `${Date.now() - startTime}ms`,
   });
 
   return response;
