@@ -1,30 +1,57 @@
 <script lang="ts">
+  import { browser } from "$app/environment";
   import { page } from "$app/state";
   import { cn } from "@repo/components";
+  import * as Sheet from "@repo/components/ui/sheet";
   import * as Sidebar from "@repo/components/ui/sidebar";
   import type { Snippet } from "svelte";
+  import { onMount } from "svelte";
 
   import { Button } from "@repo/components/ui/button";
-  import { IconChevronLeft } from "@tabler/icons-svelte";
+  import { IconChevronLeft, IconX } from "@tabler/icons-svelte";
   import PageContainerAppSwitcher from "./page-container-app-switcher.svelte";
 
   let {
     title,
     actions,
     children,
+    aside,
+    asideTitle,
+    asideOpen = $bindable(false),
     class: className = "",
-    innerClass,
-    scrollContent = true,
+    contentClass,
     back,
   }: {
     title: string;
     actions?: Snippet;
     children?: Snippet;
+    aside?: Snippet;
+    asideTitle?: string;
+    asideOpen?: boolean;
     class?: string;
-    innerClass?: string;
-    scrollContent?: boolean;
+    contentClass?: string;
     back?: { href: string; title: string };
   } = $props();
+
+  let isMobile = $state(false);
+
+  onMount(() => {
+    if (!browser) {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const syncIsMobile = () => {
+      isMobile = mediaQuery.matches;
+    };
+
+    syncIsMobile();
+    mediaQuery.addEventListener("change", syncIsMobile);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncIsMobile);
+    };
+  });
 </script>
 
 <div
@@ -34,7 +61,7 @@
   )}
 >
   <header
-    class="sticky top-0 z-10 flex h-13 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border/90 bg-background p-2 px-3"
+    class="sticky top-0 z-10 flex h-14 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border/90 bg-background p-3"
   >
     <div class="flex min-w-0 items-center gap-2 md:flex-1">
       {#if back}
@@ -90,13 +117,70 @@
     </div>
   </header>
 
-  <div
-    class={cn(
-      "flex min-h-0 flex-1 flex-col px-3 py-3",
-      scrollContent ? "overflow-y-auto" : "overflow-hidden",
-      innerClass,
-    )}
-  >
-    {@render children?.()}
+  <div class="flex min-h-0 flex-1">
+    <div
+      class={cn("flex min-h-0 flex-1 flex-col overflow-hidden", contentClass)}
+    >
+      {@render children?.()}
+    </div>
+    {#if aside && !isMobile}
+      <aside
+        class={cn(
+          "hidden h-full min-h-0 shrink-0 flex-col bg-background transition-[width,border-color] duration-200 ease-out md:flex",
+          asideOpen ? "w-88 border-l" : "w-0",
+        )}
+      >
+        <div
+          class="flex h-14 min-h-14 w-full items-center justify-between border-b px-3"
+        >
+          <span class="text-sm">
+            {asideTitle}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onclick={() => (asideOpen = false)}
+          >
+            <IconX />
+          </Button>
+        </div>
+        <div
+          class={cn(
+            "flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden transition-all duration-200 ease-out",
+            asideOpen
+              ? "translate-x-0 opacity-100"
+              : "pointer-events-none translate-x-4 opacity-0",
+          )}
+        >
+          {@render aside()}
+        </div>
+      </aside>
+    {/if}
   </div>
 </div>
+
+{#if aside && isMobile}
+  <Sheet.Root bind:open={asideOpen}>
+    <Sheet.Content
+      side="right"
+      class="w-full gap-0 p-0! sm:max-w-none"
+      showCloseButton={false}
+    >
+      <div
+        class="flex h-14 min-h-14 w-full items-center justify-between border-b px-3"
+      >
+        <span class="text-sm">
+          {asideTitle}
+        </span>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onclick={() => (asideOpen = false)}
+        >
+          <IconX />
+        </Button>
+      </div>
+      {@render aside()}
+    </Sheet.Content>
+  </Sheet.Root>
+{/if}

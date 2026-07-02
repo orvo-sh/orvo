@@ -56,7 +56,14 @@ const createGetTrace = ({
           deployment_environment
         FROM traces_raw
         WHERE app_id = ${quote(context.appId)}
-          AND trace_id = ${quote(validated.data.traceId)}
+          AND trace_id = (
+            SELECT trace_id
+            FROM traces_raw
+            WHERE app_id = ${quote(context.appId)}
+              AND id = ${quote(validated.data.id)}
+            ORDER BY start_time ASC
+            LIMIT 1
+          )
         ORDER BY start_time ASC
       `,
     });

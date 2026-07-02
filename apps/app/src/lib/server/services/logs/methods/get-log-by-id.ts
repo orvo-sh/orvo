@@ -30,33 +30,55 @@ const createGetLogById = ({
     const result = await clickhouse.query({
       format: "JSONEachRow",
       query: `
+        WITH trace_objects AS (
+          SELECT
+            app_id,
+            trace_id,
+            argMin(
+              id,
+              tuple(
+                if(
+                  isNull(parent_span_id) OR parent_span_id = '' OR parent_span_id = '0000000000000000',
+                  0,
+                  1
+                ),
+                start_time
+              )
+            ) AS trace_object_id
+          FROM traces_raw
+          WHERE app_id = ${bindings.bindString("trace_object_app_id", context.appId)}
+          GROUP BY app_id, trace_id
+        )
         SELECT
-          id,
-          app_id,
-          ingestion_key_id,
-          received_at,
-          expires_at,
-          timestamp,
-          observed_timestamp,
-          severity_number,
-          severity_text,
-          body,
-          trace_id,
-          span_id,
-          trace_flags,
-          resource_attributes,
-          resource_schema_url,
-          scope_name,
-          scope_version,
-          scope_attributes,
-          scope_schema_url,
-          log_attributes,
-          service_name,
-          deployment_environment
-        FROM logs_raw
-        WHERE app_id = ${bindings.bindString("app_id", context.appId)}
-          AND id = ${bindings.bindString("log_id", validated.data.id)}
-        ORDER BY timestamp DESC
+          logs.id,
+          logs.app_id,
+          logs.ingestion_key_id,
+          logs.received_at,
+          logs.expires_at,
+          logs.timestamp,
+          logs.observed_timestamp,
+          logs.severity_number,
+          logs.severity_text,
+          logs.body,
+          traces.trace_object_id AS trace_id,
+          logs.span_id,
+          logs.trace_flags,
+          logs.resource_attributes,
+          logs.resource_schema_url,
+          logs.scope_name,
+          logs.scope_version,
+          logs.scope_attributes,
+          logs.scope_schema_url,
+          logs.log_attributes,
+          logs.service_name,
+          logs.deployment_environment
+        FROM logs_raw AS logs
+        LEFT JOIN trace_objects AS traces
+          ON traces.app_id = logs.app_id
+         AND traces.trace_id = logs.trace_id
+        WHERE logs.app_id = ${bindings.bindString("app_id", context.appId)}
+          AND logs.id = ${bindings.bindString("log_id", validated.data.id)}
+        ORDER BY logs.timestamp DESC
         LIMIT 1
       `,
       query_params: bindings.query_params,
@@ -73,7 +95,7 @@ const createGetLogById = ({
       severity_number: number;
       severity_text: string;
       body: string;
-      trace_id: string;
+      trace_id: string | null;
       span_id: string;
       trace_flags: number;
       resource_attributes: Record<string, string>;

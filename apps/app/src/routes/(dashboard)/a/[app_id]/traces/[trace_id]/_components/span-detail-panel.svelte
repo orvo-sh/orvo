@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { IconCopy as CopyIcon, IconX as XIcon } from "@tabler/icons-svelte";
+  import * as Card from "@repo/components/ui/card";
+  import * as HoverCard from "@repo/components/ui/hover-card";
+  import { formatDurationNs } from "@repo/utils";
+  import { IconCircleFilled } from "@tabler/icons-svelte";
   import type { SpanRow } from "../../types";
-  import { formatDuration } from "../../utils";
 
   const KIND_LABELS: Record<number, string> = {
     0: "Unspecified",
@@ -12,10 +14,10 @@
     5: "Consumer",
   };
 
-  const STATUS_META: Record<number, { label: string; class: string }> = {
-    0: { label: "Unset", class: "text-muted-foreground" },
-    1: { label: "OK", class: "text-green-600 dark:text-green-400" },
-    2: { label: "Error", class: "text-destructive" },
+  const STATUS_META: Record<number, { label: string }> = {
+    0: { label: "Unset" },
+    1: { label: "OK" },
+    2: { label: "Error" },
   };
 
   const fmtTime = (iso: string): string => {
@@ -39,183 +41,261 @@
     }
   };
 
-  const copyText = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const toJsonPreview = (value: unknown) => {
+    const preview = JSON.stringify(value).replace(/\s+/g, " ");
+    return preview.length <= 96 ? preview : `${preview.slice(0, 95)}…`;
   };
 
-  let { span, onClose }: { span: SpanRow; onClose: () => void } = $props();
+  const formatJsonTokens = (value: unknown) => {
+    const formatted = JSON.stringify(value, null, 2);
+    const tokens: Array<{ text: string; className: string }> = [];
+    const pattern =
+      /("(?:\\.|[^"\\])*"(?=\s*:))|("(?:\\.|[^"\\])*")|\b(true|false)\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
+    let lastIndex = 0;
+
+    for (const match of formatted.matchAll(pattern)) {
+      const token = match[0];
+      const index = match.index ?? 0;
+
+      if (index > lastIndex) {
+        tokens.push({
+          text: formatted.slice(lastIndex, index),
+          className: "text-foreground",
+        });
+      }
+
+      tokens.push({
+        text: token,
+        className: match[1]
+          ? "text-sky-600"
+          : match[2]
+            ? "text-emerald-600"
+            : token === "null"
+              ? "text-rose-600"
+              : token === "true" || token === "false"
+                ? "text-violet-600"
+                : "text-amber-600",
+      });
+
+      lastIndex = index + token.length;
+    }
+
+    if (lastIndex < formatted.length) {
+      tokens.push({
+        text: formatted.slice(lastIndex),
+        className: "text-foreground",
+      });
+    }
+
+    return tokens;
+  };
+
+  let {
+    span,
+    onClose,
+  }: {
+    span: SpanRow;
+    onClose: () => void;
+  } = $props();
 
   const status = $derived(STATUS_META[span.status_code] ?? STATUS_META[0]);
   const events = $derived(parseJson(span.events_json) as unknown[] | null);
   const links = $derived(parseJson(span.links_json) as unknown[] | null);
 
-  const hasAttrs = $derived(Object.keys(span.span_attributes ?? {}).length > 0);
-  const hasResource = $derived(
-    Object.keys(span.resource_attributes ?? {}).length > 0,
-  );
+  const overviewFields = $derived.by(() => {
+    const fields = [
+      {
+        label: "Status",
+        value: `${status.label}${span.status_message ? ` - ${span.status_message}` : ""}`,
+      },
+      {
+        label: "Kind",
+        value: String(KIND_LABELS[span.kind] ?? span.kind),
+      },
+      {
+        label: "Duration",
+        value: formatDurationNs(span.duration_ns),
+      },
+      {
+        label: "Start",
+        value: fmtTime(span.start_time),
+      },
+      {
+        label: "End",
+        value: fmtTime(span.end_time),
+      },
+      {
+        label: "Trace ID",
+        value: span.trace_id,
+      },
+    ];
+
+    if (span.parent_span_id) {
+      fields.push({
+        label: "Parent",
+        value: span.parent_span_id,
+      });
+    }
+
+    if (span.service_name) {
+      fields.push({
+        label: "Service",
+        value: span.service_name,
+      });
+    }
+
+    if (span.deployment_environment) {
+      fields.push({
+        label: "Environment",
+        value: span.deployment_environment,
+      });
+    }
+
+    if (span.scope_name) {
+      fields.push({
+        label: "Scope",
+        value: `${span.scope_name}${span.scope_version ? ` @ ${span.scope_version}` : ""}`,
+      });
+    }
+
+    return fields;
+  });
 </script>
 
-<div class="flex h-full flex-col overflow-hidden border-l bg-background">
-  <!-- Panel header -->
-  <div
-    class="flex shrink-0 items-start justify-between gap-3 border-b px-4 py-3"
-  >
-    <div class="min-w-0">
-      <p class="truncate text-sm font-medium text-foreground">{span.name}</p>
-      <p class="mt-0.5 truncate font-mono text-[10px] text-muted-foreground/60">
-        {span.span_id}
-      </p>
-    </div>
-    <button
-      class="mt-0.5 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-      onclick={onClose}
-      aria-label="Close panel"
-    >
-      <XIcon class="size-4" />
-    </button>
-  </div>
+<div
+  data-testid="span-detail-panel"
+  class="relative flex h-full min-h-0 w-full flex-col gap-3 overflow-x-hidden overflow-y-auto bg-background p-3 pt-1"
+>
+  {@render detailCard("Overview", overviewFields)}
 
-  <!-- Scrollable body -->
-  <div
-    class="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-3 font-mono text-xs"
-  >
-    <!-- Core fields -->
-    <section>
-      <h3
-        class="mb-2 font-sans text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
-      >
-        Overview
-      </h3>
-      <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-        <span class="text-muted-foreground">Status</span>
-        <span class="{status.class} font-semibold"
-          >{status.label}{span.status_message
-            ? ` — ${span.status_message}`
-            : ""}</span
-        >
+  {@render detailCard(
+    "Span attributes",
+    Object.entries(span.span_attributes).map(([label, value]) => ({
+      label,
+      value,
+    })),
+  )}
 
-        <span class="text-muted-foreground">Kind</span>
-        <span class="text-foreground"
-          >{KIND_LABELS[span.kind] ?? span.kind}</span
-        >
+  {@render detailCard(
+    "Resource attributes",
+    Object.entries(span.resource_attributes).map(([label, value]) => ({
+      label,
+      value,
+    })),
+  )}
 
-        <span class="text-muted-foreground">Duration</span>
-        <span class="text-foreground">{formatDuration(span.duration_ns)}</span>
+  {@render detailCard(
+    "Scope attributes",
+    Object.entries(span.scope_attributes).map(([label, value]) => ({
+      label,
+      value,
+    })),
+  )}
 
-        <span class="text-muted-foreground">Start</span>
-        <span class="break-all text-foreground">{fmtTime(span.start_time)}</span
-        >
+  {#if events && events.length > 0}
+    {@render jsonCard("Events", events)}
+  {/if}
 
-        <span class="text-muted-foreground">End</span>
-        <span class="break-all text-foreground">{fmtTime(span.end_time)}</span>
-
-        {#if span.service_name}
-          <span class="text-muted-foreground">Service</span>
-          <span class="text-foreground">{span.service_name}</span>
-        {/if}
-
-        {#if span.deployment_environment}
-          <span class="text-muted-foreground">Environment</span>
-          <span class="text-foreground">{span.deployment_environment}</span>
-        {/if}
-
-        {#if span.scope_name}
-          <span class="text-muted-foreground">Scope</span>
-          <span class="text-foreground"
-            >{span.scope_name}{span.scope_version
-              ? ` @ ${span.scope_version}`
-              : ""}</span
-          >
-        {/if}
-
-        <span class="text-muted-foreground">Trace ID</span>
-        <span class="flex items-center gap-1.5">
-          <span class="break-all text-foreground">{span.trace_id}</span>
-          <button
-            class="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-            onclick={() => copyText(span.trace_id)}
-          >
-            <CopyIcon class="size-3" />
-          </button>
-        </span>
-
-        {#if span.parent_span_id}
-          <span class="text-muted-foreground">Parent</span>
-          <span class="text-foreground">{span.parent_span_id}</span>
-        {/if}
-      </div>
-    </section>
-
-    <!-- Span attributes -->
-    {#if hasAttrs}
-      <section>
-        <h3
-          class="mb-2 font-sans text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
-        >
-          Attributes
-        </h3>
-        <div
-          class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 rounded border border-border/40 bg-muted/30 p-2"
-        >
-          {#each Object.entries(span.span_attributes) as [k, v]}
-            <span class="truncate text-muted-foreground">{k}</span>
-            <span class="break-all text-foreground">{v}</span>
-          {/each}
-        </div>
-      </section>
-    {/if}
-
-    <!-- Resource attributes -->
-    {#if hasResource}
-      <section>
-        <h3
-          class="mb-2 font-sans text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
-        >
-          Resource
-        </h3>
-        <div
-          class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 rounded border border-border/40 bg-muted/30 p-2"
-        >
-          {#each Object.entries(span.resource_attributes) as [k, v]}
-            <span class="truncate text-muted-foreground">{k}</span>
-            <span class="break-all text-foreground">{v}</span>
-          {/each}
-        </div>
-      </section>
-    {/if}
-
-    <!-- Events -->
-    {#if events && events.length > 0}
-      <section>
-        <h3
-          class="mb-2 font-sans text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
-        >
-          Events ({events.length})
-        </h3>
-        <pre
-          class="overflow-x-auto rounded border border-border/40 bg-muted/30 p-2 text-[10px] whitespace-pre-wrap text-foreground">{JSON.stringify(
-            events,
-            null,
-            2,
-          )}</pre>
-      </section>
-    {/if}
-
-    <!-- Links -->
-    {#if links && links.length > 0}
-      <section>
-        <h3
-          class="mb-2 font-sans text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
-        >
-          Links ({links.length})
-        </h3>
-        <pre
-          class="overflow-x-auto rounded border border-border/40 bg-muted/30 p-2 text-[10px] whitespace-pre-wrap text-foreground">{JSON.stringify(
-            links,
-            null,
-            2,
-          )}</pre>
-      </section>
-    {/if}
-  </div>
+  {#if links && links.length > 0}
+    {@render jsonCard("Links", links)}
+  {/if}
 </div>
+
+{#snippet detailCard(title: string, fields: { label: string; value: string }[])}
+  {#if fields.length > 0}
+    <div class="flex min-w-0 flex-col">
+      <div
+        class="flex min-h-10 flex-1 translate-y-2 items-center justify-between rounded-t-xl border border-foreground/10 bg-secondary px-3.5 pb-2 text-sm text-secondary-foreground inset-shadow-[0px_1px_--theme(--color-white)]"
+      >
+        {title}
+      </div>
+      <Card.Root class="z-10 w-full min-w-0 p-0">
+        <div class="divide-y">
+          {#each fields as field}
+            {@const json = parseJson(field.value)}
+            <div class="flex min-w-0 items-start gap-3 px-4 py-2.5">
+              <span
+                title={field.label}
+                class="w-24 shrink-0 truncate text-sm text-muted-foreground"
+              >
+                {field.label}
+              </span>
+              <div
+                class="min-w-0 flex-1 text-sm font-medium text-secondary-foreground"
+              >
+                {#if json}
+                  {@const jsonPreview = toJsonPreview(json)}
+                  {@const jsonTokens = formatJsonTokens(json)}
+                  <HoverCard.Root openDelay={50} closeDelay={50}>
+                    <HoverCard.Trigger
+                      type="button"
+                      class="max-w-full min-w-0 rounded-md text-left"
+                    >
+                      <span
+                        class="flex min-w-0 items-start gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-muted/60"
+                      >
+                        <span
+                          class="mt-0.5 flex h-fit w-fit shrink-0 gap-0.5 rounded-sm border border-foreground/10 bg-muted px-1 py-1 text-muted-foreground"
+                        >
+                          <IconCircleFilled class="size-1.5" />
+                          <IconCircleFilled class="size-1.5" />
+                          <IconCircleFilled class="size-1.5" />
+                        </span>
+                        <span
+                          class="min-w-0 truncate font-mono text-xs text-muted-foreground"
+                        >
+                          {jsonPreview}
+                        </span>
+                      </span>
+                    </HoverCard.Trigger>
+                    <HoverCard.Content
+                      side="left"
+                      align="start"
+                      class="w-[28rem] max-w-[min(42rem,calc(100vw-2rem))] p-0"
+                    >
+                      <div
+                        class="border-b px-3 py-2 text-xs font-medium text-muted-foreground"
+                      >
+                        {field.label}
+                      </div>
+                      <div class="max-h-96 overflow-auto p-3">
+                        <pre
+                          class="rounded-md bg-muted/50 p-3 font-mono text-xs leading-5 break-words whitespace-pre-wrap">{#each jsonTokens as token}<span
+                              class={token.className}>{token.text}</span
+                            >{/each}</pre>
+                      </div>
+                    </HoverCard.Content>
+                  </HoverCard.Root>
+                {:else}
+                  <span class="break-all whitespace-pre-wrap"
+                    >{field.value}</span
+                  >
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+      </Card.Root>
+    </div>
+  {/if}
+{/snippet}
+
+{#snippet jsonCard(title: string, value: unknown)}
+  <div class="flex min-w-0 flex-col">
+    <div
+      class="flex min-h-10 flex-1 translate-y-2 items-center rounded-t-xl border border-foreground/10 bg-secondary px-3.5 pb-2 text-sm text-secondary-foreground inset-shadow-[0px_1px_--theme(--color-white)]"
+    >
+      {title}
+    </div>
+    <Card.Root class="z-10 w-full min-w-0 p-0">
+      <div class="max-h-96 overflow-auto p-3">
+        <pre
+          class="rounded-md bg-muted/50 p-3 font-mono text-xs leading-5 break-words whitespace-pre-wrap text-foreground">{JSON.stringify(
+            value,
+            null,
+            2,
+          )}</pre>
+      </div>
+    </Card.Root>
+  </div>
+{/snippet}

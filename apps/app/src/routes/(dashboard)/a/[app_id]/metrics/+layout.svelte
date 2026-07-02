@@ -7,14 +7,14 @@
   import { IconFileDescription, IconSearch } from "@tabler/icons-svelte";
   import LiveRefreshButtonGroup from "../_components/live-refresh-button-group.svelte";
   import PageContainer from "../_components/page-container/page-container.svelte";
-  import TimeRangePicker from "../logs/_components/time-range-picker.svelte";
+  import TimeRangePicker from "../_components/time-range-picker.svelte";
+  import type { LogTimeFilter } from "../logs/types";
   import type { LayoutData } from "./$types";
   import {
     createMetricsStateSearchParams,
     decodeMetricName,
     encodeMetricName,
   } from "./state";
-  import type { LogTimeFilter } from "../logs/types";
 
   let {
     children,
@@ -120,7 +120,7 @@
 <PageContainer
   title="Metrics"
   class="overflow-hidden bg-background"
-  innerClass="p-0!"
+  contentClass="p-0!"
   scrollContent={false}
 >
   {#snippet helper()}

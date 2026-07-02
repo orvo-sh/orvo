@@ -8,7 +8,6 @@ import { resolveTimeFilter } from "../../shared/time-filter";
 import {
   logFilterConditionSchema,
   logFilterOperatorSchema,
-  logsCursorSchema,
   logsQueryFiltersSchema,
 } from "../schema";
 
@@ -118,9 +117,7 @@ const createDynamicLogFilterAttribute = (
   availableOperators: logStringOperators,
 });
 
-const isPlainObject = (
-  value: unknown,
-): value is Record<string, unknown> =>
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" &&
   value !== null &&
   !Array.isArray(value) &&
@@ -365,7 +362,9 @@ const buildLogActiveFilterClause = (
 
 const buildLogFilterValueSuggestionsQuery = (
   bindings: QueryBindings,
-  definition: NonNullable<ReturnType<typeof resolveLogFilterAttributeDefinition>>,
+  definition: NonNullable<
+    ReturnType<typeof resolveLogFilterAttributeDefinition>
+  >,
   appId: string,
   query: string,
   limit: number,
@@ -423,9 +422,6 @@ const buildWhereClause = (
   bindings: QueryBindings,
   appId: string,
   input: z.infer<typeof logsQueryFiltersSchema>,
-  options?: {
-    cursor?: z.infer<typeof logsCursorSchema>;
-  },
 ) => {
   const { startAtUtc, endAtUtc } = resolveTimeFilter(input.time);
   const whereClauses = [
@@ -441,18 +437,6 @@ const buildWhereClause = (
     }
   }
 
-  if (options?.cursor) {
-    const cursorTimestamp = bindings.bindDateTime64(
-      "cursor_timestamp",
-      new Date(options.cursor.timestamp),
-    );
-    const cursorId = bindings.bindString("cursor_id", options.cursor.id);
-
-    whereClauses.push(
-      `(timestamp < ${cursorTimestamp} OR (timestamp = ${cursorTimestamp} AND id < ${cursorId}))`,
-    );
-  }
-
   return whereClauses.join(" AND ");
 };
 
@@ -466,5 +450,5 @@ export {
   resolveLogFilterAttributeDefinition,
   type RawAttributeKeyRow,
   type RawAttributeValueRow,
-  type RawFilterValueRow
+  type RawFilterValueRow,
 };

@@ -31,6 +31,15 @@ const traceDurationOperators = [
   "lte",
 ] satisfies z.infer<typeof traceFilterOperatorSchema>[];
 
+const traceNumberOperators = [
+  "eq",
+  "neq",
+  "gt",
+  "gte",
+  "lt",
+  "lte",
+] satisfies z.infer<typeof traceFilterOperatorSchema>[];
+
 const traceStatusOperators = ["eq", "neq", "in", "not_in"] satisfies z.infer<
   typeof traceFilterOperatorSchema
 >[];
@@ -78,6 +87,13 @@ const traceSearchBaseAttributes = [
     source: "trace",
     type: "duration",
     availableOperators: traceDurationOperators,
+  },
+  {
+    key: "trace.span_count",
+    label: "trace.span_count",
+    source: "trace",
+    type: "number",
+    availableOperators: traceNumberOperators,
   },
   {
     key: "service.name",
@@ -170,6 +186,7 @@ type RawFilterValueRow = {
 };
 
 type RawTraceRow = {
+  id: string;
   trace_id: string;
   name: string;
   start_time: string | Date;
@@ -234,12 +251,16 @@ const resolveTraceFilterAttributeDefinition = (attribute: string) => {
           ? ("enum" as const)
           : staticAttribute.key === "trace.duration"
             ? ("duration" as const)
+            : staticAttribute.key === "trace.span_count"
+              ? ("number" as const)
             : ("column" as const),
       column:
         staticAttribute.key === "trace.id"
           ? "trace_id"
           : staticAttribute.key === "trace.name"
             ? "name"
+            : staticAttribute.key === "trace.span_count"
+              ? "span_count"
             : staticAttribute.key === "service.name"
               ? "service_name"
               : staticAttribute.key === "deployment.environment"
@@ -257,7 +278,8 @@ const resolveTraceFilterAttributeDefinition = (attribute: string) => {
         staticAttribute.key === "trace.id" ||
         staticAttribute.key === "trace.name" ||
         staticAttribute.key === "trace.status" ||
-        staticAttribute.key === "trace.duration"
+        staticAttribute.key === "trace.duration" ||
+        staticAttribute.key === "trace.span_count"
           ? ("outer" as const)
           : ("inner" as const),
     };
@@ -337,6 +359,16 @@ const parseMultiValueLiteral = (value: string) =>
     .split("|")
     .map((item) => item.trim())
     .filter(Boolean);
+
+const parseNumberLiteral = (value: string) => {
+  const normalized = value.trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
 
 const buildStringOperatorClause = (
   expression: string,
@@ -477,6 +509,30 @@ const buildOuterConditionClause = (
         return `duration_ns < ${durationNs}`;
       case "lte":
         return `duration_ns <= ${durationNs}`;
+      default:
+        return null;
+    }
+  }
+
+  if (definition.kind === "number") {
+    const numericValue = parseNumberLiteral(condition.value);
+    if (numericValue === undefined || !definition.column) {
+      return null;
+    }
+
+    switch (condition.operator) {
+      case "eq":
+        return `${definition.column} = ${numericValue}`;
+      case "neq":
+        return `${definition.column} != ${numericValue}`;
+      case "gt":
+        return `${definition.column} > ${numericValue}`;
+      case "gte":
+        return `${definition.column} >= ${numericValue}`;
+      case "lt":
+        return `${definition.column} < ${numericValue}`;
+      case "lte":
+        return `${definition.column} <= ${numericValue}`;
       default:
         return null;
     }

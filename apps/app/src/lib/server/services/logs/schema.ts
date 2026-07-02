@@ -22,6 +22,8 @@ const logFilterOperatorSchema = z.enum([
   "in",
   "not_in",
 ]);
+const logSortBySchema = z.enum(["timestamp", "severity", "service"]);
+const logSortOrderSchema = z.enum(["desc", "asc"]);
 
 const logFilterConditionSchema = z.object({
   attribute: z.string().trim().min(1).max(255),
@@ -33,24 +35,35 @@ const logTimePresetSchema = z.enum(logTimePresetValues);
 
 const logsQueryFiltersSchema = z.object({
   time: timeFilterSchema,
-  activeFilters: z.array(logFilterConditionSchema).max(50).optional().default([]),
+  activeFilters: z
+    .array(logFilterConditionSchema)
+    .max(50)
+    .optional()
+    .default([]),
 });
 
-const logsCursorSchema = z.object({
-  timestamp: z.string().datetime({ offset: true }),
-  id: z.string().trim().min(1).max(255),
-});
+const logsCursorSchema = z.string().trim().min(1).max(255);
 
 const getLogsInputSchema = z.object({
   time: timeFilterSchema,
-  activeFilters: z.array(logFilterConditionSchema).max(50).optional().default([]),
+  activeFilters: z
+    .array(logFilterConditionSchema)
+    .max(50)
+    .optional()
+    .default([]),
+  sortBy: logSortBySchema.default("timestamp"),
+  sortOrder: logSortOrderSchema.default("desc"),
   limit: z.number().int().min(1).max(500).default(100),
   cursor: logsCursorSchema.optional(),
 });
 
 const getLogVolumeInputSchema = z.object({
   time: timeFilterSchema,
-  activeFilters: z.array(logFilterConditionSchema).max(50).optional().default([]),
+  activeFilters: z
+    .array(logFilterConditionSchema)
+    .max(50)
+    .optional()
+    .default([]),
   bucketCount: z.number().int().min(10).max(240).default(80),
 });
 
@@ -60,7 +73,11 @@ const getLogServiceSummaryInputSchema = z.object({
 
 const getLogServiceVolumeInputSchema = z.object({
   time: timeFilterSchema,
-  activeFilters: z.array(logFilterConditionSchema).max(50).optional().default([]),
+  activeFilters: z
+    .array(logFilterConditionSchema)
+    .max(50)
+    .optional()
+    .default([]),
   bucketCount: z.number().int().min(5).max(240).default(20),
 });
 
@@ -89,6 +106,8 @@ export {
   getTotalLogsInputSchema,
   logFilterConditionSchema,
   logFilterOperatorSchema,
+  logSortBySchema,
+  logSortOrderSchema,
   logsCursorSchema,
   logsQueryFiltersSchema,
   logTimePresetSchema,

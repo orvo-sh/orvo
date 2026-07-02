@@ -3,10 +3,15 @@ import { error } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 import {
   resolveLogStateFromSearchParams,
-  resolveLogVolumeBucketCount
+  resolveLogVolumeBucketCount,
 } from "./state";
 
-export const load: PageServerLoad = async ({ depends, locals, params, url }) => {
+export const load: PageServerLoad = async ({
+  depends,
+  locals,
+  params,
+  url,
+}) => {
   depends(`app:logs:${params.app_id}`);
 
   const state = resolveLogStateFromSearchParams(url.searchParams);
@@ -16,6 +21,8 @@ export const load: PageServerLoad = async ({ depends, locals, params, url }) => 
       {
         time: state.time,
         activeFilters: state.filters.activeFilters,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder,
         limit: 250,
       },
       { appId: params.app_id },
@@ -24,7 +31,10 @@ export const load: PageServerLoad = async ({ depends, locals, params, url }) => 
       {
         time: state.time,
         activeFilters: state.filters.activeFilters,
-        bucketCount: resolveLogVolumeBucketCount(timeRange.start, timeRange.end),
+        bucketCount: resolveLogVolumeBucketCount(
+          timeRange.start,
+          timeRange.end,
+        ),
       },
       { appId: params.app_id },
     ),
@@ -53,9 +63,9 @@ export const load: PageServerLoad = async ({ depends, locals, params, url }) => 
   const selectedLogResult =
     state.selectedLogId !== null && selectedLog === null
       ? await locals.container.logsService.getLogById(
-        { id: state.selectedLogId },
-        { appId: params.app_id },
-      )
+          { id: state.selectedLogId },
+          { appId: params.app_id },
+        )
       : null;
 
   if (selectedLogResult && !selectedLogResult.success) {
@@ -65,11 +75,12 @@ export const load: PageServerLoad = async ({ depends, locals, params, url }) => 
   return {
     live: state.live,
     selectedLogId: state.selectedLogId,
+    sortBy: state.sortBy,
+    sortOrder: state.sortOrder,
     time: state.time,
     filters: state.filters,
     logs,
-    selectedLog:
-      selectedLog ?? selectedLogResult?.data.log ?? null,
+    selectedLog: selectedLog ?? selectedLogResult?.data.log ?? null,
     nextCursor: logsResult.data.nextCursor,
     volumeBuckets: volumeResult.data.buckets,
     filterAttributes: filterAttributesResult.data.attributes,

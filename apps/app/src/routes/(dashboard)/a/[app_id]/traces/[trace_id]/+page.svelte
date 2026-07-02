@@ -1,212 +1,95 @@
 <script lang="ts">
+  import { goto } from "$app/navigation";
+  import { resolve } from "$app/paths";
   import { page } from "$app/state";
-  import { getTraceQuery } from "$lib/api/traces.remote";
-  import { Badge } from "@repo/components/ui/badge";
-  import { Button } from "@repo/components/ui/button";
-  import {
-    IconCheck as CheckIcon,
-    IconCopy as CopyIcon,
-    IconBinaryTree2 as TreeStructureIcon,
-    IconAlertCircle as WarningCircleIcon,
-  } from "@tabler/icons-svelte";
+  import { IconBinaryTree2 as TreeStructureIcon } from "@tabler/icons-svelte";
   import PageContainer from "../../_components/page-container/page-container.svelte";
-  import type { SpanRow } from "../types";
-  import { formatDuration } from "../utils";
+  import type { Span } from "../types";
   import SpanDetailPanel from "./_components/span-detail-panel.svelte";
   import SpanWaterfall from "./_components/span-waterfall.svelte";
 
-  const traceId = $derived(page.params.trace_id ?? "");
-  let spans = $state<SpanRow[]>([]);
-  let loading = $state(false);
-  let error = $state("");
-  let loadRequest = 0;
+  let { data }: { data: { spans: Span[] } } = $props();
 
-  const loadTrace = async (id: string) => {
-    if (!id) return;
+  let asideOpen = $state(Boolean(page.url.searchParams.get("span")));
+  const spans = $derived(data.spans);
+  const selectedSpanId = $derived(page.url.searchParams.get("span"));
 
-    const requestId = ++loadRequest;
-    loading = true;
-    error = "";
-    selectedSpanId = null;
+  const serializeSearch = (entries: [string, string][]) =>
+    entries.length === 0
+      ? ""
+      : `?${entries.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join("&")}`;
 
-    const result = await getTraceQuery({ traceId: id }).run();
+  const getSearchEntriesWithoutSpan = () =>
+    [...page.url.searchParams.entries()].filter(([key]) => key !== "span");
 
-    if (requestId !== loadRequest) {
-      return;
+  const getTraceHref = (spanId: string | null) => {
+    const entries = getSearchEntriesWithoutSpan();
+    if (spanId) {
+      entries.push(["span", spanId]);
     }
 
-    if (result.success === false) {
-      error = result.error;
-      loading = false;
-      return;
-    }
-
-    spans = result.data.spans;
-    loading = false;
+    return `${page.url.pathname}${serializeSearch(entries)}`;
   };
+
+  const backHref = $derived.by(() => {
+    const search = serializeSearch(getSearchEntriesWithoutSpan());
+    return `/a/${page.params.app_id}/traces${search}`;
+  });
 
   const traceMeta = $derived.by(() => {
     if (spans.length === 0) return null;
-    const start = Math.min(
-      ...spans.map((s) => new Date(s.start_time).getTime()),
-    );
-    const end = Math.max(...spans.map((s) => new Date(s.end_time).getTime()));
     const root = spans.find((s) => !s.parent_span_id) ?? spans[0];
-    const services = [
-      ...new Set(spans.map((s) => s.service_name).filter(Boolean)),
-    ];
-    const errorCount = spans.filter((s) => s.status_code === 2).length;
     return {
       name: root.name,
-      durationNs: (end - start) * 1_000_000,
-      startTime: new Date(start).toLocaleString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
-      }),
-      services,
-      spanCount: spans.length,
-      errorCount,
-      environment: root.deployment_environment,
     };
   });
 
-  let selectedSpanId = $state<string | null>(null);
   const selectedSpan = $derived(
     selectedSpanId
       ? (spans.find((s) => s.span_id === selectedSpanId) ?? null)
       : null,
   );
 
-  let copied = $state(false);
-  const copyTraceId = async () => {
-    await navigator.clipboard.writeText(traceId);
-    copied = true;
-    setTimeout(() => (copied = false), 2000);
+  const updateSelectedSpan = (spanId: string | null) => {
+    asideOpen = Boolean(spanId);
+    void goto(resolve(getTraceHref(spanId)), {
+      replaceState: true,
+      noScroll: true,
+      keepFocus: true,
+      invalidateAll: false,
+    });
   };
 
-  $effect(() => {
-    const id = traceId;
-    if (!id) return;
+  const closeSelectedSpan = () => {
+    updateSelectedSpan(null);
+  };
 
-    const timeout = setTimeout(() => {
-      void loadTrace(id);
-    }, 0);
-
-    return () => clearTimeout(timeout);
-  });
+  const syncStateFromLocation = () => {
+    asideOpen = Boolean(
+      page.url.searchParams.get("span") &&
+      spans.some((span) => span.span_id === page.url.searchParams.get("span")),
+    );
+  };
 </script>
+
+<svelte:window onpopstate={syncStateFromLocation} />
 
 <PageContainer
   title={traceMeta?.name ?? "Trace"}
+  back={{ href: backHref, title: "Traces" }}
+  asideTitle={selectedSpan?.name ?? "Span details"}
+  bind:asideOpen
   class="min-h-0 overflow-hidden"
-  innerClass="p-0!"
-  scrollContent={false}
+  contentClass="p-0!"
 >
-  {#snippet actions()}
-    <Button variant="outline" size="sm" onclick={copyTraceId}>
-      {#if copied}
-        <CheckIcon data-slot="button-icon" />
-        Copied
-      {:else}
-        <CopyIcon data-slot="button-icon" />
-        Copy ID
-      {/if}
-    </Button>
+  {#snippet aside()}
+    {#if selectedSpan}
+      <SpanDetailPanel span={selectedSpan} onClose={closeSelectedSpan} />
+    {/if}
   {/snippet}
 
-  <!-- Meta section -->
-  {#if traceMeta}
-    <div
-      class="flex shrink-0 items-center gap-4 border-b bg-background px-4 py-2"
-    >
-      <div class="flex min-w-0 flex-1 items-center gap-2">
-        <p class="truncate font-mono text-[11px] text-muted-foreground/60">
-          {traceId}
-        </p>
-        {#if traceMeta.errorCount > 0}
-          <Badge variant="destructive" class="text-[10px]">
-            <WarningCircleIcon class="size-3" />
-            {traceMeta.errorCount} error{traceMeta.errorCount !== 1 ? "s" : ""}
-          </Badge>
-        {/if}
-      </div>
-      <div class="flex shrink-0 items-center gap-4 text-xs">
-        <div class="text-center">
-          <div
-            class="text-[10px] tracking-wide text-muted-foreground uppercase"
-          >
-            Duration
-          </div>
-          <div class="font-mono font-medium text-foreground">
-            {formatDuration(traceMeta.durationNs)}
-          </div>
-        </div>
-        <div class="text-center">
-          <div
-            class="text-[10px] tracking-wide text-muted-foreground uppercase"
-          >
-            Spans
-          </div>
-          <div class="font-medium text-foreground">{traceMeta.spanCount}</div>
-        </div>
-        <div class="text-center">
-          <div
-            class="text-[10px] tracking-wide text-muted-foreground uppercase"
-          >
-            Services
-          </div>
-          <div class="max-w-40 truncate font-medium text-foreground">
-            {traceMeta.services.join(", ")}
-          </div>
-        </div>
-        <div class="text-center">
-          <div
-            class="text-[10px] tracking-wide text-muted-foreground uppercase"
-          >
-            Start
-          </div>
-          <div class="text-foreground tabular-nums">{traceMeta.startTime}</div>
-        </div>
-        {#if traceMeta.environment}
-          <div class="text-center">
-            <div
-              class="text-[10px] tracking-wide text-muted-foreground uppercase"
-            >
-              Env
-            </div>
-            <span
-              class="inline-flex items-center rounded-sm border border-border/60 px-1.5 py-px text-[10px] font-medium text-muted-foreground"
-            >
-              {traceMeta.environment}
-            </span>
-          </div>
-        {/if}
-      </div>
-    </div>
-  {/if}
-
-  <!-- Body: waterfall + optional span detail panel -->
   <div class="flex min-h-0 flex-1 overflow-hidden">
-    {#if loading}
-      <div
-        class="flex flex-1 flex-col items-center justify-center gap-3 text-muted-foreground"
-      >
-        <TreeStructureIcon class="size-8 animate-pulse opacity-30" />
-        <p class="text-sm">Loading trace spans…</p>
-      </div>
-    {:else if error}
-      <div
-        class="flex flex-1 flex-col items-center justify-center gap-3 text-destructive"
-      >
-        <WarningCircleIcon class="size-8 opacity-70" />
-        <p class="text-sm">{error}</p>
-      </div>
-    {:else if spans.length === 0}
+    {#if spans.length === 0}
       <div
         class="flex flex-1 flex-col items-center justify-center gap-3 text-muted-foreground"
       >
@@ -214,20 +97,13 @@
         <p class="text-sm">No spans found for this trace.</p>
       </div>
     {:else}
-      <!-- Waterfall -->
       <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <SpanWaterfall {spans} bind:selectedSpanId />
+        <SpanWaterfall
+          {spans}
+          {selectedSpanId}
+          onSelectSpan={updateSelectedSpan}
+        />
       </div>
-
-      <!-- Span detail panel (slides in when a span is selected) -->
-      {#if selectedSpan}
-        <div class="flex min-h-0 w-80 shrink-0 flex-col overflow-hidden">
-          <SpanDetailPanel
-            span={selectedSpan}
-            onClose={() => (selectedSpanId = null)}
-          />
-        </div>
-      {/if}
     {/if}
   </div>
 </PageContainer>

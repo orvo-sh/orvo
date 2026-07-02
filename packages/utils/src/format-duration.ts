@@ -34,4 +34,13 @@ const formatDuration = (totalSeconds: number) => {
   return `${parts.slice(0, -1).join(", ")} & ${parts.at(-1)}`;
 };
 
-export { formatDuration };
+const formatDurationNs = (durationNs: number) => {
+  if (!Number.isFinite(durationNs)) return "—";
+  const ms = durationNs / 1_000_000;
+  if (ms < 1) return `${Math.round(durationNs / 1_000)}µs`;
+  if (ms < 1000) return `${ms.toFixed(ms < 10 ? 2 : 1)}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
+};
+
+export { formatDuration, formatDurationNs };
+

@@ -6,6 +6,7 @@
   import PageContainer from "../_components/page-container/page-container.svelte";
   import TimeRangePicker from "../_components/time-range-picker.svelte";
   import LogDetailPanel from "./_components/log-detail-panel.svelte";
+  import LogSortControls from "./_components/log-sort-controls.svelte";
   import LogTable from "./_components/log-table.svelte";
   import LogVolumeChart from "./_components/log-volume-chart.svelte";
   import LogsPageState from "./page-state.svelte";
@@ -40,9 +41,9 @@
     {/if}
   {/snippet}
 
-  <div data-testid="logs-toolbar" class="flex items-center gap-3 p-3">
+  <div data-testid="logs-toolbar" class="flex min-w-0 items-center gap-1.5 p-3">
     <FilterBuilder
-      class="w-full"
+      class="min-w-0 flex-1"
       attributes={data.filterAttributes}
       filters={state.normalizedFilters}
       subjectLabel="logs"
@@ -50,7 +51,10 @@
       onAddFilter={state.addFilter}
       onRemoveFilter={state.removeFilter}
     />
-
+    <LogSortControls
+      bind:sortBy={state.sortBy}
+      bind:sortOrder={state.sortOrder}
+    />
     <TimeRangePicker
       bind:time={state.time}
       onApply={() => {
@@ -79,7 +83,7 @@
       loading={state.loading}
       loadingMore={state.loadingMore}
       time={state.time}
-      timezone={state.logTimezone}
+      sortBy={state.sortBy}
       selectedLogId={state.selectedLogId}
       onReachEnd={state.loadMoreLogs}
       onSelectLog={state.onSelectLog}

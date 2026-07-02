@@ -59,8 +59,7 @@
 
 <PageContainer
   title="Heartbeats"
-  scrollContent={false}
-  innerClass="min-h-0 p-0! gap-2 overflow-hidden"
+  contentClass="min-h-0 p-0! gap-2 overflow-hidden"
 >
   {#snippet actions()}
     <CreateEditHeartbeatMonitor

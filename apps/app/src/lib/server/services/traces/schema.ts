@@ -36,10 +36,16 @@ const traceFilterConditionSchema = z.object({
   value: z.string().trim().min(1).max(2000),
 });
 
-const tracesCursorSchema = z.object({
-  startTime: z.string().datetime({ offset: true }),
-  traceId: z.string().trim().min(1).max(255),
-});
+const tracesCursorSchema = z.string().trim().min(1).max(255);
+
+const traceSortBySchema = z.enum([
+  "start_time",
+  "duration",
+  "span_count",
+  "trace_name",
+]);
+
+const traceSortOrderSchema = z.enum(["desc", "asc"]);
 
 const tracesQueryFiltersSchema = z.object({
   time: timeFilterSchema,
@@ -59,11 +65,13 @@ const tracesQueryFiltersSchema = z.object({
 
 const getTracesInputSchema = tracesQueryFiltersSchema.extend({
   limit: z.number().int().min(1).max(500).default(100),
+  sortBy: traceSortBySchema.default("start_time"),
+  sortOrder: traceSortOrderSchema.default("desc"),
   cursor: tracesCursorSchema.optional(),
 });
 
 const getTraceInputSchema = z.object({
-  traceId: z.string().trim().min(1).max(255),
+  id: z.string().trim().min(1).max(255),
 });
 
 const getTraceSummaryInputSchema = tracesQueryFiltersSchema;
@@ -103,6 +111,8 @@ export {
   getTracesInputSchema,
   traceFilterConditionSchema,
   traceFilterOperatorSchema,
+  traceSortBySchema,
+  traceSortOrderSchema,
   tracesCursorSchema,
   tracesQueryFiltersSchema,
 };

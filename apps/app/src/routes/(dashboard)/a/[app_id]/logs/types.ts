@@ -11,6 +11,9 @@ type LogTimePreset = TimeFilterPreset;
 
 export type { LogTime, LogTimeFilter, LogTimePreset };
 
+export type LogSortBy = "timestamp" | "severity" | "service";
+export type LogSortOrder = "desc" | "asc";
+
 export type LogFilterOperator =
   | "eq"
   | "neq"
@@ -36,7 +39,7 @@ export type LogRecord = {
   severity_number: number;
   severity_text: string;
   body: string;
-  trace_id: string;
+  trace_id?: string | null;
   span_id: string;
   trace_flags: number;
   resource_attributes: Record<string, string>;
@@ -62,10 +65,7 @@ export type LogVolumeBucket = {
   total: number;
 };
 
-export type LogCursor = {
-  timestamp: string;
-  id: string;
-};
+export type LogCursor = string;
 
 export type LogFilters = {
   activeFilters: ActiveLogFilter[];

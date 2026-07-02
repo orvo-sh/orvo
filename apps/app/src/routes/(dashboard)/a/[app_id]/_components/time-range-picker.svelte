@@ -145,7 +145,7 @@
         {t.end}
       {/if}
     </span>
-    <CaretDownIcon class="ml-0.5 size-3 text-muted-foreground" />
+    <CaretDownIcon class="ml-0.5 size-3 text-muted-foreground not-sm:hidden" />
   </Popover.Trigger>
 
   <Popover.Content
