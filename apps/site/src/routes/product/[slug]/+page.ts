@@ -1,6 +1,11 @@
 import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
-import { productFeatureByPath } from '$lib/product-features';
+import { productFeatureByPath, productFeatures } from '$lib/product-features';
+
+const entries = () =>
+  productFeatures.map((feature) => ({
+    slug: feature.href.replace('/product/', '')
+  }));
 
 const load: PageLoad = ({ params }) => {
   const feature = productFeatureByPath[`/product/${params.slug}`];
@@ -12,4 +17,4 @@ const load: PageLoad = ({ params }) => {
   return { feature };
 };
 
-export { load };
+export { entries, load };

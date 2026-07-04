@@ -11,6 +11,7 @@
 </script>
 
 <section
+  id="pricing"
   class="from-muted border-foreground/20 flex w-full flex-col items-center justify-center overflow-hidden border-b bg-linear-to-t to-transparent"
 >
   <div class="flex w-full max-w-6xl flex-col gap-10 px-3 pt-16 md:gap-16 md:px-6 md:pt-20">
