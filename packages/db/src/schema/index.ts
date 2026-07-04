@@ -14,6 +14,7 @@ export * from './incident.schema.js';
 export * from './ingestion-key.schema.js';
 export * from './invitation.schema.js';
 export * from './member.schema.js';
+export * from './mcp-token.schema.js';
 export * from './notification-delivery.schema.js';
 export * from './notification-destination.schema.js';
 export * from './organization-usage.schema.js';

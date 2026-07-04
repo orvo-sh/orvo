@@ -1,10 +1,12 @@
 <script lang="ts">
+  import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import { Button } from "@repo/components/ui/button";
   import * as Sidebar from "@repo/components/ui/sidebar";
   import {
     IconBell as BellIcon,
     IconCreditCard as CreditCardIcon,
+    IconPlugConnected,
     IconPlus as PlusIcon,
     IconSettings as GearSixIcon,
     IconUserCircle,
@@ -63,6 +65,13 @@
             pathname.startsWith(`${settingsBasePath}/organization/members`),
         },
         {
+          href: `${settingsBasePath}/organization/mcp`,
+          label: "MCP",
+          icon: IconPlugConnected,
+          isActive: (pathname: string) =>
+            pathname.startsWith(`${settingsBasePath}/organization/mcp`),
+        },
+        {
           href: `${settingsBasePath}/billing`,
           label: "Billing & usage",
           icon: CreditCardIcon,
@@ -104,19 +113,19 @@
 
   <div class="flex min-h-0 flex-1 flex-col lg:flex-row">
     <aside class="w-64 shrink-0 border-r not-lg:hidden">
-      {#each sections as section}
+      {#each sections as section (section.label)}
         <Sidebar.Group>
           <Sidebar.GroupLabel>{section.label}</Sidebar.GroupLabel>
           <Sidebar.GroupContent>
             <Sidebar.Menu>
-              {#each section.items as item}
+              {#each section.items as item (item.href)}
                 <Sidebar.MenuItem>
                   {@const Icon = item.icon}
                   <Sidebar.MenuButton
                     isActive={item.isActive(page.url.pathname)}
                   >
                     {#snippet child({ props })}
-                      <a href={item.href} {...props}>
+                      <a href={resolve(item.href)} {...props}>
                         <Icon />
                         <span>{item.label}</span>
                       </a>

@@ -10,6 +10,8 @@ import { HeartbeatService } from "$lib/server/services/heartbeat";
 import { IncidentService } from "$lib/server/services/incident";
 import { IngestionKeyService } from "$lib/server/services/ingestion-key";
 import { LogsService } from "$lib/server/services/logs";
+import { McpService } from "$lib/server/services/mcp";
+import { McpTokenService } from "$lib/server/services/mcp-token";
 import { MetricsService } from "$lib/server/services/metrics";
 import { NotificationDeliveryService } from "$lib/server/services/notification-delivery";
 import { NotificationDestinationService } from "$lib/server/services/notification-destination";
@@ -30,12 +32,12 @@ const clickhouse = getClickHouseClient({ url: env.CLICKHOUSE_URL });
 const storage =
   env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY && env.S3_ENDPOINT
     ? new Storage({
-      accessKeyId: env.S3_ACCESS_KEY_ID,
-      secretAccessKey: env.S3_SECRET_ACCESS_KEY,
-      endpoint: env.S3_ENDPOINT,
-      region: env.S3_REGION,
-      bucket: env.S3_BUCKET_NAME,
-    })
+        accessKeyId: env.S3_ACCESS_KEY_ID,
+        secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+        endpoint: env.S3_ENDPOINT,
+        region: env.S3_REGION,
+        bucket: env.S3_BUCKET_NAME,
+      })
     : null;
 
 const stripe = env.STRIPE_SECRET_KEY
@@ -93,12 +95,17 @@ const createServerContainer = (logger: Logger) => {
     { otlpBaseUrl: env.INGEST_BASE_URL },
     logger,
   );
+  const mcpTokenService = new McpTokenService(
+    db,
+    logger,
+    env.ENCRYPTION_SECRET,
+  );
   const billingService = stripe
     ? new BillingService(db, logger, email, stripe, {
-      starterPriceId: env.STRIPE_STARTER_PRICE_ID,
-      proPriceId: env.STRIPE_PRO_PRICE_ID,
-      trialDays: 14,
-    })
+        starterPriceId: env.STRIPE_STARTER_PRICE_ID,
+        proPriceId: env.STRIPE_PRO_PRICE_ID,
+        trialDays: 14,
+      })
     : null;
   const uploadService = new UploadService(logger, storage, {
     cdnBaseUrl: env.CDN_BASE_URL,
@@ -111,22 +118,32 @@ const createServerContainer = (logger: Logger) => {
     github:
       env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
         ? {
-          clientId: env.GITHUB_CLIENT_ID,
-          clientSecret: env.GITHUB_CLIENT_SECRET,
-        }
+            clientId: env.GITHUB_CLIENT_ID,
+            clientSecret: env.GITHUB_CLIENT_SECRET,
+          }
         : undefined,
     stripe: stripe
       ? {
-        client: stripe,
-        webhookSecret: env.STRIPE_WEBHOOK_SECRET,
-        starterPriceId: env.STRIPE_STARTER_PRICE_ID,
-        proPriceId: env.STRIPE_PRO_PRICE_ID,
-      }
+          client: stripe,
+          webhookSecret: env.STRIPE_WEBHOOK_SECRET,
+          starterPriceId: env.STRIPE_STARTER_PRICE_ID,
+          proPriceId: env.STRIPE_PRO_PRICE_ID,
+        }
       : undefined,
   });
+  const mcpService = new McpService(
+    logger,
+    appService,
+    logsService,
+    tracesService,
+    metricsService,
+    incidentService,
+    heartbeatService,
+  );
 
   return {
     authService,
+    mcpTokenService,
     uploadService,
     billingService,
     appService,
@@ -140,6 +157,7 @@ const createServerContainer = (logger: Logger) => {
     notificationDestinationService,
     onboardingService,
     tracesService,
+    mcpService,
   };
 };
 
