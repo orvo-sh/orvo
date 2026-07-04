@@ -10,6 +10,7 @@ export * as OrvoLogo from './lib/components/icons/orvo-logo/index.js';
 export * as Postgresql from './lib/components/icons/postgresql/index.js';
 export * as Python from './lib/components/icons/python/index.js';
 export * as Rust from './lib/components/icons/rust/index.js';
+export * as Slack from './lib/components/icons/slack/index.js';
 export * as Stripe from './lib/components/icons/stripe/index.js';
 export * as Zig from './lib/components/icons/zig/index.js';
 export * as Accordion from './lib/components/ui/accordion/index.js';

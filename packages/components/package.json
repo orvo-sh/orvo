@@ -66,6 +66,11 @@
       "svelte": "./src/lib/components/icons/python/index.ts",
       "default": "./src/lib/components/icons/python/index.ts"
     },
+    "./icons/slack": {
+      "types": "./src/lib/components/icons/slack/index.ts",
+      "svelte": "./src/lib/components/icons/slack/index.ts",
+      "default": "./src/lib/components/icons/slack/index.ts"
+    },
     "./icons/zig": {
       "types": "./src/lib/components/icons/zig/index.ts",
       "svelte": "./src/lib/components/icons/zig/index.ts",
