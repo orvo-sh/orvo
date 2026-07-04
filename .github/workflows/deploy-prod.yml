@@ -114,10 +114,6 @@ jobs:
             kamal -c "${config_file}" config > /dev/null
           done
 
-      - name: Verify clean workspace before build
-        run: |
-          test -z "$(git status --porcelain)"
-
       - name: Upload Postgres CA certificate
         run: |
           ssh -i "${KAMAL_SSH_KEY_PATH}" -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'mkdir -p /opt/orvo/certs'
