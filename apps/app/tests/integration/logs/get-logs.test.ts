@@ -106,10 +106,7 @@ describe("LogsService.getLogs", () => {
       "log_3",
       "log_2",
     ]);
-    expect(firstPage.data.nextCursor).toEqual({
-      id: "log_2",
-      timestamp: "2026-06-28T10:02:00.000Z",
-    });
+    expect(firstPage.data.nextCursor).toBe("log_2");
 
     const secondPage = await harness.logsService.getLogs(
       {

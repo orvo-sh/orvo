@@ -74,7 +74,12 @@ const getClickHouseTestClient = (container: StartedClickHouse): ClickHouse =>
 
 const truncateClickHouseTables = async (
   client: ClickHouse,
-  tables: string[] = ["logs_raw", "traces_raw", "metrics_raw"],
+  tables: string[] = [
+    "logs_raw",
+    "traces_raw",
+    "metrics_raw",
+    "heartbeat_checkins",
+  ],
 ) => {
   for (const table of tables) {
     await client.command({ query: `TRUNCATE TABLE IF EXISTS ${table}` });

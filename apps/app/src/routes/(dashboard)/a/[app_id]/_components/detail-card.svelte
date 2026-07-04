@@ -1,4 +1,4 @@
-<script context="module">
+<script context="module" lang="ts">
   type DetailFieldValue =
     | { type: "text"; value: string }
     | { type: "number"; value: number }

@@ -6,7 +6,6 @@ export * from './alert-rule-destination.schema.js';
 export * from './alert-rule.schema.js';
 export * from './alert-webhook-destination.schema.js';
 export * from './app.schema.js';
-export * from './assistant-chat.schema.js';
 export * from './heartbeat-monitor-destination.schema.js';
 export * from './heartbeat-monitor.schema.js';
 export * from './incident-event.schema.js';

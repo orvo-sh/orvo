@@ -1,5 +1,5 @@
 {
-  "id": "66a66cd2-8d09-4fcc-84d4-5f57d14a84df",
+  "id": "5ae93701-ca2a-4faa-8e13-00a3c482b245",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -110,8 +110,12 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -294,8 +298,12 @@
           "name": "alert_delivery_attempt_app_id_app_id_fk",
           "tableFrom": "alert_delivery_attempt",
           "tableTo": "app",
-          "columnsFrom": ["app_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "app_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -303,8 +311,12 @@
           "name": "alert_delivery_attempt_destination_id_alert_webhook_destination_id_fk",
           "tableFrom": "alert_delivery_attempt",
           "tableTo": "alert_webhook_destination",
-          "columnsFrom": ["destination_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "destination_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -312,8 +324,12 @@
           "name": "alert_delivery_attempt_rule_id_alert_rule_id_fk",
           "tableFrom": "alert_delivery_attempt",
           "tableTo": "alert_rule",
-          "columnsFrom": ["rule_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "rule_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -321,8 +337,12 @@
           "name": "alert_delivery_attempt_incident_id_alert_incident_id_fk",
           "tableFrom": "alert_delivery_attempt",
           "tableTo": "alert_incident",
-          "columnsFrom": ["incident_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "incident_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -330,8 +350,12 @@
           "name": "alert_delivery_attempt_event_id_alert_event_id_fk",
           "tableFrom": "alert_delivery_attempt",
           "tableTo": "alert_event",
-          "columnsFrom": ["event_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -455,8 +479,12 @@
           "name": "alert_event_app_id_app_id_fk",
           "tableFrom": "alert_event",
           "tableTo": "app",
-          "columnsFrom": ["app_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "app_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -464,8 +492,12 @@
           "name": "alert_event_rule_id_alert_rule_id_fk",
           "tableFrom": "alert_event",
           "tableTo": "alert_rule",
-          "columnsFrom": ["rule_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "rule_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -473,8 +505,12 @@
           "name": "alert_event_incident_id_alert_incident_id_fk",
           "tableFrom": "alert_event",
           "tableTo": "alert_incident",
-          "columnsFrom": ["incident_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "incident_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -506,6 +542,27 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "entity_type": {
+          "name": "entity_type",
+          "type": "alert_incident_entity_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'app'"
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "entity_name": {
+          "name": "entity_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "status": {
           "name": "status",
@@ -600,11 +657,44 @@
           "method": "btree",
           "with": {}
         },
-        "alert_incident_one_open_per_rule_uidx": {
-          "name": "alert_incident_one_open_per_rule_uidx",
+        "alert_incident_entity_type_entity_id_idx": {
+          "name": "alert_incident_entity_type_entity_id_idx",
+          "columns": [
+            {
+              "expression": "entity_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "alert_incident_one_open_per_rule_entity_uidx": {
+          "name": "alert_incident_one_open_per_rule_entity_uidx",
           "columns": [
             {
               "expression": "rule_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -622,8 +712,12 @@
           "name": "alert_incident_app_id_app_id_fk",
           "tableFrom": "alert_incident",
           "tableTo": "app",
-          "columnsFrom": ["app_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "app_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -631,8 +725,12 @@
           "name": "alert_incident_rule_id_alert_rule_id_fk",
           "tableFrom": "alert_incident",
           "tableTo": "alert_rule",
-          "columnsFrom": ["rule_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "rule_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -689,17 +787,25 @@
           "name": "alert_rule_destination_rule_id_alert_rule_id_fk",
           "tableFrom": "alert_rule_destination",
           "tableTo": "alert_rule",
-          "columnsFrom": ["rule_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "rule_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "alert_rule_destination_destination_id_alert_webhook_destination_id_fk": {
-          "name": "alert_rule_destination_destination_id_alert_webhook_destination_id_fk",
+        "alert_rule_destination_destination_id_notification_destination_id_fk": {
+          "name": "alert_rule_destination_destination_id_notification_destination_id_fk",
           "tableFrom": "alert_rule_destination",
-          "tableTo": "alert_webhook_destination",
-          "columnsFrom": ["destination_id"],
-          "columnsTo": ["id"],
+          "tableTo": "notification_destination",
+          "columnsFrom": [
+            "destination_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -707,7 +813,10 @@
       "compositePrimaryKeys": {
         "alert_rule_destination_pk": {
           "name": "alert_rule_destination_pk",
-          "columns": ["rule_id", "destination_id"]
+          "columns": [
+            "rule_id",
+            "destination_id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -826,6 +935,20 @@
         },
         "scope_scopes_exclude": {
           "name": "scope_scopes_exclude",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "scope_container_names_include": {
+          "name": "scope_container_names_include",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "scope_container_names_exclude": {
+          "name": "scope_container_names_exclude",
           "type": "text[]",
           "primaryKey": false,
           "notNull": true,
@@ -960,8 +1083,12 @@
           "name": "alert_rule_app_id_app_id_fk",
           "tableFrom": "alert_rule",
           "tableTo": "app",
-          "columnsFrom": ["app_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "app_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -969,8 +1096,12 @@
           "name": "alert_rule_created_by_user_id_fk",
           "tableFrom": "alert_rule",
           "tableTo": "user",
-          "columnsFrom": ["created_by"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -978,8 +1109,12 @@
           "name": "alert_rule_updated_by_user_id_fk",
           "tableFrom": "alert_rule",
           "tableTo": "user",
-          "columnsFrom": ["updated_by"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1101,8 +1236,12 @@
           "name": "alert_webhook_destination_app_id_app_id_fk",
           "tableFrom": "alert_webhook_destination",
           "tableTo": "app",
-          "columnsFrom": ["app_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "app_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1110,8 +1249,12 @@
           "name": "alert_webhook_destination_created_by_user_id_fk",
           "tableFrom": "alert_webhook_destination",
           "tableTo": "user",
-          "columnsFrom": ["created_by"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1119,8 +1262,12 @@
           "name": "alert_webhook_destination_updated_by_user_id_fk",
           "tableFrom": "alert_webhook_destination",
           "tableTo": "user",
-          "columnsFrom": ["updated_by"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1153,13 +1300,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "default_timezone": {
-          "name": "default_timezone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'UTC'"
-        },
         "created_by": {
           "name": "created_by",
           "type": "text",
@@ -1190,8 +1330,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "deployments_first_received_at": {
-          "name": "deployments_first_received_at",
+        "heartbeats_first_received_at": {
+          "name": "heartbeats_first_received_at",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
@@ -1269,8 +1409,12 @@
           "name": "app_organization_id_organization_id_fk",
           "tableFrom": "app",
           "tableTo": "organization",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1278,8 +1422,12 @@
           "name": "app_created_by_user_id_fk",
           "tableFrom": "app",
           "tableTo": "user",
-          "columnsFrom": ["created_by"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1287,8 +1435,12 @@
           "name": "app_updated_by_user_id_fk",
           "tableFrom": "app",
           "tableTo": "user",
-          "columnsFrom": ["updated_by"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1299,46 +1451,21 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.assistant_chat": {
-      "name": "assistant_chat",
+    "public.heartbeat_monitor_destination": {
+      "name": "heartbeat_monitor_destination",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "organization_id": {
-          "name": "organization_id",
+        "heartbeat_monitor_id": {
+          "name": "heartbeat_monitor_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "app_id": {
-          "name": "app_id",
+        "destination_id": {
+          "name": "destination_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'New chat'"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -1346,66 +1473,14 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
         }
       },
       "indexes": {
-        "assistant_chat_organization_id_idx": {
-          "name": "assistant_chat_organization_id_idx",
+        "heartbeat_monitor_destination_destination_id_idx": {
+          "name": "heartbeat_monitor_destination_destination_id_idx",
           "columns": [
             {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "assistant_chat_app_id_idx": {
-          "name": "assistant_chat_app_id_idx",
-          "columns": [
-            {
-              "expression": "app_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "assistant_chat_created_by_idx": {
-          "name": "assistant_chat_created_by_idx",
-          "columns": [
-            {
-              "expression": "created_by",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "assistant_chat_updated_at_idx": {
-          "name": "assistant_chat_updated_at_idx",
-          "columns": [
-            {
-              "expression": "updated_at",
+              "expression": "destination_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1418,156 +1493,49 @@
         }
       },
       "foreignKeys": {
-        "assistant_chat_organization_id_organization_id_fk": {
-          "name": "assistant_chat_organization_id_organization_id_fk",
-          "tableFrom": "assistant_chat",
-          "tableTo": "organization",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+        "heartbeat_monitor_destination_heartbeat_monitor_id_heartbeat_monitor_id_fk": {
+          "name": "heartbeat_monitor_destination_heartbeat_monitor_id_heartbeat_monitor_id_fk",
+          "tableFrom": "heartbeat_monitor_destination",
+          "tableTo": "heartbeat_monitor",
+          "columnsFrom": [
+            "heartbeat_monitor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "assistant_chat_app_id_app_id_fk": {
-          "name": "assistant_chat_app_id_app_id_fk",
-          "tableFrom": "assistant_chat",
-          "tableTo": "app",
-          "columnsFrom": ["app_id"],
-          "columnsTo": ["id"],
+        "heartbeat_monitor_destination_destination_id_notification_destination_id_fk": {
+          "name": "heartbeat_monitor_destination_destination_id_notification_destination_id_fk",
+          "tableFrom": "heartbeat_monitor_destination",
+          "tableTo": "notification_destination",
+          "columnsFrom": [
+            "destination_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "assistant_chat_created_by_user_id_fk": {
-          "name": "assistant_chat_created_by_user_id_fk",
-          "tableFrom": "assistant_chat",
-          "tableTo": "user",
-          "columnsFrom": ["created_by"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "assistant_chat_updated_by_user_id_fk": {
-          "name": "assistant_chat_updated_by_user_id_fk",
-          "tableFrom": "assistant_chat",
-          "tableTo": "user",
-          "columnsFrom": ["updated_by"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "heartbeat_monitor_destination_pk": {
+          "name": "heartbeat_monitor_destination_pk",
+          "columns": [
+            "heartbeat_monitor_id",
+            "destination_id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.assistant_message": {
-      "name": "assistant_message",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "chat_id": {
-          "name": "chat_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content": {
-          "name": "content",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "parts": {
-          "name": "parts",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "metadata": {
-          "name": "metadata",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "assistant_message_chat_id_idx": {
-          "name": "assistant_message_chat_id_idx",
-          "columns": [
-            {
-              "expression": "chat_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "assistant_message_created_at_idx": {
-          "name": "assistant_message_created_at_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "assistant_message_chat_id_assistant_chat_id_fk": {
-          "name": "assistant_message_chat_id_assistant_chat_id_fk",
-          "tableFrom": "assistant_message",
-          "tableTo": "assistant_chat",
-          "columnsFrom": ["chat_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.dashboard_log_view": {
-      "name": "dashboard_log_view",
+    "public.heartbeat_monitor": {
+      "name": "heartbeat_monitor",
       "schema": "",
       "columns": {
         "id": {
@@ -1578,12 +1546,6 @@
         },
         "app_id": {
           "name": "app_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "slug": {
-          "name": "slug",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -1594,11 +1556,43 @@
           "primaryKey": false,
           "notNull": true
         },
-        "definition": {
-          "name": "definition",
-          "type": "jsonb",
+        "token": {
+          "name": "token",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "expected_every_seconds": {
+          "name": "expected_every_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grace_seconds": {
+          "name": "grace_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_check_in_at": {
+          "name": "last_check_in_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "heartbeat_monitor_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'never_received'"
+        },
+        "paused_at": {
+          "name": "paused_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_by": {
           "name": "created_by",
@@ -1628,8 +1622,8 @@
         }
       },
       "indexes": {
-        "dashboard_log_view_app_id_idx": {
-          "name": "dashboard_log_view_app_id_idx",
+        "heartbeat_monitor_app_id_idx": {
+          "name": "heartbeat_monitor_app_id_idx",
           "columns": [
             {
               "expression": "app_id",
@@ -1643,261 +1637,8 @@
           "method": "btree",
           "with": {}
         },
-        "dashboard_log_view_app_slug_uidx": {
-          "name": "dashboard_log_view_app_slug_uidx",
-          "columns": [
-            {
-              "expression": "app_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "slug",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "dashboard_log_view_app_id_app_id_fk": {
-          "name": "dashboard_log_view_app_id_app_id_fk",
-          "tableFrom": "dashboard_log_view",
-          "tableTo": "app",
-          "columnsFrom": ["app_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "dashboard_log_view_created_by_user_id_fk": {
-          "name": "dashboard_log_view_created_by_user_id_fk",
-          "tableFrom": "dashboard_log_view",
-          "tableTo": "user",
-          "columnsFrom": ["created_by"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "dashboard_log_view_updated_by_user_id_fk": {
-          "name": "dashboard_log_view_updated_by_user_id_fk",
-          "tableFrom": "dashboard_log_view",
-          "tableTo": "user",
-          "columnsFrom": ["updated_by"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.deployment": {
-      "name": "deployment",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "app_id": {
-          "name": "app_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "service_name": {
-          "name": "service_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "environment_name": {
-          "name": "environment_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "deployment_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "finished_at": {
-          "name": "finished_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "git_sha": {
-          "name": "git_sha",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "git_branch": {
-          "name": "git_branch",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "git_repository": {
-          "name": "git_repository",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "git_actor": {
-          "name": "git_actor",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "commit_message": {
-          "name": "commit_message",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "external_url": {
-          "name": "external_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "correlation_strategy": {
-          "name": "correlation_strategy",
-          "type": "deployment_correlation_strategy",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'time_window'"
-        },
-        "deployment_id_attribute": {
-          "name": "deployment_id_attribute",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "service_version": {
-          "name": "service_version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "metadata": {
-          "name": "metadata",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "deployment_app_id_idx": {
-          "name": "deployment_app_id_idx",
-          "columns": [
-            {
-              "expression": "app_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "deployment_app_started_at_idx": {
-          "name": "deployment_app_started_at_idx",
-          "columns": [
-            {
-              "expression": "app_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "started_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "deployment_app_service_env_idx": {
-          "name": "deployment_app_service_env_idx",
-          "columns": [
-            {
-              "expression": "app_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "service_name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "environment_name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "deployment_app_status_idx": {
-          "name": "deployment_app_status_idx",
+        "heartbeat_monitor_app_status_idx": {
+          "name": "heartbeat_monitor_app_status_idx",
           "columns": [
             {
               "expression": "app_id",
@@ -1919,13 +1660,527 @@
         }
       },
       "foreignKeys": {
-        "deployment_app_id_app_id_fk": {
-          "name": "deployment_app_id_app_id_fk",
-          "tableFrom": "deployment",
+        "heartbeat_monitor_app_id_app_id_fk": {
+          "name": "heartbeat_monitor_app_id_app_id_fk",
+          "tableFrom": "heartbeat_monitor",
           "tableTo": "app",
-          "columnsFrom": ["app_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "app_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "heartbeat_monitor_created_by_user_id_fk": {
+          "name": "heartbeat_monitor_created_by_user_id_fk",
+          "tableFrom": "heartbeat_monitor",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "heartbeat_monitor_updated_by_user_id_fk": {
+          "name": "heartbeat_monitor_updated_by_user_id_fk",
+          "tableFrom": "heartbeat_monitor",
+          "tableTo": "user",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "heartbeat_monitor_token_unique": {
+          "name": "heartbeat_monitor_token_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.incident_event": {
+      "name": "incident_event",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "app_id": {
+          "name": "app_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "incident_id": {
+          "name": "incident_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "incident_event_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actor_user_id": {
+          "name": "actor_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "incident_event_app_id_idx": {
+          "name": "incident_event_app_id_idx",
+          "columns": [
+            {
+              "expression": "app_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "incident_event_incident_id_occurred_at_idx": {
+          "name": "incident_event_incident_id_occurred_at_idx",
+          "columns": [
+            {
+              "expression": "incident_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "incident_event_app_id_app_id_fk": {
+          "name": "incident_event_app_id_app_id_fk",
+          "tableFrom": "incident_event",
+          "tableTo": "app",
+          "columnsFrom": [
+            "app_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "incident_event_incident_id_incident_id_fk": {
+          "name": "incident_event_incident_id_incident_id_fk",
+          "tableFrom": "incident_event",
+          "tableTo": "incident",
+          "columnsFrom": [
+            "incident_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "incident_event_actor_user_id_user_id_fk": {
+          "name": "incident_event_actor_user_id_user_id_fk",
+          "tableFrom": "incident_event",
+          "tableTo": "user",
+          "columnsFrom": [
+            "actor_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.incident": {
+      "name": "incident",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "app_id": {
+          "name": "app_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_type": {
+          "name": "source_type",
+          "type": "incident_source_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_key": {
+          "name": "source_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "incident_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "severity": {
+          "name": "severity",
+          "type": "incident_severity",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "incident_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "service_name": {
+          "name": "service_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "entity_type": {
+          "name": "entity_type",
+          "type": "incident_entity_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'app'"
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "entity_name": {
+          "name": "entity_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_snapshot": {
+          "name": "source_snapshot",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "opened_at": {
+          "name": "opened_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dismissed_at": {
+          "name": "dismissed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dismissed_reason": {
+          "name": "dismissed_reason",
+          "type": "incident_dismiss_reason",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dismissed_reason_text": {
+          "name": "dismissed_reason_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dismissed_by": {
+          "name": "dismissed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_observed_at": {
+          "name": "last_observed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "last_observed_value": {
+          "name": "last_observed_value",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_notified_at": {
+          "name": "last_notified_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "renotify_count": {
+          "name": "renotify_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "suppressed_until_recovered": {
+          "name": "suppressed_until_recovered",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "incident_app_id_idx": {
+          "name": "incident_app_id_idx",
+          "columns": [
+            {
+              "expression": "app_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "incident_app_id_status_opened_at_idx": {
+          "name": "incident_app_id_status_opened_at_idx",
+          "columns": [
+            {
+              "expression": "app_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "opened_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "incident_source_type_source_id_idx": {
+          "name": "incident_source_type_source_id_idx",
+          "columns": [
+            {
+              "expression": "source_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "incident_entity_type_entity_id_idx": {
+          "name": "incident_entity_type_entity_id_idx",
+          "columns": [
+            {
+              "expression": "entity_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "incident_source_key_idx": {
+          "name": "incident_source_key_idx",
+          "columns": [
+            {
+              "expression": "source_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "incident_one_open_per_source_key_uidx": {
+          "name": "incident_one_open_per_source_key_uidx",
+          "columns": [
+            {
+              "expression": "source_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"incident\".\"status\" = 'open'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "incident_app_id_app_id_fk": {
+          "name": "incident_app_id_app_id_fk",
+          "tableFrom": "incident",
+          "tableTo": "app",
+          "columnsFrom": [
+            "app_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "incident_dismissed_by_user_id_fk": {
+          "name": "incident_dismissed_by_user_id_fk",
+          "tableFrom": "incident",
+          "tableTo": "user",
+          "columnsFrom": [
+            "dismissed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -1951,10 +2206,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "kind": {
-          "name": "kind",
-          "type": "ingestion_key_kind",
-          "typeSchema": "public",
+        "name": {
+          "name": "name",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -2035,28 +2289,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "ingestion_key_one_active_kind_per_app_uidx": {
-          "name": "ingestion_key_one_active_kind_per_app_uidx",
-          "columns": [
-            {
-              "expression": "app_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"ingestion_key\".\"revoked_at\" IS NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -2064,8 +2296,12 @@
           "name": "ingestion_key_app_id_app_id_fk",
           "tableFrom": "ingestion_key",
           "tableTo": "app",
-          "columnsFrom": ["app_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "app_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2073,8 +2309,12 @@
           "name": "ingestion_key_created_by_user_id_fk",
           "tableFrom": "ingestion_key",
           "tableTo": "user",
-          "columnsFrom": ["created_by"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2082,16 +2322,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "ingestion_key_public_prefix_check": {
-          "name": "ingestion_key_public_prefix_check",
-          "value": "(\"ingestion_key\".\"kind\" <> 'public'::ingestion_key_kind OR \"ingestion_key\".\"key\" LIKE 'pk_%')"
-        },
-        "ingestion_key_private_prefix_check": {
-          "name": "ingestion_key_private_prefix_check",
-          "value": "(\"ingestion_key\".\"kind\" <> 'private'::ingestion_key_kind OR \"ingestion_key\".\"key\" LIKE 'sk_%')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.invitation": {
@@ -2186,8 +2417,12 @@
           "name": "invitation_organization_id_organization_id_fk",
           "tableFrom": "invitation",
           "tableTo": "organization",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2195,8 +2430,12 @@
           "name": "invitation_inviter_id_user_id_fk",
           "tableFrom": "invitation",
           "tableTo": "user",
-          "columnsFrom": ["inviter_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "inviter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2280,8 +2519,12 @@
           "name": "member_organization_id_organization_id_fk",
           "tableFrom": "member",
           "tableTo": "organization",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2289,9 +2532,581 @@
           "name": "member_user_id_user_id_fk",
           "tableFrom": "member",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.mcp_token": {
+      "name": "mcp_token",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "token_prefix": {
+          "name": "token_prefix",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scopes": {
+          "name": "scopes",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "allowed_app_ids": {
+          "name": "allowed_app_ids",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_used_ip": {
+          "name": "last_used_ip",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_used_user_agent": {
+          "name": "last_used_user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "mcp_token_organization_id_idx": {
+          "name": "mcp_token_organization_id_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "mcp_token_created_by_idx": {
+          "name": "mcp_token_created_by_idx",
+          "columns": [
+            {
+              "expression": "created_by",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "mcp_token_token_prefix_uidx": {
+          "name": "mcp_token_token_prefix_uidx",
+          "columns": [
+            {
+              "expression": "token_prefix",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "mcp_token_organization_id_organization_id_fk": {
+          "name": "mcp_token_organization_id_organization_id_fk",
+          "tableFrom": "mcp_token",
+          "tableTo": "organization",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "mcp_token_created_by_user_id_fk": {
+          "name": "mcp_token_created_by_user_id_fk",
+          "tableFrom": "mcp_token",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.notification_delivery": {
+      "name": "notification_delivery",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "app_id": {
+          "name": "app_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "destination_id": {
+          "name": "destination_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "incident_id": {
+          "name": "incident_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_kind": {
+          "name": "source_kind",
+          "type": "notification_source_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "notification_event_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "notification_delivery_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "attempt_number": {
+          "name": "attempt_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "next_attempt_at": {
+          "name": "next_attempt_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "last_attempt_at": {
+          "name": "last_attempt_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "delivered_at": {
+          "name": "delivered_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "http_status": {
+          "name": "http_status",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error_message": {
+          "name": "error_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "notification_delivery_app_id_idx": {
+          "name": "notification_delivery_app_id_idx",
+          "columns": [
+            {
+              "expression": "app_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "notification_delivery_destination_id_idx": {
+          "name": "notification_delivery_destination_id_idx",
+          "columns": [
+            {
+              "expression": "destination_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "notification_delivery_incident_id_idx": {
+          "name": "notification_delivery_incident_id_idx",
+          "columns": [
+            {
+              "expression": "incident_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "notification_delivery_status_next_attempt_at_idx": {
+          "name": "notification_delivery_status_next_attempt_at_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "next_attempt_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "notification_delivery_source_idx": {
+          "name": "notification_delivery_source_idx",
+          "columns": [
+            {
+              "expression": "source_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "notification_delivery_app_id_app_id_fk": {
+          "name": "notification_delivery_app_id_app_id_fk",
+          "tableFrom": "notification_delivery",
+          "tableTo": "app",
+          "columnsFrom": [
+            "app_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "notification_delivery_destination_id_notification_destination_id_fk": {
+          "name": "notification_delivery_destination_id_notification_destination_id_fk",
+          "tableFrom": "notification_delivery",
+          "tableTo": "notification_destination",
+          "columnsFrom": [
+            "destination_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "notification_delivery_incident_id_incident_id_fk": {
+          "name": "notification_delivery_incident_id_incident_id_fk",
+          "tableFrom": "notification_delivery",
+          "tableTo": "incident",
+          "columnsFrom": [
+            "incident_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.notification_destination": {
+      "name": "notification_destination",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "app_id": {
+          "name": "app_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "notification_destination_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_enabled": {
+          "name": "is_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "webhook_url": {
+          "name": "webhook_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "webhook_headers_encrypted": {
+          "name": "webhook_headers_encrypted",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_recipients": {
+          "name": "email_recipients",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "notification_destination_app_id_app_id_fk": {
+          "name": "notification_destination_app_id_app_id_fk",
+          "tableFrom": "notification_destination",
+          "tableTo": "app",
+          "columnsFrom": [
+            "app_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "notification_destination_created_by_user_id_fk": {
+          "name": "notification_destination_created_by_user_id_fk",
+          "tableFrom": "notification_destination",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "notification_destination_updated_by_user_id_fk": {
+          "name": "notification_destination_updated_by_user_id_fk",
+          "tableFrom": "notification_destination",
+          "tableTo": "user",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -2429,8 +3244,12 @@
           "name": "organization_usage_organization_id_organization_id_fk",
           "tableFrom": "organization_usage",
           "tableTo": "organization",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2471,12 +3290,6 @@
         },
         "stripe_customer_id": {
           "name": "stripe_customer_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "billing_email": {
-          "name": "billing_email",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -2532,7 +3345,9 @@
         "organization_slug_unique": {
           "name": "organization_slug_unique",
           "nullsNotDistinct": false,
-          "columns": ["slug"]
+          "columns": [
+            "slug"
+          ]
         }
       },
       "policies": {},
@@ -2621,8 +3436,12 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2632,7 +3451,9 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": ["token"]
+          "columns": [
+            "token"
+          ]
         }
       },
       "policies": {},
@@ -2879,7 +3700,9 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": ["email"]
+          "columns": [
+            "email"
+          ]
         }
       },
       "policies": {},
@@ -2958,22 +3781,47 @@
     "public.alert_delivery_status": {
       "name": "alert_delivery_status",
       "schema": "public",
-      "values": ["pending", "succeeded", "failed"]
+      "values": [
+        "pending",
+        "succeeded",
+        "failed"
+      ]
     },
     "public.alert_event_type": {
       "name": "alert_event_type",
       "schema": "public",
-      "values": ["opened", "renotified", "resolved", "test"]
+      "values": [
+        "opened",
+        "renotified",
+        "resolved",
+        "test"
+      ]
+    },
+    "public.alert_incident_entity_type": {
+      "name": "alert_incident_entity_type",
+      "schema": "public",
+      "values": [
+        "app",
+        "container"
+      ]
     },
     "public.alert_incident_status": {
       "name": "alert_incident_status",
       "schema": "public",
-      "values": ["open", "resolved"]
+      "values": [
+        "open",
+        "resolved"
+      ]
     },
     "public.alert_comparator": {
       "name": "alert_comparator",
       "schema": "public",
-      "values": ["gt", "gte", "lt", "lte"]
+      "values": [
+        "gt",
+        "gte",
+        "lt",
+        "lte"
+      ]
     },
     "public.alert_signal_type": {
       "name": "alert_signal_type",
@@ -2984,33 +3832,140 @@
         "latency_p99_ms",
         "apdex",
         "throughput_per_min",
-        "availability_percent"
+        "availability_percent",
+        "container_cpu_utilization",
+        "container_memory_utilization",
+        "container_reporting_stale"
       ]
     },
-    "public.deployment_correlation_strategy": {
-      "name": "deployment_correlation_strategy",
+    "public.heartbeat_monitor_status": {
+      "name": "heartbeat_monitor_status",
       "schema": "public",
-      "values": ["time_window", "explicit_id", "service_version"]
+      "values": [
+        "healthy",
+        "grace",
+        "missed",
+        "never_received"
+      ]
     },
-    "public.deployment_status": {
-      "name": "deployment_status",
+    "public.incident_event_type": {
+      "name": "incident_event_type",
       "schema": "public",
-      "values": ["pending", "in_progress", "succeeded", "failed", "rolled_back"]
+      "values": [
+        "incident.opened",
+        "incident.resolved",
+        "incident.dismissed",
+        "alert.fired",
+        "heartbeat.missed",
+        "heartbeat.recovered"
+      ]
     },
-    "public.ingestion_key_kind": {
-      "name": "ingestion_key_kind",
+    "public.incident_dismiss_reason": {
+      "name": "incident_dismiss_reason",
       "schema": "public",
-      "values": ["public", "private"]
+      "values": [
+        "expected",
+        "false_positive",
+        "not_actionable",
+        "other"
+      ]
+    },
+    "public.incident_entity_type": {
+      "name": "incident_entity_type",
+      "schema": "public",
+      "values": [
+        "app",
+        "container"
+      ]
+    },
+    "public.incident_severity": {
+      "name": "incident_severity",
+      "schema": "public",
+      "values": [
+        "critical",
+        "warning",
+        "info"
+      ]
+    },
+    "public.incident_source_type": {
+      "name": "incident_source_type",
+      "schema": "public",
+      "values": [
+        "alert",
+        "heartbeat"
+      ]
+    },
+    "public.incident_status": {
+      "name": "incident_status",
+      "schema": "public",
+      "values": [
+        "open",
+        "resolved",
+        "dismissed"
+      ]
+    },
+    "public.incident_type": {
+      "name": "incident_type",
+      "schema": "public",
+      "values": [
+        "alert_threshold",
+        "heartbeat_missed"
+      ]
+    },
+    "public.notification_delivery_status": {
+      "name": "notification_delivery_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "succeeded",
+        "failed"
+      ]
+    },
+    "public.notification_event_type": {
+      "name": "notification_event_type",
+      "schema": "public",
+      "values": [
+        "heartbeat.missed",
+        "heartbeat.recovered",
+        "alert.opened",
+        "alert.renotified",
+        "alert.resolved",
+        "destination.test"
+      ]
+    },
+    "public.notification_source_kind": {
+      "name": "notification_source_kind",
+      "schema": "public",
+      "values": [
+        "heartbeat",
+        "alert"
+      ]
+    },
+    "public.notification_destination_kind": {
+      "name": "notification_destination_kind",
+      "schema": "public",
+      "values": [
+        "webhook",
+        "email"
+      ]
     },
     "public.billing_plan": {
       "name": "billing_plan",
       "schema": "public",
-      "values": ["starter", "pro", "enterprise"]
+      "values": [
+        "starter",
+        "pro",
+        "enterprise"
+      ]
     },
     "public.billing_status": {
       "name": "billing_status",
       "schema": "public",
-      "values": ["trialing", "active", "past_due"]
+      "values": [
+        "trialing",
+        "active",
+        "past_due"
+      ]
     }
   },
   "schemas": {},

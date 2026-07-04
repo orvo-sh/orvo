@@ -71,6 +71,14 @@ CREATE TABLE IF NOT EXISTS metrics_raw (
     ingestion_key_id String,
     received_at DateTime64(3),
     expires_at DateTime64(3),
+    entity_kind LowCardinality(String) DEFAULT 'application',
+    host_id String DEFAULT '',
+    host_name LowCardinality(String) DEFAULT '',
+    host_arch LowCardinality(String) DEFAULT '',
+    os_type LowCardinality(String) DEFAULT '',
+    container_id String DEFAULT '',
+    container_name LowCardinality(String) DEFAULT '',
+    container_image_name LowCardinality(String) DEFAULT '',
     metric_name LowCardinality(String),
     metric_type LowCardinality(String),
     metric_unit LowCardinality(String),
@@ -95,8 +103,21 @@ CREATE TABLE IF NOT EXISTS metrics_raw (
     histogram_explicit_bounds Array(Float64),
     exemplars_json String,
     flags UInt32,
-    INDEX idx_metrics_name metric_name TYPE bloom_filter(0.001) GRANULARITY 4
+    INDEX idx_metrics_name metric_name TYPE bloom_filter(0.001) GRANULARITY 4,
+    INDEX idx_metrics_host_id host_id TYPE bloom_filter(0.001) GRANULARITY 4,
+    INDEX idx_metrics_host_name host_name TYPE bloom_filter(0.001) GRANULARITY 4,
+    INDEX idx_metrics_container_id container_id TYPE bloom_filter(0.001) GRANULARITY 4
 ) ENGINE = MergeTree
 PARTITION BY toDate(time)
 ORDER BY (app_id, service_name, metric_name, time, id)
 TTL expires_at DELETE;
+-- statement-breakpoint
+CREATE TABLE IF NOT EXISTS heartbeat_checkins (
+    id String,
+    app_id String,
+    heartbeat_monitor_id String,
+    checked_in_at DateTime64(3),
+    INDEX idx_heartbeat_checkins_monitor_id heartbeat_monitor_id TYPE bloom_filter(0.001) GRANULARITY 4
+) ENGINE = MergeTree
+PARTITION BY toDate(checked_in_at)
+ORDER BY (app_id, heartbeat_monitor_id, checked_in_at, id);

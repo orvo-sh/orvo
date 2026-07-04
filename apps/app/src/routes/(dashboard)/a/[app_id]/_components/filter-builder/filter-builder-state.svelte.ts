@@ -249,6 +249,7 @@ class FilterBuilderState {
     this.selectedIndex = 0;
     this.valueSuggestions = [];
     this.valueLoading = false;
+    this.isPopoverOpen = false;
     this.inputElement?.focus();
   };
 
