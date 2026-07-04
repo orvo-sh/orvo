@@ -8,6 +8,14 @@ import {
   resolveDocReference
 } from '$lib/docs';
 
+const prerender = true;
+
+const entries = () =>
+  getAllDocs().map((doc) => ({
+    category: doc.categorySlug,
+    page: doc.slug
+  }));
+
 const load = (async ({ params }) => {
   const docs = getAllDocs();
   const doc = getDocByPath(params.category, params.page);
@@ -28,4 +36,4 @@ const load = (async ({ params }) => {
   };
 }) satisfies PageServerLoad;
 
-export { load };
+export { entries, load, prerender };

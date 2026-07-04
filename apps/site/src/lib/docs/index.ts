@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import hljs from 'highlight.js';
 import { Marked, Renderer } from 'marked';
 import { markedHighlight } from 'marked-highlight';
@@ -28,6 +26,7 @@ type DocPage = {
   previous?: string;
   next?: string;
   sourcePath: string;
+  source: string;
 };
 
 type TocItem = {
@@ -36,19 +35,26 @@ type TocItem = {
   slug: string;
 };
 
-const docsPagesDirectory = path.resolve('src/routes/docs/_pages');
+const docSources = import.meta.glob('/src/routes/docs/_pages/*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true
+}) as Record<string, string>;
 
-const listDocSourcePaths = () =>
-  fs
-    .readdirSync(docsPagesDirectory)
-    .filter((entry) => entry.endsWith('.md'))
-    .sort()
-    .map((entry) => path.join(docsPagesDirectory, entry));
+const listDocSourcePaths = () => Object.keys(docSources).sort();
+
+const getFallbackTitle = (sourcePath: string) =>
+  sourcePath.split('/').at(-1)?.replace(/\.md$/, '').replace(/-/g, ' ') ?? 'Untitled';
 
 const getDocPageFromSourcePath = (sourcePath: string) => {
-  const source = fs.readFileSync(sourcePath, 'utf-8');
+  const source = docSources[sourcePath];
+
+  if (!source) {
+    throw new Error(`Missing doc source for "${sourcePath}".`);
+  }
+
   const { meta } = parseFrontMatter<DocFrontMatter>(source);
-  const fallbackTitle = path.basename(sourcePath, '.md').replace(/-/g, ' ');
+  const fallbackTitle = getFallbackTitle(sourcePath);
   const title = meta.title?.trim() || fallbackTitle;
   const category = meta.category?.trim() || 'General';
   const slug = slugify(String(meta.slug ?? title));
@@ -65,7 +71,8 @@ const getDocPageFromSourcePath = (sourcePath: string) => {
     href: `/docs/${categorySlug}/${slug}`,
     previous: typeof meta.previous === 'string' ? meta.previous.trim() : undefined,
     next: typeof meta.next === 'string' ? meta.next.trim() : undefined,
-    sourcePath
+    sourcePath,
+    source
   } satisfies DocPage;
 };
 
@@ -133,7 +140,12 @@ const getDocByPath = (categorySlug: string, pageSlug: string) =>
   getAllDocs().find((doc) => doc.categorySlug === categorySlug && doc.slug === pageSlug) ?? null;
 
 const renderDocPage = async (sourcePath: string) => {
-  const source = fs.readFileSync(sourcePath, 'utf-8');
+  const source = docSources[sourcePath];
+
+  if (!source) {
+    throw new Error(`Missing doc source for "${sourcePath}".`);
+  }
+
   const { content } = parseFrontMatter<DocFrontMatter>(source);
   const toc: TocItem[] = [];
   const marked = new Marked(

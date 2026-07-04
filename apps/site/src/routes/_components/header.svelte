@@ -72,7 +72,7 @@
         <NavigationMenu.Item>
           <NavigationMenu.Link>
             {#snippet child()}
-              <Button href="#pricing" variant="ghost">Pricing</Button>
+              <Button href="/#pricing" variant="ghost">Pricing</Button>
             {/snippet}
           </NavigationMenu.Link>
         </NavigationMenu.Item>
@@ -119,7 +119,7 @@
         <div class="flex flex-1 flex-col overflow-y-auto p-1 pt-2">
           <div class="space-y-1">
             <Button
-              href="#pricing"
+              href="/#pricing"
               variant="ghost"
               class="w-full justify-start"
               onclick={() => {

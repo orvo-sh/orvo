@@ -1,6 +1,8 @@
+import { getAllDocs } from '$lib/docs';
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getAllDocs } from '$lib/docs';
+
+const prerender = true;
 
 const load = (() => {
   const firstDoc = getAllDocs()[0];
@@ -12,4 +14,4 @@ const load = (() => {
   throw redirect(302, firstDoc.href);
 }) satisfies PageServerLoad;
 
-export { load };
+export { load, prerender };
