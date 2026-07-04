@@ -63,8 +63,11 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - If email templates change, regenerate `src/lib/server/email/email.generated.ts` from the `.html` templates instead of editing the generated file by hand.
 - Prefer server-side route guardrails for auth and onboarding flows. Redirect logic for unauthenticated, unverified, or already-onboarded users should live in `+layout.server.ts` or `+page.server.ts`, not only in client navigation code.
 - In SvelteKit `load` functions, treat failed server fetches as page-load failures: throw with `error(...)` instead of returning error strings through page data. Reserve client-side fetch failures for toast feedback, not inline page-level `error` props.
-- Keep app services in `apps/app/src/lib/server/services`, name files `*.service.ts`, export the zod input schemas from the same file, and keep remote functions thin over those schemas.
-- In service files, put the service class first after imports, then exported zod input schemas, then type aliases. Keep helper schemas and type aliases to the minimum needed.
+- Keep app services in `apps/app/src/lib/server/services/<service-name>/`, with the service entrypoint in `index.ts`, request schemas in `schema.ts`, and each service behavior in its own file under `methods/`.
+- Treat the service class in `index.ts` as a thin composition layer. It should wire dependencies once in the constructor, build method factories like `createGetLogs`, and expose small forwarding methods such as `getLogs(...)` and `revokeMcpToken(...)`.
+- Prefer one method per file under `methods/`, with shared service-local helpers in `methods/shared.ts` only when multiple methods actually reuse them.
+- Export the zod input schemas from the service package via `schema.ts` and `export * from "./schema"` in `index.ts`, then keep remote functions thin over those shared schemas.
+- Service entrypoints should use the `@Instrument(...)` decorator where that pattern is already established, and derive a child logger once in the constructor for the wired method factories.
 - Prefer implicit TypeScript inference in services. Do not create row/result/input type aliases when the value can be inferred clearly from zod, Drizzle, or the returned object.
 - Avoid one-off private service helper methods for logic used by a single method. Keep that logic inline unless the helper is reused or materially improves readability.
 - Use `genId(prefix)` from `@repo/utils` for app-generated ids. Pass prefixes without underscores, for example `genId('logv')`; the utility adds the underscore and lowercases the ULID.
@@ -73,7 +76,11 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - Prefer a small verb surface over CRUD-by-default. Add only the methods the product uses, for example `get*`, `create*`, and `rotate*` instead of list/revoke variants when rotation is the actual workflow.
 - Service methods should take request metadata such as `organizationId` through a `context` object, not as zod input. Direct identifiers like `id` or `slug` may stay in the zod input when they are part of the user action.
 - Transaction handles (`tx`) must be passed as a separate trailing parameter, never nested inside the `context` object. The standard service method signature is `method(input, context, tx?)`.
-- Service classes should take dependencies through the constructor, immediately derive a child logger in the constructor, log once at method entry, validate with `safeParse` near the top, and log one failure in the catch path before returning a stable result.
+- Service method factories should take their dependencies as one object and return the async method implementation. Validate with `safeParse` near the top of the method when the method has a zod schema.
+- Do not add routine "entered method" or top-of-method logs in app services. Prefer quiet success paths.
+- Log on genuinely useful failure paths instead: invalid input when it helps debugging, and one structured error in the catch path before returning a stable result.
+- Use `recordError(error)` in catch paths before logging the failure when the surrounding service already follows that instrumentation pattern.
+- Match the current service log tone: concise method-prefixed messages like `revokeMcpToken: failed to revoke MCP token` rather than broad class-level lifecycle logs.
 - `hooks.server.ts` should create the request-scoped logger and container once per request. Routes and remote functions should call `event.locals.container.*` rather than instantiating services directly.
 - Keep `src/lib/api/*.remote.ts` focused on transport only: import the service schemas, call `query(...)` or `command(...)`, pull `getRequestEvent()`, and forward into the relevant container service. Put business logic in the service, not in the remote function.
 - Frontend-to-service calls should go through SvelteKit remote functions in `src/lib/api/*.remote.ts`. Keep those files thin: import the zod input schemas from the service files, then forward to `event.locals.container.*Service` with request-local auth context.
