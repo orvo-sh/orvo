@@ -1,12 +1,5 @@
 <script>
-  import { AspectRatio } from '@repo/components/ui/aspect-ratio';
-  import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle
-  } from '@repo/components/ui/card';
+  import FeaturesSectionAlertsIncidentsCard from './features-section-alerts-incidents-card.svelte';
   import FeaturesSectionHeartbeatsCard from './features-section-heartbeats-card.svelte';
   import FeaturesSectionLogsCard from './features-section-logs-card.svelte';
   import FeaturesSectionMetricsCard from './features-section-metrics-card.svelte';
@@ -45,95 +38,7 @@
 
       <FeaturesSectionHeartbeatsCard />
 
-      <Card class="bg-card/90 border-foreground/10 xl:col-span-3">
-        <CardHeader class="gap-2 px-5 pt-5">
-          <p class="text-muted-foreground text-xs font-medium tracking-[0.16em] uppercase">
-            Alerts
-          </p>
-          <CardTitle class="text-xl">Only what matters.</CardTitle>
-          <CardDescription class="text-sm leading-6">
-            Alert detail should tell you what fired, why, and who needs to look.
-          </CardDescription>
-        </CardHeader>
-        <CardContent class="px-5 pb-5">
-          <AspectRatio ratio={4 / 5}>
-            <img
-              src={placeholderImage}
-              alt="Portrait screenshot of an Orvo alert detail view showing condition thresholds, recent evaluations, severity, and notification routing."
-              width="960"
-              height="1200"
-              class="border-foreground/10 h-full w-full rounded-xl border object-cover shadow-sm"
-            />
-          </AspectRatio>
-        </CardContent>
-      </Card>
-
-      <Card class="bg-card/90 border-foreground/10 xl:col-span-8">
-        <CardHeader class="gap-2 px-5 pt-5">
-          <p class="text-muted-foreground text-xs font-medium tracking-[0.16em] uppercase">
-            Incidents
-          </p>
-          <CardTitle class="text-xl sm:text-2xl">Keep the investigation moving.</CardTitle>
-          <CardDescription class="max-w-xl text-sm leading-6">
-            Timeline, responders, affected services, and evidence stay attached to the incident.
-          </CardDescription>
-        </CardHeader>
-        <CardContent class="px-5 pb-5">
-          <AspectRatio ratio={16 / 9}>
-            <img
-              src={placeholderImage}
-              alt="Large screenshot of an Orvo incident page with an investigation timeline, linked alerts, impacted services, notes, and current status."
-              width="1600"
-              height="900"
-              class="border-foreground/10 h-full w-full rounded-xl border object-cover shadow-sm"
-            />
-          </AspectRatio>
-        </CardContent>
-      </Card>
-
-      <Card class="bg-card/90 border-foreground/10 xl:col-span-4">
-        <CardHeader class="gap-2 px-5 pt-5">
-          <p class="text-muted-foreground text-xs font-medium tracking-[0.16em] uppercase">Hosts</p>
-          <CardTitle class="text-xl">Read the machine.</CardTitle>
-          <CardDescription class="text-sm leading-6">
-            CPU, memory, disk, and network stay close enough to compare at a glance.
-          </CardDescription>
-        </CardHeader>
-        <CardContent class="px-5 pb-5">
-          <AspectRatio ratio={1}>
-            <img
-              src={placeholderImage}
-              alt="Square screenshot of Orvo host monitoring with CPU, memory, disk, and network charts alongside host health summaries."
-              width="1200"
-              height="1200"
-              class="border-foreground/10 h-full w-full rounded-xl border object-cover shadow-sm"
-            />
-          </AspectRatio>
-        </CardContent>
-      </Card>
-
-      <Card class="bg-card/90 border-foreground/10 md:col-span-2 xl:col-span-4">
-        <CardHeader class="gap-2 px-5 pt-5">
-          <p class="text-muted-foreground text-xs font-medium tracking-[0.16em] uppercase">
-            Deployments
-          </p>
-          <CardTitle class="text-xl">Changes have context.</CardTitle>
-          <CardDescription class="text-sm leading-6">
-            Line releases up with regressions before the blame game starts.
-          </CardDescription>
-        </CardHeader>
-        <CardContent class="px-5 pb-5">
-          <AspectRatio ratio={16 / 9}>
-            <img
-              src={placeholderImage}
-              alt="Wide screenshot of an Orvo deployment timeline correlating releases with service health, latency changes, and production events."
-              width="1600"
-              height="900"
-              class="border-foreground/10 h-full w-full rounded-xl border object-cover shadow-sm"
-            />
-          </AspectRatio>
-        </CardContent>
-      </Card>
+      <FeaturesSectionAlertsIncidentsCard />
     </div>
   </div>
 </section>

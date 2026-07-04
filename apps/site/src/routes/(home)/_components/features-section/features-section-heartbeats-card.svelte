@@ -12,17 +12,17 @@
   const summary = [
     {
       label: 'Healthy',
-      value: 18,
+      value: 24,
       className: 'border-green-600/20 bg-green-600/7 text-green-700'
     },
     {
-      label: 'Late',
-      value: 2,
+      label: 'Grace',
+      value: 4,
       className: 'border-amber-600/20 bg-amber-600/7 text-amber-800'
     },
     {
       label: 'Missed',
-      value: 1,
+      value: 2,
       className: 'border-red-600/20 bg-red-600/7 text-red-800'
     }
   ];
@@ -31,9 +31,9 @@
     name: string;
     cadence: string;
     lastCheckIn: string;
-    status: 'healthy' | 'late' | 'missed';
+    status: 'healthy' | 'grace' | 'missed';
     statusLabel: string;
-    timeline: ('healthy' | 'late' | 'missed')[];
+    timeline: ('healthy' | 'grace' | 'missed')[];
   }[] = [
     {
       name: 'daily-billing-sync',
@@ -41,15 +41,41 @@
       lastCheckIn: '2 min ago',
       status: 'healthy',
       statusLabel: 'Healthy',
-      timeline: ['healthy', 'healthy', 'healthy', 'healthy', 'healthy', 'healthy']
+      timeline: [
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy'
+      ]
     },
     {
       name: 'webhook-replay',
       cadence: 'Every 5 min',
-      lastCheckIn: '14 min late',
-      status: 'late',
-      statusLabel: 'Late',
-      timeline: ['healthy', 'healthy', 'late', 'healthy', 'late', 'healthy']
+      lastCheckIn: 'Within grace period',
+      status: 'grace',
+      statusLabel: 'Grace',
+      timeline: [
+        'healthy',
+        'healthy',
+        'grace',
+        'healthy',
+        'healthy',
+        'grace',
+        'healthy',
+        'healthy',
+        'healthy',
+        'grace',
+        'healthy',
+        'healthy'
+      ]
     },
     {
       name: 'nightly-backup',
@@ -57,7 +83,20 @@
       lastCheckIn: 'Missed window',
       status: 'missed',
       statusLabel: 'Missed',
-      timeline: ['healthy', 'healthy', 'missed', 'missed', 'healthy', 'healthy']
+      timeline: [
+        'healthy',
+        'healthy',
+        'healthy',
+        'missed',
+        'missed',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'grace',
+        'missed'
+      ]
     },
     {
       name: 's3-inventory-import',
@@ -65,28 +104,117 @@
       lastCheckIn: '7 min ago',
       status: 'healthy',
       statusLabel: 'Healthy',
-      timeline: ['healthy', 'healthy', 'healthy', 'late', 'healthy', 'healthy']
+      timeline: [
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'grace',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy'
+      ]
     },
     {
       name: 'customer-export',
       cadence: 'Every 6 hours',
-      lastCheckIn: '23 min late',
-      status: 'late',
-      statusLabel: 'Late',
-      timeline: ['healthy', 'late', 'healthy', 'late', 'healthy', 'healthy']
+      lastCheckIn: '9 min into grace',
+      status: 'grace',
+      statusLabel: 'Grace',
+      timeline: [
+        'healthy',
+        'grace',
+        'healthy',
+        'healthy',
+        'healthy',
+        'grace',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'grace',
+        'healthy'
+      ]
+    },
+    {
+      name: 'warehouse-rollup',
+      cadence: 'Every 15 min',
+      lastCheckIn: '1 min ago',
+      status: 'healthy',
+      statusLabel: 'Healthy',
+      timeline: [
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy'
+      ]
+    },
+    {
+      name: 'partner-feed-poller',
+      cadence: 'Every 10 min',
+      lastCheckIn: 'Grace expired',
+      status: 'missed',
+      statusLabel: 'Missed',
+      timeline: [
+        'healthy',
+        'healthy',
+        'healthy',
+        'grace',
+        'missed',
+        'healthy',
+        'healthy',
+        'healthy',
+        'grace',
+        'healthy',
+        'missed',
+        'healthy'
+      ]
+    },
+    {
+      name: 'invoice-pdf-generator',
+      cadence: 'Every 20 min',
+      lastCheckIn: '4 min ago',
+      status: 'healthy',
+      statusLabel: 'Healthy',
+      timeline: [
+        'healthy',
+        'healthy',
+        'grace',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+        'grace',
+        'healthy',
+        'healthy',
+        'healthy'
+      ]
     }
   ];
 
-  const statusClasses: Record<'healthy' | 'late' | 'missed', string> = {
+  const statusClasses: Record<'healthy' | 'grace' | 'missed', string> = {
     healthy: 'border-green-600/20 bg-green-600/7 text-green-700',
-    late: 'border-amber-600/20 bg-amber-600/7 text-amber-800',
+    grace: 'border-amber-600/20 bg-amber-600/7 text-amber-800',
     missed: 'border-red-600/20 bg-red-600/7 text-red-800'
   };
 
-  const timelineBarClasses: Record<'healthy' | 'late' | 'missed', string> = {
-    healthy: 'bg-green-500/90',
-    late: 'bg-amber-500/90',
-    missed: 'bg-red-500/90'
+  const timelineBucketClasses: Record<'healthy' | 'grace' | 'missed', string> = {
+    healthy: 'bg-emerald-500/85',
+    grace: 'bg-amber-500/75',
+    missed: 'bg-destructive/80'
   };
 </script>
 
@@ -120,7 +248,7 @@
         {/each}
       </div>
 
-      <div class="divide-border/70 max-h-[23rem] divide-y overflow-hidden">
+      <div class="divide-border/70 max-h-[27rem] divide-y overflow-hidden">
         {#each monitors as monitor (monitor.name)}
           <div class="space-y-3 px-4 py-3">
             <div class="flex items-start justify-between gap-3">
@@ -133,7 +261,9 @@
                     variant="outline"
                     class={cn('gap-1 pr-1.5 pl-0.75', statusClasses[monitor.status])}
                   >
-                    {#if monitor.status === 'late'}
+                    {#if monitor.status === 'healthy'}
+                      <IconCircleFilled class="size-2.5" />
+                    {:else if monitor.status === 'grace'}
                       <IconCircle class="size-2.5" />
                     {:else}
                       <IconCircleFilled class="size-2.5" />
@@ -156,17 +286,12 @@
             </div>
 
             <div class="space-y-1.5">
-              <div class="border-border/70 bg-muted/35 flex h-7 items-end gap-1 rounded-lg border px-1.5 py-1">
+              <div class="grid grid-cols-12 gap-1">
                 {#each monitor.timeline as state, index (`${monitor.name}-${index}`)}
                   <span
                     class={cn(
-                      'block min-w-0 flex-1 rounded-sm',
-                      {
-                        healthy: 'h-full',
-                        late: 'h-3/4',
-                        missed: 'h-1/2'
-                      }[state],
-                      timelineBarClasses[state]
+                      'block h-7 min-w-0 rounded-sm transition-opacity hover:opacity-85',
+                      timelineBucketClasses[state]
                     )}
                     aria-hidden="true"
                   ></span>
@@ -174,7 +299,7 @@
               </div>
 
               <div class="text-muted-foreground flex items-center justify-between text-[11px]">
-                <span>Last 6 runs</span>
+                <span>Last 12 runs</span>
                 <div class="flex items-center gap-3">
                   <span class="inline-flex items-center gap-1">
                     <span class="block size-2 rounded-full bg-green-500"></span>
@@ -182,7 +307,7 @@
                   </span>
                   <span class="inline-flex items-center gap-1">
                     <span class="block size-2 rounded-full bg-amber-500"></span>
-                    Late
+                    Grace
                   </span>
                   <span class="inline-flex items-center gap-1">
                     <span class="block size-2 rounded-full bg-red-500"></span>
