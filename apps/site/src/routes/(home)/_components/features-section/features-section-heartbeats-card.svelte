@@ -76,132 +76,6 @@
         'healthy',
         'healthy'
       ]
-    },
-    {
-      name: 'nightly-backup',
-      cadence: 'Daily',
-      lastCheckIn: 'Missed window',
-      status: 'missed',
-      statusLabel: 'Missed',
-      timeline: [
-        'healthy',
-        'healthy',
-        'healthy',
-        'missed',
-        'missed',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'grace',
-        'missed'
-      ]
-    },
-    {
-      name: 's3-inventory-import',
-      cadence: 'Every 30 min',
-      lastCheckIn: '7 min ago',
-      status: 'healthy',
-      statusLabel: 'Healthy',
-      timeline: [
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'grace',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy'
-      ]
-    },
-    {
-      name: 'customer-export',
-      cadence: 'Every 6 hours',
-      lastCheckIn: '9 min into grace',
-      status: 'grace',
-      statusLabel: 'Grace',
-      timeline: [
-        'healthy',
-        'grace',
-        'healthy',
-        'healthy',
-        'healthy',
-        'grace',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'grace',
-        'healthy'
-      ]
-    },
-    {
-      name: 'warehouse-rollup',
-      cadence: 'Every 15 min',
-      lastCheckIn: '1 min ago',
-      status: 'healthy',
-      statusLabel: 'Healthy',
-      timeline: [
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy'
-      ]
-    },
-    {
-      name: 'partner-feed-poller',
-      cadence: 'Every 10 min',
-      lastCheckIn: 'Grace expired',
-      status: 'missed',
-      statusLabel: 'Missed',
-      timeline: [
-        'healthy',
-        'healthy',
-        'healthy',
-        'grace',
-        'missed',
-        'healthy',
-        'healthy',
-        'healthy',
-        'grace',
-        'healthy',
-        'missed',
-        'healthy'
-      ]
-    },
-    {
-      name: 'invoice-pdf-generator',
-      cadence: 'Every 20 min',
-      lastCheckIn: '4 min ago',
-      status: 'healthy',
-      statusLabel: 'Healthy',
-      timeline: [
-        'healthy',
-        'healthy',
-        'grace',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
-        'grace',
-        'healthy',
-        'healthy',
-        'healthy'
-      ]
     }
   ];
 
@@ -218,15 +92,15 @@
   };
 </script>
 
-<Card.Root class="justify-between gap-0 p-0 aspect-square xl:col-span-4">
+<Card.Root class="justify-between gap-0 p-0 xl:col-span-4">
   <div class="p-5 pb-0">
     <h2 class="text-secondary-foreground flex items-center gap-2 text-lg font-medium">
       <IconActivityHeartbeat class="text-primary size-6" />
       Heartbeats
     </h2>
     <p class="text-muted-foreground mt-1.5 max-w-[84%] text-base leading-relaxed">
-      Keep recurring jobs, scheduled syncs, and external pings visible. See what checked in on
-      time, what is drifting, and what stopped entirely.
+      Keep recurring jobs, scheduled syncs, and external pings visible. See what checked in on time,
+      what is drifting, and what stopped entirely.
       <a
         href="/product/heartbeats"
         class="text-primary inline-flex text-base underline-offset-4 hover:underline"
@@ -237,18 +111,25 @@
     </p>
   </div>
 
-  <div class="px-5 pt-4 pb-5">
-    <div class="bg-background border-foreground/10 overflow-hidden rounded-xl border">
+  <div class="px-5 pt-4 pb-0">
+    <div
+      class="bg-background border-foreground/10 border-b-none relative overflow-hidden rounded-xl rounded-b-none border"
+    >
       <div class="border-border/80 flex items-center gap-2 border-b px-4 py-3">
         {#each summary as item (item.label)}
           <Badge variant="outline" class={cn('gap-1.5 px-2.5 py-1', item.className)}>
             <IconCircleFilled class="size-2.5" />
-            {item.value} {item.label.toLowerCase()}
+            {item.value}
+            {item.label.toLowerCase()}
           </Badge>
         {/each}
       </div>
 
-      <div class="divide-border/70 max-h-[27rem] divide-y overflow-hidden">
+      <div
+        class="from-card pointer-events-none absolute inset-x-0 bottom-0 z-10 h-12 bg-linear-to-t to-transparent"
+      ></div>
+
+      <div class="divide-border/70 max-h-60 divide-y overflow-hidden">
         {#each monitors as monitor (monitor.name)}
           <div class="space-y-3 px-4 py-3">
             <div class="flex items-start justify-between gap-3">
@@ -279,7 +160,9 @@
               </div>
 
               <div class="text-right">
-                <p class="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">
+                <p
+                  class="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase"
+                >
                   Recent
                 </p>
               </div>

@@ -1,14 +1,9 @@
 <script lang="ts">
+  import { cn } from '@repo/components';
   import { SlackIcon } from '@repo/components/icons/slack';
   import { Badge } from '@repo/components/ui/badge';
   import * as Card from '@repo/components/ui/card';
-  import { cn } from '@repo/components';
-  import {
-    IconAlertTriangle,
-    IconArrowUpRight,
-    IconMail,
-    IconWebhook
-  } from '@tabler/icons-svelte';
+  import { IconAlertTriangle, IconArrowUpRight, IconMail, IconWebhook } from '@tabler/icons-svelte';
 
   const summary = [
     { label: 'Active', value: '3', tone: 'text-destructive' },
@@ -76,7 +71,7 @@
 </script>
 
 <Card.Root
-  class="bg-card/90 border-foreground/10 justify-between gap-0 p-0 md:col-span-2 xl:col-span-8"
+  class="bg-card/90 border-foreground/10 justify-between gap-0 p-0 md:col-span-2 xl:col-span-4"
 >
   <div class="p-5 pb-0">
     <h2 class="text-secondary-foreground flex items-center gap-2 text-lg font-medium">
@@ -99,7 +94,7 @@
         {@const Icon = destination.icon}
         <Badge
           variant="outline"
-          class="gap-1.5 rounded-md border-border/70 bg-muted/25 px-2.5 py-1 text-xs font-medium text-secondary-foreground"
+          class="border-border/70 bg-muted/25 text-secondary-foreground gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium"
         >
           <Icon class="size-3.5" />
           {destination.label}
@@ -111,7 +106,9 @@
   <div class="p-5 pt-4">
     <div class="bg-background border-foreground/10 overflow-hidden rounded-xl border">
       <div class="grid md:grid-cols-[120px_minmax(0,1fr)]">
-        <div class="border-border/70 flex flex-col justify-end gap-5 border-b p-4 md:border-r md:border-b-0">
+        <div
+          class="border-border/70 flex flex-col justify-end gap-5 border-b p-4 md:border-r md:border-b-0"
+        >
           {#each summary as item}
             <div class="space-y-0.5">
               <p class="text-muted-foreground text-sm">{item.label}</p>
@@ -136,7 +133,7 @@
               <div
                 class={cn(
                   'grid grid-cols-[minmax(0,1.9fr)_0.8fr_0.8fr_0.8fr_88px] items-center gap-4 px-4 py-3',
-                  index < rows.length - 1 && 'border-b border-border/60'
+                  index < rows.length - 1 && 'border-border/60 border-b'
                 )}
               >
                 <p class="text-secondary-foreground truncate text-sm font-medium">{row.alert}</p>
