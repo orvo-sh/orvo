@@ -26,6 +26,21 @@
       "svelte": "./src/lib/components/icons/aws/index.ts",
       "default": "./src/lib/components/icons/aws/index.ts"
     },
+    "./icons/chatgpt": {
+      "types": "./src/lib/components/icons/chatgpt/index.ts",
+      "svelte": "./src/lib/components/icons/chatgpt/index.ts",
+      "default": "./src/lib/components/icons/chatgpt/index.ts"
+    },
+    "./icons/claude-code": {
+      "types": "./src/lib/components/icons/claude-code/index.ts",
+      "svelte": "./src/lib/components/icons/claude-code/index.ts",
+      "default": "./src/lib/components/icons/claude-code/index.ts"
+    },
+    "./icons/codex": {
+      "types": "./src/lib/components/icons/codex/index.ts",
+      "svelte": "./src/lib/components/icons/codex/index.ts",
+      "default": "./src/lib/components/icons/codex/index.ts"
+    },
     "./icons/docker": {
       "types": "./src/lib/components/icons/docker/index.ts",
       "svelte": "./src/lib/components/icons/docker/index.ts",
@@ -66,25 +81,25 @@
       "svelte": "./src/lib/components/icons/python/index.ts",
       "default": "./src/lib/components/icons/python/index.ts"
     },
-    "./icons/slack": {
-      "types": "./src/lib/components/icons/slack/index.ts",
-      "svelte": "./src/lib/components/icons/slack/index.ts",
-      "default": "./src/lib/components/icons/slack/index.ts"
-    },
-    "./icons/zig": {
-      "types": "./src/lib/components/icons/zig/index.ts",
-      "svelte": "./src/lib/components/icons/zig/index.ts",
-      "default": "./src/lib/components/icons/zig/index.ts"
-    },
     "./icons/rust": {
       "types": "./src/lib/components/icons/rust/index.ts",
       "svelte": "./src/lib/components/icons/rust/index.ts",
       "default": "./src/lib/components/icons/rust/index.ts"
     },
+    "./icons/slack": {
+      "types": "./src/lib/components/icons/slack/index.ts",
+      "svelte": "./src/lib/components/icons/slack/index.ts",
+      "default": "./src/lib/components/icons/slack/index.ts"
+    },
     "./icons/stripe": {
       "types": "./src/lib/components/icons/stripe/index.ts",
       "svelte": "./src/lib/components/icons/stripe/index.ts",
       "default": "./src/lib/components/icons/stripe/index.ts"
+    },
+    "./icons/zig": {
+      "types": "./src/lib/components/icons/zig/index.ts",
+      "svelte": "./src/lib/components/icons/zig/index.ts",
+      "default": "./src/lib/components/icons/zig/index.ts"
     },
     "./ui/accordion": {
       "types": "./src/lib/components/ui/accordion/index.ts",
