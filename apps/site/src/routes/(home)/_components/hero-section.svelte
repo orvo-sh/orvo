@@ -12,9 +12,9 @@
 
 <section
   id="pricing"
-  class="from-muted border-foreground/20 flex w-full flex-col items-center justify-center overflow-hidden border-b bg-linear-to-t to-transparent"
+  class="from-muted border-foreground/20 to-background flex w-full flex-col items-center justify-center overflow-hidden border-b bg-linear-to-t"
 >
-  <div class="flex w-full max-w-6xl flex-col gap-10 px-3 pt-16 md:gap-16 md:px-6 md:pt-20">
+  <div class="flex w-full max-w-6xl flex-col gap-10 px-3 pt-16 md:gap-16 md:px-6 md:pt-28">
     <div class="relative">
       <h1 class="mt-8 max-w-3xl text-3xl font-semibold text-balance lg:text-6xl">
         Things brea<span class="relative inline-block translate-y-1 rotate-10" aria-hidden="true"
@@ -41,17 +41,16 @@
         <Button href="/docs" size="lg" variant="outline">View documentation</Button>
       </div>
 
-      <div class="mt-10">
+      <div class="mt-18">
         <div class="inline-flex w-fit flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <span class="text-muted-foreground">Works with</span>
+          <div class="flex items-center gap-x-4 gap-y-2 text-sm">
+            <span class="text-muted-foreground not-sm:hidden">Works with</span>
             {#each [{ label: 'Node.js', component: NodejsIcon }, { label: 'Go', component: GolangIcon }, { label: 'Python', component: PythonIcon }, { label: 'Java', component: JavaIcon }, { label: 'Rust', component: RustIcon }, { label: 'Zig', component: ZigIcon }] as runtime (runtime.label)}
               <div class="text-secondary-foreground inline-flex items-center gap-1.5">
-                <svelte:component this={runtime.component} class="size-4.5" />
-                <span>{runtime.label}</span>
+                <svelte:component this={runtime.component} class="size-4.5" title={runtime.label} />
               </div>
             {/each}
-            <span class="text-muted-foreground">+ any OpenTelemetry SDK</span>
+            <span class="text-muted-foreground">+ any OTel SDK</span>
           </div>
         </div>
       </div>

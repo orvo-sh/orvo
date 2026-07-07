@@ -102,7 +102,7 @@
       Keep recurring jobs, scheduled syncs, and external pings visible. See what checked in on time,
       what is drifting, and what stopped entirely.
       <a
-        href="/product/heartbeats"
+        href="/docs/product/heartbeats"
         class="text-primary inline-flex text-base underline-offset-4 hover:underline"
       >
         Learn more about heartbeats

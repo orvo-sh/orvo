@@ -1,9 +1,9 @@
 import hljs from 'highlight.js';
 import { Marked, Renderer } from 'marked';
 import { markedHighlight } from 'marked-highlight';
-import { slugify } from '$lib/slugify';
+import { parseFrontMatter } from '../../../lib/utils/parse-front-matter';
+import { slugify } from '../../../lib/utils/slugify';
 import { createMarkedCalloutExtension } from './marked-callout-extension';
-import { parseFrontMatter } from './parse-front-matter';
 
 type DocFrontMatter = {
   title?: string;

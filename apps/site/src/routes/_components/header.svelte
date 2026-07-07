@@ -9,27 +9,27 @@
 
   const productFeatures = [
     {
-      href: '/product/tracing',
+      href: '/docs/product/traces',
       title: 'Distributed Tracing',
       content: 'Follow requests across services and dependencies.'
     },
     {
-      href: '/product/logs',
+      href: '/docs/product/logs',
       title: 'Log Management',
       content: 'Search, filter, and investigate application logs.'
     },
     {
-      href: '/product/metrics',
+      href: '/docs/product/metrics',
       title: 'Metrics Monitoring',
       content: 'Track performance, errors, and system health.'
     },
     {
-      href: '/product/alerts',
+      href: '/docs/product/alerts',
       title: 'Alerting',
       content: 'Get notified before small issues escalate.'
     },
     {
-      href: '/product/heartbeats',
+      href: '/docs/product/heartbeats',
       title: 'Heartbeat Monitoring',
       content: 'Detect failed jobs and missing check-ins.'
     }
@@ -104,7 +104,7 @@
     </NavigationMenu.Root>
     <Sheet.Root bind:open={mobileSheetOpen}>
       <Sheet.Trigger>
-        {#snippet child({ props })}
+        {#snippet child({ props }: { props: any })}
           <Button variant="outline" size="icon" class="sm:hidden" {...props}>
             <IconMenu data-slot="button-icon" />
             <span class="sr-only">Open menu</span>

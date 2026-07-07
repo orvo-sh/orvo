@@ -82,7 +82,7 @@
       Get notified when something crosses your threshold, route the right signal to the right
       people, and keep the incident queue focused on what actually needs action.
       <a
-        href="/product/alerts"
+        href="/docs/product/alerts"
         class="text-primary inline-flex text-base underline-offset-4 hover:underline"
       >
         Learn more about alerts

@@ -122,7 +122,7 @@
       continuous timeline. Open the exact failed span and see where the request crossed service
       boundaries before it broke.
       <a
-        href="/docs/signals/traces"
+        href="/docs/product/traces"
         class="text-primary inline-flex text-base underline-offset-4 hover:underline"
       >
         Learn more about traces

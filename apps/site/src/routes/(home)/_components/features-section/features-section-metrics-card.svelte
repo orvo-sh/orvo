@@ -33,7 +33,8 @@
       broader health trends early, then move into traces or logs only when you need the deeper
       story.
       <a
-        href="/docs/signals/metrics"
+        href="/docs/product/metrics"
+        target="_blank"
         class="text-primary inline-flex text-base underline-offset-4 hover:underline"
       >
         Learn more about metrics

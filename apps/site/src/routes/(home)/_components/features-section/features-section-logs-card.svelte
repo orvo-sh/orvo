@@ -76,7 +76,7 @@
       Search messages, attributes, services, trace IDs, and more from a single view. Filter out the
       noise, investigate faster, and find the exact events that explain what happened.
       <a
-        href="/docs/signals/logs"
+        href="/docs/product/logs"
         class="text-primary inline-flex text-base underline-offset-4 hover:underline"
         >Learn more about logs
 
@@ -93,10 +93,6 @@
         <Label class="w-22 shrink-0 text-[0.8rem] font-normal">Severity</Label>
         <Label class="flex-1 text-[0.8rem] font-normal">Message</Label>
       </div>
-      <div
-        aria-hidden="true"
-        class="pointer-events-none absolute inset-x-0 top-full -mt-px h-px to-transparent shadow-xs"
-      ></div>
     </div>
     <div class="bg-background relative h-[92%] overflow-hidden">
       <div class="logs-stream">
@@ -130,24 +126,21 @@
                   }[log.severity] ?? 'text-muted-foreground/80'
                 }`}
               >
-                <Badge
-                  variant="outline"
+                <span
                   class={cn(
-                    'gap-0.5 pr-1.5 pl-0.75',
+                    'flex items-center gap-0.5 pr-1.5 pl-0.75',
                     {
-                      info: 'border-green-600/20 bg-green-600/7 text-green-700 ',
-                      warn: 'border-amber-600/20 bg-amber-600/7 text-amber-800',
-                      error: 'border-red-600/20 bg-red-600/7 text-red-800',
-                      debug:
-                        'border-muted-foreground/20 bg-muted-foreground/7 text-muted-foreground',
-                      trace:
-                        'border-muted-foreground/20 bg-muted-foreground/7 text-muted-foreground'
+                      info: 'text-blue-700 ',
+                      warn: 'text-amber-800',
+                      error: 'text-red-800',
+                      debug: 'text-muted-foreground',
+                      trace: 'text-muted-foreground'
                     }[log.severity]
                   )}
                 >
                   <IconCircleFilled class="size-2.5" />
                   {log.severity}
-                </Badge>
+                </span>
               </span>
             </div>
 
