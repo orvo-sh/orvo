@@ -109,6 +109,16 @@
   let expiry = $state("90");
 
   const endpoint = $derived(`${page.url.origin}/api/mcp`);
+  const authorizationEndpoint = $derived(
+    `${page.url.origin}/api/auth/oauth2/authorize`,
+  );
+  const tokenEndpoint = $derived(`${page.url.origin}/api/auth/oauth2/token`);
+  const protectedResourceMetadata = $derived(
+    `${page.url.origin}/api/mcp/.well-known/oauth-protected-resource`,
+  );
+  const authorizationServerMetadata = $derived(
+    `${page.url.origin}/.well-known/oauth-authorization-server`,
+  );
   const installServerName = $derived(
     `orvo-${
       (data.currentOrganization?.name ?? "organization")
@@ -300,8 +310,62 @@
         </div>
       </div>
 
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="space-y-2">
+          <Label class="text-sm font-medium">OAuth discovery</Label>
+          <div class="space-y-2 rounded-lg border bg-background p-3">
+            <div class="space-y-1">
+              <p class="text-xs font-medium text-muted-foreground">
+                Protected resource metadata
+              </p>
+              <code class="block overflow-x-auto text-xs"
+                >{protectedResourceMetadata}</code
+              >
+            </div>
+            <div class="space-y-1">
+              <p class="text-xs font-medium text-muted-foreground">
+                Authorization server metadata
+              </p>
+              <code class="block overflow-x-auto text-xs"
+                >{authorizationServerMetadata}</code
+              >
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <Label class="text-sm font-medium">OAuth endpoints</Label>
+          <div class="space-y-2 rounded-lg border bg-background p-3">
+            <div class="space-y-1">
+              <p class="text-xs font-medium text-muted-foreground">
+                Authorization endpoint
+              </p>
+              <code class="block overflow-x-auto text-xs"
+                >{authorizationEndpoint}</code
+              >
+            </div>
+            <div class="space-y-1">
+              <p class="text-xs font-medium text-muted-foreground">
+                Token endpoint
+              </p>
+              <code class="block overflow-x-auto text-xs">{tokenEndpoint}</code>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="space-y-2">
-        <Label class="text-sm font-medium">Install config</Label>
+        <Label class="text-sm font-medium">OAuth install</Label>
+        <p class="text-sm text-muted-foreground">
+          OAuth-capable clients like ChatGPT, Codex, and other MCP apps can use
+          the endpoint URL directly. Orvo advertises OAuth discovery metadata,
+          supports PKCE, and lets the user choose the organization and allowed
+          apps during sign-in.
+        </p>
+      </div>
+
+      <div class="space-y-2">
+        <Label class="text-sm font-medium">Manual token config</Label>
         <p class="text-sm text-muted-foreground">
           Add this config to your MCP client, then replace the bearer token with
           a real MCP token from this page.

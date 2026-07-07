@@ -6,7 +6,6 @@ import { suppressTracing } from "@opentelemetry/core";
 import { Logger } from "@repo/logger";
 import { PgBoss } from "pg-boss";
 
-import { ClickHouseExpirationCleanupWorker } from "./clickhouse-expiration-cleanup-worker";
 import { HeartbeatWorker } from "./heartbeat-worker";
 import { NotificationDeliveryWorker } from "./notification-delivery-worker";
 import { ThresholdAlertWorker } from "./threshold-alert-worker";
@@ -36,7 +35,6 @@ const startWorkers = async (logger: Logger) => {
   });
   const container = createWorkerContainer(workerLogger);
   const manager = new WorkerManager(boss, workerLogger, [
-    new ClickHouseExpirationCleanupWorker(workerLogger, container.clickhouse),
     new HeartbeatWorker(workerLogger, container.heartbeatService),
     new ThresholdAlertWorker(
       workerLogger,

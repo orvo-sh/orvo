@@ -38,7 +38,9 @@
         },
         {
           onSuccess: async () => {
-            await goto(`/verify-email?email=${encodeURIComponent(email)}`);
+            await goto(
+              `/verify-email?email=${encodeURIComponent(email)}&callback=${encodeURIComponent(data.callback)}`,
+            );
           },
           onError: (ctx) => {
             error =
@@ -59,8 +61,8 @@
     await authClient.signIn
       .social({
         provider: "github",
-        callbackURL: "/",
-        errorCallbackURL: "/sign-up",
+        callbackURL: data.callback,
+        errorCallbackURL: `/sign-up?callback=${encodeURIComponent(data.callback)}`,
       })
       .catch(() => {
         error = "Unable to continue with GitHub right now. Please try again.";
@@ -83,8 +85,9 @@
         <div class="space-y-1">
           <h1 class="text-xl font-semibold">Create your account</h1>
           <FieldDescription>
-            Already have an account? <a href="/sign-in" class="text-primary"
-              >Sign in</a
+            Already have an account? <a
+              href={`/sign-in?callback=${encodeURIComponent(data.callback)}`}
+              class="text-primary">Sign in</a
             >
           </FieldDescription>
         </div>

@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { readFileSync } from 'node:fs';
 import postgres, { type Options, type PostgresType, type Sql } from 'postgres';
-export { and, desc, eq, isNull } from 'drizzle-orm';
+export { and, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import * as schema from './schema/index.js';
 

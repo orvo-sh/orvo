@@ -36,7 +36,7 @@
         },
         {
           onSuccess: async () => {
-            await goto("/");
+            await goto(data.callback);
           },
           onError: async (ctx) => {
             const errorCode = ctx.error.code.toUpperCase();
@@ -49,7 +49,9 @@
                 })
                 .catch(() => undefined);
 
-              await goto(`/verify-email?email=${encodeURIComponent(email)}`);
+              await goto(
+                `/verify-email?email=${encodeURIComponent(email)}&callback=${encodeURIComponent(data.callback)}`,
+              );
               return;
             }
 
@@ -71,8 +73,8 @@
     await authClient.signIn
       .social({
         provider: "github",
-        callbackURL: "/",
-        errorCallbackURL: "/sign-in",
+        callbackURL: data.callback,
+        errorCallbackURL: `/sign-in?callback=${encodeURIComponent(data.callback)}`,
       })
       .catch(() => {
         error = "Unable to continue with GitHub right now. Please try again.";
@@ -95,8 +97,9 @@
         <div class="space-y-1">
           <h1 class="text-xl font-semibold">Welcome back</h1>
           <FieldDescription
-            >Don't have an account? <a href="/sign-up" class="text-primary"
-              >Get started</a
+            >Don't have an account? <a
+              href={`/sign-up?callback=${encodeURIComponent(data.callback)}`}
+              class="text-primary">Get started</a
             ></FieldDescription
           >
         </div>

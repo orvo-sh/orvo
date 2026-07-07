@@ -1,4 +1,6 @@
 import type { RequestHandler } from "@sveltejs/kit";
+import { oauthProviderResourceClient } from "@better-auth/oauth-provider/resource-client";
+import { mcpTokenScopeValues } from "$lib/server/services/mcp-token/schema";
 import { genId } from "@repo/utils";
 
 const protocolVersion = "2025-11-25";
@@ -20,7 +22,7 @@ type AuthContext = {
   organizationId: string;
   scopes: string[];
   allowedAppIds: string[];
-  subjectType: "mcp_token";
+  subjectType: "mcp_token" | "oauth_access_token";
   tokenPrefix: string;
   tokenName: string;
 };
@@ -111,7 +113,7 @@ const createJsonRpcError = (
     headers,
   );
 
-const createUnauthorizedResponse = () =>
+const createUnauthorizedResponse = (origin: string) =>
   createJsonResponse(
     {
       jsonrpc: "2.0",
@@ -122,7 +124,8 @@ const createUnauthorizedResponse = () =>
     },
     401,
     {
-      "WWW-Authenticate": `Bearer realm="Orvo MCP", scope="${readOnlyChallengeScopes}"`,
+      "WWW-Authenticate": `Bearer realm="Orvo MCP", scope="${readOnlyChallengeScopes}", resource_metadata="${origin}/api/mcp/.well-known/oauth-protected-resource"`,
+      "Access-Control-Expose-Headers": "WWW-Authenticate",
     },
   );
 
@@ -272,11 +275,75 @@ const resolveAuthContext = async (
     return null;
   }
 
-  return locals.container.mcpTokenService.validateMcpToken({
-    token,
-    ipAddress: getClientAddress(),
-    userAgent: request.headers.get("user-agent"),
-  });
+  if (token.startsWith("orvo_mcp_")) {
+    return locals.container.mcpTokenService.validateMcpToken({
+      token,
+      ipAddress: getClientAddress(),
+      userAgent: request.headers.get("user-agent"),
+    });
+  }
+
+  let oauthPayload: {
+    azp?: unknown;
+    jti?: unknown;
+    scope?: unknown;
+    sub?: unknown;
+  } | null = null;
+
+  try {
+    oauthPayload = await oauthProviderResourceClient(
+      locals.container.authService,
+    )
+      .getActions()
+      .verifyBearerToken(token, {
+        verifyOptions: {
+          audience: `${new URL(request.url).origin}/api/mcp`,
+        },
+      });
+  } catch {
+    return null;
+  }
+
+  const clientId =
+    typeof oauthPayload?.azp === "string" ? oauthPayload.azp : null;
+  const userId =
+    typeof oauthPayload?.sub === "string" ? oauthPayload.sub : null;
+
+  if (!clientId || !userId) {
+    return null;
+  }
+
+  const grant = await locals.container.mcpOauthGrantService.resolveGrant(
+    {
+      clientId,
+    },
+    {
+      userId,
+    },
+  );
+
+  if (!grant.success) {
+    return null;
+  }
+
+  return {
+    tokenId:
+      (typeof oauthPayload.jti === "string" && oauthPayload.jti) ||
+      `${clientId}:${userId}`,
+    organizationId: grant.data.organizationId,
+    scopes: String(oauthPayload.scope ?? "")
+      .split(/\s+/)
+      .map((value) => value.trim())
+      .filter((value) =>
+        mcpTokenScopeValues.includes(
+          value as (typeof mcpTokenScopeValues)[number],
+        ),
+      ),
+    allowedAppIds: grant.data.allowedAppIds,
+    subjectType: "oauth_access_token" as const,
+    tokenPrefix: clientId,
+    tokenName: "OAuth access token",
+  };
 };
 
 const validateSession = (request: Request, authContext: AuthContext) => {
@@ -313,7 +380,7 @@ const validateSession = (request: Request, authContext: AuthContext) => {
   ) {
     return {
       ok: false as const,
-      response: createUnauthorizedResponse(),
+      response: createUnauthorizedResponse(new URL(request.url).origin),
     };
   }
 
@@ -457,7 +524,7 @@ export const GET: RequestHandler = async (event) => {
   );
 
   if (!authContext) {
-    return createUnauthorizedResponse();
+    return createUnauthorizedResponse(event.url.origin);
   }
 
   const sessionValidation = validateSession(event.request, authContext);
@@ -535,7 +602,7 @@ export const POST: RequestHandler = async (event) => {
   );
 
   if (!authContext) {
-    return createUnauthorizedResponse();
+    return createUnauthorizedResponse(event.url.origin);
   }
 
   let payload: unknown;
@@ -614,7 +681,7 @@ export const DELETE: RequestHandler = async (event) => {
   );
 
   if (!authContext) {
-    return createUnauthorizedResponse();
+    return createUnauthorizedResponse(event.url.origin);
   }
 
   const sessionValidation = validateSession(event.request, authContext);

@@ -53,7 +53,7 @@
         },
         {
           onSuccess: async () => {
-            await goto("/");
+            await goto(data.callback);
           },
           onError: (ctx) => {
             error = ctx.error.message;
@@ -118,7 +118,9 @@
               class="h-fit p-0 text-sm"
               onclick={() => {
                 authClient.signOut().then(() => {
-                  goto(`/sign-up`);
+                  goto(
+                    `/sign-up?callback=${encodeURIComponent(data.callback)}`,
+                  );
                 });
               }}
             >

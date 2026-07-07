@@ -10,6 +10,7 @@ import { HeartbeatService } from "$lib/server/services/heartbeat";
 import { IncidentService } from "$lib/server/services/incident";
 import { IngestionKeyService } from "$lib/server/services/ingestion-key";
 import { LogsService } from "$lib/server/services/logs";
+import { McpOauthGrantService } from "$lib/server/services/mcp-oauth-grant.service";
 import { McpService } from "$lib/server/services/mcp";
 import { McpTokenService } from "$lib/server/services/mcp-token";
 import { MetricsService } from "$lib/server/services/metrics";
@@ -100,6 +101,7 @@ const createServerContainer = (logger: Logger) => {
     logger,
     env.ENCRYPTION_SECRET,
   );
+  const mcpOauthGrantService = new McpOauthGrantService(db, logger);
   const billingService = stripe
     ? new BillingService(db, logger, email, stripe, {
         starterPriceId: env.STRIPE_STARTER_PRICE_ID,
@@ -113,7 +115,7 @@ const createServerContainer = (logger: Logger) => {
   });
 
   const authService = createAuth(db, logger, email, billingService, {
-    secret: env.ENCRYPTION_SECRET,
+    secret: env.BETTER_AUTH_SECRET || env.ENCRYPTION_SECRET,
     baseUrl: env.ORIGIN,
     github:
       env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
@@ -143,6 +145,7 @@ const createServerContainer = (logger: Logger) => {
 
   return {
     authService,
+    mcpOauthGrantService,
     mcpTokenService,
     uploadService,
     billingService,

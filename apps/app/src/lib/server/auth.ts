@@ -1,19 +1,41 @@
 import { getRequestEvent } from "$app/server";
 import { env } from "$env/dynamic/private";
+import {
+  oauthProvider,
+  getOAuthProviderState,
+} from "@better-auth/oauth-provider";
 import { stripe as stripePlugin } from "@better-auth/stripe";
-import { type DB } from "@repo/db";
+import { emailOTP, jwt, organization } from "better-auth/plugins";
+import { and, eq, inArray, sql, type DB } from "@repo/db";
 import * as dbSchema from "@repo/db/schema";
 import { genId } from "@repo/utils";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { emailOTP, organization } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
-import { and, eq, inArray, sql } from "drizzle-orm";
 import Stripe from "stripe";
 
 import type { Logger } from "@repo/logger";
 import type { Email } from "./email";
 import { BillingService } from "./services/billing";
+import { mcpTokenScopeValues } from "./services/mcp-token/schema";
+
+const defaultMcpOauthScopes = [
+  "openid",
+  "profile",
+  "email",
+  "offline_access",
+  "app:read",
+  "logs:read",
+  "traces:read",
+  "metrics:read",
+  "incidents:read",
+  "heartbeats:read",
+  "alerts:read",
+] as const;
+
+const supportedMcpOauthScopes = [
+  ...new Set([...defaultMcpOauthScopes, ...mcpTokenScopeValues]),
+];
 
 const createAuth = (
   db: DB,
@@ -90,14 +112,12 @@ const createAuth = (
             return;
           }
 
-          await db
-            .delete(dbSchema.organization)
-            .where(
-              inArray(
-                dbSchema.organization.id,
-                soleOrganizationRows.map((row) => row.organizationId),
-              ),
-            );
+          await db.delete(dbSchema.organization).where(
+            inArray(
+              dbSchema.organization.id,
+              soleOrganizationRows.map((row) => row.organizationId),
+            ),
+          );
         },
       },
     },
@@ -217,7 +237,54 @@ const createAuth = (
             },
           })
         : undefined,
-      ,
+      jwt(),
+      oauthProvider({
+        loginPage: "/sign-in",
+        consentPage: "/oauth/authorize",
+        validAudiences: [`${config.baseUrl}/api/mcp`],
+        allowDynamicClientRegistration: true,
+        allowUnauthenticatedClientRegistration: true,
+        silenceWarnings: {
+          oauthAuthServerConfig: true,
+          openidConfig: true,
+        },
+        scopes: supportedMcpOauthScopes,
+        clientRegistrationDefaultScopes: [...defaultMcpOauthScopes],
+        clientRegistrationAllowedScopes: supportedMcpOauthScopes,
+        postLogin: {
+          page: "/oauth/authorize",
+          shouldRedirect: async () => false,
+          consentReferenceId: async ({ user }) => {
+            if (!user) {
+              return undefined;
+            }
+
+            const oauthState = await getOAuthProviderState();
+            const oauthQuery = oauthState?.query;
+
+            if (!oauthQuery) {
+              return undefined;
+            }
+
+            const clientId = new URLSearchParams(oauthQuery).get("client_id");
+
+            if (!clientId) {
+              return undefined;
+            }
+
+            const grant = await db.query.mcpOauthGrant.findFirst({
+              where: and(
+                eq(dbSchema.mcpOauthGrant.clientId, clientId),
+                eq(dbSchema.mcpOauthGrant.userId, user.id),
+              ),
+            });
+
+            return grant?.organizationId;
+          },
+        },
+        customAccessTokenClaims: async ({ referenceId }) =>
+          referenceId ? { organization_id: referenceId } : {},
+      }),
       sveltekitCookies(getRequestEvent),
     ].filter((x): x is NonNullable<typeof x> => !!x),
   });

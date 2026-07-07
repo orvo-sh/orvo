@@ -2,8 +2,8 @@ import { recordError } from "$lib/instrumentation";
 import { and, eq, isNull, type DB } from "@repo/db";
 import { mcpToken } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
-import { desc } from "drizzle-orm";
 import { err, ok } from "@repo/utils";
+import { desc } from "drizzle-orm";
 import { z } from "zod";
 
 import { listMcpTokensInputSchema } from "../schema";

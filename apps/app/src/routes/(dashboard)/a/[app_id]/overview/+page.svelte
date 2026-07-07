@@ -171,7 +171,7 @@
   });
 </script>
 
-<PageContainer title="Overview">
+<PageContainer title="Overview" contentClass="p-3">
   {#snippet actions()}
     <Select.Root
       type="single"
