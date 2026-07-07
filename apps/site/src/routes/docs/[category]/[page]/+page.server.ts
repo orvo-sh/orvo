@@ -24,6 +24,16 @@ const categoryRank = (category: string) => {
   return index === -1 ? CATEGORY_ORDER.length : index;
 };
 
+const CATEGORY_LABELS: Record<string, string> = {
+  'getting-started': 'Getting started',
+  concepts: 'Concepts',
+  opentelemetry: 'OpenTelemetry',
+  product: 'Product',
+  guides: 'Guides',
+  integrations: 'Integrations',
+  reference: 'Reference'
+};
+
 const docs = Object.entries(import.meta.glob('/content/docs/**/*.md', {
   query: '?raw',
   import: 'default',
@@ -130,15 +140,18 @@ const load = (async ({ params }) => {
     content: html,
     toc,
     title: doc.title,
+    description: doc.description,
+    category: CATEGORY_LABELS[params.category] ?? params.category.replaceAll("-", " "),
     groups: (() => {
       const groups = new Map<string, {
         label: string;
         docs: { title: string, href: string }[]
       }>();
       for (const doc of docs) {
+        const category = doc.key.split("/")[0];
         if (!groups.has(doc.key.split("/")[0])) {
           groups.set(doc.key.split("/")[0], {
-            label: doc.key.split("/")[0].replace("-", " ").toLocaleUpperCase(),
+            label: CATEGORY_LABELS[category] ?? category.replaceAll("-", " "),
             docs: []
           })
         }
@@ -163,5 +176,4 @@ export {
   entries,
   load
 };
-
 

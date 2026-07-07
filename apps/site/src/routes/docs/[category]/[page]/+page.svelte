@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { Button } from '@repo/components/ui/button';
   import * as Card from '@repo/components/ui/card';
@@ -35,7 +36,7 @@
   };
 
   $effect(() => {
-    data.content;
+    void data.content;
     setupObserver();
 
     return () => {
@@ -47,15 +48,15 @@
 
 <div class="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 pt-24 pb-16 lg:flex-row lg:px-8">
   <aside class="top-20 w-full shrink-0 lg:sticky lg:w-60">
-    {#each data.groups as group}
+    {#each data.groups as group (group.label)}
       <div class="pb-6">
         <Label class="text-muted-foreground text-xs font-semibold tracking-[0.16em] uppercase">
           {group.label}
         </Label>
         <div class="mt-3 grid gap-0">
-          {#each group.docs as item}
+          {#each group.docs as item (item.href)}
             <a
-              href={item.href}
+              href={resolve(item.href)}
               class:text-primary={item.href === page.url.pathname}
               class="text-muted-foreground hover:text-foreground rounded-md px-2 py-1 text-sm transition-colors"
             >
@@ -70,10 +71,15 @@
   <main class="min-w-0 flex-1">
     <div class="max-w-3xl">
       <div class="mb-10 space-y-4">
-        <!-- <p class="text-muted-foreground text-sm font-medium tracking-[0.16em] uppercase">
-          {data.doc.category}
-        </p> -->
+        <p class="text-muted-foreground text-sm font-medium tracking-[0.16em] uppercase">
+          {data.category}
+        </p>
         <h1 class="text-4xl font-medium text-balance">{data.title}</h1>
+        {#if data.description}
+          <p class="text-muted-foreground max-w-2xl text-lg leading-relaxed text-balance">
+            {data.description}
+          </p>
+        {/if}
         <!-- {#if data.doc.description}
           <p class="text-muted-foreground text-lg leading-relaxed text-balance">
             {data.doc.description}
@@ -82,8 +88,9 @@
       </div>
 
       <article
-        class="docs-content text-foreground/90 [&_:not(pre)>code]:bg-muted/50 [&_a]:text-primary space-y-6 leading-7 [&_:not(pre)>code]:rounded-md [&_:not(pre)>code]:border [&_:not(pre)>code]:px-1.5 [&_:not(pre)>code]:py-0.5 [&_:not(pre)>code]:font-mono [&_:not(pre)>code]:text-sm [&_a]:underline-offset-4 [&_a:hover]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_h2]:mt-10 [&_h2]:text-2xl [&_h2]:font-medium [&_h3]:mt-8 [&_h3]:text-xl [&_h3]:font-medium [&_li]:ml-5 [&_li]:list-disc [&_ol]:space-y-3 [&_p]:text-base [&_p]:leading-7 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:border [&_pre]:bg-slate-950 [&_pre]:p-4 [&_pre]:text-sm [&_pre]:text-slate-100 [&_ul]:space-y-3"
+        class="docs-content text-foreground/90 [&_:not(pre)>code]:bg-muted/50 [&_a]:text-primary space-y-6 leading-7 [&_:not(pre)>code]:rounded-md [&_:not(pre)>code]:border [&_:not(pre)>code]:px-1.5 [&_:not(pre)>code]:py-0.5 [&_:not(pre)>code]:font-mono [&_:not(pre)>code]:text-sm [&_a]:underline-offset-4 [&_a:hover]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_h2]:mt-10 [&_h2]:text-2xl [&_h2]:font-medium [&_h3]:mt-8 [&_h3]:text-xl [&_h3]:font-medium [&_img]:rounded-2xl [&_img]:border [&_img]:shadow-sm [&_img+em]:mt-2 [&_img+em]:block [&_img+em]:text-sm [&_img+em]:text-muted-foreground [&_li]:ml-5 [&_li]:list-disc [&_ol]:space-y-3 [&_p]:text-base [&_p]:leading-7 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:border [&_pre]:bg-slate-950 [&_pre]:p-4 [&_pre]:text-sm [&_pre]:text-slate-100 [&_ul]:space-y-3"
       >
+        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
         {@html data.content}
       </article>
 
@@ -104,7 +111,7 @@
                   </div>
                 </Card.Header>
                 <Card.Content>
-                  <Button href={data.previous.href} variant="outline"
+                  <Button href={resolve(data.previous.href)} variant="outline"
                     >Read {data.previous.title}</Button
                   >
                 </Card.Content>
@@ -120,7 +127,7 @@
                   </div>
                 </Card.Header>
                 <Card.Content>
-                  <Button href={data.next.href}>Read {data.next.title}</Button>
+                  <Button href={resolve(data.next.href)}>Read {data.next.title}</Button>
                 </Card.Content>
               </Card.Root>
             {/if}
@@ -135,7 +142,7 @@
       On this page
     </Label>
     <ul class="mt-3 grid gap-1">
-      {#each data.toc as item}
+      {#each data.toc as item (item.slug)}
         <li>
           <a
             href={`#${item.slug}`}

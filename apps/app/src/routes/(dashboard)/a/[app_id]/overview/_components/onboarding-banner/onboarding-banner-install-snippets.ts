@@ -22,15 +22,15 @@ import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 const sdk = new NodeSDK({
   traceExporter: new OTLPTraceExporter({
     url: '${ingestEndpoint}/v1/traces',
-    headers: { 'x-ingestion-key': 'YOUR_KEY' }
+    headers: { Authorization: 'Bearer YOUR_KEY' }
   }),
   metricExporter: new OTLPMetricExporter({
     url: '${ingestEndpoint}/v1/metrics',
-    headers: { 'x-ingestion-key': 'YOUR_KEY' }
+    headers: { Authorization: 'Bearer YOUR_KEY' }
   }),
   logRecordExporter: new OTLPLogExporter({
     url: '${ingestEndpoint}/v1/logs',
-    headers: { 'x-ingestion-key': 'YOUR_KEY' }
+    headers: { Authorization: 'Bearer YOUR_KEY' }
   })
 });
 
@@ -52,7 +52,7 @@ from opentelemetry.exporter.otlp.proto.http.log_exporter import OTLPLogExporter
 provider = TracerProvider()
 processor = BatchSpanProcessor(OTLPSpanExporter(
     endpoint="${ingestEndpoint}/v1/traces",
-    headers={"x-ingestion-key": "YOUR_KEY"}
+    headers={"Authorization": "Bearer YOUR_KEY"}
 ))
 provider.add_span_processor(processor)
 trace.set_tracer_provider(provider)
@@ -78,7 +78,7 @@ func main() {
     otlptracehttp.WithEndpoint("ingest.orvo.sh"),
     otlptracehttp.WithURLPath("/v1/traces"),
     otlptracehttp.WithHeaders(map[string]string{
-      "x-ingestion-key": "YOUR_KEY",
+      "Authorization": "Bearer YOUR_KEY",
     }),
   )
 
@@ -101,7 +101,7 @@ import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
 
 OtlpHttpSpanExporter exporter = OtlpHttpSpanExporter.builder()
   .setEndpoint("${ingestEndpoint}/v1/traces")
-  .addHeader("x-ingestion-key", "YOUR_KEY")
+  .addHeader("Authorization", "Bearer YOUR_KEY")
   .build();
 
 SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
@@ -125,7 +125,7 @@ let tracer_provider = TracerProvider::builder()
       .with_endpoint("${ingestEndpoint}/v1/traces")
       .with_headers(
         std::collections::HashMap::from([
-          ("x-ingestion-key".into(), "YOUR_KEY".into())
+          ("Authorization".into(), "Bearer YOUR_KEY".into())
         ])
       )
   )
