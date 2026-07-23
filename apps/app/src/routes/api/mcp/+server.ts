@@ -291,13 +291,16 @@ const resolveAuthContext = async (
   } | null = null;
 
   try {
+    const origin = new URL(request.url).origin;
     oauthPayload = await oauthProviderResourceClient(
       locals.container.authService,
     )
       .getActions()
       .verifyBearerToken(token, {
+        jwksUrl: `${origin}/api/auth/jwks`,
         verifyOptions: {
-          audience: `${new URL(request.url).origin}/api/mcp`,
+          audience: `${origin}/api/mcp`,
+          issuer: `${origin}/api/auth`,
         },
       });
   } catch {

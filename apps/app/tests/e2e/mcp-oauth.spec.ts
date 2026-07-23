@@ -93,7 +93,6 @@ test("issues an MCP access token through OAuth", async ({ page, request }) => {
         code: code!,
         code_verifier: verifier,
         redirect_uri: redirectUri,
-        resource: `${TEST_APP_ORIGIN}/api/mcp`,
       }),
     },
   );
@@ -102,6 +101,39 @@ test("issues an MCP access token through OAuth", async ({ page, request }) => {
   expect(tokenResponse.ok, tokenText).toBeTruthy();
   const token = JSON.parse(tokenText);
   expect(token.access_token).toEqual(expect.any(String));
+
+  const mcpResponse = await fetch(`${TEST_APP_ORIGIN}/api/mcp`, {
+    method: "POST",
+    headers: {
+      accept: "application/json, text/event-stream",
+      authorization: `Bearer ${token.access_token}`,
+      "content-type": "application/json",
+      "mcp-protocol-version": "2025-11-25",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-11-25",
+        capabilities: {},
+        clientInfo: {
+          name: "OAuth end-to-end test",
+          version: "1.0.0",
+        },
+      },
+    }),
+  });
+  const mcpText = await mcpResponse.text();
+
+  expect(mcpResponse.ok, mcpText).toBeTruthy();
+  const mcpData = mcpText
+    .split("\n")
+    .find((line) => line.startsWith("data: {"))
+    ?.slice("data: ".length);
+
+  expect(mcpData, mcpText).toBeTruthy();
+  expect(JSON.parse(mcpData!).result.serverInfo.name).toBe("orvo");
 });
 
 test("rejects cross-site form posts outside OAuth machine endpoints", async () => {

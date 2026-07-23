@@ -26,6 +26,22 @@ const formContentTypes = new Set([
   "text/plain",
 ]);
 
+const withDefaultMcpResource = (request: Request) => {
+  const url = new URL(request.url);
+
+  if (
+    request.method !== "GET" ||
+    url.pathname !== "/api/auth/oauth2/authorize" ||
+    url.searchParams.has("resource")
+  ) {
+    return request;
+  }
+
+  url.searchParams.set("resource", `${url.origin}/api/mcp`);
+
+  return new Request(url, request);
+};
+
 export const handle = async ({ event, resolve }) => {
   const contentType =
     event.request.headers
@@ -77,8 +93,11 @@ export const handle = async ({ event, resolve }) => {
     };
   }
 
+  const authRequest = withDefaultMcpResource(event.request);
+  const authEvent =
+    authRequest === event.request ? event : { ...event, request: authRequest };
   const response = await svelteKitHandler({
-    event,
+    event: authEvent,
     resolve: (event) =>
       resolve(event, {
         transformPageChunk: ({ html }) =>
