@@ -13,6 +13,9 @@ const config = {
     },
   },
   kit: {
+    csrf: {
+      trustedOrigins: ["*"],
+    },
     alias: {
       "@repo/storage": fileURLToPath(
         new URL("../../packages/storage/src/index.ts", import.meta.url),

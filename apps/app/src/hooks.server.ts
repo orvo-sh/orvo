@@ -14,7 +14,41 @@ import { loggerProvider } from "./instrumentation.server";
 const baseLogger = new Logger("Orvo", { pretty: dev, loggerProvider });
 void ensureWorkersStarted(baseLogger);
 
+const oauthFormEndpoints = new Set([
+  "/api/auth/oauth2/introspect",
+  "/api/auth/oauth2/revoke",
+  "/api/auth/oauth2/token",
+]);
+const unsafeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const formContentTypes = new Set([
+  "application/x-www-form-urlencoded",
+  "multipart/form-data",
+  "text/plain",
+]);
+
 export const handle = async ({ event, resolve }) => {
+  const contentType =
+    event.request.headers
+      .get("content-type")
+      ?.split(";", 1)[0]
+      ?.trim()
+      .toLowerCase() ?? "";
+  const requestOrigin = event.request.headers.get("origin");
+  const isForbiddenCrossSiteForm =
+    unsafeMethods.has(event.request.method) &&
+    formContentTypes.has(contentType) &&
+    requestOrigin !== event.url.origin &&
+    !oauthFormEndpoints.has(event.url.pathname);
+
+  if (isForbiddenCrossSiteForm) {
+    const message = `Cross-site ${event.request.method} form submissions are forbidden`;
+
+    if (event.request.headers.get("accept") === "application/json") {
+      return Response.json({ message }, { status: 403 });
+    }
+
+    return new Response(message, { status: 403 });
+  }
 
   const requestId = genId("req");
   const themeMode = resolveThemeMode(event.cookies.get(themeModeCookieName));
