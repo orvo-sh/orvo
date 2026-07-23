@@ -242,6 +242,8 @@ const createAuth = (
         loginPage: "/sign-in",
         consentPage: "/oauth/authorize",
         validAudiences: [`${config.baseUrl}/api/mcp`],
+        resources: [`${config.baseUrl}/api/mcp`],
+        enforcePerClientResources: false,
         allowDynamicClientRegistration: true,
         allowUnauthenticatedClientRegistration: true,
         silenceWarnings: {
