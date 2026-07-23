@@ -65,8 +65,8 @@ jobs:
           mkdir -p .kamal "${HOME}/.ssh"
           printf '%s\n' "${PROD_SERVER_SSH_KEY}" > "${KAMAL_SSH_KEY_PATH}"
           chmod 600 "${KAMAL_SSH_KEY_PATH}"
-          touch "${HOME}/.ssh/known_hosts"
-          ssh-keyscan -H "${KAMAL_HOST}" >> "${HOME}/.ssh/known_hosts"
+          : > "${HOME}/.ssh/known_hosts"
+          ssh-keyscan -H -t ed25519 "${KAMAL_HOST}" >> "${HOME}/.ssh/known_hosts"
 
           {
             echo "HOME=${HOME}"
