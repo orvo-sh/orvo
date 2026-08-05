@@ -35,7 +35,9 @@
     class:translate-x-3={!chat.railOpen}
     class:opacity-0={!chat.railOpen}
   >
-    <ChatShell mode="rail" />
+    {#if !isMobile && chat.railOpen}
+      <ChatShell mode="rail" />
+    {/if}
   </div>
 </aside>
 
@@ -48,7 +50,9 @@
       class="w-full gap-0 p-0! sm:max-w-none"
       showCloseButton={false}
     >
-      <ChatShell mode="rail" />
+      {#if chat.railOpen}
+        <ChatShell mode="rail" />
+      {/if}
     </Sheet.Content>
   </Sheet.Root>
 {/if}

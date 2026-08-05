@@ -33,6 +33,8 @@ class ChatState {
   );
   threads = $state<ChatThread[]>([]);
   sessions = new SvelteMap<string, ChatSession>();
+  sessionAccess = new SvelteMap<string, number>();
+  sessionSequence = 0;
 
   constructor(appId: string) {
     this.appId = appId;
@@ -67,7 +69,10 @@ class ChatState {
 
   loadChat = async (id: string) => {
     const existing = this.sessions.get(id);
-    if (existing) return existing;
+    if (existing) {
+      this.touchSession(id);
+      return existing;
+    }
 
     this.loading = true;
     this.error = null;
@@ -83,6 +88,8 @@ class ChatState {
         result.data.messages as UIMessage[],
       );
       this.sessions.set(id, session);
+      this.touchSession(id);
+      this.pruneSessions();
       return session;
     } catch {
       this.error = "Failed to load this chat.";
@@ -101,6 +108,7 @@ class ChatState {
     const session = await this.loadChat(id);
     if (!session && this.activeChatId === id) this.activeChatId = null;
     if (session) {
+      this.touchSession(id);
       this.context = session.thread.contexts[0] ?? null;
       if (options.messageId) {
         this.target = {
@@ -160,6 +168,8 @@ class ChatState {
       };
       session = this.createSession(thread, []);
       this.sessions.set(thread.id, session);
+      this.touchSession(thread.id);
+      this.pruneSessions();
       this.threads = [thread, ...this.threads];
       this.activeChatId = thread.id;
 
@@ -178,6 +188,7 @@ class ChatState {
     }
 
     this.error = null;
+    this.touchSession(session.thread.id);
     await session.client.sendMessage({ text: cleanText });
   };
 
@@ -192,6 +203,7 @@ class ChatState {
       return false;
     }
     this.sessions.delete(id);
+    this.sessionAccess.delete(id);
     this.threads = this.threads.filter((thread) => thread.id !== id);
     if (this.activeChatId === id) this.newChat(this.context);
     return true;
@@ -199,6 +211,32 @@ class ChatState {
 
   closeRail = () => {
     this.railOpen = false;
+  };
+
+  touchSession = (id: string) => {
+    this.sessionAccess.set(id, ++this.sessionSequence);
+  };
+
+  pruneSessions = () => {
+    if (this.sessions.size <= 8) return;
+    const removable = [...this.sessions.entries()]
+      .filter(
+        ([id, session]) =>
+          id !== this.activeChatId &&
+          session.client.status !== "submitted" &&
+          session.client.status !== "streaming",
+      )
+      .sort(
+        ([left], [right]) =>
+          (this.sessionAccess.get(left) ?? 0) -
+          (this.sessionAccess.get(right) ?? 0),
+      );
+
+    for (const [id] of removable) {
+      if (this.sessions.size <= 8) break;
+      this.sessions.delete(id);
+      this.sessionAccess.delete(id);
+    }
   };
 
   createSession = (thread: ChatThread, messages: UIMessage[]) => ({
@@ -212,6 +250,7 @@ class ChatState {
       }),
       onFinish: () => {
         void this.loadHistory();
+        this.pruneSessions();
       },
       onError: (error) => {
         this.error = error.message || "The response stopped unexpectedly.";

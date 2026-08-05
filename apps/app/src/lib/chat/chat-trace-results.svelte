@@ -92,11 +92,11 @@
           {/if}
         </span>
         <span class="min-w-0 flex-1">
-          <span class="block truncate text-xs font-medium text-foreground">
+          <span class="block truncate text-sm font-medium text-foreground">
             {trace.name}
           </span>
           <span
-            class="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground"
+            class="mt-0.5 flex items-center gap-2 text-sm text-muted-foreground"
           >
             <span class="truncate">{trace.serviceName}</span>
             <span aria-hidden="true">·</span>

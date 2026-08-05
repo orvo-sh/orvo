@@ -15,6 +15,15 @@
   });
 
   $effect(() => {
+    const chatRoot = `/a/${appId}/chat`;
+    if (
+      chat.railOpen &&
+      (page.url.pathname === chatRoot ||
+        page.url.pathname.startsWith(`${chatRoot}/`))
+    ) {
+      chat.closeRail();
+    }
+
     const chatId = page.url.searchParams.get("chat");
     const messageId = page.url.searchParams.get("chat_message");
     const linkKey = `${chatId ?? ""}:${messageId ?? ""}`;

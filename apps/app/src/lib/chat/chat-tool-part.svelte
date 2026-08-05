@@ -51,10 +51,22 @@
     )[toolName] ??
       `${complete ? "Used" : "Using"} ${String(toolName).replaceAll("_", " ")}`,
   );
+  let expanded = $state(false);
+  const debugOutput = $derived.by(() => {
+    if (!expanded) return "";
+    const value = JSON.stringify(part.output ?? part.input ?? {}, null, 2);
+    return value.length > 24_000
+      ? `${value.slice(0, 24_000)}\n\n…output truncated`
+      : value;
+  });
+
+  $effect(() => {
+    if (toolName === "search_traces" && complete) expanded = true;
+  });
 </script>
 
-<div class="my-2 text-xs text-muted-foreground" data-chat-tool={toolName}>
-  <details class="group/tool" open={toolName === "search_traces" && complete}>
+<div class="my-2 text-sm text-muted-foreground" data-chat-tool={toolName}>
+  <details class="group/tool" bind:open={expanded}>
     <summary
       class="flex cursor-pointer list-none items-center gap-2 rounded-lg py-1.5 select-none hover:text-foreground"
     >
@@ -70,15 +82,17 @@
         class="ml-auto size-3.5 transition-transform group-open/tool:rotate-90"
       />
     </summary>
-    {#if toolName === "search_traces" && complete && !failed}
-      <ChatTraceResults {chatId} {messageId} output={part.output} />
-    {:else}
-      <div
-        class="mt-1 max-h-48 overflow-auto rounded-lg border bg-muted/35 p-2 font-mono text-[10px] leading-relaxed break-words whitespace-pre-wrap"
-        data-scrollable
-      >
-        {JSON.stringify(part.output ?? part.input ?? {}, null, 2)}
-      </div>
+    {#if expanded}
+      {#if toolName === "search_traces" && complete && !failed}
+        <ChatTraceResults {chatId} {messageId} output={part.output} />
+      {:else}
+        <div
+          class="mt-1 max-h-48 overflow-auto rounded-lg border bg-muted/35 p-2 font-mono text-sm leading-relaxed break-words whitespace-pre-wrap"
+          data-scrollable
+        >
+          {debugOutput}
+        </div>
+      {/if}
     {/if}
   </details>
 </div>

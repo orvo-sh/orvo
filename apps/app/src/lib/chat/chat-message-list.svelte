@@ -17,7 +17,6 @@
     context,
     target,
     onSuggestion,
-    compact = false,
   }: {
     messages: UIMessage[];
     status: ChatStatus;
@@ -25,7 +24,6 @@
     context: ChatContextDescriptor | null;
     target: { chatId: string; messageId: string; nonce: number } | null;
     onSuggestion: (prompt: string) => void;
-    compact?: boolean;
   } = $props();
 
   let viewport: HTMLDivElement;
@@ -34,6 +32,8 @@
   let programmaticUntil = 0;
   let programmaticTarget = 0;
   let lastTargetNonce = 0;
+  let scrollFrame = 0;
+  let seekFrame = 0;
   const streamSignature = $derived.by(() => {
     const lastPart = messages.at(-1)?.parts.at(-1);
     if (!lastPart) return `${messages.length}:${status}`;
@@ -55,6 +55,14 @@
     programmaticUntil = performance.now() + 160;
     viewport.scrollTop = viewport.scrollHeight;
     following = true;
+  };
+
+  const scheduleScrollToBottom = () => {
+    if (!browser || scrollFrame) return;
+    scrollFrame = requestAnimationFrame(() => {
+      scrollFrame = 0;
+      scrollToBottom();
+    });
   };
 
   const onScroll = () => {
@@ -86,7 +94,9 @@
       return;
     }
     lastTargetNonce = target.nonce;
-    requestAnimationFrame(() => {
+    if (seekFrame) cancelAnimationFrame(seekFrame);
+    seekFrame = requestAnimationFrame(() => {
+      seekFrame = 0;
       const element = document.getElementById(
         `chat-message-${target.messageId}`,
       );
@@ -100,11 +110,15 @@
 
   onMount(() => {
     const observer = new ResizeObserver(() => {
-      if (following) requestAnimationFrame(scrollToBottom);
+      if (following) scheduleScrollToBottom();
     });
     observer.observe(content);
-    requestAnimationFrame(() => requestAnimationFrame(scrollToBottom));
-    return () => observer.disconnect();
+    scheduleScrollToBottom();
+    return () => {
+      observer.disconnect();
+      if (scrollFrame) cancelAnimationFrame(scrollFrame);
+      if (seekFrame) cancelAnimationFrame(seekFrame);
+    };
   });
 
   $effect(() => {
@@ -113,7 +127,7 @@
       following &&
       (status === "submitted" || status === "streaming")
     ) {
-      requestAnimationFrame(scrollToBottom);
+      scheduleScrollToBottom();
     }
   });
 
@@ -134,9 +148,7 @@
         <ChatEmpty {context} {onSuggestion} />
       {:else}
         <div
-          class="mx-auto flex w-full flex-col gap-5 px-4 py-6 {compact
-            ? 'max-w-3xl sm:px-5'
-            : 'max-w-4xl px-5 sm:px-8'}"
+          class="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6 sm:px-5"
         >
           {#each messages as message, index (message.id)}
             <ChatMessage

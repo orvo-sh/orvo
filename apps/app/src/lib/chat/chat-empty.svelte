@@ -38,7 +38,7 @@
   <h2 class="text-sm font-medium text-foreground">
     {context ? `Explore ${context.label}` : "What are you investigating?"}
   </h2>
-  <p class="mt-1.5 max-w-sm text-xs leading-5 text-muted-foreground">
+  <p class="mt-1.5 max-w-sm text-sm leading-5 text-muted-foreground">
     {context
       ? `Scout has this ${context.kind} in context and can connect it to the rest of your telemetry.`
       : "Scout can search your logs, traces, metrics, incidents, and heartbeats."}
@@ -48,7 +48,7 @@
       <Button
         variant="outline"
         size="sm"
-        class="h-auto py-1.5 text-xs font-normal whitespace-normal"
+        class="h-auto py-1.5 text-sm font-normal whitespace-normal"
         onclick={() => onSuggestion(suggestion)}
       >
         {suggestion}

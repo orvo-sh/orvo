@@ -56,7 +56,7 @@
       {/each}
     </div>
   {:else if chat.historyError && !chat.threads.length}
-    <div class="px-4 py-8 text-center text-xs text-destructive">
+    <div class="px-4 py-8 text-center text-sm text-destructive">
       {chat.historyError}
     </div>
   {:else if !chat.threads.length}
@@ -64,7 +64,7 @@
       class="flex flex-col items-center px-4 py-8 text-center text-muted-foreground"
     >
       <IconMessage class="mb-2 size-5 opacity-60" />
-      <p class="text-xs">No conversations yet</p>
+      <p class="text-sm">No conversations yet</p>
     </div>
   {:else}
     <div class="space-y-0.5">
@@ -78,12 +78,10 @@
             )}
             onclick={() => select(thread.id)}
           >
-            <span class="block truncate text-xs font-medium text-foreground">
+            <span class="block truncate text-sm font-medium text-foreground">
               {thread.title}
             </span>
-            <span
-              class="mt-0.5 block truncate text-[10px] text-muted-foreground"
-            >
+            <span class="mt-0.5 block truncate text-sm text-muted-foreground">
               {thread.contexts[0]
                 ? `${thread.contexts[0].kind}: ${thread.contexts[0].label}`
                 : new Date(thread.updatedAt).toLocaleDateString(undefined, {

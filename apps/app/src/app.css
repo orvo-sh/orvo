@@ -8,7 +8,7 @@
 
 @layer components {
   .chat-markdown {
-    @apply min-w-0 space-y-3 text-[13px] leading-6 text-foreground;
+    @apply min-w-0 space-y-3 text-sm leading-6 text-foreground;
   }
 
   .chat-markdown :where(h1, h2, h3, h4) {
@@ -36,7 +36,7 @@
   }
 
   .chat-markdown :where(table) {
-    @apply w-full min-w-md border-collapse text-xs;
+    @apply w-full min-w-md border-collapse text-sm;
   }
 
   .chat-markdown :where(th) {

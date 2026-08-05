@@ -3,6 +3,7 @@
   import { Spinner } from "@repo/components/ui/spinner";
   import { IconBrain, IconCheck, IconCopy } from "@tabler/icons-svelte";
   import type { UIMessage } from "ai";
+  import { onDestroy } from "svelte";
 
   import ChatMarkdown from "./chat-markdown.svelte";
   import ChatToolPart from "./chat-tool-part.svelte";
@@ -14,6 +15,7 @@
   }: { message: UIMessage; chatId: string; streaming?: boolean } = $props();
 
   let copied = $state(false);
+  let copyTimer: ReturnType<typeof setTimeout>;
   const text = $derived(
     message.parts
       .filter((part) => part.type === "text")
@@ -24,8 +26,11 @@
   const copy = async () => {
     await navigator.clipboard.writeText(text);
     copied = true;
-    setTimeout(() => (copied = false), 1400);
+    clearTimeout(copyTimer);
+    copyTimer = setTimeout(() => (copied = false), 1400);
   };
+
+  onDestroy(() => clearTimeout(copyTimer));
 </script>
 
 <article
@@ -37,14 +42,14 @@
 >
   {#if message.role === "user"}
     <div
-      class="max-w-[86%] rounded-2xl rounded-br-md bg-muted px-3.5 py-2.5 text-[13px] leading-5 text-foreground sm:max-w-[75%]"
+      class="max-w-[86%] rounded-2xl rounded-br-md bg-muted px-3.5 py-2.5 text-sm leading-5 text-foreground sm:max-w-[75%]"
     >
       {#each message.parts as part, index (`${part.type}-${index}`)}
         {#if part.type === "text"}{part.text}{/if}
       {/each}
     </div>
   {:else}
-    <div class="min-w-0 text-[13px] leading-6 text-foreground">
+    <div class="min-w-0 text-sm leading-6 text-foreground">
       {#each message.parts as part, index (`${part.type}-${index}`)}
         {#if part.type === "text"}
           <ChatMarkdown
@@ -54,7 +59,7 @@
             streaming={streaming && index === message.parts.length - 1}
           />
         {:else if part.type === "reasoning"}
-          <details class="group/reasoning my-2 text-xs text-muted-foreground">
+          <details class="group/reasoning my-2 text-sm text-muted-foreground">
             <summary
               class="flex cursor-pointer list-none items-center gap-2 py-1.5 select-none hover:text-foreground"
             >
@@ -67,9 +72,7 @@
                   : "Reasoning"}</span
               >
             </summary>
-            <div
-              class="border-l pl-3 text-[12px] leading-5 whitespace-pre-wrap"
-            >
+            <div class="border-l pl-3 text-sm leading-5 whitespace-pre-wrap">
               {part.text}
             </div>
           </details>
@@ -83,7 +86,7 @@
       {/each}
 
       {#if streaming && message.parts.length === 0}
-        <div class="flex items-center gap-2 py-1 text-xs text-muted-foreground">
+        <div class="flex items-center gap-2 py-1 text-sm text-muted-foreground">
           <Spinner class="size-3.5" /> Thinking
         </div>
       {/if}
