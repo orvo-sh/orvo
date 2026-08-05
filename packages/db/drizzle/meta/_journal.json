@@ -15,6 +15,13 @@
       "when": 1783244484400,
       "tag": "0001_overjoyed_raider",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785937341236,
+      "tag": "0002_regular_speedball",
+      "breakpoints": true
     }
   ]
 }

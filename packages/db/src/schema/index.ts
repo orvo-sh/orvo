@@ -1,4 +1,6 @@
 export * from './account.schema.js';
+export * from './agent-enrollment.schema.js';
+export * from './agent-installation.schema.js';
 export * from './alert-delivery-attempt.schema.js';
 export * from './alert-event.schema.js';
 export * from './alert-incident.schema.js';

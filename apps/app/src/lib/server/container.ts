@@ -2,6 +2,7 @@ import { dev } from "$app/environment";
 import { env } from "$env/dynamic/private";
 import { MAX_UPLOAD_FILE_SIZE_BYTES } from "$lib/constants";
 import { createAuth } from "$lib/server/auth";
+import { AgentService } from "$lib/server/services/agent";
 import { AlertRuleService } from "$lib/server/services/alert-rule";
 import { AlertWebhookDestinationService } from "$lib/server/services/alert-webhook-destination";
 import { AppService } from "$lib/server/services/app";
@@ -52,6 +53,16 @@ const encryption = new Encryption({ secret: env.ENCRYPTION_SECRET });
 
 const createServerContainer = (logger: Logger) => {
   const ingestionKeyService = new IngestionKeyService(db, logger);
+  const agentService = new AgentService(
+    db,
+    clickhouse,
+    logger,
+    ingestionKeyService,
+    {
+      appBaseUrl: env.ORIGIN,
+      ingestBaseUrl: env.INGEST_BASE_URL,
+    },
+  );
   const notificationDeliveryService = new NotificationDeliveryService(
     db,
     logger,
@@ -145,6 +156,7 @@ const createServerContainer = (logger: Logger) => {
 
   return {
     authService,
+    agentService,
     mcpOauthGrantService,
     mcpTokenService,
     uploadService,

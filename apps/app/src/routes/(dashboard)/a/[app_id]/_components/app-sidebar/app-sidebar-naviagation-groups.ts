@@ -4,6 +4,7 @@ import {
   IconChartBar,
   IconFlame,
   IconLayoutGrid,
+  IconServer,
   IconSphere2,
   IconTelescope,
   IconTerminal2
@@ -65,6 +66,11 @@ const generateAppNavigationGroups = (
     {
       label: "Monitoring",
       items: [
+        {
+          href: `/a/${appId}/hosts`,
+          label: "Hosts",
+          icon: IconServer,
+        },
         {
           href: `/a/${appId}/alerts`,
           label: "Alerts",
