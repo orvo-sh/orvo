@@ -31,6 +31,11 @@
       const trace = item as Record<string, unknown>;
       const id = typeof trace.id === "string" ? trace.id : "";
       if (!id) return [];
+      const services = Array.isArray(trace.services)
+        ? trace.services
+        : Array.isArray(trace.service_names)
+          ? trace.service_names
+          : [];
       return [
         {
           id,
@@ -41,16 +46,19 @@
                 ? trace.name
                 : "Unnamed trace",
           serviceName:
-            Array.isArray(trace.service_names) &&
-            typeof trace.service_names[0] === "string"
-              ? trace.service_names[0]
-              : "Unknown service",
+            typeof services[0] === "string" ? services[0] : "Unknown service",
           durationNs:
-            typeof trace.duration_ns === "number" ? trace.duration_ns : 0,
+            typeof (trace.durationNs ?? trace.duration_ns) === "number"
+              ? Number(trace.durationNs ?? trace.duration_ns)
+              : 0,
           spanCount:
-            typeof trace.span_count === "number" ? trace.span_count : 0,
+            typeof (trace.spans ?? trace.span_count) === "number"
+              ? Number(trace.spans ?? trace.span_count)
+              : 0,
           errorCount:
-            typeof trace.error_count === "number" ? trace.error_count : 0,
+            typeof (trace.errors ?? trace.error_count) === "number"
+              ? Number(trace.errors ?? trace.error_count)
+              : 0,
         },
       ];
     });

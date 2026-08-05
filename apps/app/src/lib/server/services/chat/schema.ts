@@ -12,7 +12,16 @@ const chatContextInputSchema = z.object({
   kind: chatContextKindSchema,
   resourceId: z.string().trim().min(1).max(255),
   label: z.string().trim().min(1).max(255),
-  metadata: z.record(z.string(), z.unknown()).optional().default({}),
+  metadata: z
+    .record(
+      z.string().trim().min(1).max(64),
+      z.union([z.string().max(500), z.number(), z.boolean(), z.null()]),
+    )
+    .refine((value) => Object.keys(value).length <= 12, {
+      message: "Context metadata is too large.",
+    })
+    .optional()
+    .default({}),
 });
 
 const createChatInputSchema = z.object({
@@ -32,14 +41,15 @@ const listChatsInputSchema = z.object({
 
 const streamChatInputSchema = z.object({
   id: z.string().trim().min(1),
-  messages: z.array(
-    z.object({
-      id: z.string().trim().min(1),
-      role: z.enum(["system", "user", "assistant"]),
-      parts: z.array(z.record(z.string(), z.unknown())),
-      metadata: z.record(z.string(), z.unknown()).optional(),
-    }),
-  ),
+  messages: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1),
+        role: z.enum(["user", "assistant"]),
+        parts: z.array(z.record(z.string(), z.unknown())).max(100),
+      }),
+    )
+    .max(200),
 });
 
 export {
