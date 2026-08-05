@@ -5,9 +5,10 @@ import {
   IconFlame,
   IconLayoutGrid,
   IconServer,
+  IconSparkles,
   IconSphere2,
   IconTelescope,
-  IconTerminal2
+  IconTerminal2,
 } from "@tabler/icons-svelte";
 
 type NavigationGroup = {
@@ -24,13 +25,16 @@ type NavigationGroup = {
   }[];
 };
 
-const generateAppNavigationGroups = (
-  appId: string,
-): NavigationGroup[] => {
+const generateAppNavigationGroups = (appId: string): NavigationGroup[] => {
   return [
     {
       label: "",
       items: [
+        {
+          href: `/a/${appId}/chat`,
+          label: "Scout",
+          icon: IconSparkles,
+        },
         {
           href: `/a/${appId}/overview`,
           label: "Overview",
@@ -60,7 +64,7 @@ const generateAppNavigationGroups = (
           href: `/a/${appId}/metrics`,
           label: "Metrics",
           icon: IconChartBar,
-        }
+        },
       ],
     },
     {

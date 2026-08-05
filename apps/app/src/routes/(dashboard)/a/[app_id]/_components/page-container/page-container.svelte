@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import { page } from "$app/state";
+  import * as Chat from "$lib/chat";
   import { cn } from "@repo/components";
   import * as Sheet from "@repo/components/ui/sheet";
   import * as Sidebar from "@repo/components/ui/sidebar";
@@ -21,6 +22,7 @@
     class: className = "",
     contentClass,
     back,
+    chat,
   }: {
     title: string;
     actions?: Snippet;
@@ -31,6 +33,7 @@
     class?: string;
     contentClass?: string;
     back?: { href: string; title: string };
+    chat?: Chat.ChatContextDescriptor;
   } = $props();
 
   let isMobile = $state(false);
@@ -51,6 +54,12 @@
     return () => {
       mediaQuery.removeEventListener("change", syncIsMobile);
     };
+  });
+
+  const chatState = Chat.useChatState();
+
+  $effect(() => {
+    if (chat && asideOpen && chatState.railOpen) chatState.closeRail();
   });
 </script>
 
@@ -112,6 +121,9 @@
       <div class="flex w-auto flex-wrap items-center justify-end gap-2">
         {#if actions}
           {@render actions()}
+        {/if}
+        {#if chat}
+          <Chat.Trigger context={chat} onOpen={() => (asideOpen = false)} />
         {/if}
       </div>
     </div>

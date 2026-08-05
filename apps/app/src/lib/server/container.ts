@@ -7,6 +7,7 @@ import { AlertRuleService } from "$lib/server/services/alert-rule";
 import { AlertWebhookDestinationService } from "$lib/server/services/alert-webhook-destination";
 import { AppService } from "$lib/server/services/app";
 import { BillingService } from "$lib/server/services/billing";
+import { ChatService } from "$lib/server/services/chat";
 import { HeartbeatService } from "$lib/server/services/heartbeat";
 import { IncidentService } from "$lib/server/services/incident";
 import { IngestionKeyService } from "$lib/server/services/ingestion-key";
@@ -25,6 +26,7 @@ import { getDb } from "@repo/db";
 import { Encryption } from "@repo/encryption";
 import { Logger } from "@repo/logger";
 import { Storage } from "@repo/storage";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import Stripe from "stripe";
 
 import { Email } from "./email";
@@ -153,6 +155,16 @@ const createServerContainer = (logger: Logger) => {
     incidentService,
     heartbeatService,
   );
+  const chatService = new ChatService(
+    db,
+    logger,
+    env.GEMINI_API_KEY
+      ? createGoogleGenerativeAI({ apiKey: env.GEMINI_API_KEY })(
+          env.GEMINI_MODEL || "gemini-3.6-flash",
+        )
+      : null,
+    mcpService,
+  );
 
   return {
     authService,
@@ -161,6 +173,7 @@ const createServerContainer = (logger: Logger) => {
     mcpTokenService,
     uploadService,
     billingService,
+    chatService,
     appService,
     alertRuleService,
     alertWebhookDestinationService,

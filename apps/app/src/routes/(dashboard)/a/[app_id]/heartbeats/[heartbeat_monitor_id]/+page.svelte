@@ -308,6 +308,12 @@
 </script>
 
 <PageContainer
+  chat={{
+    kind: "heartbeat",
+    resourceId: monitor.id,
+    label: monitor.name,
+    metadata: { status: currentStatus },
+  }}
   title={monitor.name}
   back={{ href: `/a/${page.params.app_id}/heartbeats`, title: "Heartbeats" }}
 >

@@ -20,6 +20,17 @@
 
 <PageContainer
   title="Logs"
+  chat={state.selectedLog
+    ? {
+        kind: "log",
+        resourceId: state.selectedLog.id,
+        label: state.selectedLog.body?.slice(0, 160) || state.selectedLog.id,
+        metadata: {
+          serviceName: state.selectedLog.service_name,
+          severity: state.selectedLog.severity_text,
+        },
+      }
+    : undefined}
   asideTitle={state.selectedLog?.id}
   bind:asideOpen={state.asideOpen}
 >

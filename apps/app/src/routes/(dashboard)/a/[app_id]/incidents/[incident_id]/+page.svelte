@@ -192,7 +192,15 @@
   };
 </script>
 
-<PageContainer title="Incident detail">
+<PageContainer
+  title="Incident detail"
+  chat={{
+    kind: "incident",
+    resourceId: incident.id,
+    label: incident.title,
+    metadata: { severity: incident.severity, status: incident.status },
+  }}
+>
   {#snippet actions()}
     <Button href={`/a/${page.params.app_id}/incidents`} variant="outline">
       <IconArrowLeft data-slot="button-icon" />

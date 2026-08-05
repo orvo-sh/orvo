@@ -76,6 +76,12 @@
 
 <PageContainer
   title={traceMeta?.name ?? "Trace"}
+  chat={{
+    kind: "trace",
+    resourceId: page.params.trace_id,
+    label: traceMeta?.name ?? page.params.trace_id,
+    metadata: { traceId: page.params.trace_id },
+  }}
   back={{ href: backHref, title: "Traces" }}
   asideTitle={selectedSpan?.name ?? "Span details"}
   bind:asideOpen

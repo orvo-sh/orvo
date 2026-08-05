@@ -119,6 +119,14 @@
 
 <PageContainer
   title="Metrics"
+  chat={page.params.metric_name
+    ? {
+        kind: "metric",
+        resourceId: decodeMetricName(page.params.metric_name),
+        label: decodeMetricName(page.params.metric_name),
+        metadata: { metricName: decodeMetricName(page.params.metric_name) },
+      }
+    : undefined}
   class="overflow-hidden bg-background"
   contentClass="p-0!"
   scrollContent={false}
