@@ -15,7 +15,7 @@
 >
   {#snippet actions()}
     <Button
-      variant="outline"
+      variant="ghost"
       size="icon-sm"
       aria-label="Conversations"
       aria-pressed={chat.conversationsOpen}

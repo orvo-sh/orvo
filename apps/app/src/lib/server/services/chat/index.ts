@@ -85,7 +85,12 @@ class ChatService {
 
   async streamChat(
     input: z.input<typeof streamChatInputSchema>,
-    context: { organizationId: string; appId: string; userId: string },
+    context: {
+      organizationId: string;
+      appId: string;
+      userId: string;
+      abortSignal?: AbortSignal;
+    },
   ) {
     return this.streamChatMethod(input, context);
   }

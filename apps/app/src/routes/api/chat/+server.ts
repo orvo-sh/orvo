@@ -43,5 +43,6 @@ export const POST: RequestHandler = async (event) => {
     organizationId,
     appId: body.appId,
     userId: locals.auth.user.id,
+    abortSignal: request.signal,
   });
 };

@@ -31,7 +31,12 @@ const createStreamChat =
   }) =>
   async (
     input: z.input<typeof streamChatInputSchema>,
-    context: { organizationId: string; appId: string; userId: string },
+    context: {
+      organizationId: string;
+      appId: string;
+      userId: string;
+      abortSignal?: AbortSignal;
+    },
   ) => {
     const validated = streamChatInputSchema.safeParse(input);
     if (!validated.success) {
@@ -70,6 +75,8 @@ const createStreamChat =
         messages: await convertToModelMessages(messages, { tools }),
         tools,
         stopWhen: stepCountIs(8),
+        maxRetries: 5,
+        abortSignal: context.abortSignal,
       });
 
       return result.toUIMessageStreamResponse({
