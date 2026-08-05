@@ -1,11 +1,5 @@
 <script>
   import DashboardOverviewScreenshot from '$lib/assets/dashboard-logs-screenshot.png';
-  import { GolangIcon } from '@repo/components/icons/golang';
-  import { JavaIcon } from '@repo/components/icons/java';
-  import { NodejsIcon } from '@repo/components/icons/nodejs';
-  import { PythonIcon } from '@repo/components/icons/python';
-  import { RustIcon } from '@repo/components/icons/rust';
-  import { ZigIcon } from '@repo/components/icons/zig';
   import { Button } from '@repo/components/ui/button';
   import { IconChevronRight } from '@tabler/icons-svelte';
 </script>
@@ -14,9 +8,9 @@
   id="pricing"
   class="from-muted border-foreground/20 to-background flex w-full flex-col items-center justify-center overflow-hidden border-b bg-linear-to-t"
 >
-  <div class="flex w-full max-w-6xl flex-col gap-10 px-3 pt-16 md:gap-16 md:px-6 md:pt-28">
+  <div class="flex w-full max-w-6xl flex-col gap-10 px-3 pt-16 md:gap-16 md:px-6 md:pt-24">
     <div class="relative">
-      <h1 class="mt-8 max-w-3xl text-3xl font-semibold text-balance lg:text-6xl">
+      <h1 class="mt-8 max-w-3xl font-serif text-3xl font-normal text-balance lg:text-6xl">
         Things brea<span class="relative inline-block translate-y-1 rotate-10" aria-hidden="true"
           >k</span
         >. Orvo shows you 
@@ -41,23 +35,9 @@
         <Button href="/docs" size="lg" variant="outline">View documentation</Button>
       </div>
 
-      <div class="mt-18">
-        <div class="inline-flex w-fit flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
-          <div class="flex items-center gap-x-4 gap-y-2 text-sm">
-            <span class="text-muted-foreground not-sm:hidden">Works with</span>
-            {#each [{ label: 'Node.js', component: NodejsIcon }, { label: 'Go', component: GolangIcon }, { label: 'Python', component: PythonIcon }, { label: 'Java', component: JavaIcon }, { label: 'Rust', component: RustIcon }, { label: 'Zig', component: ZigIcon }] as runtime (runtime.label)}
-              <div class="text-secondary-foreground inline-flex items-center gap-1.5">
-                <svelte:component this={runtime.component} class="size-4.5" title={runtime.label} />
-              </div>
-            {/each}
-            <span class="text-muted-foreground">+ any OTel SDK</span>
-          </div>
-        </div>
-      </div>
-
       <img
         src={DashboardOverviewScreenshot}
-        class="ring-border border-foreground/20 z-0 rounded-xl rounded-b-none border border-b-0 shadow-xl ring-3"
+        class="ring-border border-foreground/20 z-0 mt-20 rounded-xl rounded-b-none border border-b-0 shadow-xl ring-3"
         alt="app screen"
         width="2813"
         height="1489"

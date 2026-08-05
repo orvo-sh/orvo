@@ -73,6 +73,39 @@ func TestIngestTraces(t *testing.T) {
 								"duration_ns":      int64(5000000),
 							}},
 						}),
+						test.EventuallyClickhouseDBValidator(test.NewClickhouseDBValidatorInput{
+							Name: "entry span is added to the minute trace metrics rollup",
+							Query: `
+								SELECT
+									app_id,
+									service_name,
+									deployment_environment,
+									scope_name,
+									operation_name,
+									toInt64(sum(request_count)) AS request_count,
+									toInt64(sum(error_count)) AS error_count,
+									toInt64(sum(duration_sum_ns)) AS duration_sum_ns
+								FROM trace_metrics_1m
+								WHERE app_id = ?
+								GROUP BY
+									app_id,
+									service_name,
+									deployment_environment,
+									scope_name,
+									operation_name
+							`,
+							Args: []any{tracesApp.AppID},
+							Expected: []test.Row{{
+								"app_id":                 tracesApp.AppID,
+								"service_name":           "checkout",
+								"deployment_environment": "production",
+								"scope_name":             "tracer",
+								"operation_name":         "GET /checkout",
+								"request_count":          int64(1),
+								"error_count":            int64(0),
+								"duration_sum_ns":        int64(5000000),
+							}},
+						}),
 					},
 				},
 				{

@@ -2,10 +2,10 @@
   "cookies": [
     {
       "name": "better-auth.session_token",
-      "value": "bKr3927aW4A4fWOIbyuqhoN7JsjiwdDR.lSp03D%2BQ5CC6pCwhY2VW08ymI2x9HQqgXGamYlZPpjE%3D",
+      "value": "MyIUhW6vNQtuMCZqNN8PfAOXFkAOMUop.H9azuSRh%2BXyN3EruIERE9%2BRydulbWLJQ4XKuNm77ZEo%3D",
       "domain": "127.0.0.1",
       "path": "/",
-      "expires": 1783258745.187,
+      "expires": 1785417844.693,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Lax"

@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import '@repo/components/styles.css';
+@plugin '@tailwindcss/typography';
 
 @source './**/*.{svelte,ts,js}';
 @source '../node_modules/@repo/components';
@@ -8,7 +9,135 @@
   html {
     scroll-behavior: smooth;
   }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-serif;
+  }
   /* * {
     outline: 1px solid red;
   } */
+}
+
+@layer components {
+  .docs-content {
+    --docs-code-bg: #1f1f1f;
+    --docs-code-panel: #181818;
+    --docs-code-border: #2d2d30;
+    --docs-code-foreground: #d4d4d4;
+    --docs-code-muted: #6a9955;
+    --docs-code-blue: #569cd6;
+    --docs-code-aqua: #4ec9b0;
+    --docs-code-cyan: #9cdcfe;
+    --docs-code-sand: #dcdcaa;
+    --docs-code-orange: #ce9178;
+    --docs-code-green: #b5cea8;
+    --docs-code-violet: #c586c0;
+  }
+
+  .docs-content img {
+    @apply ring-border border-foreground/20 z-0 rounded-xl border ring-3;
+  }
+
+  .docs-content :where(pre) {
+    overflow-x: auto;
+    border: 1px solid var(--docs-code-border);
+    border-radius: 0.9rem;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--docs-code-panel) 100%, transparent),
+      var(--docs-code-bg)
+    );
+    color: var(--docs-code-foreground);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
+  }
+
+  .docs-content :where(pre code.hljs) {
+    display: block;
+    background: transparent;
+    padding: 1rem 1.1rem;
+    color: var(--docs-code-foreground);
+  }
+
+  .docs-content :where(.hljs-comment),
+  .docs-content :where(.hljs-quote) {
+    color: var(--docs-code-muted);
+    font-style: italic;
+  }
+
+  .docs-content :where(.hljs-keyword),
+  .docs-content :where(.hljs-selector-tag),
+  .docs-content :where(.hljs-literal),
+  .docs-content :where(.hljs-section),
+  .docs-content :where(.hljs-doctag),
+  .docs-content :where(.hljs-name),
+  .docs-content :where(.hljs-strong) {
+    color: var(--docs-code-blue);
+  }
+
+  .docs-content :where(.hljs-string),
+  .docs-content :where(.hljs-attr),
+  .docs-content :where(.hljs-symbol),
+  .docs-content :where(.hljs-bullet),
+  .docs-content :where(.hljs-addition),
+  .docs-content :where(.hljs-template-tag),
+  .docs-content :where(.hljs-template-variable) {
+    color: var(--docs-code-orange);
+  }
+
+  .docs-content :where(.hljs-number),
+  .docs-content :where(.hljs-regexp),
+  .docs-content :where(.hljs-link) {
+    color: var(--docs-code-green);
+  }
+
+  .docs-content :where(.hljs-variable),
+  .docs-content :where(.hljs-variable.language_),
+  .docs-content :where(.hljs-variable.constant_),
+  .docs-content :where(.hljs-title.class_),
+  .docs-content :where(.hljs-title.class),
+  .docs-content :where(.hljs-class .hljs-title),
+  .docs-content :where(.class_),
+  .docs-content :where(.hljs-type),
+  .docs-content :where(.hljs-params),
+  .docs-content :where(.hljs-property) {
+    color: var(--docs-code-aqua);
+  }
+
+  .docs-content :where(.hljs-function .hljs-title),
+  .docs-content :where(.hljs-title.function_),
+  .docs-content :where(.hljs-title.function),
+  .docs-content :where(.function_),
+  .docs-content :where(.hljs-built_in),
+  .docs-content :where(.hljs-selector-id),
+  .docs-content :where(.hljs-selector-class) {
+    color: var(--docs-code-sand);
+  }
+
+  .docs-content :where(.hljs-meta),
+  .docs-content :where(.hljs-meta .hljs-keyword),
+  .docs-content :where(.hljs-meta .hljs-string) {
+    color: var(--docs-code-violet);
+  }
+
+  .docs-content :where(.hljs-tag),
+  .docs-content :where(.hljs-title),
+  .docs-content :where(.hljs-selector-attr),
+  .docs-content :where(.hljs-selector-pseudo) {
+    color: var(--docs-code-cyan);
+  }
+
+  .docs-content :where(.hljs-attr),
+  .docs-content :where(.hljs-attribute) {
+    color: var(--docs-code-cyan);
+  }
+
+  .docs-content :where(.hljs-operator),
+  .docs-content :where(.hljs-punctuation),
+  .docs-content :where(.hljs-subst) {
+    color: var(--docs-code-foreground);
+  }
 }

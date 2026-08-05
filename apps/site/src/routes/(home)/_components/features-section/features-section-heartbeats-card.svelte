@@ -5,8 +5,8 @@
   import {
     IconActivityHeartbeat,
     IconArrowUpRight,
-    IconCircle,
-    IconCircleFilled
+    IconCircleFilled,
+    IconClock
   } from '@tabler/icons-svelte';
 
   const summary = [
@@ -27,14 +27,7 @@
     }
   ];
 
-  const monitors: {
-    name: string;
-    cadence: string;
-    lastCheckIn: string;
-    status: 'healthy' | 'grace' | 'missed';
-    statusLabel: string;
-    timeline: ('healthy' | 'grace' | 'missed')[];
-  }[] = [
+  const monitors = [
     {
       name: 'daily-billing-sync',
       cadence: 'Every 1 hour',
@@ -42,10 +35,6 @@
       status: 'healthy',
       statusLabel: 'Healthy',
       timeline: [
-        'healthy',
-        'healthy',
-        'healthy',
-        'healthy',
         'healthy',
         'healthy',
         'healthy',
@@ -62,22 +51,9 @@
       lastCheckIn: 'Within grace period',
       status: 'grace',
       statusLabel: 'Grace',
-      timeline: [
-        'healthy',
-        'healthy',
-        'grace',
-        'healthy',
-        'healthy',
-        'grace',
-        'healthy',
-        'healthy',
-        'healthy',
-        'grace',
-        'healthy',
-        'healthy'
-      ]
+      timeline: ['healthy', 'healthy', 'grace', 'healthy', 'healthy', 'grace', 'healthy', 'healthy']
     }
-  ];
+  ] as const;
 
   const statusClasses: Record<'healthy' | 'grace' | 'missed', string> = {
     healthy: 'border-green-600/20 bg-green-600/7 text-green-700',
@@ -92,7 +68,7 @@
   };
 </script>
 
-<Card.Root class="justify-between gap-0 p-0 xl:col-span-4">
+<Card.Root class="justify-between gap-0 p-0 shadow-none xl:col-span-4">
   <div class="p-5 pb-0">
     <h2 class="text-secondary-foreground flex items-center gap-2 text-lg font-medium">
       <IconActivityHeartbeat class="text-primary size-6" />
@@ -111,28 +87,21 @@
     </p>
   </div>
 
-  <div class="px-5 pt-4 pb-0">
-    <div
-      class="bg-background border-foreground/10 border-b-none relative overflow-hidden rounded-xl rounded-b-none border"
-    >
-      <div class="border-border/80 flex items-center gap-2 border-b px-4 py-3">
+  <div class="px-5 pt-4 pb-5">
+    <div class="bg-background border-foreground/10 overflow-hidden rounded-lg border">
+      <div class="border-border/80 flex items-center gap-1.5 border-b px-3 py-2.5">
         {#each summary as item (item.label)}
-          <Badge variant="outline" class={cn('gap-1.5 px-2.5 py-1', item.className)}>
-            <IconCircleFilled class="size-2.5" />
-            {item.value}
-            {item.label.toLowerCase()}
+          <Badge variant="outline" class={cn('h-6 gap-1.5 px-2 font-normal', item.className)}>
+            <span class="font-medium tabular-nums">{item.value}</span>
+            {item.label}
           </Badge>
         {/each}
       </div>
 
-      <div
-        class="from-card pointer-events-none absolute inset-x-0 bottom-0 z-10 h-12 bg-linear-to-t to-transparent"
-      ></div>
-
-      <div class="divide-border/70 max-h-60 divide-y overflow-hidden">
+      <div class="divide-border/70 divide-y">
         {#each monitors as monitor (monitor.name)}
-          <div class="space-y-3 px-4 py-3">
-            <div class="flex items-start justify-between gap-3">
+          <div class="space-y-3 px-3 py-3">
+            <div class="flex items-center justify-between gap-3">
               <div class="min-w-0">
                 <div class="flex items-center gap-2">
                   <p class="text-secondary-foreground truncate text-sm font-medium">
@@ -140,63 +109,37 @@
                   </p>
                   <Badge
                     variant="outline"
-                    class={cn('gap-1 pr-1.5 pl-0.75', statusClasses[monitor.status])}
+                    class={cn(
+                      'h-5 gap-1 pr-1.5 pl-0.75 text-[10px]',
+                      statusClasses[monitor.status]
+                    )}
                   >
-                    {#if monitor.status === 'healthy'}
-                      <IconCircleFilled class="size-2.5" />
-                    {:else if monitor.status === 'grace'}
-                      <IconCircle class="size-2.5" />
-                    {:else}
-                      <IconCircleFilled class="size-2.5" />
-                    {/if}
+                    <IconCircleFilled class="size-2.5" />
                     {monitor.statusLabel}
                   </Badge>
                 </div>
-                <p class="text-muted-foreground mt-1 text-xs">
+                <p class="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
+                  <IconClock class="size-3" />
                   {monitor.cadence}
-                  <span class="text-border mx-1.5">/</span>
-                  Last check-in {monitor.lastCheckIn}
-                </p>
-              </div>
-
-              <div class="text-right">
-                <p
-                  class="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase"
-                >
-                  Recent
+                  <span class="text-border mx-1">·</span>
+                  {monitor.lastCheckIn}
                 </p>
               </div>
             </div>
 
             <div class="space-y-1.5">
-              <div class="grid grid-cols-12 gap-1">
+              <div class="grid grid-cols-8 gap-1">
                 {#each monitor.timeline as state, index (`${monitor.name}-${index}`)}
                   <span
-                    class={cn(
-                      'block h-7 min-w-0 rounded-sm transition-opacity hover:opacity-85',
-                      timelineBucketClasses[state]
-                    )}
+                    class={cn('block h-2 min-w-0 rounded-full', timelineBucketClasses[state])}
                     aria-hidden="true"
                   ></span>
                 {/each}
               </div>
 
               <div class="text-muted-foreground flex items-center justify-between text-[11px]">
-                <span>Last 12 runs</span>
-                <div class="flex items-center gap-3">
-                  <span class="inline-flex items-center gap-1">
-                    <span class="block size-2 rounded-full bg-green-500"></span>
-                    On time
-                  </span>
-                  <span class="inline-flex items-center gap-1">
-                    <span class="block size-2 rounded-full bg-amber-500"></span>
-                    Grace
-                  </span>
-                  <span class="inline-flex items-center gap-1">
-                    <span class="block size-2 rounded-full bg-red-500"></span>
-                    Missed
-                  </span>
-                </div>
+                <span>Last 8 runs</span>
+                <span>{monitor.status === 'healthy' ? 'All on time' : '2 in grace'}</span>
               </div>
             </div>
           </div>

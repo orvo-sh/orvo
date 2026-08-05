@@ -1,67 +1,30 @@
 <script lang="ts">
-  import { cn } from '@repo/components';
   import { SlackIcon } from '@repo/components/icons/slack';
   import { Badge } from '@repo/components/ui/badge';
   import * as Card from '@repo/components/ui/card';
-  import { IconAlertTriangle, IconArrowUpRight, IconMail, IconWebhook } from '@tabler/icons-svelte';
+  import {
+    IconAlertTriangle,
+    IconArrowUpRight,
+    IconBellRinging,
+    IconChevronRight,
+    IconMail,
+    IconWebhook
+  } from '@tabler/icons-svelte';
 
-  const summary = [
-    { label: 'Active', value: '3', tone: 'text-destructive' },
-    { label: 'Firing', value: '2', tone: 'text-orange-500' },
-    { label: 'Muted', value: '1', tone: 'text-muted-foreground' }
-  ];
-
-  const rows = [
+  const alerts = [
     {
-      alert: 'High error rate on /api/checkout',
-      severity: 'Critical',
-      severityTone: 'text-destructive',
-      state: 'Firing',
-      stateTone: 'text-destructive',
-      triggered: '2m ago',
-      points: [14, 14, 15, 16, 22, 20, 18, 19, 18, 18],
-      stroke: '#ef4444'
+      name: 'Checkout error rate',
+      detail: 'api-checkout · above 5% for 2 min',
+      status: 'Firing',
+      time: '2m'
     },
     {
-      alert: 'p95 latency > 500ms (api)',
-      severity: 'Warning',
-      severityTone: 'text-orange-500',
-      state: 'Firing',
-      stateTone: 'text-destructive',
-      triggered: '7m ago',
-      points: [10, 11, 11, 12, 15, 14, 13, 13, 12, 12],
-      stroke: '#f59e0b'
-    },
-    {
-      alert: 'Disk usage > 85% (app-server-01)',
-      severity: 'Warning',
-      severityTone: 'text-orange-500',
-      state: 'Firing',
-      stateTone: 'text-destructive',
-      triggered: '18m ago',
-      points: [8, 8, 9, 9, 10, 10, 11, 12, 12, 12],
-      stroke: '#f59e0b'
-    },
-    {
-      alert: 'CPU usage > 90% (worker-02)',
-      severity: 'Info',
-      severityTone: 'text-slate-500',
-      state: 'Resolved',
-      stateTone: 'text-muted-foreground',
-      triggered: '1h ago',
-      points: [7, 7, 7, 8, 9, 10, 11, 10, 9, 9],
-      stroke: '#94a3b8'
+      name: 'Elevated p95 latency',
+      detail: 'api · above 500 ms for 7 min',
+      status: 'Warning',
+      time: '7m'
     }
   ];
-
-  const createSparklinePath = (points: number[]) =>
-    points
-      .map((point, index) => {
-        const x = (index / (points.length - 1)) * 100;
-        const y = 30 - point;
-        return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-      })
-      .join(' ');
 
   const destinations = [
     { label: 'Slack', icon: SlackIcon },
@@ -71,7 +34,7 @@
 </script>
 
 <Card.Root
-  class="bg-card/90 border-foreground/10 justify-between gap-0 p-0 md:col-span-2 xl:col-span-4"
+  class="bg-card/90 border-foreground/10 justify-between gap-0 p-0 shadow-none md:col-span-2 xl:col-span-4"
 >
   <div class="p-5 pb-0">
     <h2 class="text-secondary-foreground flex items-center gap-2 text-lg font-medium">
@@ -89,12 +52,12 @@
         <IconArrowUpRight class="mb-2 ml-1 inline-flex size-3.5" />
       </a>
     </p>
-    <div class="mt-3 flex flex-wrap gap-2">
+    <div class="mt-3 flex flex-wrap gap-1.5">
       {#each destinations as destination (destination.label)}
         {@const Icon = destination.icon}
         <Badge
           variant="outline"
-          class="border-border/70 bg-muted/25 text-secondary-foreground gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium"
+          class="border-border/70 bg-muted/25 text-secondary-foreground h-6 gap-1.5 rounded-md px-2 text-xs font-normal"
         >
           <Icon class="size-3.5" />
           {destination.label}
@@ -104,58 +67,58 @@
   </div>
 
   <div class="p-5 pt-4">
-    <div class="bg-background border-foreground/10 overflow-hidden rounded-xl border">
-      <div class="grid md:grid-cols-[120px_minmax(0,1fr)]">
-        <div
-          class="border-border/70 flex flex-col justify-end gap-5 border-b p-4 md:border-r md:border-b-0"
-        >
-          {#each summary as item}
-            <div class="space-y-0.5">
-              <p class="text-muted-foreground text-sm">{item.label}</p>
-              <p class={cn('text-4xl leading-none font-medium', item.tone)}>{item.value}</p>
-            </div>
-          {/each}
+    <div class="bg-background border-foreground/10 overflow-hidden rounded-lg border">
+      <div class="border-border/70 flex items-center justify-between border-b px-3 py-2.5">
+        <div class="flex items-center gap-2">
+          <span class="relative flex size-2.5">
+            <span class="bg-destructive/30 absolute inline-flex size-full animate-ping rounded-full"
+            ></span>
+            <span class="bg-destructive relative inline-flex size-2.5 rounded-full"></span>
+          </span>
+          <span class="text-secondary-foreground text-sm font-medium">2 firing alerts</span>
         </div>
+        <span class="text-muted-foreground text-xs tabular-nums">1 open incident</span>
+      </div>
 
-        <div class="min-w-0">
-          <div
-            class="text-muted-foreground grid grid-cols-[minmax(0,1.9fr)_0.8fr_0.8fr_0.8fr_88px] gap-4 border-b px-4 py-3 text-[11px] font-medium tracking-[0.14em] uppercase"
-          >
-            <span>Alert</span>
-            <span>Severity</span>
-            <span>State</span>
-            <span>Triggered</span>
-            <span class="sr-only">Trend</span>
-          </div>
-
-          <div>
-            {#each rows as row, index (row.alert)}
-              <div
-                class={cn(
-                  'grid grid-cols-[minmax(0,1.9fr)_0.8fr_0.8fr_0.8fr_88px] items-center gap-4 px-4 py-3',
-                  index < rows.length - 1 && 'border-border/60 border-b'
-                )}
-              >
-                <p class="text-secondary-foreground truncate text-sm font-medium">{row.alert}</p>
-                <p class={cn('text-sm font-medium', row.severityTone)}>{row.severity}</p>
-                <p class={cn('text-sm font-medium', row.stateTone)}>{row.state}</p>
-                <p class="text-secondary-foreground text-sm">{row.triggered}</p>
-
-                <div class="flex justify-end">
-                  <svg viewBox="0 0 100 20" class="h-6 w-[72px]" aria-hidden="true">
-                    <path
-                      d={createSparklinePath(row.points)}
-                      fill="none"
-                      stroke={row.stroke}
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                </div>
+      <div class="divide-border/70 divide-y">
+        {#each alerts as alert (alert.name)}
+          <div class="flex items-center gap-3 px-3 py-3">
+            <div
+              class="bg-destructive/8 text-destructive flex size-8 shrink-0 items-center justify-center rounded-md"
+            >
+              <IconBellRinging class="size-4" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <p class="text-secondary-foreground truncate text-sm font-medium">{alert.name}</p>
+                <Badge
+                  variant="outline"
+                  class="border-destructive/20 bg-destructive/6 text-destructive h-5 shrink-0 px-1.5 text-[10px] font-medium"
+                >
+                  {alert.status}
+                </Badge>
               </div>
-            {/each}
+              <p class="text-muted-foreground mt-0.5 truncate text-xs">{alert.detail}</p>
+            </div>
+            <span class="text-muted-foreground text-xs tabular-nums">{alert.time}</span>
           </div>
+        {/each}
+      </div>
+
+      <div class="bg-muted/35 border-border/70 border-t p-2">
+        <div class="bg-background flex items-center gap-3 rounded-md border p-2.5">
+          <div
+            class="bg-destructive/8 text-destructive flex size-8 shrink-0 items-center justify-center rounded-md"
+          >
+            <IconAlertTriangle class="size-4" />
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-secondary-foreground truncate text-sm font-medium">
+              api-checkout latency spike
+            </p>
+            <p class="text-muted-foreground truncate text-xs">Open for 7 min · 2 related alerts</p>
+          </div>
+          <IconChevronRight class="text-muted-foreground size-4 shrink-0" />
         </div>
       </div>
     </div>

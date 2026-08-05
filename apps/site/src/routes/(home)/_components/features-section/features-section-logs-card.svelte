@@ -3,7 +3,7 @@
   import { Badge } from '@repo/components/ui/badge';
   import * as Card from '@repo/components/ui/card';
   import { Label } from '@repo/components/ui/label';
-  import { IconArrowUpRight, IconCircleFilled, IconFileText } from '@tabler/icons-svelte';
+  import { IconArrowUpRight, IconCircleFilled, IconTerminal2 } from '@tabler/icons-svelte';
 
   const logs = [
     {
@@ -69,8 +69,8 @@
 
 <Card.Root class="aspect-square p-0 xl:col-span-6">
   <div class="p-5 pb-0">
-    <h2 class="text-secondary-foreground flex items-center gap-2 text-lg font-medium">
-      <IconFileText class="text-primary size-6" />Logs
+    <h2 class="text-secondary-foreground flex items-center gap-1.5 font-sans text-lg font-medium">
+      <IconTerminal2 class="text-primary size-5" />Logs
     </h2>
     <p class="text-muted-foreground mt-1.5 max-w-[82%] text-base leading-relaxed">
       Search messages, attributes, services, trace IDs, and more from a single view. Filter out the

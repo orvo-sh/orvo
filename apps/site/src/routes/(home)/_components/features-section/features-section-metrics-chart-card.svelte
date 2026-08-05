@@ -3,7 +3,7 @@
   import * as Card from '@repo/components/ui/card';
   import { ChartContainer, ChartTooltip } from '@repo/components/ui/chart';
   import { IconTrendingDown, IconTrendingUp } from '@tabler/icons-svelte';
-  import { Area, AreaChart, LinearGradient, Spline } from 'layerchart';
+  import { Area, AreaChart, LinearGradient, Spline, type ChartState } from 'layerchart';
 
   const uid = $props.id();
 
@@ -15,8 +15,7 @@
     yDomain,
     yFormat,
     summaryValue,
-    trend,
-    featuredPoint = null
+    trend
   }: {
     title: string;
     data: { timestamp: Date; value: number }[];
@@ -26,69 +25,56 @@
     yFormat?: (value: number) => string;
     summaryValue: number;
     trend: { change: number; reverse?: boolean };
-    featuredPoint?: number | 'max' | null;
   } = $props();
 
-  const chartHeight = 190;
-  const chartPadding = { top: 10, right: 12, bottom: 4, left: 42 };
+  let chartContext = $state<ChartState<{ timestamp: Date; value: number }>>();
+  let retainedData = $state<{ timestamp: Date; value: number } | null>(data.at(-1) ?? null);
+  let retainedX = $state(0);
+  let retainedY = $state(0);
+  let retainedSeries = $state<
+    ChartState<{ timestamp: Date; value: number }>['tooltip']['series']
+  >([]);
 
-  const featuredPointIndex = $derived.by(() => {
-    if (featuredPoint === null || data.length === 0) {
-      return null;
+  $effect(() => {
+    const context = chartContext;
+    const tooltip = context?.tooltipState;
+
+    if (!context || !tooltip || !retainedData) {
+      return;
     }
 
-    if (featuredPoint === 'max') {
-      let maxIndex = 0;
-
-      for (let i = 1; i < data.length; i += 1) {
-        if (data[i].value > data[maxIndex].value) {
-          maxIndex = i;
-        }
-      }
-
-      return maxIndex;
+    if (tooltip.isHoveringTooltipArea && tooltip.data) {
+      retainedData = tooltip.data;
+      retainedX = tooltip.x;
+      retainedY = tooltip.y;
+      retainedSeries = tooltip.series;
+      return;
     }
 
-    return featuredPoint >= 0 && featuredPoint < data.length ? featuredPoint : null;
-  });
+    if (!tooltip.data) {
+      const series = context.series.visibleSeries[0];
 
-  const featuredPointData = $derived(
-    featuredPointIndex === null ? null : data[featuredPointIndex]
-  );
-
-  const featuredPointLabel = $derived.by(() => {
-    if (featuredPointData === null) {
-      return null;
+      tooltip.data = retainedData;
+      tooltip.x = retainedX || Number(context.xScale(context.x(retainedData))) + context.padding.left;
+      tooltip.y = retainedY || Number(context.yScale(context.y(retainedData))) + context.padding.top;
+      tooltip.series =
+        retainedSeries.length > 0 || !series
+          ? retainedSeries
+          : [
+              {
+                key: series.key,
+                label: series.label ?? title,
+                value: retainedData.value,
+                color: series.color,
+                visible: true,
+                config: series
+              }
+            ];
     }
-
-    return featuredPointData.timestamp.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  });
-
-  const featuredPointPosition = $derived.by(() => {
-    if (featuredPointData === null || featuredPointIndex === null || data.length === 0) {
-      return null;
-    }
-
-    const min = yDomain?.[0] ?? Math.min(...data.map((point) => point.value));
-    const max = yDomain?.[1] ?? Math.max(...data.map((point) => point.value));
-    const domainRange = max - min || 1;
-    const xRatio = data.length === 1 ? 1 : featuredPointIndex / (data.length - 1);
-    const yRatio = (featuredPointData.value - min) / domainRange;
-
-    return {
-      left: `calc(${chartPadding.left}px + (100% - ${chartPadding.left + chartPadding.right}px) * ${xRatio})`,
-      top: `${chartPadding.top + (1 - yRatio) * (chartHeight - chartPadding.top - chartPadding.bottom)}px`
-    };
   });
 </script>
 
-<Card.Root class="relative overflow-hidden">
+<Card.Root class="relative overflow-hidden shadow-xs">
   <Card.Header class="flex items-start justify-between">
     <Card.Title>{title}</Card.Title>
 
@@ -119,7 +105,7 @@
     </Card.Action>
   </Card.Header>
   <Card.Content class="p-0 pt-0">
-    <div class="relative h-[190px] w-full px-4 pb-4">
+    <div class="relative h-[190px] w-full px-3 pb-3">
       <ChartContainer
         config={{
           value: {
@@ -127,9 +113,10 @@
             color
           }
         }}
-        class={cn('h-full w-full', featuredPoint !== null && 'pointer-events-none')}
+        class="h-full w-full"
       >
         <AreaChart
+          bind:context={chartContext}
           {data}
           x="timestamp"
           y="value"
@@ -185,7 +172,11 @@
             }
           }}
         >
-          {#snippet marks({ context }: { context: { series: { visibleSeries: { key: string }[] } } })}
+          {#snippet marks({
+            context
+          }: {
+            context: { series: { visibleSeries: { key: string }[] } };
+          })}
             <LinearGradient id={`feature-chart-card-area-${uid}`} vertical={true}>
               {#snippet stopsContent()}
                 <stop offset="0%" stop-color={color} stop-opacity="0.44" />
@@ -193,7 +184,11 @@
               {/snippet}
             </LinearGradient>
             {#each context.series.visibleSeries as s (s.key)}
-              <Area seriesKey={s.key} fill={`url(#feature-chart-card-area-${uid})`} fillOpacity={1} />
+              <Area
+                seriesKey={s.key}
+                fill={`url(#feature-chart-card-area-${uid})`}
+                fillOpacity={1}
+              />
               <Spline seriesKey={s.key} strokeWidth={2} stroke="var(--color-value)" />
             {/each}
           {/snippet}
@@ -202,7 +197,7 @@
               {valueFormatter(Number(value))}
             {/snippet}
             <ChartTooltip
-              class="border-transparent ring-1 ring-foreground/20"
+              class="ring-foreground/20 border-transparent ring-1"
               labelFormatter={(value) =>
                 new Date(value).toLocaleString('en-US', {
                   month: 'short',
@@ -217,33 +212,6 @@
         </AreaChart>
       </ChartContainer>
 
-      {#if featuredPointData && featuredPointPosition && featuredPointLabel}
-        <div
-          class="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2"
-          style={`left:${featuredPointPosition.left}; top:${featuredPointPosition.top};`}
-        >
-          <div class="relative">
-            <div
-              class="border-border/50 bg-background absolute bottom-5 left-1/2 grid min-w-[9rem] -translate-x-1/2 gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl"
-            >
-              <div class="font-medium">{featuredPointLabel}</div>
-              <div class="flex items-center gap-2">
-                <div class="h-2.5 w-2.5 shrink-0 rounded-[2px]" style={`background:${color};`}></div>
-                <div class="flex flex-1 items-center justify-between gap-4">
-                  <span class="text-muted-foreground">{title}</span>
-                  <span class="text-foreground font-mono font-medium tabular-nums">
-                    {valueFormatter(featuredPointData.value)}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <span
-              class="ring-background block size-3 rounded-full ring-4"
-              style={`background:${color};`}
-            ></span>
-          </div>
-        </div>
-      {/if}
     </div>
   </Card.Content>
 </Card.Root>

@@ -47,8 +47,8 @@
 
 <header
   class={cn(
-    'border-foreground/10 bg-background fixed top-0 z-30 w-full border-b transition-colors',
-    scrollTop > 50 && 'border-b'
+    'border-foreground/10 from-background fixed top-0 z-30 w-full bg-linear-to-b to-transparent transition-colors',
+    scrollTop > 50 && 'border-b-border'
   )}
 >
   <div class="mx-auto flex max-w-6xl items-center justify-between px-3 py-2 sm:px-6 sm:py-3">

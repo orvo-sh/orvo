@@ -5,12 +5,12 @@ order: 2
 previous: product/overview
 next: product/traces
 ---
+
 # Logs
 
-Logs are often the fastest way to answer `what just happened?` Orvo's logs view is built for narrowing quickly, then opening one event in detail.
+Logs are often the fastest way to answer "what just happened?" Orvo's logs view is built for narrowing quickly, then opening one event in detail.
 
-![Logs overview](/docs/screenshots/product/logs-overview.png)
-*Cartlane logs in production with search, filters, a volume histogram, and a detail panel.*
+![Logs overview](/docs/screenshots/product/logs-screenshot-full.png)
 
 ## What is it?
 
@@ -44,7 +44,7 @@ Examples that work well in practice:
 - Search for a provider-specific field such as `payment.provider`
 
 ![Logs search](/docs/screenshots/product/logs-search.png)
-*Search is most useful when paired with one service and one environment instead of the entire workspace.*
+_Search is most useful when paired with one service and one environment instead of the entire workspace._
 
 ## Filters
 
@@ -61,7 +61,7 @@ A useful starting point for Cartlane looks like:
 - `level = error`
 
 ![Logs filters](/docs/screenshots/product/logs-filters.png)
-*Applied filters keep the stream tight enough to read without losing context.*
+_Applied filters keep the stream tight enough to read without losing context._
 
 ## Histogram
 
@@ -75,7 +75,7 @@ That helps you align logs with:
 - a burst of provider failures
 
 ![Logs histogram](/docs/screenshots/product/logs-histogram.png)
-*Use the volume spike to choose the right time window before you read individual events.*
+_Use the volume spike to choose the right time window before you read individual events._
 
 ## Inspecting log detail
 
@@ -90,7 +90,7 @@ Look for:
 - Technical identifiers like `request.id`, `trace_id`, and `span_id`
 
 ![Logs detail](/docs/screenshots/product/logs-detail.png)
-*The detail view is where the raw event becomes actionable context.*
+_The detail view is where the raw event becomes actionable context._
 
 ## Attributes and linked traces
 
@@ -105,7 +105,7 @@ In practice, that usually means a log should contain:
 - one or two business identifiers
 
 ![Logs linked trace](/docs/screenshots/product/logs-linked-trace.png)
-*A good log makes the jump to trace context obvious instead of forcing you to guess.*
+_A good log makes the jump to trace context obvious instead of forcing you to guess._
 
 ## Common workflows
 

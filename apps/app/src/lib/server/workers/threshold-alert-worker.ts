@@ -9,7 +9,7 @@ import {
 } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
 import { genId } from "@repo/utils";
-import { and, asc, desc, eq, inArray, isNull, lt, lte, or } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, lt, lte, or } from "drizzle-orm";
 import type { IncidentService } from "../services/incident";
 
 import { BaseWorker } from "./base-worker";
@@ -17,10 +17,12 @@ import { BaseWorker } from "./base-worker";
 const evaluationIntervalMs = 60_000;
 const leaseDurationMs = 60_000;
 const maxRulesPerCycle = 25;
+const traceMetricsMigrationVersion = "20260713000000_trace-metrics-rollup";
 
 class ThresholdAlertWorker extends BaseWorker {
   name = "threshold-alerts";
   cron = "* * * * *";
+  private traceMetricsAvailableFrom: Date | null | undefined;
 
   constructor(
     logger: Logger,
@@ -100,7 +102,9 @@ class ThresholdAlertWorker extends BaseWorker {
   }
 
   private async evaluateRule(rule: typeof alertRule.$inferSelect) {
-    const windowEndAt = new Date();
+    const windowEndAt = new Date(
+      Math.floor(Date.now() / evaluationIntervalMs) * evaluationIntervalMs,
+    );
     const windowStartAt = new Date(windowEndAt.getTime() - rule.windowMinutes * 60_000);
     const [signals, openIncidents, destinations, currentApp] = await Promise.all([
       this.queryRuleSignals(rule, windowStartAt, windowEndAt),
@@ -429,20 +433,14 @@ class ThresholdAlertWorker extends BaseWorker {
     windowEndAt: Date,
   ): Promise<EvaluatedSignal[]> {
     if (isTraceSignal(rule.signalType)) {
-      const query = `
-        SELECT
-          count() AS total_count,
-          countIf(status_code = 2) AS error_count,
-          quantileTDigest(0.95)(duration_ns) / 1000000.0 AS p95_ms,
-          quantileTDigest(0.99)(duration_ns) / 1000000.0 AS p99_ms,
-          countIf(duration_ns <= ${rule.apdexTargetMs ? rule.apdexTargetMs * 1_000_000 : 0} AND status_code != 2) AS satisfied_count,
-          countIf(duration_ns > ${rule.apdexTargetMs ? rule.apdexTargetMs * 1_000_000 : 0} AND duration_ns <= ${rule.apdexTargetMs ? rule.apdexTargetMs * 4_000_000 : 0} AND status_code != 2) AS tolerated_count
-        FROM traces_raw
-        WHERE ${buildTraceRuleWhereClause(rule, windowStartAt, windowEndAt)}
-      `;
+      const useRollup =
+        rule.signalType !== "apdex" &&
+        (await this.canUseTraceMetricsRollup(windowStartAt));
       const result = await this.clickhouse.query({
         format: "JSONEachRow",
-        query,
+        query: useRollup
+          ? buildTraceMetricsSignalQuery(rule, windowStartAt, windowEndAt)
+          : buildRawTraceSignalQuery(rule, windowStartAt, windowEndAt),
       });
       const row = (
         (await result.json()) as unknown as Array<{
@@ -562,6 +560,46 @@ class ThresholdAlertWorker extends BaseWorker {
         (row): row is EvaluatedSignal & { status: "ok"; value: number } =>
           row.entityId.length > 0 && row.value !== null && Number.isFinite(row.value),
       );
+  }
+
+  private async canUseTraceMetricsRollup(windowStartAt: Date) {
+    if (this.traceMetricsAvailableFrom === undefined) {
+      try {
+        const result = await this.clickhouse.query({
+          format: "JSONEachRow",
+          query: `
+            SELECT toUnixTimestamp(applied_at) * 1000 AS applied_at_ms
+            FROM schema_migrations
+            WHERE version = ${quote(traceMetricsMigrationVersion)}
+            ORDER BY applied_at DESC
+            LIMIT 1
+          `,
+        });
+        const row = (
+          (await result.json()) as unknown as Array<{
+            applied_at_ms: number | string;
+          }>
+        )[0];
+        const appliedAtMs = Number(row?.applied_at_ms ?? 0);
+
+        this.traceMetricsAvailableFrom = appliedAtMs
+          ? new Date(
+              Math.ceil(appliedAtMs / evaluationIntervalMs) * evaluationIntervalMs,
+            )
+          : null;
+      } catch (error) {
+        this.traceMetricsAvailableFrom = null;
+        this.logger.warn(
+          "ThresholdAlertWorker: trace metrics rollup unavailable; using raw traces",
+          error,
+        );
+      }
+    }
+
+    return Boolean(
+      this.traceMetricsAvailableFrom &&
+        windowStartAt >= this.traceMetricsAvailableFrom,
+    );
   }
 }
 
@@ -753,6 +791,38 @@ const isEntityScopedSignal = (signalType: AlertSignalType) =>
 const resolveEntityType = (signalType: AlertSignalType): AlertEntityType =>
   signalType.startsWith("container_") ? "container" : "app";
 
+const buildRawTraceSignalQuery = (
+  rule: AlertRuleRow,
+  windowStartAt: Date,
+  windowEndAt: Date,
+) => `
+  SELECT
+    count() AS total_count,
+    countIf(status_code = 2) AS error_count,
+    quantileTDigest(0.95)(duration_ns) / 1000000.0 AS p95_ms,
+    quantileTDigest(0.99)(duration_ns) / 1000000.0 AS p99_ms,
+    countIf(duration_ns <= ${rule.apdexTargetMs ? rule.apdexTargetMs * 1_000_000 : 0} AND status_code != 2) AS satisfied_count,
+    countIf(duration_ns > ${rule.apdexTargetMs ? rule.apdexTargetMs * 1_000_000 : 0} AND duration_ns <= ${rule.apdexTargetMs ? rule.apdexTargetMs * 4_000_000 : 0} AND status_code != 2) AS tolerated_count
+  FROM traces_raw
+  WHERE ${buildTraceRuleWhereClause(rule, windowStartAt, windowEndAt)}
+`;
+
+const buildTraceMetricsSignalQuery = (
+  rule: AlertRuleRow,
+  windowStartAt: Date,
+  windowEndAt: Date,
+) => `
+  SELECT
+    sum(request_count) AS total_count,
+    sum(error_count) AS error_count,
+    quantilesTDigestMerge(0.5, 0.95, 0.99)(duration_quantiles)[2] / 1000000.0 AS p95_ms,
+    quantilesTDigestMerge(0.5, 0.95, 0.99)(duration_quantiles)[3] / 1000000.0 AS p99_ms,
+    0 AS satisfied_count,
+    0 AS tolerated_count
+  FROM trace_metrics_1m
+  WHERE ${buildTraceMetricsRuleWhereClause(rule, windowStartAt, windowEndAt)}
+`;
+
 const buildTraceRuleWhereClause = (
   rule: AlertRuleRow,
   windowStartAt: Date,
@@ -761,7 +831,7 @@ const buildTraceRuleWhereClause = (
   const clauses = [
     `app_id = ${quote(rule.appId)}`,
     `start_time >= ${toDateTime64(windowStartAt)}`,
-    `start_time <= ${toDateTime64(windowEndAt)}`,
+    `start_time < ${toDateTime64(windowEndAt)}`,
     "kind IN (2, 5)",
   ];
 
@@ -779,6 +849,45 @@ const buildTraceRuleWhereClause = (
     rule.scopeEnvironmentsExclude,
   );
   appendInclusionClauses(clauses, "scope_name", rule.scopeScopesInclude, rule.scopeScopesExclude);
+
+  return clauses.join(" AND ");
+};
+
+const buildTraceMetricsRuleWhereClause = (
+  rule: AlertRuleRow,
+  windowStartAt: Date,
+  windowEndAt: Date,
+) => {
+  const clauses = [
+    `app_id = ${quote(rule.appId)}`,
+    `bucket_start >= ${toDateTime64(windowStartAt)}`,
+    `bucket_start < ${toDateTime64(windowEndAt)}`,
+  ];
+
+  appendInclusionClauses(
+    clauses,
+    "service_name",
+    rule.scopeServicesInclude,
+    rule.scopeServicesExclude,
+  );
+  appendInclusionClauses(
+    clauses,
+    "operation_name",
+    rule.scopeSpanNamesInclude,
+    rule.scopeSpanNamesExclude,
+  );
+  appendInclusionClauses(
+    clauses,
+    "deployment_environment",
+    rule.scopeEnvironmentsInclude,
+    rule.scopeEnvironmentsExclude,
+  );
+  appendInclusionClauses(
+    clauses,
+    "scope_name",
+    rule.scopeScopesInclude,
+    rule.scopeScopesExclude,
+  );
 
   return clauses.join(" AND ");
 };

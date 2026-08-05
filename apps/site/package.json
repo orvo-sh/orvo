@@ -17,6 +17,7 @@
     "@repo/components": "workspace:*",
     "@sveltejs/adapter-cloudflare": "^7.2.9",
     "@tabler/icons-svelte": "^3.44.0",
+    "@tailwindcss/typography": "^0.5.20",
     "layerchart": "2.0.0-next.48"
   },
   "devDependencies": {

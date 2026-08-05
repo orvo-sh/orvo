@@ -4,8 +4,8 @@
   import FeaturesSectionMetricsChartCard from './features-section-metrics-chart-card.svelte';
 
   const latencyData = [
-    { timestamp: new Date('2026-07-01T12:00:00Z'), value: 210 },
-    { timestamp: new Date('2026-07-01T12:05:00Z'), value: 224 },
+    { timestamp: new Date('2026-07-01T12:00:00Z'), value: 198 },
+    { timestamp: new Date('2026-07-01T12:05:00Z'), value: 208 },
     { timestamp: new Date('2026-07-01T12:10:00Z'), value: 232 },
     { timestamp: new Date('2026-07-01T12:15:00Z'), value: 246 },
     { timestamp: new Date('2026-07-01T12:20:00Z'), value: 198 },
@@ -22,10 +22,12 @@
   ];
 </script>
 
-<Card.Root class="aspect-square justify-between gap-0 overflow-visible p-0 xl:col-span-6">
+<Card.Root
+  class="aspect-square justify-between gap-0 overflow-hidden p-0 shadow-none xl:col-span-6"
+>
   <div class="p-5 pb-0">
-    <h2 class="text-secondary-foreground flex items-center gap-2 text-lg font-medium">
-      <IconActivityHeartbeat class="text-primary size-6" />
+    <h2 class="text-secondary-foreground flex items-center gap-2 font-sans text-lg font-medium">
+      <IconActivityHeartbeat class="text-primary size-5" />
       Metrics
     </h2>
     <p class="text-muted-foreground mt-1.5 max-w-[84%] text-base leading-relaxed">
@@ -44,18 +46,13 @@
   </div>
 
   <div class="relative px-5 pt-4 pb-5">
-    <div
-      class="bg-primary/8 pointer-events-none absolute inset-x-10 top-6 h-24 rounded-full blur-3xl"
-    ></div>
-
-    <div class="relative min-h-[21rem] overflow-visible">
+    <div class="relative min-h-[21rem]">
       <div class="absolute top-0 right-2 z-20 w-[90%]">
         <FeaturesSectionMetricsChartCard
           title="Latency"
           data={latencyData}
           summaryValue={184}
           trend={{ change: 12.4, reverse: true }}
-          featuredPoint="max"
           valueFormatter={(value) => `${Math.round(value)} ms`}
           yDomain={[0, 260]}
           yFormat={(value) => `${Math.round(value)}ms`}
