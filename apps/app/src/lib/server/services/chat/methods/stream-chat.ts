@@ -2,6 +2,7 @@ import { recordError } from "$lib/instrumentation";
 import type { DB } from "@repo/db";
 import { chat, chatContext, chatMessage } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
+import { genId } from "@repo/utils";
 import {
   convertToModelMessages,
   stepCountIs,
@@ -73,6 +74,7 @@ const createStreamChat =
 
       return result.toUIMessageStreamResponse({
         originalMessages: messages,
+        generateMessageId: () => genId("chatmsg"),
         onEnd: async ({ messages: completedMessages }) => {
           try {
             await db.transaction(async (tx) => {

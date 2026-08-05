@@ -3,6 +3,7 @@ import {
   index,
   integer,
   jsonb,
+  primaryKey,
   pgEnum,
   pgTable,
   text,
@@ -83,7 +84,7 @@ const chatContext = pgTable(
 const chatMessage = pgTable(
   'chat_message',
   {
-    id: text('id').primaryKey(),
+    id: text('id').notNull(),
     chatId: text('chat_id')
       .notNull()
       .references(() => chat.id, { onDelete: 'cascade' }),
@@ -94,6 +95,7 @@ const chatMessage = pgTable(
     createdAt: timestamp('created_at').defaultNow().notNull()
   },
   (table) => [
+    primaryKey({ columns: [table.chatId, table.id] }),
     uniqueIndex('chat_message_chat_id_position_uidx').on(table.chatId, table.position),
     index('chat_message_chat_id_idx').on(table.chatId)
   ]

@@ -27,12 +27,14 @@ const cleanHeartbeat = (monitor: Record<string, unknown>) => {
   return clean;
 };
 
+const jsonSafe = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
 const result = (
   kind: string,
   value: { success: boolean; data?: unknown; error?: string },
 ) =>
   value.success
-    ? { kind, data: value.data }
+    ? { kind, data: jsonSafe(value.data) }
     : { kind, error: value.error ?? "The telemetry query failed." };
 
 const createChatTools = (
@@ -69,12 +71,12 @@ const createChatTools = (
         heartbeats: heartbeats.success
           ? {
               kind: "heartbeat_monitors",
-              data: {
+              data: jsonSafe({
                 ...heartbeats.data,
                 monitors: heartbeats.data.monitors.map((monitor) =>
                   cleanHeartbeat(monitor as unknown as Record<string, unknown>),
                 ),
-              },
+              }),
             }
           : result("heartbeat_monitors", heartbeats),
       };
@@ -186,11 +188,13 @@ const createChatTools = (
       return monitors.success
         ? {
             kind: "heartbeat_monitor_list",
-            data: monitors.data.monitors
-              .slice(0, limit)
-              .map((monitor) =>
-                cleanHeartbeat(monitor as unknown as Record<string, unknown>),
-              ),
+            data: jsonSafe(
+              monitors.data.monitors
+                .slice(0, limit)
+                .map((monitor) =>
+                  cleanHeartbeat(monitor as unknown as Record<string, unknown>),
+                ),
+            ),
           }
         : result("heartbeat_monitor_list", monitors);
     },
@@ -207,8 +211,10 @@ const createChatTools = (
       return monitor.success
         ? {
             kind: "heartbeat_monitor",
-            data: cleanHeartbeat(
-              monitor.data.monitor as unknown as Record<string, unknown>,
+            data: jsonSafe(
+              cleanHeartbeat(
+                monitor.data.monitor as unknown as Record<string, unknown>,
+              ),
             ),
           }
         : result("heartbeat_monitor", monitor);
