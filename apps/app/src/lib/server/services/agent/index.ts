@@ -21,7 +21,7 @@ class AgentService {
     clickhouse: ClickHouse,
     logger: Logger,
     ingestionKeyService: IngestionKeyService,
-    config: { appBaseUrl: string; ingestBaseUrl: string },
+    config: { cdnBaseUrl: string; ingestBaseUrl: string },
   ) {
     const childLogger = logger.child("AgentService");
     this.createEnrollmentMethod = createCreateEnrollment({

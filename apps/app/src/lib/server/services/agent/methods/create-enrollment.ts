@@ -16,7 +16,7 @@ const createCreateEnrollment =
   }: {
     db: DB;
     logger: Logger;
-    config: { appBaseUrl: string };
+    config: { cdnBaseUrl: string };
   }) =>
   async (
     input: z.input<typeof createAgentEnrollmentInputSchema>,
@@ -42,7 +42,7 @@ const createCreateEnrollment =
 
       return ok({
         expiresAt: expiresAt.toISOString(),
-        command: `curl --proto '=https' --tlsv1.2 -fsSL ${new URL("/agent", config.appBaseUrl)} | sudo sh -s -- --enrollment-token '${token}'`,
+        command: `curl --proto '=https' --tlsv1.2 -fsSL ${new URL("/agent/install.sh", config.cdnBaseUrl)} | sudo sh -s -- --enrollment-token '${token}'`,
       });
     } catch (error) {
       recordError(error);

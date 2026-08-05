@@ -58,7 +58,7 @@ const createServerContainer = (logger: Logger) => {
     logger,
     ingestionKeyService,
     {
-      appBaseUrl: env.ORIGIN,
+      cdnBaseUrl: env.CDN_BASE_URL,
       ingestBaseUrl: env.INGEST_BASE_URL,
     },
   );
