@@ -1,0 +1,21 @@
+[Unit]
+Description=Orvo host monitoring agent
+Documentation=https://orvo.sh/docs/product/hosts
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=orvo-agent
+Group=orvo-agent
+EnvironmentFile=/etc/orvo-agent/credentials.env
+ExecStart=/usr/bin/orvo-agent --config /etc/orvo-agent/config.yaml
+Restart=always
+RestartSec=5
+StateDirectory=orvo-agent
+WorkingDirectory=/var/lib/orvo-agent
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

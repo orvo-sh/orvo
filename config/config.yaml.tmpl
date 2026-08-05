@@ -1,0 +1,98 @@
+extensions:
+  health_check:
+    endpoint: 127.0.0.1:13133
+  file_storage:
+    directory: ${env:ORVO_AGENT_STATE_DIR}/queue
+    create_directory: true
+
+receivers:
+  host_metrics:
+    collection_interval: 30s
+    initial_delay: 1s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+      load: {}
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+      disk: {}
+      filesystem:
+        exclude_mount_points:
+          mount_points:
+            - /dev/.*
+            - /proc/.*
+            - /sys/.*
+            - /run/.*
+            - /var/lib/docker/.*
+            - /var/lib/containers/.*
+          match_type: regexp
+        metrics:
+          system.filesystem.utilization:
+            enabled: true
+      network: {}
+      paging: {}
+      processes: {}
+      system: {}
+
+processors:
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 128
+    spike_limit_mib: 32
+  resource/orvo:
+    attributes:
+      - key: host.id
+        value: ${env:ORVO_HOST_ID}
+        action: upsert
+      - key: host.name
+        value: ${env:ORVO_HOST_NAME}
+        action: upsert
+      - key: os.type
+        value: ${env:ORVO_OS_TYPE}
+        action: upsert
+      - key: host.arch
+        value: ${env:ORVO_HOST_ARCH}
+        action: upsert
+      - key: orvo.agent.id
+        value: ${env:ORVO_AGENT_ID}
+        action: upsert
+      - key: orvo.agent.version
+        value: ${env:ORVO_AGENT_VERSION}
+        action: upsert
+      - key: deployment.environment
+        value: ${env:ORVO_ENVIRONMENT}
+        action: upsert
+  batch:
+    send_batch_size: 512
+    timeout: 10s
+
+exporters:
+  otlp_http/orvo:
+    endpoint: ${env:ORVO_OTLP_ENDPOINT}
+    headers:
+      Authorization: Bearer ${env:ORVO_INGESTION_KEY}
+    sending_queue:
+      enabled: true
+      storage: file_storage
+      queue_size: 256
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 30s
+      max_elapsed_time: 0s
+
+service:
+  extensions: [health_check, file_storage]
+  telemetry:
+    logs:
+      level: info
+  pipelines:
+    metrics:
+      receivers: [host_metrics]
+      processors:
+        [memory_limiter, resource/orvo, batch]
+      exporters: [otlp_http/orvo]
