@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/orvo-sh/orvo/apps/host-agent/internal/agentconfig"
-	"github.com/orvo-sh/orvo/apps/host-agent/internal/enrollment"
-	"github.com/orvo-sh/orvo/apps/host-agent/internal/hostidentity"
+	"github.com/orvo-sh/orvo-agent/internal/agentconfig"
+	"github.com/orvo-sh/orvo-agent/internal/enrollment"
+	"github.com/orvo-sh/orvo-agent/internal/hostidentity"
 )
 
 var version = "dev"

@@ -1,10 +1,36 @@
 # Orvo Agent
 
-Orvo Agent is a curated OpenTelemetry Collector distribution for host metrics.
+[![CI](https://github.com/orvo-sh/orvo-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/orvo-sh/orvo-agent/actions/workflows/ci.yml)
+[![Release](https://github.com/orvo-sh/orvo-agent/actions/workflows/release.yml/badge.svg)](https://github.com/orvo-sh/orvo-agent/actions/workflows/release.yml)
+[![Latest release](https://img.shields.io/github/v/release/orvo-sh/orvo-agent)](https://github.com/orvo-sh/orvo-agent/releases/latest)
 
-## Local development
+Orvo Agent is Orvo's small, curated OpenTelemetry Collector distribution for
+host monitoring. It collects host CPU, memory, load, disk, filesystem, network,
+paging, and process metrics and sends them to Orvo over OTLP/HTTP.
 
-Run the agent in the foreground on macOS or Linux:
+## Install
+
+Open **Hosts** in Orvo, select **Add host**, and run the generated one-time
+command on a Linux server. Enrollment creates a dedicated ingestion key and
+configures the agent automatically.
+
+Production installation currently supports systemd-based Linux hosts on amd64
+and arm64. The installer downloads versioned artifacts from `cdn.orvo.sh`,
+verifies their SHA-256 digest, enrolls the host, and starts the service as the
+unprivileged `orvo-agent` user.
+
+Useful commands after installation:
+
+```bash
+sudo orvo-agentctl status
+sudo orvo-agentctl doctor
+sudo orvo-agentctl uninstall
+```
+
+## Develop locally
+
+Go 1.25 or newer is required. On macOS or Linux, run the agent in the foreground
+against an OTLP endpoint:
 
 ```bash
 ORVO_OTLP_ENDPOINT=http://localhost:4318 \
@@ -12,80 +38,66 @@ ORVO_INGESTION_KEY=ing_your_key \
 make dev
 ```
 
-This uses a temporary configuration and state directory. Press `Ctrl+C` to stop it.
-
-## Build
+This uses a temporary configuration and state directory. Press `Ctrl+C` to stop
+it. Build and test independently with:
 
 ```bash
+make test
 make build
 ```
 
-The build creates `build/orvo-agent` and `build/orvo-agentctl`.
-
-## Production installation
-
-Generate a one-time command from the Hosts page in Orvo. The installer supports
-Linux on amd64 and arm64.
+The build produces `build/orvo-agent` and `build/orvo-agentctl`. The collector
+components and their pinned versions are defined in `builder-config.yaml`.
 
 ## Releases
 
-Agent versions use semantic versioning with an `agent-v` tag prefix, for example
-`agent-v0.1.1`. Release tags must point to a tested commit on `main`.
+Agent releases use semantic versions such as `v0.1.1`. Every release must come
+from a tested commit on `main` and include curated notes at
+`releases/v0.1.1.md`.
 
-Use a patch version for fixes and packaging changes, a minor version for new
-backwards-compatible monitoring capabilities, and a major version for breaking
-configuration or installation changes.
-
-Before tagging:
-
-1. Merge the agent changes into `main` and confirm the required checks pass.
-2. Write a short release summary covering user-visible changes, fixes, upgrade
-   notes, and known issues.
-3. Test and build the agent locally:
-
-   ```bash
-   cd apps/host-agent
-   GOTOOLCHAIN=go1.25.12 make test build
-   ```
-
-4. Create an annotated tag from the intended commit:
+1. Update `CHANGELOG.md` and add `releases/vX.Y.Z.md` in the release PR.
+2. Merge the PR and confirm CI passes on `main`.
+3. Test the exact commit locally with `make test build`.
+4. Create and push an annotated tag:
 
    ```bash
    git switch main
    git pull --ff-only
-   git tag -a agent-v0.1.1 -m "Orvo Agent 0.1.1"
-   git push origin agent-v0.1.1
+   git tag -a v0.1.1 -m "Orvo Agent 0.1.1"
+   git push origin v0.1.1
    ```
 
-Pushing the tag runs `.github/workflows/publish-agent.yml`. The workflow tests
-and builds Linux amd64 and arm64 archives, creates SHA-256 checksums and GitHub
-artifact attestations, creates the GitHub Release, uploads immutable versioned
-artifacts to the CDN, and promotes the version to the stable channel used by the
-installer.
+The release workflow validates the tag and notes, tests and cross-compiles Linux
+amd64 and arm64 bundles, generates checksums and public build-provenance
+attestations, and creates a draft GitHub Release. It then uploads immutable
+artifacts to the CDN, promotes the stable channel, verifies the public files, and
+publishes the GitHub Release.
 
-Verify the workflow and release before announcing it:
+Repository administrators must configure these Actions secrets:
+
+- `PROD_S3_ACCESS_KEY_ID`
+- `PROD_S3_SECRET_ACCESS_KEY`
+- `PROD_S3_REGION`
+- `PROD_S3_BUCKET_NAME`
+- `PROD_S3_ENDPOINT`
+- `CLOUDFLARE_ZONE_ID`
+- `CLOUDFLARE_API_KEY`
+
+Verify a completed release with:
 
 ```bash
-gh run list --workflow publish-agent.yml --limit 1
-gh release view agent-v0.1.1
+gh release view v0.1.1
 curl --fail https://cdn.orvo.sh/agent/channels/stable.txt
+gh attestation verify orvo-agent_0.1.1_linux_amd64.tar.gz \
+  --repo orvo-sh/orvo-agent
 ```
 
-Never move or reuse a published tag. If a release is faulty, fix it in a new
-patch version. Until a separate prerelease channel exists, do not push release
-candidate tags because every matching tag is promoted to stable.
+Never move or reuse a published tag. Fix a faulty release in a new patch version.
+Until a separate prerelease channel exists, only stable `vX.Y.Z` tags are
+supported.
 
-### Release notes
+## Security
 
-The workflow currently uses GitHub-generated notes. Because this is a monorepo,
-those notes can include unrelated changes. Before the next release, the release
-flow should move to checked-in, agent-specific notes with this structure:
-
-- Summary
-- Added or changed
-- Fixed
-- Upgrade notes
-- Known issues
-
-The GitHub Release description should use those notes instead of relying only on
-the generated commit list.
+Do not include enrollment tokens, ingestion keys, telemetry payloads, or other
+secrets in issues or logs. Report security problems privately to
+`security@orvo.sh`.

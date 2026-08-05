@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test and build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.mod
+            builder-config.yaml
+
+      - name: Test
+        run: go test -race ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build distribution
+        run: make build AGENT_VERSION=ci
+
+      - name: Cross-compile supported Linux targets
+        shell: bash
+        run: |
+          for arch in amd64 arm64; do
+            (
+              cd build/runtime
+              CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build \
+                -trimpath -ldflags='-s -w' -o "../orvo-agent-linux-${arch}" .
+            )
+            CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build \
+              -trimpath -ldflags='-s -w -X main.version=ci' \
+              -o "build/orvo-agentctl-linux-${arch}" ./cmd/orvo-agentctl
+          done
+
+      - name: Verify clean source tree
+        run: git diff --exit-code

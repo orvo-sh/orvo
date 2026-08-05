@@ -9,8 +9,9 @@ build: build-agent build-ctl
 
 generate-agent:
 	mkdir -p $(BUILD_DIR)
+	sed 's/^  version: .*/  version: $(AGENT_VERSION)/' builder-config.yaml > $(BUILD_DIR)/builder-config.yaml
 	$(GO) run go.opentelemetry.io/collector/cmd/builder@$(OCB_VERSION) \
-		--config builder-config.yaml \
+		--config $(BUILD_DIR)/builder-config.yaml \
 		--skip-compilation
 
 build-agent: generate-agent
