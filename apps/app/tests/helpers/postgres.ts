@@ -33,7 +33,6 @@ const hardcodedTruncationTables = [
   "incident_event",
   "ingestion_key",
   "invitation",
-  "mcp_token",
   "member",
   "notification_delivery",
   "notification_destination",

@@ -2,7 +2,6 @@
   import FeaturesSectionAlertsIncidentsCard from './features-section-alerts-incidents-card.svelte';
   import FeaturesSectionHeartbeatsCard from './features-section-heartbeats-card.svelte';
   import FeaturesSectionLogsCard from './features-section-logs-card.svelte';
-  import FeaturesSectionMcpCard from './features-section-mcp-card.svelte';
   import FeaturesSectionMetricsCard from './features-section-metrics-card.svelte';
   import FeaturesSectionTracesCard from './features-section-traces-card.svelte';
 
@@ -40,7 +39,6 @@
       <FeaturesSectionHeartbeatsCard />
 
       <FeaturesSectionAlertsIncidentsCard />
-      <FeaturesSectionMcpCard />
     </div>
   </div>
 </section>

@@ -23,8 +23,10 @@ class ChatState {
   activeChatId = $state<string | null>(null);
   context = $state<ChatContextDescriptor | null>(null);
   railOpen = $state(false);
+  conversationsOpen = $state(false);
   loading = $state(false);
   historyLoading = $state(false);
+  historyError = $state<string | null>(null);
   error = $state<string | null>(null);
   target = $state<{ chatId: string; messageId: string; nonce: number } | null>(
     null,
@@ -44,10 +46,11 @@ class ChatState {
 
   loadHistory = async () => {
     this.historyLoading = true;
+    this.historyError = null;
     try {
-      const result = await listChatsQuery({ limit: 50 });
+      const result = await listChatsQuery({ limit: 50 }).run();
       if (!result.success) {
-        this.error = result.error;
+        this.historyError = result.error;
         return;
       }
       this.threads = result.data.chats as ChatThread[];
@@ -56,7 +59,7 @@ class ChatState {
         if (session) this.sessions.set(thread.id, { ...session, thread });
       }
     } catch {
-      this.error = "Failed to load chat history.";
+      this.historyError = "Failed to load chat history.";
     } finally {
       this.historyLoading = false;
     }
@@ -69,7 +72,7 @@ class ChatState {
     this.loading = true;
     this.error = null;
     try {
-      const result = await getChatQuery({ id });
+      const result = await getChatQuery({ id }).run();
       if (!result.success) {
         this.error = result.error;
         return null;

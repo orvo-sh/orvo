@@ -55,6 +55,10 @@
         <div class="h-10 animate-pulse rounded-lg bg-muted"></div>
       {/each}
     </div>
+  {:else if chat.historyError && !chat.threads.length}
+    <div class="px-4 py-8 text-center text-xs text-destructive">
+      {chat.historyError}
+    </div>
   {:else if !chat.threads.length}
     <div
       class="flex flex-col items-center px-4 py-8 text-center text-muted-foreground"

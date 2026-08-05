@@ -1,5 +1,9 @@
 import { Instrument } from "$lib/instrumentation";
-import type { McpService } from "$lib/server/services/mcp";
+import type { HeartbeatService } from "$lib/server/services/heartbeat";
+import type { IncidentService } from "$lib/server/services/incident";
+import type { LogsService } from "$lib/server/services/logs";
+import type { MetricsService } from "$lib/server/services/metrics";
+import type { TracesService } from "$lib/server/services/traces";
 import type { DB } from "@repo/db";
 import type { Logger } from "@repo/logger";
 import type { LanguageModel } from "ai";
@@ -30,7 +34,13 @@ class ChatService {
     db: DB,
     logger: Logger,
     model: LanguageModel | null,
-    mcpService: McpService,
+    toolServices: {
+      logsService: LogsService;
+      tracesService: TracesService;
+      metricsService: MetricsService;
+      incidentService: IncidentService;
+      heartbeatService: HeartbeatService;
+    },
   ) {
     const childLogger = logger.child("ChatService");
     this.createChatMethod = createCreateChat({ db, logger: childLogger });
@@ -41,7 +51,7 @@ class ChatService {
       db,
       logger: childLogger,
       model,
-      mcpService,
+      toolServices,
     });
   }
 

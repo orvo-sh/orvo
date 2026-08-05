@@ -51,25 +51,6 @@
   data-testid={`chat-shell-${mode}`}
   class="flex h-full min-h-0 min-w-0 flex-1 bg-background"
 >
-  {#if mode === "page"}
-    <aside class="hidden w-64 shrink-0 flex-col border-r bg-muted/15 md:flex">
-      <div class="flex h-12 items-center justify-between border-b px-3">
-        <span class="text-xs font-medium text-muted-foreground"
-          >Conversations</span
-        >
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="New chat"
-          onclick={startNew}
-        >
-          <IconPlus />
-        </Button>
-      </div>
-      <ChatHistory mode="page" />
-    </aside>
-  {/if}
-
   <section class="flex min-h-0 min-w-0 flex-1 flex-col">
     <div class="flex h-12 shrink-0 items-center gap-2 border-b px-3">
       <div class="flex min-w-0 flex-1 items-center gap-2">
@@ -147,23 +128,6 @@
         >
           <IconX />
         </Button>
-      {:else}
-        <Button
-          variant="outline"
-          size="sm"
-          class="md:hidden"
-          onclick={() => (historyOpen = true)}
-        >
-          <IconHistory data-slot="button-icon" /> History
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="New chat"
-          onclick={startNew}
-        >
-          <IconPlus />
-        </Button>
       {/if}
     </div>
 
@@ -197,22 +161,3 @@
     {/if}
   </section>
 </div>
-
-{#if mode === "page"}
-  <Popover.Root bind:open={historyOpen}>
-    <Popover.Content
-      class="fixed inset-x-3 top-16 w-auto p-1.5 md:hidden"
-      align="center"
-    >
-      <div class="flex items-center justify-between px-2 py-1.5">
-        <span class="text-xs font-medium">Conversations</span>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onclick={() => (historyOpen = false)}><IconX /></Button
-        >
-      </div>
-      <ChatHistory mode="popover" onSelect={() => (historyOpen = false)} />
-    </Popover.Content>
-  </Popover.Root>
-{/if}

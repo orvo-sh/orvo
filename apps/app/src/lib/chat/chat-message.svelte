@@ -73,8 +73,12 @@
               {part.text}
             </div>
           </details>
-        {:else if part.type === "dynamic-tool"}
-          <ChatToolPart {part} {chatId} messageId={message.id} />
+        {:else if part.type === "dynamic-tool" || part.type.startsWith("tool-")}
+          <ChatToolPart
+            part={part as import("ai").DynamicToolUIPart}
+            {chatId}
+            messageId={message.id}
+          />
         {/if}
       {/each}
 

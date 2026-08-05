@@ -15,7 +15,11 @@
     messageId,
   }: { part: DynamicToolUIPart; chatId: string; messageId: string } = $props();
 
-  const toolName = $derived(part.toolName);
+  const toolName = $derived(
+    part.type === "dynamic-tool"
+      ? part.toolName
+      : String(part.type).replace(/^tool-/, ""),
+  );
   const output = $derived(
     part.state === "output-available" &&
       typeof part.output === "object" &&
@@ -27,7 +31,7 @@
     part.state === "output-available" || part.state === "output-error",
   );
   const failed = $derived(
-    part.state === "output-error" || output?.isError === true,
+    part.state === "output-error" || typeof output?.error === "string",
   );
   const label = $derived(
     (
@@ -35,6 +39,7 @@
         search_logs: "Searched logs",
         get_log: "Read log details",
         search_traces: "Searched traces",
+        get_trace: "Read trace details",
         get_service_graph: "Mapped services",
         query_metrics: "Queried metrics",
         list_incidents: "Checked incidents",

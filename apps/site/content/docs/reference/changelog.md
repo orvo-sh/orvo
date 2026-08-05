@@ -4,6 +4,7 @@ description: Track changes to Orvo docs, APIs, and product behavior.
 order: 5
 previous: reference/error-codes
 ---
+
 # Changelog
 
 This page is reserved for notable documentation, product, and API changes that affect how teams use Orvo.
@@ -12,7 +13,7 @@ This page is reserved for notable documentation, product, and API changes that a
 
 Examples of useful future entries:
 
-- new ingest or MCP capabilities
+- new ingest capabilities
 - behavior changes in alerts or incidents
 - new plan or retention limits
 - documentation updates that change recommended setup

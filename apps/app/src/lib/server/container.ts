@@ -12,9 +12,6 @@ import { HeartbeatService } from "$lib/server/services/heartbeat";
 import { IncidentService } from "$lib/server/services/incident";
 import { IngestionKeyService } from "$lib/server/services/ingestion-key";
 import { LogsService } from "$lib/server/services/logs";
-import { McpOauthGrantService } from "$lib/server/services/mcp-oauth-grant.service";
-import { McpService } from "$lib/server/services/mcp";
-import { McpTokenService } from "$lib/server/services/mcp-token";
 import { MetricsService } from "$lib/server/services/metrics";
 import { NotificationDeliveryService } from "$lib/server/services/notification-delivery";
 import { NotificationDestinationService } from "$lib/server/services/notification-destination";
@@ -109,12 +106,6 @@ const createServerContainer = (logger: Logger) => {
     { otlpBaseUrl: env.INGEST_BASE_URL },
     logger,
   );
-  const mcpTokenService = new McpTokenService(
-    db,
-    logger,
-    env.ENCRYPTION_SECRET,
-  );
-  const mcpOauthGrantService = new McpOauthGrantService(db, logger);
   const billingService = stripe
     ? new BillingService(db, logger, email, stripe, {
         starterPriceId: env.STRIPE_STARTER_PRICE_ID,
@@ -146,15 +137,6 @@ const createServerContainer = (logger: Logger) => {
         }
       : undefined,
   });
-  const mcpService = new McpService(
-    logger,
-    appService,
-    logsService,
-    tracesService,
-    metricsService,
-    incidentService,
-    heartbeatService,
-  );
   const chatService = new ChatService(
     db,
     logger,
@@ -163,14 +145,18 @@ const createServerContainer = (logger: Logger) => {
           env.GEMINI_MODEL || "gemini-3.6-flash",
         )
       : null,
-    mcpService,
+    {
+      logsService,
+      tracesService,
+      metricsService,
+      incidentService,
+      heartbeatService,
+    },
   );
 
   return {
     authService,
     agentService,
-    mcpOauthGrantService,
-    mcpTokenService,
     uploadService,
     billingService,
     chatService,
@@ -185,7 +171,6 @@ const createServerContainer = (logger: Logger) => {
     notificationDestinationService,
     onboardingService,
     tracesService,
-    mcpService,
   };
 };
 

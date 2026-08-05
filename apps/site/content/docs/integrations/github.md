@@ -3,8 +3,9 @@ title: GitHub
 description: Connect Orvo activity with GitHub workflows.
 order: 4
 previous: integrations/webhooks
-next: integrations/mcp
+next: reference/api
 ---
+
 # GitHub
 
 GitHub matters to Orvo in two different ways: account access and deployment context.

@@ -21,10 +21,9 @@
 
   const traces = $derived.by(() => {
     if (!output || typeof output !== "object") return [];
-    const structuredContent = (output as Record<string, unknown>)
-      .structuredContent;
-    if (!structuredContent || typeof structuredContent !== "object") return [];
-    const items = (structuredContent as Record<string, unknown>).items;
+    const data = (output as Record<string, unknown>).data;
+    if (!data || typeof data !== "object") return [];
+    const items = (data as Record<string, unknown>).traces;
     if (!Array.isArray(items)) return [];
 
     return items.slice(0, 5).flatMap((item) => {

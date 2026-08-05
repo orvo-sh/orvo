@@ -2,9 +2,10 @@
 title: API
 description: Reference for the Orvo HTTP API.
 order: 1
-previous: integrations/mcp
+previous: integrations/github
 next: reference/environment-variables
 ---
+
 # API
 
 This page documents the public HTTP surfaces that are clear in the current codebase today.
@@ -44,10 +45,6 @@ The ingest service accepts OTLP payloads and is built to handle standard OTLP HT
 
 Successful ingest requests return standard OTLP success responses. The onboarding service currently treats `202 Accepted` as the success case for test telemetry sends.
 
-## MCP API
-
-The app also exposes an MCP endpoint at `/api/mcp` for tool-based access with MCP tokens or OAuth.
-
 ## Error handling
 
 See [Error codes](/docs/reference/error-codes) for the currently implemented ingest error identifiers.
@@ -55,5 +52,4 @@ See [Error codes](/docs/reference/error-codes) for the currently implemented ing
 ## Related pages
 
 - [Environment variables](/docs/reference/environment-variables)
-- [MCP](/docs/integrations/mcp)
 - [OpenTelemetry overview](/docs/opentelemetry/overview)

@@ -6,7 +6,6 @@
   import {
     IconBell as BellIcon,
     IconCreditCard as CreditCardIcon,
-    IconPlugConnected,
     IconPlus as PlusIcon,
     IconSettings as GearSixIcon,
     IconUserCircle,
@@ -63,13 +62,6 @@
           icon: UsersIcon,
           isActive: (pathname: string) =>
             pathname.startsWith(`${settingsBasePath}/organization/members`),
-        },
-        {
-          href: `${settingsBasePath}/organization/mcp`,
-          label: "MCP",
-          icon: IconPlugConnected,
-          isActive: (pathname: string) =>
-            pathname.startsWith(`${settingsBasePath}/organization/mcp`),
         },
         {
           href: `${settingsBasePath}/billing`,

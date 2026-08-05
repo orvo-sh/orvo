@@ -14,33 +14,12 @@ import { loggerProvider } from "./instrumentation.server";
 const baseLogger = new Logger("Orvo", { pretty: dev, loggerProvider });
 void ensureWorkersStarted(baseLogger);
 
-const oauthFormEndpoints = new Set([
-  "/api/auth/oauth2/introspect",
-  "/api/auth/oauth2/revoke",
-  "/api/auth/oauth2/token",
-]);
 const unsafeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const formContentTypes = new Set([
   "application/x-www-form-urlencoded",
   "multipart/form-data",
   "text/plain",
 ]);
-
-const withDefaultMcpResource = (request: Request) => {
-  const url = new URL(request.url);
-
-  if (
-    request.method !== "GET" ||
-    url.pathname !== "/api/auth/oauth2/authorize" ||
-    url.searchParams.has("resource")
-  ) {
-    return request;
-  }
-
-  url.searchParams.set("resource", `${url.origin}/api/mcp`);
-
-  return new Request(url, request);
-};
 
 export const handle = async ({ event, resolve }) => {
   const contentType =
@@ -53,8 +32,7 @@ export const handle = async ({ event, resolve }) => {
   const isForbiddenCrossSiteForm =
     unsafeMethods.has(event.request.method) &&
     formContentTypes.has(contentType) &&
-    requestOrigin !== event.url.origin &&
-    !oauthFormEndpoints.has(event.url.pathname);
+    requestOrigin !== event.url.origin;
 
   if (isForbiddenCrossSiteForm) {
     const message = `Cross-site ${event.request.method} form submissions are forbidden`;
@@ -93,11 +71,8 @@ export const handle = async ({ event, resolve }) => {
     };
   }
 
-  const authRequest = withDefaultMcpResource(event.request);
-  const authEvent =
-    authRequest === event.request ? event : { ...event, request: authRequest };
   const response = await svelteKitHandler({
-    event: authEvent,
+    event,
     resolve: (event) =>
       resolve(event, {
         transformPageChunk: ({ html }) =>
