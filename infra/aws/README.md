@@ -7,7 +7,7 @@ OpenTofu manages Orvo's production infrastructure in AWS `eu-central-1` (Frankfu
 - `bootstrap/` creates the private, encrypted, versioned S3 state bucket.
 - `production/` creates the application, PostgreSQL, and ClickHouse EC2 instances, the application Elastic IP, encrypted database volumes, private S3 backups, security groups, IAM roles, Systems Manager access, and daily EBS snapshots.
 
-The database ports are reachable only from the application security group. SSH is restricted to the `admin_cidr` supplied at apply time. All three hosts use the default VPC and default public subnet, matching the normal EC2 console defaults; only the application host has a stable Elastic IP intended for DNS.
+The database ports are reachable only from the application security group. PostgreSQL and ClickHouse SSH are restricted to the `admin_cidr` supplied at apply time. The application host accepts key-based SSH from deployment runners; password authentication remains disabled by the Ubuntu image. All three hosts use the default VPC and default public subnet, matching the normal EC2 console defaults; only the application host has a stable Elastic IP intended for DNS.
 
 ## Apply
 

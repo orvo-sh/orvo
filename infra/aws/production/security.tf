@@ -20,11 +20,11 @@ resource "aws_security_group" "app" {
   }
 
   ingress {
-    description = "Administration"
+    description = "Key-based deployment SSH"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.admin_cidr]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
