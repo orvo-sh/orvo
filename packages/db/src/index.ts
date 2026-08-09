@@ -19,6 +19,7 @@ const getPostgresConnectionString = (databaseUrl: string) => {
 
   url.searchParams.delete('sslrootcert');
   url.searchParams.delete('sslmode');
+  url.searchParams.delete('uselibpqcompat');
 
   return url.toString();
 };
