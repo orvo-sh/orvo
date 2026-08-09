@@ -24,7 +24,9 @@ uuid=$(blkid -s UUID -o value "$${device}")
 if ! grep -q "$${uuid}" /etc/fstab; then
   echo "UUID=$${uuid} /var/lib/postgresql ext4 defaults,nofail 0 2" >> /etc/fstab
 fi
-mount /var/lib/postgresql
+if ! mountpoint -q /var/lib/postgresql; then
+  mount /var/lib/postgresql
+fi
 
 apt-get update
 apt-get install -y ca-certificates curl jq postgresql-16 unzip
