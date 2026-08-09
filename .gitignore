@@ -36,3 +36,12 @@ dist
 *.tsbuildinfo
 .claude
 .kamal
+
+# OpenTofu
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+*.tfplan
+crash.log

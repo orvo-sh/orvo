@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export DEBIAN_FRONTEND=noninteractive
+
+volume_id="${replace(data_volume_id, "-", "")}"
+device="/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_$${volume_id}"
+
+for _ in $(seq 1 120); do
+  if [ -b "$${device}" ]; then
+    break
+  fi
+  sleep 2
+done
+
+test -b "$${device}"
+
+if ! blkid "$${device}" >/dev/null 2>&1; then
+  mkfs.ext4 -L orvo-clickhouse "$${device}"
+fi
+
+mkdir -p /var/lib/clickhouse
+uuid=$(blkid -s UUID -o value "$${device}")
+if ! grep -q "$${uuid}" /etc/fstab; then
+  echo "UUID=$${uuid} /var/lib/clickhouse ext4 defaults,nofail 0 2" >> /etc/fstab
+fi
+mount /var/lib/clickhouse
+
+apt-get update
+apt-get install -y ca-certificates curl docker.io jq
+systemctl enable --now docker
+
+mkdir -p /opt/orvo/clickhouse/config.d /etc/orvo
+chown -R 101:101 /var/lib/clickhouse
+
+cat > /opt/orvo/clickhouse/config.d/backups.xml <<'CLICKHOUSE_CONFIG'
+<clickhouse>
+  <listen_host>0.0.0.0</listen_host>
+  <storage_configuration>
+    <disks>
+      <backups>
+        <type>s3</type>
+        <endpoint>https://${backup_bucket}.s3.${region}.amazonaws.com/clickhouse/</endpoint>
+        <use_environment_credentials>true</use_environment_credentials>
+      </backups>
+    </disks>
+  </storage_configuration>
+  <backups>
+    <allowed_disk>backups</allowed_disk>
+    <allowed_path>backups</allowed_path>
+  </backups>
+</clickhouse>
+CLICKHOUSE_CONFIG
+
+cat > /etc/orvo/clickhouse.env <<'CLICKHOUSE_ENV'
+CLICKHOUSE_USER=orvo
+CLICKHOUSE_PASSWORD=${clickhouse_password}
+CLICKHOUSE_ENV
+chmod 600 /etc/orvo/clickhouse.env
+
+docker run -d \
+  --name orvo-clickhouse \
+  --restart unless-stopped \
+  -p 8123:8123 \
+  -p 9000:9000 \
+  --env-file /etc/orvo/clickhouse.env \
+  -e CLICKHOUSE_DB=default \
+  -v /var/lib/clickhouse:/var/lib/clickhouse \
+  -v /opt/orvo/clickhouse/config.d:/etc/clickhouse-server/config.d:ro \
+  clickhouse/clickhouse-server:25.6
+
+for _ in $(seq 1 60); do
+  if curl --fail --silent -u "orvo:${clickhouse_password}" http://127.0.0.1:8123/ping >/dev/null 2>&1; then
+    break
+  fi
+  sleep 2
+done
+
+curl --fail --silent -u "orvo:${clickhouse_password}" http://127.0.0.1:8123/ping >/dev/null
+
+cat > /usr/local/sbin/orvo-clickhouse-backup <<'BACKUP_SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+
+source /etc/orvo/clickhouse.env
+timestamp=$(date -u +%Y%m%dT%H%M%SZ)
+started=$(date +%s)
+
+docker exec orvo-clickhouse clickhouse-client \
+  --user "$${CLICKHOUSE_USER}" \
+  --password "$${CLICKHOUSE_PASSWORD}" \
+  --query "BACKUP DATABASE default TO Disk('backups', 'daily/$${timestamp}')"
+
+duration=$(( $(date +%s) - started ))
+logger -t orvo-backup "database=clickhouse status=succeeded duration_seconds=$${duration} object=clickhouse/daily/$${timestamp}"
+BACKUP_SCRIPT
+chmod 750 /usr/local/sbin/orvo-clickhouse-backup
+
+cat > /etc/systemd/system/orvo-clickhouse-backup.service <<'BACKUP_SERVICE'
+[Unit]
+Description=Back up Orvo ClickHouse to S3
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/orvo-clickhouse-backup
+BACKUP_SERVICE
+
+cat > /etc/systemd/system/orvo-clickhouse-backup.timer <<'BACKUP_TIMER'
+[Unit]
+Description=Nightly Orvo ClickHouse backup
+
+[Timer]
+OnCalendar=*-*-* 02:45:00 UTC
+RandomizedDelaySec=600
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+BACKUP_TIMER
+
+systemctl daemon-reload
+systemctl enable --now orvo-clickhouse-backup.timer
