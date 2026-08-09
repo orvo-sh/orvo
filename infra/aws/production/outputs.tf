@@ -31,7 +31,7 @@ output "backup_bucket" {
 }
 
 output "postgres_url" {
-  value     = "postgresql://orvo:${urlencode(random_password.postgres.result)}@${aws_instance.postgres.private_ip}:5432/orvo?sslmode=require"
+  value     = "postgresql://orvo:${urlencode(random_password.postgres.result)}@${aws_instance.postgres.private_ip}:5432/orvo?sslrootcert=/opt/orvo/certs/orvo-postgres-ca.crt&sslmode=require"
   sensitive = true
 }
 

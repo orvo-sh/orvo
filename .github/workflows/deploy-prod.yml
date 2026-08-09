@@ -103,7 +103,7 @@ jobs:
         env:
           PROD_POSTGRES_CA_CERT: ${{ secrets.PROD_POSTGRES_CA_CERT }}
         run: |
-          printf '%s' "${PROD_POSTGRES_CA_CERT}" | base64 --decode > "${RUNNER_TEMP}/do-postgres-ca.crt"
+          printf '%s' "${PROD_POSTGRES_CA_CERT}" | base64 --decode > "${RUNNER_TEMP}/orvo-postgres-ca.crt"
 
       - name: Validate Kamal configs
         run: |
@@ -117,7 +117,7 @@ jobs:
       - name: Upload Postgres CA certificate
         run: |
           ssh -i "${KAMAL_SSH_KEY_PATH}" -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'mkdir -p /opt/orvo/certs'
-          scp -i "${KAMAL_SSH_KEY_PATH}" -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "${RUNNER_TEMP}/do-postgres-ca.crt" "${KAMAL_SSH_USER}@${KAMAL_HOST}:/opt/orvo/certs/do-postgres-ca.crt"
+          scp -i "${KAMAL_SSH_KEY_PATH}" -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "${RUNNER_TEMP}/orvo-postgres-ca.crt" "${KAMAL_SSH_USER}@${KAMAL_HOST}:/opt/orvo/certs/orvo-postgres-ca.crt"
 
       - name: Build and push app image
         run: kamal build push -c config/deploy.app.yml --version "${DEPLOY_VERSION}"
