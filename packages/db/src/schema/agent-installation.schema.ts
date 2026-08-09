@@ -13,6 +13,8 @@ const agentInstallation = pgTable(
     ingestionKeyId: text('ingestion_key_id')
       .notNull()
       .references(() => ingestionKey.id, { onDelete: 'cascade' }),
+    displayName: text('display_name'),
+    environment: text('environment'),
     hostId: text('host_id').notNull(),
     hostName: text('host_name').notNull(),
     operatingSystem: text('operating_system').notNull(),

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
+  import { resolve } from "$app/paths";
   import { startAutoRefresh } from "$lib/browser/auto-refresh";
   import { Badge } from "@repo/components/ui/badge";
   import * as Card from "@repo/components/ui/card";
@@ -63,9 +64,13 @@
             <Table.Row>
               <Table.Cell>
                 <div class="min-w-0">
-                  <p class="truncate text-sm font-medium">{host.hostName}</p>
+                  <a
+                    href={resolve(`/a/${data.appId}/hosts/${host.id}`)}
+                    class="truncate text-sm font-medium hover:underline"
+                    >{host.displayName}</a
+                  >
                   <p class="truncate text-xs text-muted-foreground">
-                    {host.environment} · {host.operatingSystem}/{host.architecture}
+                    {host.hostName} · {host.environment} · {host.operatingSystem}/{host.architecture}
                   </p>
                 </div>
               </Table.Cell>

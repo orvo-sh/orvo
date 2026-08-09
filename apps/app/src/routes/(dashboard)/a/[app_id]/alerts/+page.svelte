@@ -1,20 +1,28 @@
 <script lang="ts">
-  import { invalidateAll } from "$app/navigation";
+  import { goto, invalidateAll } from "$app/navigation";
+  import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import { alertSignalOptions } from "$lib/alerts";
   import {
     deleteAlertRuleCommand,
     setAlertRuleEnabledCommand,
   } from "$lib/api/alert-rules.remote";
+  import * as AlertDialog from "@repo/components/ui/alert-dialog";
   import { Badge } from "@repo/components/ui/badge";
   import { Button } from "@repo/components/ui/button";
+  import * as Card from "@repo/components/ui/card";
+  import * as DropdownMenu from "@repo/components/ui/dropdown-menu";
   import { Input } from "@repo/components/ui/input";
+  import { toast } from "@repo/components/ui/sonner";
   import {
     IconActivity,
     IconAlertTriangle,
     IconBell,
     IconBox,
+    IconCheck,
+    IconChevronRight,
     IconClock,
+    IconDots,
     IconGauge,
     IconPencil,
     IconPlus,
@@ -22,6 +30,7 @@
     IconTrash,
     IconTrendingUp,
   } from "@tabler/icons-svelte";
+
   import PageContainer from "../_components/page-container/page-container.svelte";
 
   let { data } = $props();
@@ -45,10 +54,10 @@
     destinationCount: number;
   };
 
-  let loading = $state(false);
   let error = $state("");
   let togglingRuleId = $state("");
   let deletingRuleId = $state("");
+  let deleteRuleId = $state<string | null>(null);
   let rules = $state<AlertRule[]>([]);
   let search = $state("");
   let statusFilter = $state<"all" | "incident" | "healthy" | "disabled">("all");
@@ -58,13 +67,11 @@
     rules = data.alertRulesResult.success
       ? data.alertRulesResult.data.rules
       : [];
-    loading = false;
   });
 
   const signalLabels = Object.fromEntries(
-    alertSignalOptions.map((o) => [o.value, o.label]),
+    alertSignalOptions.map((option) => [option.value, option.label]),
   );
-
   const signalIcons: Record<string, typeof IconBell> = {
     error_rate: IconAlertTriangle,
     latency_p95_ms: IconClock,
@@ -75,15 +82,17 @@
     container_cpu_utilization: IconBox,
     container_memory_utilization: IconBox,
     container_reporting_stale: IconBox,
+    host_cpu_utilization: IconBox,
+    host_memory_utilization: IconBox,
+    host_filesystem_utilization: IconBox,
+    host_reporting_stale: IconBox,
   };
-
   const comparatorSymbols: Record<string, string> = {
     gt: ">",
     gte: "≥",
     lt: "<",
     lte: "≤",
   };
-
   const signalUnits: Record<string, string> = {
     error_rate: "%",
     latency_p95_ms: "ms",
@@ -94,77 +103,88 @@
     container_cpu_utilization: "%",
     container_memory_utilization: "%",
     container_reporting_stale: "m",
-  };
-
-  const formatCondition = (rule: AlertRule) => {
-    const signal = signalLabels[rule.signalType] ?? rule.signalType;
-    const comparator = comparatorSymbols[rule.comparator] ?? rule.comparator;
-    const unit = signalUnits[rule.signalType] ?? "";
-    return `${signal} ${comparator} ${rule.threshold}${unit} · ${rule.windowMinutes}m window`;
+    host_cpu_utilization: "%",
+    host_memory_utilization: "%",
+    host_filesystem_utilization: "%",
+    host_reporting_stale: "m",
   };
 
   const stats = $derived({
     total: rules.length,
-    incidents: rules.filter((r) => r.openIncidentCount > 0).length,
-    healthy: rules.filter((r) => r.isEnabled && r.openIncidentCount === 0)
-      .length,
-    disabled: rules.filter((r) => !r.isEnabled).length,
+    incidents: rules.filter((rule) => rule.openIncidentCount > 0).length,
+    healthy: rules.filter(
+      (rule) => rule.isEnabled && rule.openIncidentCount === 0,
+    ).length,
+    disabled: rules.filter((rule) => !rule.isEnabled).length,
   });
 
-  const filteredRules = $derived.by(() => {
-    let result = rules;
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter((r) => r.name.toLowerCase().includes(q));
-    }
-
-    if (statusFilter !== "all") {
-      result = result.filter((r) => {
-        if (statusFilter === "incident") return r.openIncidentCount > 0;
+  const filteredRules = $derived.by(() =>
+    rules
+      .filter(
+        (rule) =>
+          !search.trim() ||
+          rule.name.toLowerCase().includes(search.trim().toLowerCase()),
+      )
+      .filter((rule) => {
+        if (statusFilter === "incident") return rule.openIncidentCount > 0;
         if (statusFilter === "healthy")
-          return r.isEnabled && r.openIncidentCount === 0;
-        if (statusFilter === "disabled") return !r.isEnabled;
+          return rule.isEnabled && rule.openIncidentCount === 0;
+        if (statusFilter === "disabled") return !rule.isEnabled;
         return true;
+      })
+      .sort((left, right) => {
+        const score = (rule: AlertRule) =>
+          rule.openIncidentCount > 0 ? 0 : rule.isEnabled ? 1 : 2;
+        return score(left) - score(right);
+      }),
+  );
+
+  const formatCondition = (rule: AlertRule) =>
+    `${signalLabels[rule.signalType] ?? rule.signalType} ${comparatorSymbols[rule.comparator] ?? rule.comparator} ${rule.threshold}${signalUnits[rule.signalType] ?? ""} · ${rule.windowMinutes}m window`;
+
+  const toggleRule = async (rule: AlertRule) => {
+    togglingRuleId = rule.id;
+    try {
+      const result = await setAlertRuleEnabledCommand({
+        id: rule.id,
+        isEnabled: !rule.isEnabled,
       });
-    }
-
-    return [...result].sort((a, b) => {
-      const score = (r: AlertRule) =>
-        r.openIncidentCount > 0 ? 0 : r.isEnabled ? 1 : 2;
-      return score(a) - score(b);
-    });
-  });
-
-  const toggleRule = async (ruleId: string, isEnabled: boolean) => {
-    togglingRuleId = ruleId;
-    error = "";
-    const result = await setAlertRuleEnabledCommand({ id: ruleId, isEnabled });
-    if (result.success === false) {
-      error = result.error;
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      await invalidateAll();
+      toast.success(
+        rule.isEnabled ? "Alert rule disabled." : "Alert rule enabled.",
+      );
+    } catch {
+      toast.error("Failed to update alert rule.");
+    } finally {
       togglingRuleId = "";
-      return;
     }
-    await invalidateAll();
-    togglingRuleId = "";
   };
 
-  const deleteRule = async (ruleId: string) => {
-    if (!window.confirm("Delete this alert rule?")) return;
-    deletingRuleId = ruleId;
-    error = "";
-    const result = await deleteAlertRuleCommand(ruleId);
-    if (result.success === false) {
-      error = result.error;
+  const removeRule = async () => {
+    if (!deleteRuleId) return;
+    deletingRuleId = deleteRuleId;
+    try {
+      const result = await deleteAlertRuleCommand(deleteRuleId);
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      deleteRuleId = null;
+      await invalidateAll();
+      toast.success("Alert rule deleted.");
+    } catch {
+      toast.error("Failed to delete alert rule.");
+    } finally {
       deletingRuleId = "";
-      return;
     }
-    await invalidateAll();
-    deletingRuleId = "";
   };
 </script>
 
-<PageContainer title="Alerts">
+<PageContainer title="Alerts" contentClass="overflow-y-auto p-3">
   {#snippet actions()}
     <Button href={`/a/${page.params.app_id}/alerts/new`}>
       <IconPlus data-slot="button-icon" />
@@ -172,7 +192,7 @@
     </Button>
   {/snippet}
 
-  <div class="mx-auto flex w-full max-w-5xl flex-col gap-5">
+  <div class="flex flex-col gap-4">
     {#if error}
       <div
         class="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
@@ -181,246 +201,227 @@
       </div>
     {/if}
 
-    {#if !loading && rules.length > 0}
-      <!-- Stats strip -->
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <button
-          class="rounded-xl border bg-background px-4 py-3 text-left transition-colors hover:bg-muted/40 {statusFilter ===
-          'all'
-            ? 'ring-2 ring-primary/20 ring-inset'
-            : ''}"
-          onclick={() => {
-            statusFilter = "all";
-          }}
-        >
-          <p class="text-2xl font-semibold tabular-nums">{stats.total}</p>
-          <p class="mt-0.5 text-xs text-muted-foreground">Total rules</p>
-        </button>
-        <button
-          class="rounded-xl border bg-background px-4 py-3 text-left transition-colors hover:bg-muted/40 {statusFilter ===
-          'incident'
-            ? 'ring-2 ring-destructive/30 ring-inset'
-            : ''}"
-          onclick={() => {
-            statusFilter = statusFilter === "incident" ? "all" : "incident";
-          }}
-        >
-          <p class="text-2xl font-semibold text-destructive tabular-nums">
-            {stats.incidents}
-          </p>
-          <p class="mt-0.5 text-xs text-muted-foreground">Open incidents</p>
-        </button>
-        <button
-          class="rounded-xl border bg-background px-4 py-3 text-left transition-colors hover:bg-muted/40 {statusFilter ===
-          'healthy'
-            ? 'ring-2 ring-green-500/30 ring-inset'
-            : ''}"
-          onclick={() => {
-            statusFilter = statusFilter === "healthy" ? "all" : "healthy";
-          }}
-        >
-          <p
-            class="text-2xl font-semibold text-green-600 tabular-nums dark:text-green-400"
+    {#if rules.length > 0}
+      <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {#each [{ key: "all", label: "Alert rules", value: stats.total, icon: IconBell }, { key: "incident", label: "Open incidents", value: stats.incidents, icon: IconAlertTriangle }, { key: "healthy", label: "Healthy", value: stats.healthy, icon: IconCheck }, { key: "disabled", label: "Disabled", value: stats.disabled, icon: IconActivity }] as summary (summary.key)}
+          <Button
+            variant="outline"
+            class={`h-auto justify-between rounded-xl p-4 text-left ${statusFilter === summary.key ? "ring-2 ring-primary/15 ring-inset" : ""}`}
+            onclick={() =>
+              (statusFilter =
+                statusFilter === summary.key && summary.key !== "all"
+                  ? "all"
+                  : (summary.key as typeof statusFilter))}
           >
-            {stats.healthy}
-          </p>
-          <p class="mt-0.5 text-xs text-muted-foreground">Healthy</p>
-        </button>
-        <button
-          class="rounded-xl border bg-background px-4 py-3 text-left transition-colors hover:bg-muted/40 {statusFilter ===
-          'disabled'
-            ? 'ring-2 ring-primary/20 ring-inset'
-            : ''}"
-          onclick={() => {
-            statusFilter = statusFilter === "disabled" ? "all" : "disabled";
-          }}
-        >
-          <p class="text-2xl font-semibold text-muted-foreground tabular-nums">
-            {stats.disabled}
-          </p>
-          <p class="mt-0.5 text-xs text-muted-foreground">Disabled</p>
-        </button>
-      </div>
+            <span>
+              <span class="block text-sm font-normal text-muted-foreground"
+                >{summary.label}</span
+              >
+              <span class="mt-1 block text-xl font-semibold tabular-nums"
+                >{summary.value}</span
+              >
+            </span>
+            <span
+              class={`flex size-10 items-center justify-center rounded-md ${summary.key === "incident" && summary.value > 0 ? "bg-destructive/10 text-destructive" : "bg-muted text-secondary-foreground"}`}
+            >
+              <summary.icon class="size-4" />
+            </span>
+          </Button>
+        {/each}
+      </section>
 
-      <!-- Search -->
-      <div class="relative">
+      <div class="relative max-w-sm">
         <IconSearch
           class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
         />
-        <Input bind:value={search} class="pl-9" placeholder="Search rules..." />
+        <Input
+          bind:value={search}
+          class="pl-9"
+          placeholder="Search alert rules"
+        />
       </div>
     {/if}
 
-    <!-- Rules list -->
-    {#if loading}
-      {#each { length: 3 } as _, i}
-        <div class="animate-pulse rounded-xl border p-5">
-          <div class="flex items-start gap-3">
-            <div class="mt-0.5 size-8 shrink-0 rounded-lg bg-muted"></div>
-            <div class="flex-1 space-y-2">
-              <div class="h-4 w-40 rounded bg-muted"></div>
-              <div class="h-3 w-60 rounded bg-muted"></div>
-            </div>
-            <div class="h-5 w-24 rounded-full bg-muted"></div>
+    {#if rules.length === 0}
+      <div class="flex min-h-80 flex-1 items-center justify-center">
+        <div class="flex max-w-sm flex-col items-center gap-4 text-center">
+          <div class="rounded-xl border bg-muted/40 p-3">
+            <IconBell class="size-5 text-muted-foreground" />
           </div>
-          <div
-            class="mt-4 flex items-center justify-between border-t border-border/50 pt-3"
+          <div>
+            <p class="text-sm font-medium">Create your first alert rule</p>
+            <p class="mt-1 text-sm text-muted-foreground">
+              Get notified when an application or infrastructure signal crosses
+              a threshold.
+            </p>
+          </div>
+          <Button
+            href={`/a/${page.params.app_id}/alerts/new`}
+            variant="outline"
           >
-            <div class="flex gap-4">
-              <div class="h-3 w-32 rounded bg-muted"></div>
-              <div class="h-3 w-20 rounded bg-muted"></div>
-            </div>
-            <div class="flex gap-1.5">
-              <div class="h-7 w-14 rounded-lg bg-muted"></div>
-              <div class="h-7 w-16 rounded-lg bg-muted"></div>
-              <div class="h-7 w-8 rounded-lg bg-muted"></div>
-            </div>
-          </div>
+            <IconPlus data-slot="button-icon" />
+            New rule
+          </Button>
         </div>
-      {/each}
-    {:else if rules.length === 0}
-      <div
-        class="flex flex-col items-center gap-4 rounded-xl border border-dashed px-4 py-16 text-center"
-      >
-        <div class="rounded-xl border bg-muted/40 p-3">
-          <IconBell class="size-6 text-muted-foreground" />
-        </div>
-        <div class="space-y-1">
-          <p class="text-sm font-medium">No alert rules yet</p>
-          <p class="max-w-xs text-sm text-muted-foreground">
-            Create a rule to get notified when a signal crosses a threshold.
-          </p>
-        </div>
-        <Button href={`/a/${page.params.app_id}/alerts/new`} variant="outline">
-          <IconPlus data-slot="button-icon" />
-          New rule
-        </Button>
-      </div>
-    {:else if filteredRules.length === 0}
-      <div
-        class="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground"
-      >
-        No rules match your search.
       </div>
     {:else}
-      {#each filteredRules as rule (rule.id)}
-        {@const SignalIcon = signalIcons[rule.signalType] ?? IconBell}
+      <section class="flex flex-col">
         <div
-          class="rounded-xl border bg-background transition-colors {rule.openIncident
-            ? 'border-l-2 border-l-destructive'
-            : ''}"
+          class="flex translate-y-2 items-center justify-between rounded-t-xl border border-foreground/10 bg-secondary px-3.5 pt-1 pb-3 inset-shadow-[0px_1px_--theme(--color-white)]"
         >
-          <div class="flex flex-col gap-0 p-5">
-            <!-- Header row -->
-            <div class="flex items-start justify-between gap-4">
-              <div class="flex min-w-0 items-start gap-3">
-                <div
-                  class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border {rule.openIncident
-                    ? 'border-destructive/30 bg-destructive/8 text-destructive'
-                    : 'bg-muted/40 text-muted-foreground'}"
-                >
-                  <SignalIcon class="size-4" />
-                </div>
-                <div class="min-w-0">
-                  <p class="truncate text-sm leading-5 font-medium">
-                    {rule.name}
-                  </p>
-                  <p class="mt-0.5 text-xs text-muted-foreground">
-                    {formatCondition(rule)}
-                  </p>
-                </div>
-              </div>
-              <div class="flex shrink-0 flex-wrap items-center gap-1.5">
-                {#if rule.openIncidentCount > 0}
-                  <Badge variant="destructive" class="gap-1 text-xs">
-                    <span class="size-1.5 animate-pulse rounded-full bg-current"
-                    ></span>
-                    {rule.openIncidentCount === 1
-                      ? "Open incident"
-                      : `${rule.openIncidentCount} open incidents`}
-                  </Badge>
-                {:else if rule.isEnabled}
-                  <Badge
-                    variant="outline"
-                    class="gap-1 border-green-500/30 text-xs text-green-600 dark:text-green-400"
-                  >
-                    <span class="size-1.5 rounded-full bg-green-500"></span>
-                    Healthy
-                  </Badge>
-                {:else}
-                  <Badge variant="outline" class="text-xs text-muted-foreground"
-                    >Disabled</Badge
-                  >
-                {/if}
-                {#if rule.destinationCount > 0}
-                  <Badge
-                    variant="outline"
-                    class="text-xs text-muted-foreground"
-                  >
-                    {rule.destinationCount}
-                    {rule.destinationCount === 1
-                      ? "destination"
-                      : "destinations"}
-                  </Badge>
-                {/if}
-              </div>
-            </div>
-
-            <!-- Metadata + actions row -->
-            <div
-              class="mt-4 flex flex-col gap-3 border-t border-border/50 pt-3 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div
-                class="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground"
-              >
-                <span>
-                  Last triggered:
-                  {rule.lastTriggeredAt
-                    ? new Date(rule.lastTriggeredAt).toLocaleString()
-                    : "Never"}
-                </span>
-                <span
-                  >Renotify: {rule.renotifyMinutes
-                    ? `${rule.renotifyMinutes}m`
-                    : "Off"}</span
-                >
-                {#if rule.openIncident}
-                  <span>
-                    Value: {rule.openIncident.lastObservedValue ?? "—"} · Open since
-                    {new Date(rule.openIncident.openedAt).toLocaleString()}
-                  </span>
-                {/if}
-              </div>
-              <div class="flex shrink-0 items-center gap-1.5">
-                <Button
-                  href={`/a/${page.params.app_id}/alerts/${rule.id}`}
-                  variant="outline"
-                  size="sm"
-                >
-                  <IconPencil data-slot="button-icon" />
-                  Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  loading={togglingRuleId === rule.id}
-                  onclick={() => toggleRule(rule.id, !rule.isEnabled)}
-                >
-                  {rule.isEnabled ? "Disable" : "Enable"}
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  loading={deletingRuleId === rule.id}
-                  onclick={() => deleteRule(rule.id)}
-                >
-                  <IconTrash data-slot="button-icon" />
-                </Button>
-              </div>
-            </div>
+          <div>
+            <h2 class="text-sm text-secondary-foreground">
+              {statusFilter === "all"
+                ? "All rules"
+                : statusFilter === "incident"
+                  ? "Rules with incidents"
+                  : statusFilter === "healthy"
+                    ? "Healthy rules"
+                    : "Disabled rules"}
+            </h2>
           </div>
+          <span class="text-xs text-muted-foreground tabular-nums"
+            >{filteredRules.length} shown</span
+          >
         </div>
-      {/each}
+        <Card.Root class="z-1 gap-0 overflow-hidden p-0">
+          {#if filteredRules.length === 0}
+            <div
+              class="flex min-h-40 items-center justify-center px-4 text-center text-sm text-muted-foreground"
+            >
+              No alert rules match this view.
+            </div>
+          {:else}
+            <div class="divide-y">
+              {#each filteredRules as rule (rule.id)}
+                {@const SignalIcon = signalIcons[rule.signalType] ?? IconBell}
+                <div
+                  class="group flex items-center gap-3 p-3 transition-colors hover:bg-muted/40"
+                >
+                  <div
+                    class={`flex size-10 shrink-0 items-center justify-center rounded-lg ${rule.openIncidentCount > 0 ? "bg-destructive/10 text-destructive" : "bg-muted text-secondary-foreground"}`}
+                  >
+                    <SignalIcon class="size-4" />
+                  </div>
+                  <a
+                    href={resolve(`/a/${page.params.app_id}/alerts/${rule.id}`)}
+                    class="min-w-0 flex-1"
+                  >
+                    <div class="flex flex-wrap items-center gap-2">
+                      <p class="truncate text-sm font-medium">{rule.name}</p>
+                      {#if rule.openIncidentCount > 0}
+                        <Badge variant="destructive">
+                          {rule.openIncidentCount === 1
+                            ? "Open incident"
+                            : `${rule.openIncidentCount} open incidents`}
+                        </Badge>
+                      {:else if rule.isEnabled}
+                        <Badge
+                          variant="outline"
+                          class="border-green-600/20 bg-green-600/7 text-green-700 dark:text-green-400"
+                        >
+                          Healthy
+                        </Badge>
+                      {:else}
+                        <Badge variant="outline" class="text-muted-foreground"
+                          >Disabled</Badge
+                        >
+                      {/if}
+                    </div>
+                    <p class="mt-1 truncate text-xs text-muted-foreground">
+                      {formatCondition(rule)}
+                    </p>
+                  </a>
+                  <div class="hidden shrink-0 text-right md:block">
+                    <p class="text-xs text-muted-foreground">Last triggered</p>
+                    <p class="mt-0.5 text-xs tabular-nums">
+                      {rule.lastTriggeredAt
+                        ? new Date(rule.lastTriggeredAt).toLocaleString()
+                        : "Never"}
+                    </p>
+                  </div>
+                  <a
+                    href={resolve(`/a/${page.params.app_id}/alerts/${rule.id}`)}
+                    class="flex size-7 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors group-hover:text-foreground"
+                    aria-label={`Open ${rule.name}`}
+                  >
+                    <IconChevronRight class="size-4" />
+                  </a>
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger>
+                      {#snippet child({ props })}
+                        <Button
+                          {...props}
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Actions for ${rule.name}`}
+                        >
+                          <IconDots />
+                        </Button>
+                      {/snippet}
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content align="end" class="w-40">
+                      <DropdownMenu.Item
+                        onSelect={() =>
+                          void goto(
+                            resolve(
+                              `/a/${page.params.app_id}/alerts/${rule.id}`,
+                            ),
+                          )}
+                      >
+                        <IconPencil />
+                        Edit rule
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        disabled={togglingRuleId === rule.id}
+                        onSelect={() => void toggleRule(rule)}
+                      >
+                        <IconActivity />
+                        {rule.isEnabled ? "Disable rule" : "Enable rule"}
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Separator />
+                      <DropdownMenu.Item
+                        variant="destructive"
+                        onSelect={() => (deleteRuleId = rule.id)}
+                      >
+                        <IconTrash />
+                        Delete rule
+                      </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </Card.Root>
+      </section>
     {/if}
   </div>
 </PageContainer>
+
+<AlertDialog.Root
+  open={deleteRuleId !== null}
+  onOpenChange={(open) => {
+    if (!open) deleteRuleId = null;
+  }}
+>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title>Delete alert rule?</AlertDialog.Title>
+      <AlertDialog.Description>
+        This action cannot be undone. Any open incident created by this rule
+        will be resolved.
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+      <AlertDialog.Action
+        variant="destructive"
+        disabled={deletingRuleId !== ""}
+        onclick={removeRule}
+      >
+        Delete rule
+      </AlertDialog.Action>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>

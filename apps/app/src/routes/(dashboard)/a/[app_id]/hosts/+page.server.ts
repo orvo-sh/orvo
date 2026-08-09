@@ -10,5 +10,5 @@ export const load = (async ({ locals, params }) => {
     error(500, result.error);
   }
 
-  return { hosts: result.data.hosts };
+  return { appId: params.app_id, hosts: result.data.hosts };
 }) satisfies PageServerLoad;

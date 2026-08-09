@@ -8,6 +8,7 @@
   import { IconCheck, IconCopy, IconPlus } from "@tabler/icons-svelte";
 
   let open = $state(false);
+  let displayName = $state("");
   let environment = $state("production");
   let loading = $state(false);
   let command = $state("");
@@ -17,7 +18,10 @@
   const createEnrollment = async () => {
     loading = true;
     try {
-      const result = await createAgentEnrollmentCommand({ environment });
+      const result = await createAgentEnrollmentCommand({
+        displayName,
+        environment,
+      });
       if (!result.success) {
         toast.error(result.error);
         return;
@@ -49,6 +53,8 @@
     if (!nextOpen) {
       command = "";
       expiresAt = "";
+      displayName = "";
+      environment = "production";
     }
   }}
 >
@@ -93,6 +99,18 @@
     {:else}
       <div class="grid gap-4">
         <div class="grid gap-2">
+          <Label for="agent-display-name">Display name</Label>
+          <Input
+            id="agent-display-name"
+            bind:value={displayName}
+            placeholder="API production 01"
+            autofocus
+          />
+          <p class="text-xs text-muted-foreground">
+            A recognizable name for this host in Orvo.
+          </p>
+        </div>
+        <div class="grid gap-2">
           <Label for="agent-environment">Environment</Label>
           <Input
             id="agent-environment"
@@ -107,7 +125,11 @@
           <Button variant="outline" onclick={() => (open = false)}
             >Cancel</Button
           >
-          <Button {loading} onclick={createEnrollment}>Generate command</Button>
+          <Button
+            {loading}
+            disabled={!displayName.trim() || !environment.trim()}
+            onclick={createEnrollment}>Generate command</Button
+          >
         </Dialog.Footer>
       </div>
     {/if}

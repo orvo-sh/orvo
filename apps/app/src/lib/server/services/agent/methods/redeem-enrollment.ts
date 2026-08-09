@@ -65,7 +65,12 @@ const createRedeemEnrollment =
           .limit(1);
 
         const keyResult = await ingestionKeyService.createIngestionKey(
-          { name: `Orvo agent: ${validated.data.hostName}`.slice(0, 64) },
+          {
+            name: `Orvo agent: ${enrollment.displayName || validated.data.hostName}`.slice(
+              0,
+              64,
+            ),
+          },
           { appId: enrollment.appId, userId: enrollment.createdBy },
           tx,
         );
@@ -84,6 +89,8 @@ const createRedeemEnrollment =
             .update(agentInstallation)
             .set({
               ingestionKeyId: keyResult.data.id,
+              displayName: enrollment.displayName || validated.data.hostName,
+              environment: enrollment.environment,
               hostName: validated.data.hostName,
               operatingSystem: validated.data.operatingSystem,
               architecture: validated.data.architecture,
@@ -96,6 +103,8 @@ const createRedeemEnrollment =
             id: agentId,
             appId: enrollment.appId,
             ingestionKeyId: keyResult.data.id,
+            displayName: enrollment.displayName || validated.data.hostName,
+            environment: enrollment.environment,
             hostId: validated.data.hostId,
             hostName: validated.data.hostName,
             operatingSystem: validated.data.operatingSystem,

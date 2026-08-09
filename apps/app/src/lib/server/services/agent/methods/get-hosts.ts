@@ -108,11 +108,13 @@ const createGetHosts =
 
           return {
             id: installation.id,
+            displayName: installation.displayName || installation.hostName,
             hostId: installation.hostId,
             hostName: metrics?.host_name || installation.hostName,
             operatingSystem: metrics?.os_type || installation.operatingSystem,
             architecture: metrics?.host_arch || installation.architecture,
-            environment: metrics?.environment || "production",
+            environment:
+              installation.environment || metrics?.environment || "production",
             agentVersion: installation.agentVersion,
             lastSeen,
             reporting,

@@ -34,6 +34,7 @@ const createCreateEnrollment =
       await db.insert(agentEnrollment).values({
         id: genId("agenr"),
         appId: context.appId,
+        displayName: validated.data.displayName,
         tokenHash: createHash("sha256").update(token).digest("hex"),
         environment: validated.data.environment,
         createdBy: context.userId,

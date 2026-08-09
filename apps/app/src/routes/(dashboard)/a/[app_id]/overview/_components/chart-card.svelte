@@ -26,8 +26,8 @@
     yFormat?: (value: number) => string;
     loading: boolean;
 
-    summaryValue: number;
-    trend: { change: number; reverse?: boolean };
+    summaryValue: number | null;
+    trend?: { change: number; reverse?: boolean };
   } = $props();
 </script>
 
@@ -46,28 +46,30 @@
       <p
         class="text-right text-base leading-none font-semibold tracking-normal tabular-nums"
       >
-        {valueFormatter(summaryValue ?? data[data.length - 1]?.value ?? 0)}
+        {summaryValue === null ? "—" : valueFormatter(summaryValue)}
       </p>
-      <div class="flex items-end gap-0.5">
-        <span
-          class={cn(
-            "inline-flex items-center gap-1 text-xs font-normal tabular-nums",
-            trend.change === 0
-              ? "text-muted-foreground"
-              : (trend.reverse ? trend.change < 0 : trend.change > 0)
-                ? "text-green-600"
-                : "text-red-600",
-          )}
-        >
-          {#if trend.change > 0}
-            <IconTrendingUp class="size-3" />
-          {:else if trend.change < 0}
-            <IconTrendingDown class="size-3" />
-          {/if}
-          {trend.change >= 0 ? "" : "-"}{Math.abs(trend.change).toFixed(1)}%
-          <span class="text-muted-foreground">vs last period</span>
-        </span>
-      </div>
+      {#if trend}
+        <div class="flex items-end gap-0.5">
+          <span
+            class={cn(
+              "inline-flex items-center gap-1 text-xs font-normal tabular-nums",
+              trend.change === 0
+                ? "text-muted-foreground"
+                : (trend.reverse ? trend.change < 0 : trend.change > 0)
+                  ? "text-green-600"
+                  : "text-red-600",
+            )}
+          >
+            {#if trend.change > 0}
+              <IconTrendingUp class="size-3" />
+            {:else if trend.change < 0}
+              <IconTrendingDown class="size-3" />
+            {/if}
+            {trend.change >= 0 ? "" : "-"}{Math.abs(trend.change).toFixed(1)}%
+            <span class="text-muted-foreground">vs last period</span>
+          </span>
+        </div>
+      {/if}
     </Card.Action>
   </Card.Header>
   <Card.Content class="p-0 pt-0">

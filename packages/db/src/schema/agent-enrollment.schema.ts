@@ -10,6 +10,7 @@ const agentEnrollment = pgTable(
     appId: text('app_id')
       .notNull()
       .references(() => app.id, { onDelete: 'cascade' }),
+    displayName: text('display_name'),
     tokenHash: text('token_hash').notNull(),
     environment: text('environment').notNull().default('production'),
     createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
