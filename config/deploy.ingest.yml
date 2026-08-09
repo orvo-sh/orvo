@@ -19,7 +19,7 @@ ssh:
   config: false
 
 builder:
-  arch: amd64
+  arch: arm64
   context: apps/ingest
   dockerfile: apps/ingest/Dockerfile
 
