@@ -87,6 +87,12 @@ Run tests:
 pnpm test
 ```
 
+## Production
+
+Production application releases are deployed with Kamal when changes reach `main`. PostgreSQL and ClickHouse are independently managed backing services; this repository does not provision or own their infrastructure.
+
+See [Production operations](docs/production.md) for deployment, backup, recovery, and host access procedures.
+
 ## Database
 
 The `app` package provides shortcuts for database operations:
