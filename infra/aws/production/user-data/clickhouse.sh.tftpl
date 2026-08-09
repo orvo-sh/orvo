@@ -60,6 +60,7 @@ CLICKHOUSE_PASSWORD=${clickhouse_password}
 CLICKHOUSE_ENV
 chmod 600 /etc/orvo/clickhouse.env
 
+docker rm --force orvo-clickhouse >/dev/null 2>&1 || true
 docker run -d \
   --name orvo-clickhouse \
   --restart unless-stopped \
