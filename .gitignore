@@ -36,12 +36,3 @@ dist
 *.tsbuildinfo
 .claude
 .kamal
-
-# Infrastructure state must never be committed
-.terraform/
-*.tfstate
-*.tfstate.*
-*.tfvars
-!*.tfvars.example
-*.tfplan
-crash.log
