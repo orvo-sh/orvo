@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5"
@@ -16,8 +17,17 @@ type Client struct {
 	queries *pgdb.Queries
 }
 
-func New(ctx context.Context, url string) (*Client, error) {
-	poolConfig, err := pgxpool.ParseConfig(url)
+func New(ctx context.Context, connectionString string) (*Client, error) {
+	postgresURL, err := url.Parse(connectionString)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: parse URL: %w", err)
+	}
+
+	query := postgresURL.Query()
+	query.Del("uselibpqcompat")
+	postgresURL.RawQuery = query.Encode()
+
+	poolConfig, err := pgxpool.ParseConfig(postgresURL.String())
 	if err != nil {
 		return nil, fmt.Errorf("postgres: parse config: %w", err)
 	}
