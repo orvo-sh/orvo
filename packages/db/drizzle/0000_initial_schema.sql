@@ -4,6 +4,8 @@ CREATE TYPE "public"."alert_incident_entity_type" AS ENUM('app', 'container');--
 CREATE TYPE "public"."alert_incident_status" AS ENUM('open', 'resolved');--> statement-breakpoint
 CREATE TYPE "public"."alert_comparator" AS ENUM('gt', 'gte', 'lt', 'lte');--> statement-breakpoint
 CREATE TYPE "public"."alert_signal_type" AS ENUM('error_rate', 'latency_p95_ms', 'latency_p99_ms', 'apdex', 'throughput_per_min', 'availability_percent', 'container_cpu_utilization', 'container_memory_utilization', 'container_reporting_stale');--> statement-breakpoint
+CREATE TYPE "public"."chat_context_kind" AS ENUM('trace', 'log', 'metric', 'incident', 'heartbeat');--> statement-breakpoint
+CREATE TYPE "public"."chat_message_role" AS ENUM('system', 'user', 'assistant');--> statement-breakpoint
 CREATE TYPE "public"."heartbeat_monitor_status" AS ENUM('healthy', 'grace', 'missed', 'never_received');--> statement-breakpoint
 CREATE TYPE "public"."incident_event_type" AS ENUM('incident.opened', 'incident.resolved', 'incident.dismissed', 'alert.fired', 'heartbeat.missed', 'heartbeat.recovered');--> statement-breakpoint
 CREATE TYPE "public"."incident_dismiss_reason" AS ENUM('expected', 'false_positive', 'not_actionable', 'other');--> statement-breakpoint
@@ -32,6 +34,31 @@ CREATE TABLE "account" (
 	"password" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "agent_enrollment" (
+	"id" text PRIMARY KEY NOT NULL,
+	"app_id" text NOT NULL,
+	"token_hash" text NOT NULL,
+	"environment" text DEFAULT 'production' NOT NULL,
+	"created_by" text,
+	"expires_at" timestamp NOT NULL,
+	"redeemed_at" timestamp,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "agent_installation" (
+	"id" text PRIMARY KEY NOT NULL,
+	"app_id" text NOT NULL,
+	"ingestion_key_id" text NOT NULL,
+	"host_id" text NOT NULL,
+	"host_name" text NOT NULL,
+	"operating_system" text NOT NULL,
+	"architecture" text NOT NULL,
+	"agent_version" text NOT NULL,
+	"revoked_at" timestamp,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "alert_delivery_attempt" (
@@ -152,6 +179,38 @@ CREATE TABLE "app" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "chat" (
+	"id" text PRIMARY KEY NOT NULL,
+	"organization_id" text NOT NULL,
+	"app_id" text NOT NULL,
+	"title" text DEFAULT 'New chat' NOT NULL,
+	"created_by" text NOT NULL,
+	"updated_by" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "chat_context" (
+	"id" text PRIMARY KEY NOT NULL,
+	"chat_id" text NOT NULL,
+	"kind" "chat_context_kind" NOT NULL,
+	"resource_id" text NOT NULL,
+	"label" text NOT NULL,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "chat_message" (
+	"id" text NOT NULL,
+	"chat_id" text NOT NULL,
+	"position" integer NOT NULL,
+	"role" "chat_message_role" NOT NULL,
+	"parts" jsonb NOT NULL,
+	"metadata" jsonb,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "chat_message_chat_id_id_pk" PRIMARY KEY("chat_id","id")
+);
+--> statement-breakpoint
 CREATE TABLE "heartbeat_monitor_destination" (
 	"heartbeat_monitor_id" text NOT NULL,
 	"destination_id" text NOT NULL,
@@ -239,31 +298,22 @@ CREATE TABLE "invitation" (
 	"inviter_id" text NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "jwks" (
+	"id" text PRIMARY KEY NOT NULL,
+	"public_key" text NOT NULL,
+	"private_key" text NOT NULL,
+	"created_at" timestamp NOT NULL,
+	"expires_at" timestamp,
+	"alg" text,
+	"crv" text
+);
+--> statement-breakpoint
 CREATE TABLE "member" (
 	"id" text PRIMARY KEY NOT NULL,
 	"organization_id" text NOT NULL,
 	"user_id" text NOT NULL,
 	"role" text DEFAULT 'member' NOT NULL,
 	"created_at" timestamp NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "mcp_token" (
-	"id" text PRIMARY KEY NOT NULL,
-	"organization_id" text NOT NULL,
-	"name" text NOT NULL,
-	"description" text DEFAULT '' NOT NULL,
-	"token_prefix" text NOT NULL,
-	"token_hash" text NOT NULL,
-	"scopes" text[] DEFAULT '{}'::text[] NOT NULL,
-	"allowed_app_ids" text[] DEFAULT '{}'::text[] NOT NULL,
-	"created_by" text,
-	"last_used_at" timestamp,
-	"last_used_ip" text,
-	"last_used_user_agent" text,
-	"expires_at" timestamp,
-	"revoked_at" timestamp,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "notification_delivery" (
@@ -390,6 +440,10 @@ CREATE TABLE "verification" (
 );
 --> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_enrollment" ADD CONSTRAINT "agent_enrollment_app_id_app_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."app"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_enrollment" ADD CONSTRAINT "agent_enrollment_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_installation" ADD CONSTRAINT "agent_installation_app_id_app_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."app"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_installation" ADD CONSTRAINT "agent_installation_ingestion_key_id_ingestion_key_id_fk" FOREIGN KEY ("ingestion_key_id") REFERENCES "public"."ingestion_key"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "alert_delivery_attempt" ADD CONSTRAINT "alert_delivery_attempt_app_id_app_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."app"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "alert_delivery_attempt" ADD CONSTRAINT "alert_delivery_attempt_destination_id_alert_webhook_destination_id_fk" FOREIGN KEY ("destination_id") REFERENCES "public"."alert_webhook_destination"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "alert_delivery_attempt" ADD CONSTRAINT "alert_delivery_attempt_rule_id_alert_rule_id_fk" FOREIGN KEY ("rule_id") REFERENCES "public"."alert_rule"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -411,6 +465,12 @@ ALTER TABLE "alert_webhook_destination" ADD CONSTRAINT "alert_webhook_destinatio
 ALTER TABLE "app" ADD CONSTRAINT "app_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app" ADD CONSTRAINT "app_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app" ADD CONSTRAINT "app_updated_by_user_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "chat" ADD CONSTRAINT "chat_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "chat" ADD CONSTRAINT "chat_app_id_app_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."app"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "chat" ADD CONSTRAINT "chat_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "chat" ADD CONSTRAINT "chat_updated_by_user_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "chat_context" ADD CONSTRAINT "chat_context_chat_id_chat_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chat"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "chat_message" ADD CONSTRAINT "chat_message_chat_id_chat_id_fk" FOREIGN KEY ("chat_id") REFERENCES "public"."chat"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "heartbeat_monitor_destination" ADD CONSTRAINT "heartbeat_monitor_destination_heartbeat_monitor_id_heartbeat_monitor_id_fk" FOREIGN KEY ("heartbeat_monitor_id") REFERENCES "public"."heartbeat_monitor"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "heartbeat_monitor_destination" ADD CONSTRAINT "heartbeat_monitor_destination_destination_id_notification_destination_id_fk" FOREIGN KEY ("destination_id") REFERENCES "public"."notification_destination"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "heartbeat_monitor" ADD CONSTRAINT "heartbeat_monitor_app_id_app_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."app"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -427,8 +487,6 @@ ALTER TABLE "invitation" ADD CONSTRAINT "invitation_organization_id_organization
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_inviter_id_user_id_fk" FOREIGN KEY ("inviter_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "member" ADD CONSTRAINT "member_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "member" ADD CONSTRAINT "member_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "mcp_token" ADD CONSTRAINT "mcp_token_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "mcp_token" ADD CONSTRAINT "mcp_token_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notification_delivery" ADD CONSTRAINT "notification_delivery_app_id_app_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."app"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notification_delivery" ADD CONSTRAINT "notification_delivery_destination_id_notification_destination_id_fk" FOREIGN KEY ("destination_id") REFERENCES "public"."notification_destination"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notification_delivery" ADD CONSTRAINT "notification_delivery_incident_id_incident_id_fk" FOREIGN KEY ("incident_id") REFERENCES "public"."incident"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -438,6 +496,11 @@ ALTER TABLE "notification_destination" ADD CONSTRAINT "notification_destination_
 ALTER TABLE "organization_usage" ADD CONSTRAINT "organization_usage_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "agent_enrollment_app_id_idx" ON "agent_enrollment" USING btree ("app_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "agent_enrollment_token_hash_uidx" ON "agent_enrollment" USING btree ("token_hash");--> statement-breakpoint
+CREATE INDEX "agent_installation_app_id_idx" ON "agent_installation" USING btree ("app_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "agent_installation_ingestion_key_id_uidx" ON "agent_installation" USING btree ("ingestion_key_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "agent_installation_app_host_uidx" ON "agent_installation" USING btree ("app_id","host_id");--> statement-breakpoint
 CREATE INDEX "alert_delivery_attempt_app_id_idx" ON "alert_delivery_attempt" USING btree ("app_id");--> statement-breakpoint
 CREATE INDEX "alert_delivery_attempt_destination_id_idx" ON "alert_delivery_attempt" USING btree ("destination_id");--> statement-breakpoint
 CREATE INDEX "alert_delivery_attempt_status_next_attempt_at_idx" ON "alert_delivery_attempt" USING btree ("status","next_attempt_at");--> statement-breakpoint
@@ -457,6 +520,12 @@ CREATE INDEX "alert_webhook_destination_created_by_idx" ON "alert_webhook_destin
 CREATE INDEX "app_organization_id_idx" ON "app" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "app_created_by_idx" ON "app" USING btree ("created_by");--> statement-breakpoint
 CREATE UNIQUE INDEX "app_org_name_uidx" ON "app" USING btree ("organization_id","name");--> statement-breakpoint
+CREATE INDEX "chat_app_id_created_by_updated_at_idx" ON "chat" USING btree ("app_id","created_by","updated_at");--> statement-breakpoint
+CREATE INDEX "chat_organization_id_idx" ON "chat" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "chat_context_chat_id_idx" ON "chat_context" USING btree ("chat_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "chat_context_chat_kind_resource_uidx" ON "chat_context" USING btree ("chat_id","kind","resource_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "chat_message_chat_id_position_uidx" ON "chat_message" USING btree ("chat_id","position");--> statement-breakpoint
+CREATE INDEX "chat_message_chat_id_idx" ON "chat_message" USING btree ("chat_id");--> statement-breakpoint
 CREATE INDEX "heartbeat_monitor_destination_destination_id_idx" ON "heartbeat_monitor_destination" USING btree ("destination_id");--> statement-breakpoint
 CREATE INDEX "heartbeat_monitor_app_id_idx" ON "heartbeat_monitor" USING btree ("app_id");--> statement-breakpoint
 CREATE INDEX "heartbeat_monitor_app_status_idx" ON "heartbeat_monitor" USING btree ("app_id","status");--> statement-breakpoint
@@ -475,9 +544,6 @@ CREATE INDEX "invitation_organizationId_idx" ON "invitation" USING btree ("organ
 CREATE INDEX "invitation_email_idx" ON "invitation" USING btree ("email");--> statement-breakpoint
 CREATE INDEX "member_organizationId_idx" ON "member" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "member_userId_idx" ON "member" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "mcp_token_organization_id_idx" ON "mcp_token" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "mcp_token_created_by_idx" ON "mcp_token" USING btree ("created_by");--> statement-breakpoint
-CREATE UNIQUE INDEX "mcp_token_token_prefix_uidx" ON "mcp_token" USING btree ("token_prefix");--> statement-breakpoint
 CREATE INDEX "notification_delivery_app_id_idx" ON "notification_delivery" USING btree ("app_id");--> statement-breakpoint
 CREATE INDEX "notification_delivery_destination_id_idx" ON "notification_delivery" USING btree ("destination_id");--> statement-breakpoint
 CREATE INDEX "notification_delivery_incident_id_idx" ON "notification_delivery" USING btree ("incident_id");--> statement-breakpoint
