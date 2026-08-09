@@ -27,7 +27,14 @@ fi
 mount /var/lib/postgresql
 
 apt-get update
-apt-get install -y awscli ca-certificates jq postgresql-16
+apt-get install -y ca-certificates curl jq postgresql-16 unzip
+
+curl --fail --silent --show-error \
+  "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" \
+  --output /tmp/awscliv2.zip
+unzip -q /tmp/awscliv2.zip -d /tmp
+/tmp/aws/install --update
+rm -rf /tmp/aws /tmp/awscliv2.zip
 
 install -d -o postgres -g postgres -m 700 /var/lib/postgresql/16/main
 chown -R postgres:postgres /var/lib/postgresql
