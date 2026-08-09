@@ -150,6 +150,10 @@ jobs:
         run: |
           ssh -i "${KAMAL_SSH_KEY_PATH}" -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "${KAMAL_SSH_USER}@${KAMAL_HOST}" \
             "docker run --rm --env-file /opt/orvo/migrate/app.env -v /opt/orvo/certs:/opt/orvo/certs:ro ghcr.io/orvo-sh/orvo-app:${DEPLOY_VERSION} sh -lc 'cd /repo && pnpm --filter @repo/db db:migrate && pnpm --filter @repo/clickhouse run db:migrate'"
+
+      - name: Remove migration env file
+        if: always()
+        run: |
           ssh -i "${KAMAL_SSH_KEY_PATH}" -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "${KAMAL_SSH_USER}@${KAMAL_HOST}" 'rm -f /opt/orvo/migrate/app.env'
 
       - name: Deploy ingest
