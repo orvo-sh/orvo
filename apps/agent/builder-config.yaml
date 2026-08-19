@@ -1,0 +1,21 @@
+dist:
+  module: github.com/orvo-sh/orvo-agent/runtime
+  name: orvo-agent
+  description: Orvo host monitoring agent
+  version: dev
+  output_path: ./build/runtime
+
+receivers:
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver v0.158.0
+
+processors:
+  - gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.158.0
+  - gomod: go.opentelemetry.io/collector/processor/memorylimiterprocessor v0.158.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourceprocessor v0.158.0
+
+exporters:
+  - gomod: go.opentelemetry.io/collector/exporter/otlphttpexporter v0.158.0
+
+extensions:
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.158.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/filestorage v0.158.0
