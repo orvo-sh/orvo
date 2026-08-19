@@ -5,6 +5,7 @@
   import type { UIMessage } from "ai";
   import { onDestroy } from "svelte";
 
+  import ChatAttachment from "./chat-attachment.svelte";
   import ChatMarkdown from "./chat-markdown.svelte";
   import ChatToolPart from "./chat-tool-part.svelte";
 
@@ -12,7 +13,13 @@
     message,
     chatId,
     streaming = false,
-  }: { message: UIMessage; chatId: string; streaming?: boolean } = $props();
+    onToolApproval,
+  }: {
+    message: UIMessage;
+    chatId: string;
+    streaming?: boolean;
+    onToolApproval: (id: string, approved: boolean) => void;
+  } = $props();
 
   let copied = $state(false);
   let copyTimer: ReturnType<typeof setTimeout>;
@@ -44,6 +51,15 @@
     <div
       class="max-w-[86%] rounded-2xl rounded-br-md bg-muted px-3.5 py-2.5 text-sm leading-5 text-foreground sm:max-w-[75%]"
     >
+      {#if message.parts.some((part) => part.type === "file")}
+        <div class="mb-2 flex flex-wrap justify-end gap-2">
+          {#each message.parts as part, index (`attachment-${index}`)}
+            {#if part.type === "file"}
+              <ChatAttachment file={part} />
+            {/if}
+          {/each}
+        </div>
+      {/if}
       {#each message.parts as part, index (`${part.type}-${index}`)}
         {#if part.type === "text"}{part.text}{/if}
       {/each}
@@ -58,6 +74,8 @@
             messageId={message.id}
             streaming={streaming && index === message.parts.length - 1}
           />
+        {:else if part.type === "file"}
+          <ChatAttachment file={part} />
         {:else if part.type === "reasoning"}
           <details class="group/reasoning my-2 text-sm text-muted-foreground">
             <summary
@@ -81,6 +99,7 @@
             part={part as import("ai").DynamicToolUIPart}
             {chatId}
             messageId={message.id}
+            {onToolApproval}
           />
         {/if}
       {/each}

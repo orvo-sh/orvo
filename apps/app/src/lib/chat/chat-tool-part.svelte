@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Button } from "@repo/components/ui/button";
   import { Spinner } from "@repo/components/ui/spinner";
   import {
     IconAlertCircle,
@@ -13,7 +14,13 @@
     part,
     chatId,
     messageId,
-  }: { part: DynamicToolUIPart; chatId: string; messageId: string } = $props();
+    onToolApproval,
+  }: {
+    part: DynamicToolUIPart;
+    chatId: string;
+    messageId: string;
+    onToolApproval: (id: string, approved: boolean) => void;
+  } = $props();
 
   const toolName = $derived(
     part.type === "dynamic-tool"
@@ -28,10 +35,14 @@
       : null,
   );
   const complete = $derived(
-    part.state === "output-available" || part.state === "output-error",
+    part.state === "output-available" ||
+      part.state === "output-error" ||
+      part.state === "output-denied",
   );
   const failed = $derived(
-    part.state === "output-error" || typeof output?.error === "string",
+    part.state === "output-error" ||
+      part.state === "output-denied" ||
+      typeof output?.error === "string",
   );
   const label = $derived(
     (
@@ -66,33 +77,62 @@
 </script>
 
 <div class="my-2 text-sm text-muted-foreground" data-chat-tool={toolName}>
-  <details class="group/tool" bind:open={expanded}>
-    <summary
-      class="flex cursor-pointer list-none items-center gap-2 rounded-lg py-1.5 select-none hover:text-foreground"
+  {#if part.state === "approval-requested" && !part.approval.isAutomatic}
+    <div
+      class="rounded-xl border bg-card p-3 text-foreground"
+      data-testid="chat-tool-approval"
     >
-      {#if !complete}
-        <Spinner class="size-3.5" />
-      {:else if failed}
-        <IconAlertCircle class="size-3.5 text-destructive" />
-      {:else}
-        <IconCheck class="size-3.5 text-emerald-600 dark:text-emerald-400" />
-      {/if}
-      <span>{label}</span>
-      <IconChevronRight
-        class="ml-auto size-3.5 transition-transform group-open/tool:rotate-90"
-      />
-    </summary>
-    {#if expanded}
-      {#if toolName === "search_traces" && complete && !failed}
-        <ChatTraceResults {chatId} {messageId} output={part.output} />
-      {:else}
-        <div
-          class="mt-1 max-h-48 overflow-auto rounded-lg border bg-muted/35 p-2 font-mono text-sm leading-relaxed break-words whitespace-pre-wrap"
-          data-scrollable
+      <p class="font-medium">
+        Approve {String(toolName).replaceAll("_", " ")}?
+      </p>
+      <pre
+        class="mt-2 max-h-40 overflow-auto rounded-lg bg-muted/50 p-2 font-mono text-sm leading-relaxed whitespace-pre-wrap"
+        data-scrollable>{JSON.stringify(part.input, null, 2)}</pre>
+      <div class="mt-3 flex justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onclick={() => onToolApproval(part.approval.id, false)}
         >
-          {debugOutput}
-        </div>
+          Deny
+        </Button>
+        <Button
+          size="sm"
+          onclick={() => onToolApproval(part.approval.id, true)}
+        >
+          Approve
+        </Button>
+      </div>
+    </div>
+  {:else}
+    <details class="group/tool" bind:open={expanded}>
+      <summary
+        class="flex cursor-pointer list-none items-center gap-2 rounded-lg py-1.5 select-none hover:text-foreground"
+      >
+        {#if !complete}
+          <Spinner class="size-3.5" />
+        {:else if failed}
+          <IconAlertCircle class="size-3.5 text-destructive" />
+        {:else}
+          <IconCheck class="size-3.5 text-emerald-600 dark:text-emerald-400" />
+        {/if}
+        <span>{label}</span>
+        <IconChevronRight
+          class="ml-auto size-3.5 transition-transform group-open/tool:rotate-90"
+        />
+      </summary>
+      {#if expanded}
+        {#if toolName === "search_traces" && complete && !failed}
+          <ChatTraceResults {chatId} {messageId} output={part.output} />
+        {:else}
+          <div
+            class="mt-1 max-h-48 overflow-auto rounded-lg border bg-muted/35 p-2 font-mono text-sm leading-relaxed break-words whitespace-pre-wrap"
+            data-scrollable
+          >
+            {debugOutput}
+          </div>
+        {/if}
       {/if}
-    {/if}
-  </details>
+    </details>
+  {/if}
 </div>

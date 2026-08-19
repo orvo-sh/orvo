@@ -1,9 +1,11 @@
 import { Instrument } from "$lib/instrumentation";
 import type { AlertRuleService } from "$lib/server/services/alert-rule";
+import type { AppService } from "$lib/server/services/app";
 import type { HeartbeatService } from "$lib/server/services/heartbeat";
 import type { IncidentService } from "$lib/server/services/incident";
 import type { LogsService } from "$lib/server/services/logs";
 import type { MetricsService } from "$lib/server/services/metrics";
+import type { ScoutCreditService } from "$lib/server/services/scout-credit";
 import type { TracesService } from "$lib/server/services/traces";
 import type { DB } from "@repo/db";
 import type { Logger } from "@repo/logger";
@@ -35,14 +37,18 @@ class ChatService {
     db: DB,
     logger: Logger,
     model: LanguageModel | null,
+    scoutCreditService: ScoutCreditService,
     toolServices: {
       alertRuleService: AlertRuleService;
+      appService: AppService;
       logsService: LogsService;
       tracesService: TracesService;
       metricsService: MetricsService;
       incidentService: IncidentService;
       heartbeatService: HeartbeatService;
     },
+    toolApprovalSecret: string,
+    cdnBaseUrl: string,
   ) {
     const childLogger = logger.child("ChatService");
     this.createChatMethod = createCreateChat({ db, logger: childLogger });
@@ -53,7 +59,10 @@ class ChatService {
       db,
       logger: childLogger,
       model,
+      scoutCreditService,
       toolServices,
+      toolApprovalSecret,
+      cdnBaseUrl,
     });
   }
 

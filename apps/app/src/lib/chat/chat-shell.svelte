@@ -109,14 +109,16 @@
         Loading conversation…
       </div>
     {:else}
-      <ChatMessageList
-        {messages}
-        {status}
-        chatId={chat.activeChatId}
-        context={chat.context}
-        target={chat.target}
-        onSuggestion={(prompt) => void chat.send(prompt)}
-      />
+      {#if messages.length}
+        <ChatMessageList
+          {messages}
+          {status}
+          chatId={chat.activeChatId}
+          target={chat.target}
+          onToolApproval={(id, approved) =>
+            void client?.addToolApprovalResponse({ id, approved })}
+        />
+      {/if}
       {#if chat.error}
         <div class="px-4 pb-1 text-center text-sm text-destructive">
           {chat.error}
@@ -124,9 +126,9 @@
       {/if}
       <ChatComposer
         {status}
-        contextLabel={chat.context?.label}
         onSend={chat.send}
         onStop={() => client?.stop()}
+        centered={!messages.length}
       />
     {/if}
   </section>

@@ -1,7 +1,19 @@
 import type { AlertRuleService } from "$lib/server/services/alert-rule";
+import {
+  createAlertRuleInputSchema,
+  setAlertRuleEnabledInputSchema,
+  updateAlertRuleInputSchema,
+} from "$lib/server/services/alert-rule";
+import type { AppService } from "$lib/server/services/app";
+import { updateAppInputSchema } from "$lib/server/services/app";
 import type { HeartbeatService } from "$lib/server/services/heartbeat";
+import {
+  createHeartbeatMonitorInputSchema,
+  updateHeartbeatMonitorInputSchema,
+} from "$lib/server/services/heartbeat";
 import type { IncidentService } from "$lib/server/services/incident";
 import {
+  dismissIncidentInputSchema,
   incidentSourceTypeSchema,
   incidentStatusSchema,
 } from "$lib/server/services/incident";
@@ -45,13 +57,14 @@ const result = (
 const createChatTools = (
   dependencies: {
     alertRuleService: AlertRuleService;
+    appService: AppService;
     logsService: LogsService;
     tracesService: TracesService;
     metricsService: MetricsService;
     incidentService: IncidentService;
     heartbeatService: HeartbeatService;
   },
-  context: { appId: string },
+  context: { appId: string; organizationId: string; userId: string },
 ) => {
   const withinOutputBudget = createToolOutputBudget();
   const toolResult = (
@@ -272,6 +285,149 @@ const createChatTools = (
         toolResult(
           "get_alert_rule",
           await dependencies.alertRuleService.getAlertRule(id, context),
+        ),
+    }),
+    update_app: tool({
+      description: "Rename the current app.",
+      inputSchema: updateAppInputSchema.omit({ id: true }),
+      execute: async (input) =>
+        toolResult(
+          "update_app",
+          await dependencies.appService.updateApp(
+            { id: context.appId, ...input },
+            context,
+          ),
+        ),
+    }),
+    create_alert_rule: tool({
+      description: "Create an alert rule for the current app.",
+      inputSchema: createAlertRuleInputSchema,
+      execute: async (input) =>
+        toolResult(
+          "create_alert_rule",
+          await dependencies.alertRuleService.createAlertRule(input, context),
+        ),
+    }),
+    update_alert_rule: tool({
+      description: "Update an alert rule in the current app.",
+      inputSchema: updateAlertRuleInputSchema,
+      execute: async (input) =>
+        toolResult(
+          "update_alert_rule",
+          await dependencies.alertRuleService.updateAlertRule(input, context),
+        ),
+    }),
+    set_alert_rule_enabled: tool({
+      description: "Enable or disable an alert rule in the current app.",
+      inputSchema: setAlertRuleEnabledInputSchema,
+      execute: async (input) =>
+        toolResult(
+          "set_alert_rule_enabled",
+          await dependencies.alertRuleService.setAlertRuleEnabled(
+            input,
+            context,
+          ),
+        ),
+    }),
+    delete_alert_rule: tool({
+      description: "Permanently delete an alert rule from the current app.",
+      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      execute: async ({ id }) =>
+        toolResult(
+          "delete_alert_rule",
+          await dependencies.alertRuleService.deleteAlertRule(id, context),
+        ),
+    }),
+    create_heartbeat_monitor: tool({
+      description: "Create a heartbeat monitor for the current app.",
+      inputSchema: createHeartbeatMonitorInputSchema,
+      execute: async (input) =>
+        toolResult(
+          "create_heartbeat_monitor",
+          await dependencies.heartbeatService.createHeartbeatMonitor(
+            input,
+            context,
+          ),
+        ),
+    }),
+    update_heartbeat_monitor: tool({
+      description: "Update a heartbeat monitor in the current app.",
+      inputSchema: updateHeartbeatMonitorInputSchema,
+      execute: async (input) =>
+        toolResult(
+          "update_heartbeat_monitor",
+          await dependencies.heartbeatService.updateHeartbeatMonitor(
+            input,
+            context,
+          ),
+        ),
+    }),
+    toggle_heartbeat_monitor_paused: tool({
+      description: "Pause or resume a heartbeat monitor in the current app.",
+      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      execute: async ({ id }) =>
+        toolResult(
+          "toggle_heartbeat_monitor_paused",
+          await dependencies.heartbeatService.toggleHeartbeatMonitorPaused(
+            id,
+            context,
+          ),
+        ),
+    }),
+    regenerate_heartbeat_monitor_secret: tool({
+      description:
+        "Regenerate a heartbeat monitor secret, invalidating its existing check-in URL.",
+      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      execute: async ({ id }) =>
+        toolResult(
+          "regenerate_heartbeat_monitor_secret",
+          await dependencies.heartbeatService.regenerateHeartbeatMonitorSecret(
+            id,
+            context,
+          ),
+        ),
+    }),
+    send_heartbeat_monitor_test_alert: tool({
+      description: "Send a test alert for a heartbeat monitor.",
+      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      execute: async ({ id }) =>
+        toolResult(
+          "send_heartbeat_monitor_test_alert",
+          await dependencies.heartbeatService.sendHeartbeatMonitorTestAlert(
+            id,
+            context,
+          ),
+        ),
+    }),
+    delete_heartbeat_monitor: tool({
+      description:
+        "Permanently delete a heartbeat monitor from the current app.",
+      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      execute: async ({ id }) =>
+        toolResult(
+          "delete_heartbeat_monitor",
+          await dependencies.heartbeatService.deleteHeartbeatMonitor(
+            id,
+            context,
+          ),
+        ),
+    }),
+    resolve_incident: tool({
+      description: "Resolve an open incident in the current app.",
+      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      execute: async ({ id }) =>
+        toolResult(
+          "resolve_incident",
+          await dependencies.incidentService.resolveIncident(id, context),
+        ),
+    }),
+    dismiss_incident: tool({
+      description: "Dismiss an incident in the current app with a reason.",
+      inputSchema: dismissIncidentInputSchema,
+      execute: async (input) =>
+        toolResult(
+          "dismiss_incident",
+          await dependencies.incidentService.dismissIncident(input, context),
         ),
     }),
   };

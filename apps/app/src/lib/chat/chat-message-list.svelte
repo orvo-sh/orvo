@@ -5,25 +5,21 @@
   import type { ChatStatus, UIMessage } from "ai";
   import { onMount } from "svelte";
 
-  import ChatEmpty from "./chat-empty.svelte";
   import ChatMessage from "./chat-message.svelte";
   import { isChatScrollNearBottom } from "./chat-scroll";
-  import type { ChatContextDescriptor } from "./types";
 
   let {
     messages,
     status,
     chatId,
-    context,
     target,
-    onSuggestion,
+    onToolApproval,
   }: {
     messages: UIMessage[];
     status: ChatStatus;
     chatId: string | null;
-    context: ChatContextDescriptor | null;
     target: { chatId: string; messageId: string; nonce: number } | null;
-    onSuggestion: (prompt: string) => void;
+    onToolApproval: (id: string, approved: boolean) => void;
   } = $props();
 
   let viewport: HTMLDivElement;
@@ -144,24 +140,21 @@
     style:overflow-anchor={following ? "none" : "auto"}
   >
     <div bind:this={content} class="min-h-full">
-      {#if messages.length === 0}
-        <ChatEmpty {context} {onSuggestion} />
-      {:else}
-        <div
-          class="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6 sm:px-5"
-        >
-          {#each messages as message, index (message.id)}
-            <ChatMessage
-              {message}
-              chatId={chatId ?? "new"}
-              streaming={(status === "streaming" || status === "submitted") &&
-                index === messages.length - 1 &&
-                message.role === "assistant"}
-            />
-          {/each}
-          <div class="h-2" aria-hidden="true"></div>
-        </div>
-      {/if}
+      <div
+        class="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6 sm:px-5"
+      >
+        {#each messages as message, index (message.id)}
+          <ChatMessage
+            {message}
+            chatId={chatId ?? "new"}
+            streaming={(status === "streaming" || status === "submitted") &&
+              index === messages.length - 1 &&
+              message.role === "assistant"}
+            {onToolApproval}
+          />
+        {/each}
+        <div class="h-2" aria-hidden="true"></div>
+      </div>
     </div>
   </div>
 

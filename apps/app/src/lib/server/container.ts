@@ -12,12 +12,14 @@ import { HeartbeatService } from "$lib/server/services/heartbeat";
 import { IncidentService } from "$lib/server/services/incident";
 import { IngestionKeyService } from "$lib/server/services/ingestion-key";
 import { LogsService } from "$lib/server/services/logs";
+import { LocalService } from "$lib/server/services/local";
 import { MetricsService } from "$lib/server/services/metrics";
 import { McpOauthGrantService } from "$lib/server/services/mcp-oauth-grant";
 import { McpService } from "$lib/server/services/mcp";
 import { NotificationDeliveryService } from "$lib/server/services/notification-delivery";
 import { NotificationDestinationService } from "$lib/server/services/notification-destination";
 import { OnboardingService } from "$lib/server/services/onboarding";
+import { ScoutCreditService } from "$lib/server/services/scout-credit";
 import { TracesService } from "$lib/server/services/traces";
 import { UploadService } from "$lib/server/services/upload";
 import { getClickHouseClient } from "@repo/clickhouse";
@@ -25,15 +27,19 @@ import { getDb } from "@repo/db";
 import { Encryption } from "@repo/encryption";
 import { Logger } from "@repo/logger";
 import { Storage } from "@repo/storage";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
 import Stripe from "stripe";
 
 import { Email } from "./email";
+import { mode } from "./mode";
 
 const db = getDb(env.POSTGRES_URL);
 const clickhouse = getClickHouseClient({ url: env.CLICKHOUSE_URL });
 const storage =
-  env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY && env.S3_ENDPOINT
+  mode === "cloud" &&
+  env.S3_ACCESS_KEY_ID &&
+  env.S3_SECRET_ACCESS_KEY &&
+  env.S3_ENDPOINT
     ? new Storage({
         accessKeyId: env.S3_ACCESS_KEY_ID,
         secretAccessKey: env.S3_SECRET_ACCESS_KEY,
@@ -43,13 +49,17 @@ const storage =
       })
     : null;
 
-const stripe = env.STRIPE_SECRET_KEY
-  ? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: "2026-05-27.dahlia" })
-  : null;
-const email = new Email({
-  resendApiKey: env.RESEND_API_KEY,
-  transport: dev ? "console" : "resend",
-});
+const stripe =
+  mode === "cloud" && env.STRIPE_SECRET_KEY
+    ? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: "2026-05-27.dahlia" })
+    : null;
+const email =
+  mode === "cloud"
+    ? new Email({
+        resendApiKey: env.RESEND_API_KEY,
+        transport: dev ? "console" : "resend",
+      })
+    : null;
 const encryption = new Encryption({ secret: env.ENCRYPTION_SECRET });
 
 const createServerContainer = (logger: Logger) => {
@@ -77,6 +87,11 @@ const createServerContainer = (logger: Logger) => {
     notificationDeliveryService,
   );
   const alertRuleService = new AlertRuleService(db, logger);
+  const localService = new LocalService(
+    db,
+    alertRuleService,
+    env.ORVO_SETUP_TOKEN ?? "",
+  );
   const alertWebhookDestinationService = new AlertWebhookDestinationService(
     db,
     logger,
@@ -108,8 +123,9 @@ const createServerContainer = (logger: Logger) => {
     { otlpBaseUrl: env.INGEST_BASE_URL },
     logger,
   );
+  const scoutCreditService = new ScoutCreditService(db, logger);
   const billingService = stripe
-    ? new BillingService(db, logger, email, stripe, {
+    ? new BillingService(db, logger, email!, stripe, scoutCreditService, {
         starterPriceId: env.STRIPE_STARTER_PRICE_ID,
         proPriceId: env.STRIPE_PRO_PRICE_ID,
         trialDays: 14,
@@ -121,10 +137,11 @@ const createServerContainer = (logger: Logger) => {
   });
 
   const authService = createAuth(db, logger, email, billingService, {
+    mode,
     secret: env.BETTER_AUTH_SECRET || env.ENCRYPTION_SECRET,
     baseUrl: env.ORIGIN,
     github:
-      env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
+      mode === "cloud" && env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
         ? {
             clientId: env.GITHUB_CLIENT_ID,
             clientSecret: env.GITHUB_CLIENT_SECRET,
@@ -152,25 +169,30 @@ const createServerContainer = (logger: Logger) => {
   const chatService = new ChatService(
     db,
     logger,
-    env.GEMINI_API_KEY
-      ? createGoogleGenerativeAI({ apiKey: env.GEMINI_API_KEY })(
-          env.GEMINI_MODEL || "gemini-3.6-flash",
+    mode === "cloud" && env.OPENAI_API_KEY
+      ? createOpenAI({ apiKey: env.OPENAI_API_KEY })(
+          env.OPENAI_MODEL || "gpt-5.6-luna",
         )
       : null,
+    scoutCreditService,
     {
       alertRuleService,
+      appService,
       logsService,
       tracesService,
       metricsService,
       incidentService,
       heartbeatService,
     },
+    env.ENCRYPTION_SECRET,
+    env.CDN_BASE_URL,
   );
 
   return {
     authService,
     mcpOauthGrantService,
     mcpService,
+    localService,
     agentService,
     uploadService,
     billingService,

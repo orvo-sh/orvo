@@ -32,7 +32,22 @@ const deriveChatTitle = (
     )
     ?.text.trim();
 
-  if (!text) return "New chat";
+  if (!text) {
+    const filename = messages
+      .find((message) => message.role === "user")
+      ?.parts.find(
+        (part): part is { type: "file"; filename: string } =>
+          typeof part === "object" &&
+          part !== null &&
+          "type" in part &&
+          part.type === "file" &&
+          "filename" in part &&
+          typeof part.filename === "string",
+      )?.filename;
+    return filename
+      ? `Attachment: ${filename}`.slice(0, 72).trimEnd()
+      : "New chat";
+  }
 
   const singleLine = text.replace(/\s+/g, " ");
   return singleLine.length > 72

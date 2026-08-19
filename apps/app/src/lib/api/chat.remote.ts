@@ -6,6 +6,7 @@ import {
   getChatInputSchema,
   listChatsInputSchema,
 } from "$lib/server/services/chat";
+import { createUploadUrlInputSchema } from "$lib/server/services/upload";
 import { err } from "@repo/utils";
 
 const getContext = async () => {
@@ -59,4 +60,22 @@ const deleteChatCommand = command(deleteChatInputSchema, async (input) => {
   );
 });
 
-export { createChatCommand, deleteChatCommand, getChatQuery, listChatsQuery };
+const createChatAttachmentUploadUrlCommand = command(
+  createUploadUrlInputSchema.omit({ purpose: true }),
+  async (input) => {
+    const request = await getContext();
+    if (!request) return err("App context is missing.");
+    return request.event.locals.container.uploadService.createUploadUrl({
+      ...input,
+      purpose: "chat_attachment",
+    });
+  },
+);
+
+export {
+  createChatAttachmentUploadUrlCommand,
+  createChatCommand,
+  deleteChatCommand,
+  getChatQuery,
+  listChatsQuery,
+};

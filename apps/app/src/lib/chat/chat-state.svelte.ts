@@ -4,12 +4,18 @@ import { resolve } from "$app/paths";
 import { page } from "$app/state";
 import {
   createChatCommand,
+  createChatAttachmentUploadUrlCommand,
   deleteChatCommand,
   getChatQuery,
   listChatsQuery,
 } from "$lib/api/chat.remote";
 import { Chat } from "@ai-sdk/svelte";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithApprovalResponses,
+  type FileUIPart,
+  type UIMessage,
+} from "ai";
 import { getContext, setContext } from "svelte";
 import { SvelteDate, SvelteMap } from "svelte/reactivity";
 
@@ -142,9 +148,43 @@ class ChatState {
     this.error = null;
   };
 
-  send = async (text: string) => {
+  send = async (text: string, files: File[] = []) => {
     const cleanText = text.trim();
-    if (!cleanText) return;
+    if (!cleanText && !files.length) return false;
+
+    this.error = null;
+    let attachments: FileUIPart[];
+    try {
+      attachments = await Promise.all(
+        files.map(async (file) => {
+          const uploadUrl = await createChatAttachmentUploadUrlCommand({
+            contentType: file.type,
+            fileSizeBytes: file.size,
+          });
+          if (!uploadUrl.success) throw new Error(uploadUrl.error);
+
+          const upload = await fetch(uploadUrl.data.presignedUrl, {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": file.type },
+          });
+          if (!upload.ok) {
+            throw new Error(`Attachment upload failed (${upload.status}).`);
+          }
+
+          return {
+            type: "file" as const,
+            filename: file.name,
+            mediaType: file.type,
+            url: uploadUrl.data.url,
+          };
+        }),
+      );
+    } catch (error) {
+      this.error =
+        error instanceof Error ? error.message : "Failed to upload attachment.";
+      return false;
+    }
 
     let session = this.activeSession;
     if (!session) {
@@ -153,7 +193,7 @@ class ChatState {
       });
       if (!result.success) {
         this.error = result.error;
-        return;
+        return false;
       }
 
       const now = new SvelteDate().toISOString();
@@ -187,9 +227,15 @@ class ChatState {
       }
     }
 
-    this.error = null;
     this.touchSession(session.thread.id);
-    await session.client.sendMessage({ text: cleanText });
+    try {
+      await session.client.sendMessage({ text: cleanText, files: attachments });
+      return true;
+    } catch (error) {
+      this.error =
+        error instanceof Error ? error.message : "Failed to send message.";
+      return false;
+    }
   };
 
   deleteChat = async (id: string) => {
@@ -248,6 +294,8 @@ class ChatState {
         api: "/api/chat",
         body: { appId: this.appId },
       }),
+      sendAutomaticallyWhen:
+        lastAssistantMessageIsCompleteWithApprovalResponses,
       onFinish: () => {
         void this.loadHistory();
         this.pruneSessions();
