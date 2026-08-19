@@ -4,6 +4,15 @@ on:
   push:
     branches:
       - main
+    paths:
+      - ".github/workflows/publish-images.yml"
+      - "apps/app/**"
+      - "apps/ingest/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
   workflow_dispatch:
 
 concurrency:
