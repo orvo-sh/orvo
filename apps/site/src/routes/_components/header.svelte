@@ -10,17 +10,17 @@
   const productFeatures = [
     {
       href: '/docs/product/traces',
-      title: 'Distributed Tracing',
+      title: 'Distributed tracing',
       content: 'Follow requests across services and dependencies.'
     },
     {
       href: '/docs/product/logs',
-      title: 'Log Management',
+      title: 'Log management',
       content: 'Search, filter, and investigate application logs.'
     },
     {
       href: '/docs/product/metrics',
-      title: 'Metrics Monitoring',
+      title: 'Metrics monitoring',
       content: 'Track performance, errors, and system health.'
     },
     {
@@ -30,8 +30,18 @@
     },
     {
       href: '/docs/product/heartbeats',
-      title: 'Heartbeat Monitoring',
+      title: 'Heartbeat monitoring',
       content: 'Detect failed jobs and missing check-ins.'
+    },
+    {
+      href: '/#features',
+      title: 'Scout',
+      content: 'Investigate telemetry with an AI assistant.'
+    },
+    {
+      href: '/#features',
+      title: 'MCP',
+      content: 'Connect compatible agents to scoped telemetry tools.'
     }
   ];
 
@@ -67,6 +77,14 @@
               {/each}
             </ul>
           </NavigationMenu.Content>
+        </NavigationMenu.Item>
+
+        <NavigationMenu.Item>
+          <NavigationMenu.Link>
+            {#snippet child()}
+              <Button href="/#open-source" variant="ghost">Open source</Button>
+            {/snippet}
+          </NavigationMenu.Link>
         </NavigationMenu.Item>
 
         <NavigationMenu.Item>
@@ -118,6 +136,19 @@
         </Sheet.Header>
         <div class="flex flex-1 flex-col overflow-y-auto p-1 pt-2">
           <div class="space-y-1">
+            <Button
+              href="/#open-source"
+              variant="ghost"
+              class="w-full justify-start"
+              onclick={() => {
+                queueMicrotask(() => {
+                  mobileSheetOpen = false;
+                });
+              }}
+            >
+              Open source
+            </Button>
+
             <Button
               href="/#pricing"
               variant="ghost"
