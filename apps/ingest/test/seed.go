@@ -13,6 +13,7 @@ type SeedAppInput struct {
 	Plan       string
 	Status     string
 	LimitBytes int64
+	PeriodEnd  time.Time
 }
 
 type SeededApp struct {
@@ -30,6 +31,10 @@ func SeedApp(ctx context.Context, postgresDB *pgclient.Client, input SeedAppInpu
 	ingestionKeyID := fmt.Sprintf("ingk_%s", input.Suffix)
 	ingestionKey := fmt.Sprintf("ing_test_%s", input.Suffix)
 	usageID := fmt.Sprintf("orgu_%s", input.Suffix)
+	periodEnd := input.PeriodEnd
+	if periodEnd.IsZero() {
+		periodEnd = now.Add(30 * 24 * time.Hour)
+	}
 
 	if _, err := postgresDB.Pool().Exec(ctx, `
 		INSERT INTO organization (id, name, slug, billing_plan, billing_status, created_at, updated_at)
@@ -64,7 +69,7 @@ func SeedApp(ctx context.Context, postgresDB *pgclient.Client, input SeedAppInpu
 			ingest_limit_bytes
 		)
 		VALUES ($1, $2, 30, 30, 30, $3, $4, $5)
-	`, usageID, organizationID, now.Add(-time.Hour), now.Add(30*24*time.Hour), input.LimitBytes); err != nil {
+	`, usageID, organizationID, now.Add(-time.Hour), periodEnd, input.LimitBytes); err != nil {
 		return nil, fmt.Errorf("insert organization usage: %w", err)
 	}
 

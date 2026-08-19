@@ -1,7 +1,7 @@
 -- name: GetBillingState :one
 SELECT
-  COALESCE(organization.billing_plan::text, current_subscription.plan, 'none') AS plan_key,
-  COALESCE(organization.billing_status::text, current_subscription.status, 'inactive') AS status,
+  COALESCE(current_subscription.plan, organization.billing_plan::text, 'none') AS plan_key,
+  COALESCE(current_subscription.status, organization.billing_status::text, 'inactive') AS status,
   COALESCE(organization_usage.ingest_limit_bytes, 0) AS included_bytes,
   COALESCE(organization_usage.current_period_start, current_subscription.period_start) AS period_start,
   COALESCE(organization_usage.current_period_end, current_subscription.period_end) AS period_end

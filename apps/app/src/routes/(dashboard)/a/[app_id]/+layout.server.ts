@@ -66,7 +66,11 @@ export const load = (async (event) => {
       organizationId: activeOrganizationId,
     });
 
-  if (accessResult && (!accessResult.success || !accessResult.data.hasAccess)) {
+  if (
+    accessResult &&
+    (!accessResult.success ||
+      (!accessResult.data.hasAccess && !accessResult.data.trialExpired))
+  ) {
     throw redirect(302, "/organizations/plan");
   }
 

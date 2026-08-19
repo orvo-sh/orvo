@@ -22,13 +22,6 @@
       "when": 1787137291010,
       "tag": "0002_eager_skrulls",
       "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1787137699966,
-      "tag": "0003_shiny_star_brand",
-      "breakpoints": true
     }
   ]
 }

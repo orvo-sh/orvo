@@ -19,6 +19,7 @@
     activeOrganizationId,
     user,
     billingSummary,
+    trialBannerVisible = false,
   }: {
     organizations: {
       id: string;
@@ -34,7 +35,7 @@
     };
     billingSummary: {
       billingPlan: string | null;
-      billingStatus: "trialing" | "active" | "past_due" | null;
+      billingStatus: string | null;
       trialStart: Date | string | null;
       trialEnd: Date | string | null;
       includedBytes: number;
@@ -44,6 +45,7 @@
       tracesIngestedBytes: number;
       usagePercent: number;
     } | null;
+    trialBannerVisible?: boolean;
   } = $props();
 
   type DashboardPageData = {
@@ -77,7 +79,10 @@
 
 <Sidebar.Root
   collapsible="offcanvas"
-  class="border-e border-sidebar-border/80 bg-sidebar"
+  class={cn(
+    "border-e border-sidebar-border/80 bg-sidebar",
+    trialBannerVisible && "md:top-10 md:h-[calc(100svh-2.5rem)]",
+  )}
 >
   <Sidebar.Header
     class="h-14 justify-center gap-0 border-b border-sidebar-border/80 px-1.5 py-3"

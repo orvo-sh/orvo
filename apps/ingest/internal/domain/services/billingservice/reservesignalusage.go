@@ -31,6 +31,18 @@ func (service *service) ReserveSignalUsage(ctx context.Context, input ReserveSig
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	queries := service.postgres.WithTx(tx)
+	billingState, err := queries.GetBillingState(ctx, input.OrganizationID)
+	if err != nil {
+		service.logger.ErrorContext(ctx, "ReserveSignalUsage: failed to get billing state", slog.Any("error", err))
+		return errs.ErrInternal
+	}
+
+	if billingState.Status != "active" &&
+		(billingState.Status != "trialing" ||
+			!billingState.PeriodEnd.Valid ||
+			!billingState.PeriodEnd.Time.After(time.Now())) {
+		return errs.ErrBillingRequired
+	}
 
 	organizationUsage, err := queries.GetOrganizationUsageForUpdate(ctx, input.OrganizationID)
 	if err != nil {

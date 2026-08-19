@@ -3,6 +3,7 @@ package ingest_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	chdriver "github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 
@@ -31,6 +32,17 @@ func TestIngestLogs(t *testing.T) {
 		})
 		if err != nil {
 			t.Fatalf("seed quota app: %v", err)
+		}
+
+		expiredTrialApp, err := test.SeedApp(ctx, postgresDB, test.SeedAppInput{
+			Suffix:     "expired-trial",
+			Plan:       "starter",
+			Status:     "trialing",
+			LimitBytes: 1024 * 1024,
+			PeriodEnd:  time.Now().UTC().Add(-time.Minute),
+		})
+		if err != nil {
+			t.Fatalf("seed expired trial app: %v", err)
 		}
 
 		logsBody := mustMarshal(t, buildLogsRequest())
@@ -133,6 +145,34 @@ func TestIngestLogs(t *testing.T) {
 							Name:  "invalid key does not change logs usage",
 							Query: "SELECT logs_ingested_bytes FROM organization_usage WHERE organization_id = $1",
 							Args:  []any{quotaApp.OrganizationID},
+							Expected: []test.Row{{
+								"logs_ingested_bytes": int64(0),
+							}},
+						}),
+					},
+				},
+				{
+					Name: "expired trial is rejected",
+					Input: test.HttpRequest{
+						Method: "POST",
+						URL:    "/v1/logs",
+						Body:   logsBody,
+						Headers: map[string]string{
+							"Authorization": "Bearer " + expiredTrialApp.IngestionKey,
+							"Content-Type":  "application/x-protobuf",
+						},
+					},
+					Validators: []test.Validator{
+						test.HttpStatusCodeValidator(402),
+						test.HttpJsonBodyValidator("billing required body is returned", func(t *testing.T, body map[string]any) {
+							if body["error"] != "billing_required" {
+								t.Fatalf("expected billing_required, got %v", body["error"])
+							}
+						}),
+						test.PostgresDBValidator(test.NewPostgresDBValidatorInput{
+							Name:  "expired trial rejection leaves logs usage unchanged",
+							Query: "SELECT logs_ingested_bytes FROM organization_usage WHERE organization_id = $1",
+							Args:  []any{expiredTrialApp.OrganizationID},
 							Expected: []test.Row{{
 								"logs_ingested_bytes": int64(0),
 							}},

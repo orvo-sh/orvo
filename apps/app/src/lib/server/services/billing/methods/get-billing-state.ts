@@ -40,7 +40,8 @@ const createGetBillingState = ({
 
     return ok({
       billingPlan: currentOrganization.billingPlan,
-      billingStatus: currentOrganization.billingStatus,
+      billingStatus:
+        currentSubscription?.status ?? currentOrganization.billingStatus,
       trialStart: currentSubscription?.trialStart ?? null,
       trialEnd: currentSubscription?.trialEnd ?? null,
       ...currentOrganization.usage,

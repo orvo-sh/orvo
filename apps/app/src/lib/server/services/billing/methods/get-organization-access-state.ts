@@ -24,10 +24,16 @@ const createGetOrganizationAccessState = ({
       getCurrentSubscription(context.organizationId),
     ]);
 
+    const billingStatus =
+      currentSubscription?.status ?? currentOrganization?.billingStatus;
+    const trialExpired =
+      currentSubscription?.trialEnd instanceof Date &&
+      currentSubscription.trialEnd.getTime() <= Date.now() &&
+      billingStatus !== "active";
+
     return ok({
-      hasAccess: billingStatusHasAccess(
-        currentOrganization?.billingStatus ?? currentSubscription?.status,
-      ),
+      hasAccess: billingStatusHasAccess(billingStatus) && !trialExpired,
+      trialExpired,
       subscription: currentSubscription,
     });
   } catch (error) {
