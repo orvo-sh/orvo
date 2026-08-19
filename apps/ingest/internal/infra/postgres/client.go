@@ -25,6 +25,8 @@ func New(ctx context.Context, connectionString string) (*Client, error) {
 
 	query := postgresURL.Query()
 	query.Del("uselibpqcompat")
+	singleUse := query.Get("orvo_single_use") == "true"
+	query.Del("orvo_single_use")
 	postgresURL.RawQuery = query.Encode()
 
 	poolConfig, err := pgxpool.ParseConfig(postgresURL.String())
@@ -33,6 +35,10 @@ func New(ctx context.Context, connectionString string) (*Client, error) {
 	}
 
 	poolConfig.ConnConfig.Tracer = otelpgx.NewTracer()
+	if singleUse {
+		poolConfig.MaxConns = 1
+		poolConfig.AfterRelease = func(*pgx.Conn) bool { return false }
+	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {

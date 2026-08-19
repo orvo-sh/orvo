@@ -29,11 +29,7 @@ type GetActiveIngestionKeyByKeyRow struct {
 func (q *Queries) GetActiveIngestionKeyByKey(ctx context.Context, key string) (GetActiveIngestionKeyByKeyRow, error) {
 	row := q.db.QueryRow(ctx, getActiveIngestionKeyByKey, key)
 	var i GetActiveIngestionKeyByKeyRow
-	err := row.Scan(
-		&i.IngestionKeyID,
-		&i.OrganizationID,
-		&i.AppID,
-	)
+	err := row.Scan(&i.IngestionKeyID, &i.OrganizationID, &i.AppID)
 	return i, err
 }
 

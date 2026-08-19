@@ -6,6 +6,7 @@ import {
 } from "$lib/server/services/app";
 import { getActiveOrganizationId } from "$lib/server/request-context";
 import { err } from "@repo/utils";
+import { mode } from "$lib/server/mode";
 
 export const createAppCommand = command(createAppInputSchema, (input) => {
   const event = getRequestEvent();
@@ -15,11 +16,14 @@ export const createAppCommand = command(createAppInputSchema, (input) => {
     return err("No active organization selected.");
   }
 
-  if (!event.locals.container.billingService) {
-    return err("Billing is not configured.");
+  if (mode === "local") {
+    return event.locals.container.appService.createApp(input, {
+      organizationId,
+      userId: event.locals.auth!.user.id,
+    });
   }
 
-  return event.locals.container.billingService
+  return event.locals.container.billingService!
     .getOrganizationAccessState({ organizationId })
     .then((accessResult) => {
       if (!accessResult.success || !accessResult.data.hasAccess) {

@@ -1,0 +1,77 @@
+name: Local CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/local/**"
+      - "apps/ingest/**"
+      - "apps/app/**"
+      - "packages/clickhouse/**"
+      - "packages/db/**"
+      - ".github/workflows/local-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/local/**"
+      - "apps/ingest/**"
+      - "apps/app/**"
+      - "packages/clickhouse/**"
+      - "packages/db/**"
+      - ".github/workflows/local-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: apps/local/go.mod
+          cache-dependency-path: |
+            apps/local/go.sum
+            apps/ingest/go.sum
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10.0.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test Go runtimes
+        run: |
+          (cd apps/ingest && go test ./...)
+          (cd apps/local && go test ./...)
+
+      - name: Build local dashboard
+        run: ORVO_MODE=local pnpm --filter app build
+
+      - name: Build single-file distribution
+        working-directory: apps/local
+        run: make build-release VERSION=ci
+
+      - name: Verify CLI
+        working-directory: apps/local
+        run: ./build/orvo version

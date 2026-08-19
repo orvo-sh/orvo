@@ -1,6 +1,7 @@
 import { building } from "$app/environment";
 import { env } from "$env/dynamic/private";
 import { createWorkerContainer } from "$lib/server/container";
+import { mode } from "$lib/server/mode";
 import { context } from "@opentelemetry/api";
 import { suppressTracing } from "@opentelemetry/core";
 import { Logger } from "@repo/logger";
@@ -21,13 +22,14 @@ const ensureWorkersStarted = (logger: Logger) => {
   }
 
   if (!globalWorkers.__orvoWorkerManagerStartPromise) {
-    globalWorkers.__orvoWorkerManagerStartPromise = startWorkers(logger);
+    globalWorkers.__orvoWorkerManagerStartPromise =
+      mode === "cloud" ? startCloudWorkers(logger) : startLocalWorkers(logger);
   }
 
   return globalWorkers.__orvoWorkerManagerStartPromise;
 };
 
-const startWorkers = async (logger: Logger) => {
+const startCloudWorkers = async (logger: Logger) => {
   const workerLogger = logger.child("WorkerRuntime");
   const boss = new PgBoss({
     connectionString: env.POSTGRES_URL,
@@ -53,6 +55,43 @@ const startWorkers = async (logger: Logger) => {
 
   await context.with(suppressTracing(context.active()), async () => {
     await manager.start();
+  });
+};
+
+const startLocalWorkers = async (logger: Logger) => {
+  const workerLogger = logger.child("LocalWorkerRuntime");
+  const container = createWorkerContainer(workerLogger);
+  const workers = [
+    new HeartbeatWorker(workerLogger, container.heartbeatService),
+    new ThresholdAlertWorker(
+      workerLogger,
+      container.db,
+      container.clickhouse,
+      container.incidentService,
+      { appBaseUrl: env.ORIGIN },
+    ),
+    new NotificationDeliveryWorker(
+      workerLogger,
+      container.notificationDeliveryService,
+    ),
+  ];
+  let running = false;
+  const run = async () => {
+    if (running) return;
+    running = true;
+    try {
+      for (const worker of workers) await worker.execute();
+    } catch (error) {
+      workerLogger.error("LocalWorkerRuntime: worker cycle failed", error as Error);
+    } finally {
+      running = false;
+    }
+  };
+
+  await run();
+  setInterval(() => void run(), 60_000).unref();
+  workerLogger.info("LocalWorkerRuntime: workers started", {
+    workers: workers.map((worker) => worker.name),
   });
 };
 

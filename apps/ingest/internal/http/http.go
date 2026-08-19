@@ -21,6 +21,7 @@ import (
 type requestIDContextKey struct{}
 
 type Config struct {
+	Host string
 	Port string
 }
 
@@ -92,7 +93,7 @@ func New(
 		},
 	)
 
-	addr := net.JoinHostPort("0.0.0.0", config.Port)
+	addr := net.JoinHostPort(config.Host, config.Port)
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("listen ingest http on %s: %w", addr, err)

@@ -26,6 +26,7 @@ const createAuth = (
   email: Nullable<Email>,
   billingService: Nullable<BillingService>,
   config: {
+    mode: "cloud" | "local";
     secret: string;
     baseUrl: string;
     github?: {
@@ -43,6 +44,7 @@ const createAuth = (
   logger = logger.child("AuthService");
   return betterAuth({
     baseURL: config.baseUrl,
+    trustedOrigins: [config.baseUrl],
     secret: config.secret,
     rateLimit: {
       enabled: env.MODE !== "test",
@@ -87,7 +89,7 @@ const createAuth = (
     },
     user: {
       deleteUser: {
-        enabled: true,
+        enabled: config.mode === "cloud",
         beforeDelete: async (user) => {
           const soleOrganizationRows = await db
             .select({ organizationId: dbSchema.member.organizationId })
@@ -154,6 +156,8 @@ const createAuth = (
           })
         : undefined,
       organization({
+        requireEmailVerificationOnInvitation:
+          config.mode === "local" ? false : undefined,
         schema: {
           organization: {
             additionalFields: {
@@ -227,46 +231,48 @@ const createAuth = (
           })
         : undefined,
       jwt(),
-      oauthProvider({
-        loginPage: "/sign-in",
-        consentPage: "/oauth/authorize",
-        validAudiences: [`${config.baseUrl}/api/mcp`],
-        resources: [`${config.baseUrl}/api/mcp`],
-        enforcePerClientResources: false,
-        allowDynamicClientRegistration: true,
-        allowUnauthenticatedClientRegistration: true,
-        silenceWarnings: {
-          oauthAuthServerConfig: true,
-          openidConfig: true,
-        },
-        scopes: [...mcpScopes],
-        clientRegistrationDefaultScopes: [...mcpScopes],
-        clientRegistrationAllowedScopes: [...mcpScopes],
-        postLogin: {
-          page: "/oauth/authorize",
-          shouldRedirect: async () => false,
-          consentReferenceId: async ({ user }) => {
-            if (!user) return undefined;
+      config.mode === "cloud"
+        ? oauthProvider({
+            loginPage: "/sign-in",
+            consentPage: "/oauth/authorize",
+            validAudiences: [`${config.baseUrl}/api/mcp`],
+            resources: [`${config.baseUrl}/api/mcp`],
+            enforcePerClientResources: false,
+            allowDynamicClientRegistration: true,
+            allowUnauthenticatedClientRegistration: true,
+            silenceWarnings: {
+              oauthAuthServerConfig: true,
+              openidConfig: true,
+            },
+            scopes: [...mcpScopes],
+            clientRegistrationDefaultScopes: [...mcpScopes],
+            clientRegistrationAllowedScopes: [...mcpScopes],
+            postLogin: {
+              page: "/oauth/authorize",
+              shouldRedirect: async () => false,
+              consentReferenceId: async ({ user }) => {
+                if (!user) return undefined;
 
-            const oauthQuery = (await getOAuthProviderState())?.query;
-            const clientId = oauthQuery
-              ? new URLSearchParams(oauthQuery).get("client_id")
-              : null;
-            if (!clientId) return undefined;
+                const oauthQuery = (await getOAuthProviderState())?.query;
+                const clientId = oauthQuery
+                  ? new URLSearchParams(oauthQuery).get("client_id")
+                  : null;
+                if (!clientId) return undefined;
 
-            return (
-              await db.query.mcpOauthGrant.findFirst({
-                where: and(
-                  eq(dbSchema.mcpOauthGrant.clientId, clientId),
-                  eq(dbSchema.mcpOauthGrant.userId, user.id),
-                ),
-              })
-            )?.organizationId;
-          },
-        },
-        customAccessTokenClaims: async ({ referenceId }) =>
-          referenceId ? { organization_id: referenceId } : {},
-      }),
+                return (
+                  await db.query.mcpOauthGrant.findFirst({
+                    where: and(
+                      eq(dbSchema.mcpOauthGrant.clientId, clientId),
+                      eq(dbSchema.mcpOauthGrant.userId, user.id),
+                    ),
+                  })
+                )?.organizationId;
+              },
+            },
+            customAccessTokenClaims: async ({ referenceId }) =>
+              referenceId ? { organization_id: referenceId } : {},
+          })
+        : undefined,
       sveltekitCookies(getRequestEvent),
     ].filter((x): x is NonNullable<typeof x> => !!x),
   });

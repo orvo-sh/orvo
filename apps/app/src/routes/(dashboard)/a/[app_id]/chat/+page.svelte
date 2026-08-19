@@ -8,7 +8,7 @@
 </script>
 
 <PageContainer
-  title={chat.activeSession?.thread.title ?? "New chat"}
+  title={chat.activeSession?.thread.title ?? "Scout"}
   contentClass="p-0!"
   asideTitle="Conversations"
   bind:asideOpen={chat.conversationsOpen}

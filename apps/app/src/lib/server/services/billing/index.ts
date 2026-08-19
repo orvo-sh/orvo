@@ -1,6 +1,7 @@
 import { Instrument } from "$lib/instrumentation";
 import type { Auth } from "$lib/server/auth";
 import type { Email } from "$lib/server/email";
+import type { ScoutCreditService } from "$lib/server/services/scout-credit";
 import type { Subscription } from "@better-auth/stripe";
 import type { DB } from "@repo/db";
 import type { Logger } from "@repo/logger";
@@ -20,7 +21,6 @@ import {
 import { createUpdateBillingEmail } from "./methods/update-billing-email";
 import {
   createBillingPortalInputSchema,
-  getBillingStateInputSchema,
   startFreeTrialInputSchema,
   updateBillingEmailInputSchema,
 } from "./schema";
@@ -46,7 +46,9 @@ class BillingService {
   private onSubscriptionCreatedMethod: ReturnType<
     typeof createOnSubscriptionCreated
   >;
-  private onSubscriptonChangedMethod: ReturnType<typeof createOnSubscriptonChanged>;
+  private onSubscriptonChangedMethod: ReturnType<
+    typeof createOnSubscriptonChanged
+  >;
   private onTrialExpiredMethod: ReturnType<typeof createOnTrialExpired>;
   private onSubscriptionDeletedMethod: ReturnType<
     typeof createOnSubscriptionDeleted
@@ -57,6 +59,7 @@ class BillingService {
     logger: Logger,
     _email: Email,
     stripe: Stripe,
+    scoutCreditService: ScoutCreditService,
     config: {
       starterPriceId: string;
       proPriceId: string;
@@ -82,6 +85,8 @@ class BillingService {
       db,
       logger: this.logger,
       getCurrentSubscription,
+      getScoutCreditBalance: (organizationId) =>
+        scoutCreditService.getBalance({ organizationId }),
     });
     this.getOrganizationAccessStateMethod = createGetOrganizationAccessState({
       db,

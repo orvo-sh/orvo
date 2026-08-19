@@ -146,7 +146,6 @@ type AlertIncidentEntityType string
 
 const (
 	AlertIncidentEntityTypeApp       AlertIncidentEntityType = "app"
-	AlertIncidentEntityTypeHost      AlertIncidentEntityType = "host"
 	AlertIncidentEntityTypeContainer AlertIncidentEntityType = "container"
 )
 
@@ -236,10 +235,6 @@ const (
 	AlertSignalTypeApdex                      AlertSignalType = "apdex"
 	AlertSignalTypeThroughputPerMin           AlertSignalType = "throughput_per_min"
 	AlertSignalTypeAvailabilityPercent        AlertSignalType = "availability_percent"
-	AlertSignalTypeHostCpuUtilization         AlertSignalType = "host_cpu_utilization"
-	AlertSignalTypeHostMemoryUtilization      AlertSignalType = "host_memory_utilization"
-	AlertSignalTypeHostFilesystemUtilization  AlertSignalType = "host_filesystem_utilization"
-	AlertSignalTypeHostReportingStale         AlertSignalType = "host_reporting_stale"
 	AlertSignalTypeContainerCpuUtilization    AlertSignalType = "container_cpu_utilization"
 	AlertSignalTypeContainerMemoryUtilization AlertSignalType = "container_memory_utilization"
 	AlertSignalTypeContainerReportingStale    AlertSignalType = "container_reporting_stale"
@@ -366,6 +361,94 @@ func (ns NullBillingStatus) Value() (driver.Value, error) {
 	return string(ns.BillingStatus), nil
 }
 
+type ChatContextKind string
+
+const (
+	ChatContextKindTrace     ChatContextKind = "trace"
+	ChatContextKindLog       ChatContextKind = "log"
+	ChatContextKindMetric    ChatContextKind = "metric"
+	ChatContextKindIncident  ChatContextKind = "incident"
+	ChatContextKindHeartbeat ChatContextKind = "heartbeat"
+)
+
+func (e *ChatContextKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ChatContextKind(s)
+	case string:
+		*e = ChatContextKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ChatContextKind: %T", src)
+	}
+	return nil
+}
+
+type NullChatContextKind struct {
+	ChatContextKind ChatContextKind `json:"chat_context_kind"`
+	Valid           bool            `json:"valid"` // Valid is true if ChatContextKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullChatContextKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.ChatContextKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ChatContextKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullChatContextKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ChatContextKind), nil
+}
+
+type ChatMessageRole string
+
+const (
+	ChatMessageRoleSystem    ChatMessageRole = "system"
+	ChatMessageRoleUser      ChatMessageRole = "user"
+	ChatMessageRoleAssistant ChatMessageRole = "assistant"
+)
+
+func (e *ChatMessageRole) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ChatMessageRole(s)
+	case string:
+		*e = ChatMessageRole(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ChatMessageRole: %T", src)
+	}
+	return nil
+}
+
+type NullChatMessageRole struct {
+	ChatMessageRole ChatMessageRole `json:"chat_message_role"`
+	Valid           bool            `json:"valid"` // Valid is true if ChatMessageRole is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullChatMessageRole) Scan(value interface{}) error {
+	if value == nil {
+		ns.ChatMessageRole, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ChatMessageRole.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullChatMessageRole) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ChatMessageRole), nil
+}
+
 type HeartbeatMonitorStatus string
 
 const (
@@ -410,46 +493,306 @@ func (ns NullHeartbeatMonitorStatus) Value() (driver.Value, error) {
 	return string(ns.HeartbeatMonitorStatus), nil
 }
 
-type IngestionKeyKind string
+type IncidentDismissReason string
 
 const (
-	IngestionKeyKindPublic  IngestionKeyKind = "public"
-	IngestionKeyKindPrivate IngestionKeyKind = "private"
+	IncidentDismissReasonExpected      IncidentDismissReason = "expected"
+	IncidentDismissReasonFalsePositive IncidentDismissReason = "false_positive"
+	IncidentDismissReasonNotActionable IncidentDismissReason = "not_actionable"
+	IncidentDismissReasonOther         IncidentDismissReason = "other"
 )
 
-func (e *IngestionKeyKind) Scan(src interface{}) error {
+func (e *IncidentDismissReason) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = IngestionKeyKind(s)
+		*e = IncidentDismissReason(s)
 	case string:
-		*e = IngestionKeyKind(s)
+		*e = IncidentDismissReason(s)
 	default:
-		return fmt.Errorf("unsupported scan type for IngestionKeyKind: %T", src)
+		return fmt.Errorf("unsupported scan type for IncidentDismissReason: %T", src)
 	}
 	return nil
 }
 
-type NullIngestionKeyKind struct {
-	IngestionKeyKind IngestionKeyKind `json:"ingestion_key_kind"`
-	Valid            bool             `json:"valid"` // Valid is true if IngestionKeyKind is not NULL
+type NullIncidentDismissReason struct {
+	IncidentDismissReason IncidentDismissReason `json:"incident_dismiss_reason"`
+	Valid                 bool                  `json:"valid"` // Valid is true if IncidentDismissReason is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullIngestionKeyKind) Scan(value interface{}) error {
+func (ns *NullIncidentDismissReason) Scan(value interface{}) error {
 	if value == nil {
-		ns.IngestionKeyKind, ns.Valid = "", false
+		ns.IncidentDismissReason, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.IngestionKeyKind.Scan(value)
+	return ns.IncidentDismissReason.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullIngestionKeyKind) Value() (driver.Value, error) {
+func (ns NullIncidentDismissReason) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.IngestionKeyKind), nil
+	return string(ns.IncidentDismissReason), nil
+}
+
+type IncidentEntityType string
+
+const (
+	IncidentEntityTypeApp       IncidentEntityType = "app"
+	IncidentEntityTypeContainer IncidentEntityType = "container"
+)
+
+func (e *IncidentEntityType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = IncidentEntityType(s)
+	case string:
+		*e = IncidentEntityType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for IncidentEntityType: %T", src)
+	}
+	return nil
+}
+
+type NullIncidentEntityType struct {
+	IncidentEntityType IncidentEntityType `json:"incident_entity_type"`
+	Valid              bool               `json:"valid"` // Valid is true if IncidentEntityType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullIncidentEntityType) Scan(value interface{}) error {
+	if value == nil {
+		ns.IncidentEntityType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.IncidentEntityType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullIncidentEntityType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.IncidentEntityType), nil
+}
+
+type IncidentEventType string
+
+const (
+	IncidentEventTypeIncidentopened     IncidentEventType = "incident.opened"
+	IncidentEventTypeIncidentresolved   IncidentEventType = "incident.resolved"
+	IncidentEventTypeIncidentdismissed  IncidentEventType = "incident.dismissed"
+	IncidentEventTypeAlertfired         IncidentEventType = "alert.fired"
+	IncidentEventTypeHeartbeatmissed    IncidentEventType = "heartbeat.missed"
+	IncidentEventTypeHeartbeatrecovered IncidentEventType = "heartbeat.recovered"
+)
+
+func (e *IncidentEventType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = IncidentEventType(s)
+	case string:
+		*e = IncidentEventType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for IncidentEventType: %T", src)
+	}
+	return nil
+}
+
+type NullIncidentEventType struct {
+	IncidentEventType IncidentEventType `json:"incident_event_type"`
+	Valid             bool              `json:"valid"` // Valid is true if IncidentEventType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullIncidentEventType) Scan(value interface{}) error {
+	if value == nil {
+		ns.IncidentEventType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.IncidentEventType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullIncidentEventType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.IncidentEventType), nil
+}
+
+type IncidentSeverity string
+
+const (
+	IncidentSeverityCritical IncidentSeverity = "critical"
+	IncidentSeverityWarning  IncidentSeverity = "warning"
+	IncidentSeverityInfo     IncidentSeverity = "info"
+)
+
+func (e *IncidentSeverity) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = IncidentSeverity(s)
+	case string:
+		*e = IncidentSeverity(s)
+	default:
+		return fmt.Errorf("unsupported scan type for IncidentSeverity: %T", src)
+	}
+	return nil
+}
+
+type NullIncidentSeverity struct {
+	IncidentSeverity IncidentSeverity `json:"incident_severity"`
+	Valid            bool             `json:"valid"` // Valid is true if IncidentSeverity is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullIncidentSeverity) Scan(value interface{}) error {
+	if value == nil {
+		ns.IncidentSeverity, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.IncidentSeverity.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullIncidentSeverity) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.IncidentSeverity), nil
+}
+
+type IncidentSourceType string
+
+const (
+	IncidentSourceTypeAlert     IncidentSourceType = "alert"
+	IncidentSourceTypeHeartbeat IncidentSourceType = "heartbeat"
+)
+
+func (e *IncidentSourceType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = IncidentSourceType(s)
+	case string:
+		*e = IncidentSourceType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for IncidentSourceType: %T", src)
+	}
+	return nil
+}
+
+type NullIncidentSourceType struct {
+	IncidentSourceType IncidentSourceType `json:"incident_source_type"`
+	Valid              bool               `json:"valid"` // Valid is true if IncidentSourceType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullIncidentSourceType) Scan(value interface{}) error {
+	if value == nil {
+		ns.IncidentSourceType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.IncidentSourceType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullIncidentSourceType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.IncidentSourceType), nil
+}
+
+type IncidentStatus string
+
+const (
+	IncidentStatusOpen      IncidentStatus = "open"
+	IncidentStatusResolved  IncidentStatus = "resolved"
+	IncidentStatusDismissed IncidentStatus = "dismissed"
+)
+
+func (e *IncidentStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = IncidentStatus(s)
+	case string:
+		*e = IncidentStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for IncidentStatus: %T", src)
+	}
+	return nil
+}
+
+type NullIncidentStatus struct {
+	IncidentStatus IncidentStatus `json:"incident_status"`
+	Valid          bool           `json:"valid"` // Valid is true if IncidentStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullIncidentStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.IncidentStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.IncidentStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullIncidentStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.IncidentStatus), nil
+}
+
+type IncidentType string
+
+const (
+	IncidentTypeAlertThreshold  IncidentType = "alert_threshold"
+	IncidentTypeHeartbeatMissed IncidentType = "heartbeat_missed"
+)
+
+func (e *IncidentType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = IncidentType(s)
+	case string:
+		*e = IncidentType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for IncidentType: %T", src)
+	}
+	return nil
+}
+
+type NullIncidentType struct {
+	IncidentType IncidentType `json:"incident_type"`
+	Valid        bool         `json:"valid"` // Valid is true if IncidentType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullIncidentType) Scan(value interface{}) error {
+	if value == nil {
+		ns.IncidentType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.IncidentType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullIncidentType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.IncidentType), nil
 }
 
 type NotificationDeliveryStatus string
@@ -542,6 +885,9 @@ type NotificationEventType string
 const (
 	NotificationEventTypeHeartbeatmissed    NotificationEventType = "heartbeat.missed"
 	NotificationEventTypeHeartbeatrecovered NotificationEventType = "heartbeat.recovered"
+	NotificationEventTypeAlertopened        NotificationEventType = "alert.opened"
+	NotificationEventTypeAlertrenotified    NotificationEventType = "alert.renotified"
+	NotificationEventTypeAlertresolved      NotificationEventType = "alert.resolved"
 	NotificationEventTypeDestinationtest    NotificationEventType = "destination.test"
 )
 
@@ -584,6 +930,7 @@ type NotificationSourceKind string
 
 const (
 	NotificationSourceKindHeartbeat NotificationSourceKind = "heartbeat"
+	NotificationSourceKindAlert     NotificationSourceKind = "alert"
 )
 
 func (e *NotificationSourceKind) Scan(src interface{}) error {
@@ -683,6 +1030,34 @@ type Account struct {
 	UpdatedAt             pgtype.Timestamp `json:"updated_at"`
 }
 
+type AgentEnrollment struct {
+	ID          string           `json:"id"`
+	AppID       string           `json:"app_id"`
+	TokenHash   string           `json:"token_hash"`
+	Environment string           `json:"environment"`
+	CreatedBy   pgtype.Text      `json:"created_by"`
+	ExpiresAt   pgtype.Timestamp `json:"expires_at"`
+	RedeemedAt  pgtype.Timestamp `json:"redeemed_at"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
+	DisplayName pgtype.Text      `json:"display_name"`
+}
+
+type AgentInstallation struct {
+	ID              string           `json:"id"`
+	AppID           string           `json:"app_id"`
+	IngestionKeyID  string           `json:"ingestion_key_id"`
+	HostID          string           `json:"host_id"`
+	HostName        string           `json:"host_name"`
+	OperatingSystem string           `json:"operating_system"`
+	Architecture    string           `json:"architecture"`
+	AgentVersion    string           `json:"agent_version"`
+	RevokedAt       pgtype.Timestamp `json:"revoked_at"`
+	CreatedAt       pgtype.Timestamp `json:"created_at"`
+	UpdatedAt       pgtype.Timestamp `json:"updated_at"`
+	DisplayName     pgtype.Text      `json:"display_name"`
+	Environment     pgtype.Text      `json:"environment"`
+}
+
 type AlertDeliveryAttempt struct {
 	ID            string              `json:"id"`
 	AppID         string              `json:"app_id"`
@@ -719,6 +1094,9 @@ type AlertIncident struct {
 	ID                string                  `json:"id"`
 	AppID             string                  `json:"app_id"`
 	RuleID            string                  `json:"rule_id"`
+	EntityType        AlertIncidentEntityType `json:"entity_type"`
+	EntityID          string                  `json:"entity_id"`
+	EntityName        pgtype.Text             `json:"entity_name"`
 	Status            AlertIncidentStatus     `json:"status"`
 	OpenedAt          pgtype.Timestamp        `json:"opened_at"`
 	ResolvedAt        pgtype.Timestamp        `json:"resolved_at"`
@@ -728,9 +1106,6 @@ type AlertIncident struct {
 	RenotifyCount     int32                   `json:"renotify_count"`
 	CreatedAt         pgtype.Timestamp        `json:"created_at"`
 	UpdatedAt         pgtype.Timestamp        `json:"updated_at"`
-	EntityType        AlertIncidentEntityType `json:"entity_type"`
-	EntityID          string                  `json:"entity_id"`
-	EntityName        pgtype.Text             `json:"entity_name"`
 }
 
 type AlertRule struct {
@@ -751,6 +1126,8 @@ type AlertRule struct {
 	ScopeEnvironmentsExclude   []string         `json:"scope_environments_exclude"`
 	ScopeScopesInclude         []string         `json:"scope_scopes_include"`
 	ScopeScopesExclude         []string         `json:"scope_scopes_exclude"`
+	ScopeContainerNamesInclude []string         `json:"scope_container_names_include"`
+	ScopeContainerNamesExclude []string         `json:"scope_container_names_exclude"`
 	IsEnabled                  bool             `json:"is_enabled"`
 	LastTriggeredAt            pgtype.Timestamp `json:"last_triggered_at"`
 	LastResolvedAt             pgtype.Timestamp `json:"last_resolved_at"`
@@ -762,10 +1139,6 @@ type AlertRule struct {
 	UpdatedBy                  pgtype.Text      `json:"updated_by"`
 	CreatedAt                  pgtype.Timestamp `json:"created_at"`
 	UpdatedAt                  pgtype.Timestamp `json:"updated_at"`
-	ScopeHostNamesInclude      []string         `json:"scope_host_names_include"`
-	ScopeHostNamesExclude      []string         `json:"scope_host_names_exclude"`
-	ScopeContainerNamesInclude []string         `json:"scope_container_names_include"`
-	ScopeContainerNamesExclude []string         `json:"scope_container_names_exclude"`
 }
 
 type AlertRuleDestination struct {
@@ -797,28 +1170,37 @@ type App struct {
 	LogsFirstReceivedAt       pgtype.Timestamp `json:"logs_first_received_at"`
 	TracesFirstReceivedAt     pgtype.Timestamp `json:"traces_first_received_at"`
 	MetricsFirstReceivedAt    pgtype.Timestamp `json:"metrics_first_received_at"`
+	HeartbeatsFirstReceivedAt pgtype.Timestamp `json:"heartbeats_first_received_at"`
 	CreatedAt                 pgtype.Timestamp `json:"created_at"`
 	UpdatedAt                 pgtype.Timestamp `json:"updated_at"`
-	HeartbeatsFirstReceivedAt pgtype.Timestamp `json:"heartbeats_first_received_at"`
 }
 
-type AssistantChat struct {
+type Chat struct {
 	ID             string           `json:"id"`
 	OrganizationID string           `json:"organization_id"`
 	AppID          string           `json:"app_id"`
 	Title          string           `json:"title"`
-	CreatedBy      pgtype.Text      `json:"created_by"`
+	CreatedBy      string           `json:"created_by"`
 	UpdatedBy      pgtype.Text      `json:"updated_by"`
 	CreatedAt      pgtype.Timestamp `json:"created_at"`
 	UpdatedAt      pgtype.Timestamp `json:"updated_at"`
 }
 
-type AssistantMessage struct {
+type ChatContext struct {
+	ID         string           `json:"id"`
+	ChatID     string           `json:"chat_id"`
+	Kind       ChatContextKind  `json:"kind"`
+	ResourceID string           `json:"resource_id"`
+	Label      string           `json:"label"`
+	Metadata   []byte           `json:"metadata"`
+	CreatedAt  pgtype.Timestamp `json:"created_at"`
+}
+
+type ChatMessage struct {
 	ID        string           `json:"id"`
 	ChatID    string           `json:"chat_id"`
 	Position  int32            `json:"position"`
-	Role      string           `json:"role"`
-	Content   string           `json:"content"`
+	Role      ChatMessageRole  `json:"role"`
 	Parts     []byte           `json:"parts"`
 	Metadata  []byte           `json:"metadata"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
@@ -833,11 +1215,11 @@ type HeartbeatMonitor struct {
 	GraceSeconds         int32                  `json:"grace_seconds"`
 	LastCheckInAt        pgtype.Timestamp       `json:"last_check_in_at"`
 	Status               HeartbeatMonitorStatus `json:"status"`
+	PausedAt             pgtype.Timestamp       `json:"paused_at"`
 	CreatedBy            pgtype.Text            `json:"created_by"`
 	UpdatedBy            pgtype.Text            `json:"updated_by"`
 	CreatedAt            pgtype.Timestamp       `json:"created_at"`
 	UpdatedAt            pgtype.Timestamp       `json:"updated_at"`
-	PausedAt             pgtype.Timestamp       `json:"paused_at"`
 }
 
 type HeartbeatMonitorDestination struct {
@@ -846,10 +1228,51 @@ type HeartbeatMonitorDestination struct {
 	CreatedAt          pgtype.Timestamp `json:"created_at"`
 }
 
+type Incident struct {
+	ID                       string                    `json:"id"`
+	AppID                    string                    `json:"app_id"`
+	SourceType               IncidentSourceType        `json:"source_type"`
+	SourceID                 string                    `json:"source_id"`
+	SourceKey                string                    `json:"source_key"`
+	Type                     IncidentType              `json:"type"`
+	Title                    string                    `json:"title"`
+	Severity                 IncidentSeverity          `json:"severity"`
+	Status                   IncidentStatus            `json:"status"`
+	ServiceName              pgtype.Text               `json:"service_name"`
+	EntityType               IncidentEntityType        `json:"entity_type"`
+	EntityID                 string                    `json:"entity_id"`
+	EntityName               pgtype.Text               `json:"entity_name"`
+	SourceSnapshot           []byte                    `json:"source_snapshot"`
+	OpenedAt                 pgtype.Timestamp          `json:"opened_at"`
+	ResolvedAt               pgtype.Timestamp          `json:"resolved_at"`
+	DismissedAt              pgtype.Timestamp          `json:"dismissed_at"`
+	DismissedReason          NullIncidentDismissReason `json:"dismissed_reason"`
+	DismissedReasonText      pgtype.Text               `json:"dismissed_reason_text"`
+	DismissedBy              pgtype.Text               `json:"dismissed_by"`
+	LastObservedAt           pgtype.Timestamp          `json:"last_observed_at"`
+	LastObservedValue        pgtype.Float4             `json:"last_observed_value"`
+	LastNotifiedAt           pgtype.Timestamp          `json:"last_notified_at"`
+	RenotifyCount            int32                     `json:"renotify_count"`
+	SuppressedUntilRecovered bool                      `json:"suppressed_until_recovered"`
+	CreatedAt                pgtype.Timestamp          `json:"created_at"`
+	UpdatedAt                pgtype.Timestamp          `json:"updated_at"`
+}
+
+type IncidentEvent struct {
+	ID          string            `json:"id"`
+	AppID       string            `json:"app_id"`
+	IncidentID  string            `json:"incident_id"`
+	EventType   IncidentEventType `json:"event_type"`
+	OccurredAt  pgtype.Timestamp  `json:"occurred_at"`
+	ActorUserID pgtype.Text       `json:"actor_user_id"`
+	Metadata    []byte            `json:"metadata"`
+	CreatedAt   pgtype.Timestamp  `json:"created_at"`
+}
+
 type IngestionKey struct {
 	ID         string           `json:"id"`
 	AppID      string           `json:"app_id"`
-	Kind       IngestionKeyKind `json:"kind"`
+	Name       string           `json:"name"`
 	Key        string           `json:"key"`
 	CreatedBy  pgtype.Text      `json:"created_by"`
 	LastUsedAt pgtype.Timestamp `json:"last_used_at"`
@@ -868,6 +1291,16 @@ type Invitation struct {
 	InviterID      string           `json:"inviter_id"`
 }
 
+type Jwk struct {
+	ID         string           `json:"id"`
+	PublicKey  string           `json:"public_key"`
+	PrivateKey string           `json:"private_key"`
+	CreatedAt  pgtype.Timestamp `json:"created_at"`
+	ExpiresAt  pgtype.Timestamp `json:"expires_at"`
+	Alg        pgtype.Text      `json:"alg"`
+	Crv        pgtype.Text      `json:"crv"`
+}
+
 type Member struct {
 	ID             string           `json:"id"`
 	OrganizationID string           `json:"organization_id"`
@@ -880,6 +1313,7 @@ type NotificationDelivery struct {
 	ID            string                     `json:"id"`
 	AppID         string                     `json:"app_id"`
 	DestinationID string                     `json:"destination_id"`
+	IncidentID    pgtype.Text                `json:"incident_id"`
 	SourceKind    NotificationSourceKind     `json:"source_kind"`
 	SourceID      string                     `json:"source_id"`
 	EventType     NotificationEventType      `json:"event_type"`
@@ -916,19 +1350,10 @@ type Organization struct {
 	Slug             string            `json:"slug"`
 	Logo             pgtype.Text       `json:"logo"`
 	StripeCustomerID pgtype.Text       `json:"stripe_customer_id"`
-	BillingEmail     pgtype.Text       `json:"billing_email"`
 	BillingPlan      NullBillingPlan   `json:"billing_plan"`
 	BillingStatus    NullBillingStatus `json:"billing_status"`
 	CreatedAt        pgtype.Timestamp  `json:"created_at"`
 	UpdatedAt        pgtype.Timestamp  `json:"updated_at"`
-}
-
-type OrganizationActivation struct {
-	OrganizationID       string           `json:"organization_id"`
-	HasViewedTelemetry   bool             `json:"has_viewed_telemetry"`
-	HasCreatedFirstAlert bool             `json:"has_created_first_alert"`
-	CreatedAt            pgtype.Timestamp `json:"created_at"`
-	UpdatedAt            pgtype.Timestamp `json:"updated_at"`
 }
 
 type OrganizationUsage struct {

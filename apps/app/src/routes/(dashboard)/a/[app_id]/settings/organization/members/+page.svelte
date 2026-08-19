@@ -12,6 +12,7 @@
     IconTrash,
     IconUserPlus,
     IconX,
+    IconCopy,
   } from "@tabler/icons-svelte";
   import { onMount } from "svelte";
   import type { PageData } from "./$types";
@@ -24,7 +25,8 @@
   let removingMemberId = $state("");
   let cancelingInvitationId = $state("");
   let inviteEmail = $state("");
-  let inviteRole = $state("member");
+  let inviteRole = $state<"member" | "admin" | "owner">("member");
+  let inviteLink = $state("");
   let error = $state("");
   let members = $state<any[]>([]);
   let invitations = $state<any[]>([]);
@@ -57,12 +59,12 @@
     error = "";
 
     const [membersResult, invitationsResult] = await Promise.all([
-      authClient.listMembers({
+      authClient.organization.listMembers({
         query: {
           organizationId: data.currentOrganization.id,
         },
       }),
-      authClient.listInvitations({
+      authClient.organization.listInvitations({
         query: {
           organizationId: data.currentOrganization.id,
         },
@@ -81,7 +83,7 @@
       return;
     }
 
-    members = membersResult.data ?? [];
+    members = membersResult.data?.members ?? [];
     invitations = invitationsResult.data ?? [];
     loading = false;
   };
@@ -101,7 +103,7 @@
 
     inviting = true;
 
-    const result = await authClient.createInvitation({
+    const result = await authClient.organization.inviteMember({
       email: inviteEmail.trim(),
       role: inviteRole,
       organizationId: data.currentOrganization.id,
@@ -113,14 +115,27 @@
       return;
     }
 
-    inviteDialogOpen = false;
+    if (data.mode === "local") {
+      inviteLink = `${page.url.origin}/invite/${result.data.id}`;
+    } else {
+      inviteDialogOpen = false;
+    }
     inviteEmail = "";
     inviteRole = "member";
     inviting = false;
     await invalidateAll();
     await load();
     await clearInviteQuery();
-    toast.success("Invitation sent.");
+    toast.success(
+      data.mode === "local" ? "Invitation link created." : "Invitation sent.",
+    );
+  };
+
+  const copyInvitation = async (invitationId: string) => {
+    await navigator.clipboard.writeText(
+      `${page.url.origin}/invite/${invitationId}`,
+    );
+    toast.success("Invitation link copied.");
   };
 
   const removeMember = async (memberId: string) => {
@@ -130,7 +145,7 @@
 
     removingMemberId = memberId;
 
-    const result = await authClient.removeMember({
+    const result = await authClient.organization.removeMember({
       memberIdOrEmail: memberId,
       organizationId: data.currentOrganization.id,
     });
@@ -150,7 +165,7 @@
   const cancelInvitation = async (invitationId: string) => {
     cancelingInvitationId = invitationId;
 
-    const result = await authClient.cancelInvitation({
+    const result = await authClient.organization.cancelInvitation({
       invitationId,
     });
 
@@ -172,6 +187,7 @@
 
   $effect(() => {
     if (!inviteDialogOpen) {
+      inviteLink = "";
       void clearInviteQuery();
     }
   });
@@ -202,22 +218,31 @@
     {#if loading}
       <p class="text-sm text-muted-foreground">Loading members...</p>
     {:else if members.length === 0}
-      <div class="rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground">
+      <div
+        class="rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground"
+      >
         No members found.
       </div>
     {:else}
       {#each members as member (member.id)}
-        <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-4">
+        <div
+          class="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-4"
+        >
           <div class="flex items-center gap-3">
             <Avatar.Root class="size-10 border after:hidden">
-              <Avatar.Image src={member.user?.image ?? undefined} alt={member.user?.name ?? ""} />
+              <Avatar.Image
+                src={member.user?.image ?? undefined}
+                alt={member.user?.name ?? ""}
+              />
               <Avatar.Fallback id={member.user?.id ?? member.id}>
                 {getInitials(member.user?.name ?? member.user?.email ?? "M")}
               </Avatar.Fallback>
             </Avatar.Root>
 
             <div class="space-y-1">
-              <p class="text-sm font-medium">{member.user?.name ?? member.user?.email}</p>
+              <p class="text-sm font-medium">
+                {member.user?.name ?? member.user?.email}
+              </p>
               <p class="text-xs text-muted-foreground">
                 {member.user?.email} · {member.role}
               </p>
@@ -245,29 +270,47 @@
     {#if loading}
       <p class="text-sm text-muted-foreground">Loading invitations...</p>
     {:else if invitations.length === 0}
-      <div class="rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground">
+      <div
+        class="rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground"
+      >
         No pending invitations.
       </div>
     {:else}
       {#each invitations as invitation (invitation.id)}
-        <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-4">
+        <div
+          class="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-4"
+        >
           <div class="space-y-1">
             <p class="text-sm font-medium">{invitation.email}</p>
             <p class="text-xs text-muted-foreground">
-              {invitation.role} · Sent {new Date(invitation.createdAt).toLocaleString()}
+              {invitation.role} · Sent {new Date(
+                invitation.createdAt,
+              ).toLocaleString()}
             </p>
           </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            loading={cancelingInvitationId === invitation.id}
-            disabled={cancelingInvitationId.length > 0}
-            onclick={() => cancelInvitation(invitation.id)}
-          >
-            <IconX data-slot="button-icon" />
-            Cancel
-          </Button>
+          <div class="flex items-center gap-2">
+            {#if data.mode === "local"}
+              <Button
+                type="button"
+                variant="outline"
+                onclick={() => copyInvitation(invitation.id)}
+              >
+                <IconCopy data-slot="button-icon" />
+                Copy link
+              </Button>
+            {/if}
+            <Button
+              type="button"
+              variant="outline"
+              loading={cancelingInvitationId === invitation.id}
+              disabled={cancelingInvitationId.length > 0}
+              onclick={() => cancelInvitation(invitation.id)}
+            >
+              <IconX data-slot="button-icon" />
+              Cancel
+            </Button>
+          </div>
         </div>
       {/each}
     {/if}
@@ -279,7 +322,9 @@
     <Dialog.Header>
       <Dialog.Title>Invite member</Dialog.Title>
       <Dialog.Description>
-        Send an organization invitation by email.
+        {data.mode === "local"
+          ? "Create a private invitation link to share with this person."
+          : "Send an organization invitation by email."}
       </Dialog.Description>
     </Dialog.Header>
 
@@ -299,7 +344,7 @@
         <select
           id="invite-role"
           bind:value={inviteRole}
-          class="border-input bg-background flex h-10 w-full rounded-md border px-3 text-sm"
+          class="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
         >
           <option value="member">member</option>
           <option value="admin">admin</option>
@@ -310,16 +355,46 @@
       {#if error}
         <p class="text-sm text-destructive">{error}</p>
       {/if}
+
+      {#if inviteLink}
+        <div class="space-y-2">
+          <Label for="invite-link">Invitation link</Label>
+          <div class="flex gap-2">
+            <Input id="invite-link" value={inviteLink} readonly />
+            <Button
+              type="button"
+              variant="outline"
+              onclick={() =>
+                navigator.clipboard
+                  .writeText(inviteLink)
+                  .then(() => toast.success("Invitation link copied."))}
+            >
+              <IconCopy data-slot="button-icon" />
+              Copy
+            </Button>
+          </div>
+          <p class="text-xs text-muted-foreground">
+            Anyone with this link can create the invited account until it
+            expires.
+          </p>
+        </div>
+      {/if}
     </div>
 
     <Dialog.Footer>
-      <Button type="button" variant="outline" onclick={() => (inviteDialogOpen = false)}>
+      <Button
+        type="button"
+        variant="outline"
+        onclick={() => (inviteDialogOpen = false)}
+      >
         Cancel
       </Button>
-      <Button type="button" loading={inviting} onclick={invite}>
-        <IconUserPlus data-slot="button-icon" />
-        Send invite
-      </Button>
+      {#if !inviteLink}
+        <Button type="button" loading={inviting} onclick={invite}>
+          <IconUserPlus data-slot="button-icon" />
+          {data.mode === "local" ? "Create invite" : "Send invite"}
+        </Button>
+      {/if}
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>

@@ -9,6 +9,7 @@ An observability platform built as a Turborepo monorepo. Orvo ingests logs, trac
 | `app`    | Main dashboard — organizations, apps, logs, traces, metrics, alerts, and incidents | SvelteKit + Node.js |
 | `ingest` | OTLP HTTP ingestion service for logs, traces, metrics, and heartbeat check-ins     | Go                  |
 | `agent`  | Curated OpenTelemetry Collector distribution for host monitoring                   | Go                  |
+| `local`  | Local-first Orvo runtime and CLI                                                    | Go + Node.js        |
 | `site`   | Marketing and product documentation site                                           | SvelteKit           |
 
 ## Packages

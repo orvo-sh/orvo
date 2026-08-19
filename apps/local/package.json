@@ -1,0 +1,11 @@
+{
+  "name": "@orvo/local-runtime",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "@electric-sql/pglite": "0.3.2",
+    "@electric-sql/pglite-socket": "^0.0.7",
+    "chdb": "3.3.0"
+  }
+}

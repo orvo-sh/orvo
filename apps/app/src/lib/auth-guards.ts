@@ -1,4 +1,5 @@
 import { getActiveOrganizationId } from "$lib/server/request-context";
+import { mode } from "$lib/server/mode";
 import { redirect, type RequestEvent } from "@sveltejs/kit";
 
 const requireUser = (
@@ -57,10 +58,13 @@ const requireOrganization = async (
     invalidOrganizationRedirectTo?: string;
   } = {},
 ) => {
-  const auth = requireVerifiedUser(event, {
-    signInRedirectTo: options.signInRedirectTo,
-    verifyRedirectTo: options.verifyRedirectTo,
-  });
+  const auth =
+    mode === "cloud"
+      ? requireVerifiedUser(event, {
+          signInRedirectTo: options.signInRedirectTo,
+          verifyRedirectTo: options.verifyRedirectTo,
+        })
+      : requireUser(event, { redirectTo: options.signInRedirectTo });
 
   const organizations =
     await event.locals.container.authService.api.listOrganizations({

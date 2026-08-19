@@ -1,4 +1,5 @@
 import { getActiveOrganizationId } from "$lib/server/request-context";
+import { mode } from "$lib/server/mode";
 import { redirect } from "@sveltejs/kit";
 import type { LayoutServerLoad } from "./$types";
 
@@ -14,7 +15,7 @@ export const load = (async (event) => {
     return;
   }
 
-  if (!auth.user.emailVerified) {
+  if (mode === "cloud" && !auth.user.emailVerified) {
     if (event.url.pathname === "/verify-email" && email === auth.user.email) {
       return;
     }

@@ -26,6 +26,7 @@
       name: "Starter",
       priceLabel: `$${PLANS.starter.priceUsd}/month`,
       includedGb: Math.round(PLANS.starter.ingestLimitBytes / bytesPerGb),
+      scoutCredits: PLANS.starter.scoutCreditsPerPeriod,
       retentionDays: PLANS.starter.retentionDays,
       overagePricePerGb: PLANS.starter.overagePricePerGb,
     },
@@ -34,6 +35,7 @@
       name: "Pro",
       priceLabel: `$${PLANS.pro.priceUsd}/month`,
       includedGb: Math.round(PLANS.pro.ingestLimitBytes / bytesPerGb),
+      scoutCredits: PLANS.pro.scoutCreditsPerPeriod,
       retentionDays: PLANS.pro.retentionDays,
       overagePricePerGb: PLANS.pro.overagePricePerGb,
     },
@@ -42,6 +44,7 @@
       name: "Enterprise",
       priceLabel: "Custom",
       includedGb: null,
+      scoutCredits: null,
       retentionDays: null,
       overagePricePerGb: null,
     },
@@ -250,6 +253,29 @@
             </div>
           {/each}
         </div>
+
+        {#if billingState?.scoutCredits}
+          <div class="rounded-xl border p-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p class="text-sm text-muted-foreground">Scout credits</p>
+                <p class="mt-2 text-lg font-semibold text-foreground">
+                  {billingState.scoutCredits.total.toLocaleString()} remaining
+                </p>
+              </div>
+              <p class="text-sm text-muted-foreground">
+                {billingState.scoutCredits.includedAllowance.toLocaleString()} included
+                per period
+              </p>
+            </div>
+            {#if billingState.scoutCredits.purchased > 0}
+              <p class="mt-2 text-sm text-muted-foreground">
+                Includes {billingState.scoutCredits.purchased.toLocaleString()} purchased
+                credits.
+              </p>
+            {/if}
+          </div>
+        {/if}
       </CardContent>
     </Card>
 
@@ -283,6 +309,9 @@
           <div class="space-y-1 text-sm text-muted-foreground">
             {#if plan.includedGb !== null}
               <p>Ingest: {plan.includedGb} GB / month</p>
+            {/if}
+            {#if plan.scoutCredits !== null}
+              <p>Scout: {plan.scoutCredits.toLocaleString()} credits / month</p>
             {/if}
             {#if plan.retentionDays}
               <p>Logs retention: {plan.retentionDays.logs} days</p>

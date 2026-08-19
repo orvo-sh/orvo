@@ -1,6 +1,7 @@
 import { building, dev } from "$app/environment";
 import { env } from "$env/dynamic/private";
 import { createServerContainer } from "$lib/server/container";
+import { mode } from "$lib/server/mode";
 import { ensureWorkersStarted } from "$lib/server/workers";
 import {
   getThemeDocumentAttributes,
@@ -81,6 +82,38 @@ export const handle = async ({ event, resolve }) => {
   event.tracing.root.setAttribute("url.path", event.url.pathname);
 
   const { authService } = event.locals.container;
+
+  if (
+    mode === "local" &&
+    event.request.method === "POST" &&
+    event.url.pathname === "/api/auth/sign-up/email"
+  ) {
+    const body = await event.request
+      .clone()
+      .json()
+      .catch(() => null);
+    const authorized =
+      body &&
+      typeof body.email === "string" &&
+      (await event.locals.container.localService.authorizeSignup({
+        email: body.email,
+        setupToken:
+          event.request.headers.get("x-orvo-setup-token") ?? undefined,
+        invitationId:
+          event.request.headers.get("x-orvo-invitation-id") ?? undefined,
+      }));
+
+    if (!authorized) {
+      return Response.json(
+        {
+          message:
+            "Account creation requires a valid setup or invitation link.",
+        },
+        { status: 403 },
+      );
+    }
+  }
+
   const session = await authService.api.getSession({
     headers: event.request.headers,
   });

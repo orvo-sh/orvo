@@ -1,4 +1,4 @@
-import { getDb, type DB } from "@repo/db";
+import type { DB } from "@repo/db";
 import { migrate as postgresMigrator } from "drizzle-orm/postgres-js/migrator";
 import {
   PostgreSqlContainer,
@@ -39,6 +39,9 @@ const hardcodedTruncationTables = [
   "organization_usage",
   "organization",
   "session",
+  "scout_usage_allocation",
+  "scout_usage",
+  "scout_credit_grant",
   "subscription",
   "user",
   "verification",

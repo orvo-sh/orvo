@@ -136,7 +136,7 @@
 
     saving = true;
 
-    const result = await authClient.updateOrganization({
+    const result = await authClient.organization.update({
       organizationId: data.currentOrganization.id,
       data: {
         name: name.trim(),

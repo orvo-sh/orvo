@@ -1,7 +1,9 @@
+import type { PGlite } from '@electric-sql/pglite';
+import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { readFileSync } from 'node:fs';
 import postgres, { type Options, type PostgresType, type Sql } from 'postgres';
-export { and, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+export { and, asc, count, desc, eq, gt, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 
 import * as schema from './schema/index.js';
 
@@ -13,6 +15,7 @@ export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 
 const clients = new Map<string, Sql>();
 const databases = new Map<string, Database>();
+const localRuntime = globalThis as typeof globalThis & { __orvoPGlite?: PGlite };
 
 const getPostgresConnectionString = (databaseUrl: string) => {
   const url = new URL(databaseUrl);
@@ -20,6 +23,7 @@ const getPostgresConnectionString = (databaseUrl: string) => {
   url.searchParams.delete('sslrootcert');
   url.searchParams.delete('sslmode');
   url.searchParams.delete('uselibpqcompat');
+  url.searchParams.delete('orvo_local');
 
   return url.toString();
 };
@@ -27,6 +31,13 @@ const getPostgresConnectionString = (databaseUrl: string) => {
 const getPostgresOptions = (databaseUrl: string): Options<Record<string, PostgresType>> => {
   const url = new URL(databaseUrl);
   const sslRootCertPath = url.searchParams.get('sslrootcert');
+
+  if (url.searchParams.get('orvo_local') === 'true') {
+    return {
+      max: 1,
+      onnotice: () => undefined
+    };
+  }
 
   if (!sslRootCertPath || sslRootCertPath === 'system') {
     return {};
@@ -57,7 +68,15 @@ export const getDb = (databaseUrl: string) => {
   let database = databases.get(databaseUrl);
 
   if (!database) {
-    database = createDb(databaseUrl);
+    if (databaseUrl === 'pglite://local') {
+      if (!localRuntime.__orvoPGlite) {
+        throw new Error('The embedded PGlite database is not initialized');
+      }
+
+      database = drizzlePglite(localRuntime.__orvoPGlite, { schema }) as unknown as Database;
+    } else {
+      database = createDb(databaseUrl);
+    }
     databases.set(databaseUrl, database);
   }
 

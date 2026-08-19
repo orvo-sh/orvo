@@ -1,4 +1,5 @@
 import { getActiveOrganizationId } from "$lib/server/request-context";
+import { mode } from "$lib/server/mode";
 import { redirect } from "@sveltejs/kit";
 import type { LayoutServerLoad } from "./$types";
 
@@ -9,7 +10,7 @@ export const load = (async (event) => {
     throw redirect(302, "/sign-in");
   }
 
-  if (!auth.user.emailVerified) {
+  if (mode === "cloud" && !auth.user.emailVerified) {
     throw redirect(
       302,
       `/verify-email?email=${encodeURIComponent(auth.user.email)}`,
@@ -20,6 +21,10 @@ export const load = (async (event) => {
     await event.locals.container.authService.api.listOrganizations({
       headers: event.request.headers,
     });
+
+  if (mode === "local" && event.url.pathname === "/organizations/new") {
+    throw redirect(302, "/");
+  }
 
   if (
     organizations.length === 0 &&

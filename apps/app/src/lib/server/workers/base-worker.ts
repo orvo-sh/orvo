@@ -29,10 +29,16 @@ abstract class BaseWorker {
       await boss.work(this.name, async (jobs) => {
         for (const job of jobs) {
           await context.with(unsuppressTracing(context.active()), async () => {
-            await this.run(job);
+            await this.execute(job);
           });
         }
       });
+    });
+  }
+
+  async execute(job: WorkerJob = { id: "local", data: {} }) {
+    await context.with(unsuppressTracing(context.active()), async () => {
+      await this.run(job);
     });
   }
 

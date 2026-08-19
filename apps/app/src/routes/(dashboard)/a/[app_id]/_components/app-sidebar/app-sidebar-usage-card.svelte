@@ -12,11 +12,15 @@
     tracesIngestedBytes,
     metricsIngestedBytes,
     includedBytes,
+    scoutCreditsRemaining,
+    scoutCreditsIncluded,
   }: {
     logsIngestedBytes: number;
     tracesIngestedBytes: number;
     metricsIngestedBytes: number;
     includedBytes: number;
+    scoutCreditsRemaining: number;
+    scoutCreditsIncluded: number;
   } = $props();
 </script>
 
@@ -85,6 +89,30 @@
           of {formatBytes(includedBytes, "GB")} used
         </p>
       </div>
+
+      {#if scoutCreditsIncluded > 0}
+        {@const scoutPercentage =
+          (scoutCreditsRemaining / scoutCreditsIncluded) * 100}
+        <div class="mt-1 border-t pt-2">
+          <div class="mb-1.5 flex items-center justify-between gap-2 text-sm">
+            <span class="text-muted-foreground">Scout</span>
+            <span class="text-secondary-foreground tabular-nums">
+              {scoutCreditsRemaining.toLocaleString()} left
+            </span>
+          </div>
+          <Progress
+            value={scoutPercentage}
+            class={cn(
+              "h-1.5 bg-muted/80",
+              scoutPercentage <= 10
+                ? "*:bg-destructive"
+                : scoutPercentage <= 30
+                  ? "*:bg-amber-500"
+                  : "*:bg-primary",
+            )}
+          />
+        </div>
+      {/if}
     </Card.Content>
   </Card.Root>
 </div>

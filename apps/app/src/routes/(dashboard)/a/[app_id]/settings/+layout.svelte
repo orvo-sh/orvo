@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import { Button } from "@repo/components/ui/button";
   import * as Sidebar from "@repo/components/ui/sidebar";
@@ -37,13 +36,17 @@
           isActive: (pathname: string) =>
             pathname.startsWith(`${settingsBasePath}/ingest-keys`),
         },
-        {
-          href: `${settingsBasePath}/notifications`,
-          label: "Notifications",
-          icon: BellIcon,
-          isActive: (pathname: string) =>
-            pathname.startsWith(`${settingsBasePath}/notifications`),
-        },
+        ...(page.data.mode === "cloud"
+          ? [
+              {
+                href: `${settingsBasePath}/notifications`,
+                label: "Notifications",
+                icon: BellIcon,
+                isActive: (pathname: string) =>
+                  pathname.startsWith(`${settingsBasePath}/notifications`),
+              },
+            ]
+          : []),
       ],
     },
     {
@@ -63,13 +66,17 @@
           isActive: (pathname: string) =>
             pathname.startsWith(`${settingsBasePath}/organization/members`),
         },
-        {
-          href: `${settingsBasePath}/billing`,
-          label: "Billing & usage",
-          icon: CreditCardIcon,
-          isActive: (pathname: string) =>
-            pathname.startsWith(`${settingsBasePath}/billing`),
-        },
+        ...(page.data.mode === "cloud"
+          ? [
+              {
+                href: `${settingsBasePath}/billing`,
+                label: "Billing & usage",
+                icon: CreditCardIcon,
+                isActive: (pathname: string) =>
+                  pathname.startsWith(`${settingsBasePath}/billing`),
+              },
+            ]
+          : []),
       ],
     },
     {
@@ -117,7 +124,7 @@
                     isActive={item.isActive(page.url.pathname)}
                   >
                     {#snippet child({ props })}
-                      <a href={resolve(item.href)} {...props}>
+                      <a href={item.href} {...props}>
                         <Icon />
                         <span>{item.label}</span>
                       </a>
