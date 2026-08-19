@@ -1,3 +1,4 @@
+import type { AlertRuleService } from "$lib/server/services/alert-rule";
 import type { HeartbeatService } from "$lib/server/services/heartbeat";
 import type { IncidentService } from "$lib/server/services/incident";
 import {
@@ -43,6 +44,7 @@ const result = (
 
 const createChatTools = (
   dependencies: {
+    alertRuleService: AlertRuleService;
     logsService: LogsService;
     tracesService: TracesService;
     metricsService: MetricsService;
@@ -60,12 +62,12 @@ const createChatTools = (
   return {
     get_app_overview: tool({
       description:
-        "Summarize telemetry volume, open incidents, and heartbeat health for the current app.",
+        "Summarize telemetry volume, open incidents, heartbeat health, and alert rules for the current app.",
       inputSchema: z.object({
         time: timeFilterSchema.optional().default(defaultTime),
       }),
       execute: async ({ time }) => {
-        const [logs, traces, metrics, incidents, heartbeats] =
+        const [logs, traces, metrics, incidents, heartbeats, alerts] =
           await Promise.all([
             dependencies.logsService.getTotalLogs({ time }, context),
             dependencies.tracesService.getTotalTraces({ time }, context),
@@ -75,6 +77,7 @@ const createChatTools = (
               context,
             ),
             dependencies.heartbeatService.listHeartbeatMonitors(context),
+            dependencies.alertRuleService.getAlertRules(context),
           ]);
         const heartbeatMonitors = heartbeats.success
           ? heartbeats.data.monitors
@@ -109,6 +112,16 @@ const createChatTools = (
                     .map((monitor) => compactHeartbeat(monitor)),
                 }
               : { error: heartbeats.error },
+            alerts: alerts.success
+              ? {
+                  total: alerts.data.rules.length,
+                  enabled: alerts.data.rules.filter((rule) => rule.isEnabled)
+                    .length,
+                  withOpenIncidents: alerts.data.rules.filter(
+                    (rule) => rule.openIncidentCount > 0,
+                  ).length,
+                }
+              : { error: alerts.error },
           }),
         });
       },
@@ -240,6 +253,26 @@ const createChatTools = (
         );
         return toolResult("get_heartbeat_monitor", monitor);
       },
+    }),
+    list_alert_rules: tool({
+      description:
+        "List alert rules for the current app with thresholds, enabled state, destinations, and open incident counts.",
+      inputSchema: z.object({}),
+      execute: async () =>
+        toolResult(
+          "list_alert_rules",
+          await dependencies.alertRuleService.getAlertRules(context),
+        ),
+    }),
+    get_alert_rule: tool({
+      description:
+        "Load one alert rule from the current app, including its scope and notification destinations.",
+      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      execute: async ({ id }) =>
+        toolResult(
+          "get_alert_rule",
+          await dependencies.alertRuleService.getAlertRule(id, context),
+        ),
     }),
   };
 };

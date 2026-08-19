@@ -1,4 +1,5 @@
 import { Instrument } from "$lib/instrumentation";
+import type { AlertRuleService } from "$lib/server/services/alert-rule";
 import type { HeartbeatService } from "$lib/server/services/heartbeat";
 import type { IncidentService } from "$lib/server/services/incident";
 import type { LogsService } from "$lib/server/services/logs";
@@ -35,6 +36,7 @@ class ChatService {
     logger: Logger,
     model: LanguageModel | null,
     toolServices: {
+      alertRuleService: AlertRuleService;
       logsService: LogsService;
       tracesService: TracesService;
       metricsService: MetricsService;

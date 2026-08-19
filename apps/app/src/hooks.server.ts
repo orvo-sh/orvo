@@ -1,4 +1,5 @@
 import { building, dev } from "$app/environment";
+import { env } from "$env/dynamic/private";
 import { createServerContainer } from "$lib/server/container";
 import { ensureWorkersStarted } from "$lib/server/workers";
 import {
@@ -15,11 +16,30 @@ const baseLogger = new Logger("Orvo", { pretty: dev, loggerProvider });
 void ensureWorkersStarted(baseLogger);
 
 const unsafeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const oauthFormEndpoints = new Set([
+  "/api/auth/oauth2/introspect",
+  "/api/auth/oauth2/revoke",
+  "/api/auth/oauth2/token",
+]);
 const formContentTypes = new Set([
   "application/x-www-form-urlencoded",
   "multipart/form-data",
   "text/plain",
 ]);
+
+const withDefaultMcpResource = (request: Request) => {
+  const url = new URL(request.url);
+  if (
+    request.method !== "GET" ||
+    url.pathname !== "/api/auth/oauth2/authorize" ||
+    url.searchParams.has("resource")
+  ) {
+    return request;
+  }
+
+  url.searchParams.set("resource", `${new URL(env.ORIGIN).origin}/api/mcp`);
+  return new Request(url, request);
+};
 
 export const handle = async ({ event, resolve }) => {
   const contentType =
@@ -32,7 +52,8 @@ export const handle = async ({ event, resolve }) => {
   const isForbiddenCrossSiteForm =
     unsafeMethods.has(event.request.method) &&
     formContentTypes.has(contentType) &&
-    requestOrigin !== event.url.origin;
+    requestOrigin !== event.url.origin &&
+    !oauthFormEndpoints.has(event.url.pathname);
 
   if (isForbiddenCrossSiteForm) {
     const message = `Cross-site ${event.request.method} form submissions are forbidden`;
@@ -71,8 +92,12 @@ export const handle = async ({ event, resolve }) => {
     };
   }
 
+  const authRequest = withDefaultMcpResource(event.request);
   const response = await svelteKitHandler({
-    event,
+    event:
+      authRequest === event.request
+        ? event
+        : { ...event, request: authRequest },
     resolve: (event) =>
       resolve(event, {
         transformPageChunk: ({ html }) =>

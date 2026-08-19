@@ -1,5 +1,9 @@
 import { getRequestEvent } from "$app/server";
 import { env } from "$env/dynamic/private";
+import {
+  getOAuthProviderState,
+  oauthProvider,
+} from "@better-auth/oauth-provider";
 import { stripe as stripePlugin } from "@better-auth/stripe";
 import { emailOTP, jwt, organization } from "better-auth/plugins";
 import { and, eq, inArray, sql, type DB } from "@repo/db";
@@ -13,6 +17,8 @@ import Stripe from "stripe";
 import type { Logger } from "@repo/logger";
 import type { Email } from "./email";
 import { BillingService } from "./services/billing";
+
+const mcpScopes = ["openid", "offline_access", "mcp:read"] as const;
 
 const createAuth = (
   db: DB,
@@ -62,7 +68,13 @@ const createAuth = (
                 invitation: "inv",
                 "rate-limit": "rlmt",
                 subscription: "sub",
-              } as any
+                oauthClient: "oauthc",
+                oauthAccessToken: "oauthat",
+                oauthRefreshToken: "oauthrt",
+                oauthConsent: "oauthcn",
+                oauthClientResource: "oauthcr",
+                oauthResource: "oauthr",
+              } as Record<string, string>
             )[model] ?? "auth";
           return genId(pre);
         },
@@ -215,6 +227,46 @@ const createAuth = (
           })
         : undefined,
       jwt(),
+      oauthProvider({
+        loginPage: "/sign-in",
+        consentPage: "/oauth/authorize",
+        validAudiences: [`${config.baseUrl}/api/mcp`],
+        resources: [`${config.baseUrl}/api/mcp`],
+        enforcePerClientResources: false,
+        allowDynamicClientRegistration: true,
+        allowUnauthenticatedClientRegistration: true,
+        silenceWarnings: {
+          oauthAuthServerConfig: true,
+          openidConfig: true,
+        },
+        scopes: [...mcpScopes],
+        clientRegistrationDefaultScopes: [...mcpScopes],
+        clientRegistrationAllowedScopes: [...mcpScopes],
+        postLogin: {
+          page: "/oauth/authorize",
+          shouldRedirect: async () => false,
+          consentReferenceId: async ({ user }) => {
+            if (!user) return undefined;
+
+            const oauthQuery = (await getOAuthProviderState())?.query;
+            const clientId = oauthQuery
+              ? new URLSearchParams(oauthQuery).get("client_id")
+              : null;
+            if (!clientId) return undefined;
+
+            return (
+              await db.query.mcpOauthGrant.findFirst({
+                where: and(
+                  eq(dbSchema.mcpOauthGrant.clientId, clientId),
+                  eq(dbSchema.mcpOauthGrant.userId, user.id),
+                ),
+              })
+            )?.organizationId;
+          },
+        },
+        customAccessTokenClaims: async ({ referenceId }) =>
+          referenceId ? { organization_id: referenceId } : {},
+      }),
       sveltekitCookies(getRequestEvent),
     ].filter((x): x is NonNullable<typeof x> => !!x),
   });

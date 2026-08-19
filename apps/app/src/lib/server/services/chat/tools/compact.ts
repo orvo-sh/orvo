@@ -355,6 +355,8 @@ const compactToolOutput = (toolName: string, value: unknown) => {
   const data = asRecord(output.data);
 
   switch (toolName) {
+    case "list_apps":
+      return compactValue(value, { maxDepth: 5, maxEntries: 25 });
     case "search_logs":
       return {
         data: {
@@ -436,6 +438,9 @@ const compactToolOutput = (toolName: string, value: unknown) => {
       return {
         data: compactHeartbeat(data?.monitor ?? output.data, true),
       };
+    case "list_alert_rules":
+    case "get_alert_rule":
+      return compactValue(value, { maxDepth: 6, maxEntries: 25 });
     case "get_app_overview":
       return compactValue(value, { maxDepth: 5, maxEntries: 20 });
     default:

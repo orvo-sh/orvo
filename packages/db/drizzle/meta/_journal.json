@@ -15,6 +15,13 @@
       "when": 1786295636814,
       "tag": "0001_foamy_jean_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787137291010,
+      "tag": "0002_eager_skrulls",
+      "breakpoints": true
     }
   ]
 }

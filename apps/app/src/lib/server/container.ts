@@ -13,6 +13,8 @@ import { IncidentService } from "$lib/server/services/incident";
 import { IngestionKeyService } from "$lib/server/services/ingestion-key";
 import { LogsService } from "$lib/server/services/logs";
 import { MetricsService } from "$lib/server/services/metrics";
+import { McpOauthGrantService } from "$lib/server/services/mcp-oauth-grant";
+import { McpService } from "$lib/server/services/mcp";
 import { NotificationDeliveryService } from "$lib/server/services/notification-delivery";
 import { NotificationDestinationService } from "$lib/server/services/notification-destination";
 import { OnboardingService } from "$lib/server/services/onboarding";
@@ -137,6 +139,16 @@ const createServerContainer = (logger: Logger) => {
         }
       : undefined,
   });
+  const mcpOauthGrantService = new McpOauthGrantService(db, logger);
+  const mcpService = new McpService({
+    alertRuleService,
+    appService,
+    heartbeatService,
+    incidentService,
+    logsService,
+    metricsService,
+    tracesService,
+  });
   const chatService = new ChatService(
     db,
     logger,
@@ -146,6 +158,7 @@ const createServerContainer = (logger: Logger) => {
         )
       : null,
     {
+      alertRuleService,
       logsService,
       tracesService,
       metricsService,
@@ -156,6 +169,8 @@ const createServerContainer = (logger: Logger) => {
 
   return {
     authService,
+    mcpOauthGrantService,
+    mcpService,
     agentService,
     uploadService,
     billingService,

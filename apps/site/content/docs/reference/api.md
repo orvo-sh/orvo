@@ -2,7 +2,7 @@
 title: API
 description: Reference for the Orvo HTTP API.
 order: 1
-previous: integrations/github
+previous: integrations/mcp
 next: reference/environment-variables
 ---
 

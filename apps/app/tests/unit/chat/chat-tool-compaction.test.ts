@@ -203,4 +203,26 @@ describe("chat tool result compaction", () => {
         "Tool output budget reached. Use narrower filters or answer from the evidence already collected.",
     });
   });
+
+  it("keeps app and alert identifiers usable in nested lists", () => {
+    const apps = compactToolOutput("list_apps", {
+      data: { apps: [{ id: "app_1", name: "Checkout" }] },
+    });
+    const alerts = compactToolOutput("list_alert_rules", {
+      data: {
+        rules: [
+          {
+            id: "alrt_1",
+            name: "Error rate",
+            destinations: [{ id: "dst_1", name: "On-call" }],
+          },
+        ],
+      },
+    });
+
+    expect(JSON.stringify(apps)).toContain("app_1");
+    expect(JSON.stringify(alerts)).toContain("alrt_1");
+    expect(JSON.stringify(alerts)).toContain("dst_1");
+    expect(JSON.stringify({ apps, alerts })).not.toContain("[omitted]");
+  });
 });
