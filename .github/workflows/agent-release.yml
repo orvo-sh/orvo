@@ -1,0 +1,155 @@
+name: Agent Release
+
+on:
+  push:
+    tags:
+      - "agent-v*.*.*"
+
+concurrency:
+  group: agent-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Validate release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag and release notes
+        id: release
+        shell: bash
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^agent-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Agent release tags must match agent-vX.Y.Z." >&2
+            exit 1
+          fi
+          TAG_COMMIT="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
+          if ! git merge-base --is-ancestor "$TAG_COMMIT" origin/main; then
+            echo "Release tags must point to a commit on main." >&2
+            exit 1
+          fi
+          VERSION="${GITHUB_REF_NAME#agent-v}"
+          test -s "apps/agent/releases/v${VERSION}.md"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build linux/${{ matrix.arch }}
+    needs: prepare
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: apps/agent/go.mod
+          cache-dependency-path: |
+            apps/agent/go.mod
+            apps/agent/builder-config.yaml
+
+      - name: Test
+        working-directory: apps/agent
+        run: go test ./...
+
+      - name: Generate collector distribution
+        working-directory: apps/agent
+        run: make generate-agent AGENT_VERSION=${{ needs.prepare.outputs.version }}
+
+      - name: Build release archive
+        working-directory: apps/agent
+        env:
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "0"
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          PACKAGE="orvo-agent_${VERSION}_linux_${GOARCH}"
+          mkdir -p "dist/${PACKAGE}"
+          (
+            cd build/runtime
+            go build -trimpath -ldflags='-s -w' -o "../../dist/${PACKAGE}/orvo-agent" .
+          )
+          go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" \
+            -o "dist/${PACKAGE}/orvo-agentctl" ./cmd/orvo-agentctl
+          cp packaging/orvo-agent.service "dist/${PACKAGE}/"
+          printf '%s\n' "$VERSION" > "dist/${PACKAGE}/VERSION"
+          tar -C "dist/${PACKAGE}" -czf "dist/${PACKAGE}.tar.gz" .
+
+      - name: Attest release archive
+        uses: actions/attest@v4
+        with:
+          subject-path: apps/agent/dist/orvo-agent_${{ needs.prepare.outputs.version }}_linux_${{ matrix.arch }}.tar.gz
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: orvo-agent-linux-${{ matrix.arch }}
+          path: apps/agent/dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Download release archives
+        uses: actions/download-artifact@v8
+        with:
+          pattern: orvo-agent-linux-*
+          path: apps/agent/dist
+          merge-multiple: true
+
+      - name: Build checksums
+        working-directory: apps/agent
+        shell: bash
+        run: |
+          (
+            cd dist
+            sha256sum *.tar.gz > checksums.txt
+          )
+
+      - name: Publish GitHub Release
+        working-directory: apps/agent
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" \
+              --draft=false \
+              --latest=false \
+              --title "Orvo Agent ${VERSION}" \
+              --notes-file "releases/v${VERSION}.md"
+            gh release upload "$GITHUB_REF_NAME" \
+              dist/*.tar.gz dist/checksums.txt --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              dist/*.tar.gz dist/checksums.txt \
+              --latest=false \
+              --verify-tag \
+              --title "Orvo Agent ${VERSION}" \
+              --notes-file "releases/v${VERSION}.md"
+          fi

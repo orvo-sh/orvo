@@ -1,15 +1,21 @@
-name: CI
+name: Agent CI
 
 on:
   pull_request:
+    paths:
+      - "apps/agent/**"
+      - ".github/workflows/agent-ci.yml"
   push:
     branches: [main]
+    paths:
+      - "apps/agent/**"
+      - ".github/workflows/agent-ci.yml"
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: agent-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -23,21 +29,25 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version-file: apps/agent/go.mod
           cache-dependency-path: |
-            go.mod
-            builder-config.yaml
+            apps/agent/go.mod
+            apps/agent/builder-config.yaml
 
       - name: Test
+        working-directory: apps/agent
         run: go test -race ./...
 
       - name: Vet
+        working-directory: apps/agent
         run: go vet ./...
 
       - name: Build distribution
+        working-directory: apps/agent
         run: make build AGENT_VERSION=ci
 
       - name: Cross-compile supported Linux targets
+        working-directory: apps/agent
         shell: bash
         run: |
           for arch in amd64 arm64; do

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	agenttemplate "github.com/orvo-sh/orvo-agent/config"
+	agenttemplate "github.com/orvo-sh/orvo/apps/agent/config"
 )
 
 type Values struct {

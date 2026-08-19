@@ -1,5 +1,5 @@
 dist:
-  module: github.com/orvo-sh/orvo-agent/runtime
+  module: github.com/orvo-sh/orvo/apps/agent/runtime
   name: orvo-agent
   description: Orvo host monitoring agent
   version: dev

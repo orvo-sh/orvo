@@ -4,13 +4,12 @@ An observability platform built as a Turborepo monorepo. Orvo ingests logs, trac
 
 ## Apps
 
-| App                | Description                                                                  | Runtime             |
-| ------------------ | ---------------------------------------------------------------------------- | ------------------- |
-| `app`              | Main dashboard — organizations, apps, logs, traces, metrics, alerts, billing | SvelteKit + Node.js |
-| `web`              | Landing/marketing site                                                       | SvelteKit           |
-| `docs`             | Documentation site                                                           | SvelteKit           |
-| `ingest`           | OTLP HTTP ingestion service for logs, traces, and metrics                    | Go                  |
-| `telemetry-writer` | Consumes telemetry from NATS and writes batches to ClickHouse                | Go                  |
+| App      | Description                                                                         | Runtime             |
+| -------- | ----------------------------------------------------------------------------------- | ------------------- |
+| `app`    | Main dashboard — organizations, apps, logs, traces, metrics, alerts, and incidents | SvelteKit + Node.js |
+| `ingest` | OTLP HTTP ingestion service for logs, traces, metrics, and heartbeat check-ins     | Go                  |
+| `agent`  | Curated OpenTelemetry Collector distribution for host monitoring                   | Go                  |
+| `site`   | Marketing and product documentation site                                           | SvelteKit           |
 
 ## Packages
 
@@ -31,7 +30,6 @@ An observability platform built as a Turborepo monorepo. Orvo ingests logs, trac
 - **Frontend:** SvelteKit 2, Svelte 5, TypeScript, Tailwind CSS v4, shadcn-svelte
 - **Backend:** SvelteKit (Node.js adapter), Go 1.24
 - **Databases:** PostgreSQL (Drizzle ORM), ClickHouse
-- **Messaging:** NATS
 - **Observability:** OpenTelemetry (OTLP ingestion, tracing, logging)
 - **Auth:** Better Auth
 - **Billing:** Stripe
@@ -44,10 +42,9 @@ An observability platform built as a Turborepo monorepo. Orvo ingests logs, trac
 
 - Node.js >= 18
 - pnpm 10.x
-- Go 1.24 (for `ingest` and `telemetry-writer`)
+- Go 1.24 or newer for `ingest`; Go 1.25 or newer for `agent`
 - PostgreSQL
 - ClickHouse
-- NATS
 - (Optional) S3-compatible storage, Stripe, Resend
 
 ## Getting Started
@@ -67,6 +64,14 @@ pnpm dev
 # Or run a specific app
 pnpm --filter app dev
 pnpm --filter ingest dev
+```
+
+Build and test the host agent independently:
+
+```sh
+cd apps/agent
+make test
+make build
 ```
 
 Build all apps and packages:
@@ -89,9 +94,9 @@ pnpm test
 
 ## Production
 
-Production application releases are deployed with Kamal when changes reach `main`. PostgreSQL and ClickHouse are independently managed backing services; this repository does not provision or own their infrastructure.
-
-See [Production operations](docs/production.md) for deployment, backup, recovery, and host access procedures.
+Commits to `main` publish immutable application and ingest images to GitHub
+Container Registry. Orvo Cloud promotes a selected image version independently.
+Self-hosted deployment assets will live under `deploy/self-hosted`.
 
 ## Database
 
@@ -116,10 +121,9 @@ pnpm --filter app db:studio
 ```
 ├── apps/
 │   ├── app/              # Main dashboard application
-│   ├── web/              # Marketing site
-│   ├── docs/             # Documentation
 │   ├── ingest/           # Go OTLP ingestion service
-│   ├── telemetry-writer/ # Go ClickHouse writer service
+│   ├── agent/            # Go host monitoring agent
+│   └── site/             # Marketing and product documentation
 ├── packages/
 │   ├── components/       # Shared UI components
 │   ├── db/               # Database schemas and client
@@ -137,4 +141,4 @@ pnpm --filter app db:studio
 
 ## License
 
-[Add your license here]
+Orvo is licensed under the [GNU Affero General Public License v3.0](LICENSE).
