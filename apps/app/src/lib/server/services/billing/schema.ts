@@ -1,7 +1,9 @@
 import { z } from "zod";
 
 const getBillingStateInputSchema = z.object({});
-const createBillingPortalInputSchema = z.object({});
+const createBillingPortalInputSchema = z.object({
+  appId: z.string().trim().startsWith("app_").max(64),
+});
 const startFreeTrialInputSchema = z.object({
   plan: z.enum(["starter", "pro"]),
 });

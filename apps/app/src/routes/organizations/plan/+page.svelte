@@ -9,6 +9,8 @@
 
   import { PLANS } from "$lib/constants";
 
+  let { data } = $props();
+
   let loadingPlan = $state<string | null>(null);
 
   const startTrial = async (plan: string) => {
@@ -24,7 +26,7 @@
           return;
         }
 
-        window.location.href = "/apps/new";
+        window.location.href = result.data.url;
       })
       .catch(() => {
         toast.error("Failed to start the free trial.");
@@ -157,7 +159,7 @@
       <Card.Title>{plan?.name}</Card.Title>
       <Card.Description>{description}</Card.Description>
       <div class="pt-3">
-        <span class={"text-2xl font-semibold tracking-tight"}>
+        <span class="text-2xl font-semibold tracking-tight">
           {plan?.price}
         </span>
       </div>
@@ -165,7 +167,7 @@
     <Card.Content class="flex-1 pb-6">
       <p class="text-sm font-medium">{includedLabel}</p>
       <div class="mt-4 grid gap-3 text-sm">
-        {#each features as feature}
+        {#each features as feature (feature)}
           <p class="flex gap-3">
             <IconCheck class="mt-0.5 size-4 shrink-0 text-primary" />
             {feature}
@@ -184,7 +186,7 @@
           disabled={loadingPlan !== null}
           onclick={() => startTrial(action.planKey)}
         >
-          Start 14 day trial
+          {data.canStartTrial ? "Start 14 day trial" : "Subscribe"}
           <IconArrowRight data-slot="button-icon" />
         </Button>
       {:else}

@@ -26,7 +26,6 @@ import {
 import {
   createGetCurrentSubscription,
   createIsOrganizationOwner,
-  createReadStripePriceId,
   createSyncStripeSubscriptionState,
 } from "./shared";
 
@@ -71,9 +70,6 @@ class BillingService {
     const getCurrentSubscription = createGetCurrentSubscription({
       db,
     });
-    const readStripePriceId = createReadStripePriceId({
-      config,
-    });
     const syncStripeSubscriptionState = createSyncStripeSubscriptionState({
       db,
       config,
@@ -90,6 +86,7 @@ class BillingService {
       getCurrentSubscription,
     });
     this.createBillingPortalSessionMethod = createCreateBillingPortalSession({
+      db,
       logger: this.logger,
       isOrganizationOwner,
     });
@@ -101,11 +98,7 @@ class BillingService {
       db,
       logger: this.logger,
       stripe,
-      config,
       isOrganizationOwner,
-      getCurrentSubscription,
-      readStripePriceId,
-      syncStripeSubscriptionState,
     });
     this.onSubscriptionCreatedMethod = createOnSubscriptionCreated({
       logger: this.logger,
@@ -147,7 +140,13 @@ class BillingService {
 
   async startFreeTrial(
     input: z.input<typeof startFreeTrialInputSchema>,
-    context: { organizationId: string; userId: string },
+    context: {
+      organizationId: string;
+      userId: string;
+      headers: Headers;
+      origin: string;
+      authService: Auth;
+    },
   ) {
     return this.startFreeTrialMethod(input, context);
   }

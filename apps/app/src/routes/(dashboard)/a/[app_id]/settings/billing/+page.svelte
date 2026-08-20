@@ -1,54 +1,30 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { PLANS } from "$lib/constants";
   import {
     createBillingPortalCommand,
     getBillingStateQuery,
   } from "$lib/api/billing.remote";
+  import { PLANS } from "$lib/constants";
+  import { cn } from "@repo/components";
+  import { Badge } from "@repo/components/ui/badge";
   import { Button } from "@repo/components/ui/button";
   import {
     Card,
+    CardAction,
     CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
   } from "@repo/components/ui/card";
+  import { Progress } from "@repo/components/ui/progress";
+  import { Separator } from "@repo/components/ui/separator";
+  import { Skeleton } from "@repo/components/ui/skeleton";
+  import { formatBytes } from "@repo/utils";
+  import { IconArrowUpRight, IconExternalLink } from "@tabler/icons-svelte";
   import { onMount } from "svelte";
 
   type BillingStateResult = Awaited<ReturnType<typeof getBillingStateQuery>>;
   type BillingState = Extract<BillingStateResult, { success: true }>["data"];
-  type BillingSignal = "logs" | "metrics" | "traces";
-
-  const bytesPerGb = 1_000_000_000;
-  const planCards = [
-    {
-      key: "starter",
-      name: "Starter",
-      priceLabel: `$${PLANS.starter.priceUsd}/month`,
-      includedGb: Math.round(PLANS.starter.ingestLimitBytes / bytesPerGb),
-      chatCreditsIncluded: PLANS.starter.chatCreditsIncluded,
-      retentionDays: PLANS.starter.retentionDays,
-      overagePricePerGb: PLANS.starter.overagePricePerGb,
-    },
-    {
-      key: "pro",
-      name: "Pro",
-      priceLabel: `$${PLANS.pro.priceUsd}/month`,
-      includedGb: Math.round(PLANS.pro.ingestLimitBytes / bytesPerGb),
-      chatCreditsIncluded: PLANS.pro.chatCreditsIncluded,
-      retentionDays: PLANS.pro.retentionDays,
-      overagePricePerGb: PLANS.pro.overagePricePerGb,
-    },
-    {
-      key: "enterprise",
-      name: "Enterprise",
-      priceLabel: "Custom",
-      includedGb: null,
-      chatCreditsIncluded: null,
-      retentionDays: null,
-      overagePricePerGb: null,
-    },
-  ] as const;
 
   let loading = $state(true);
   let portalLoading = $state(false);
@@ -56,48 +32,55 @@
   let success = $state("");
   let billingState = $state<BillingState | null>(null);
 
-  const signalCards = $derived.by(() => {
-    if (!billingState) {
-      return [];
-    }
-    const currentBillingState = billingState;
+  const totalIngestedBytes = $derived(
+    (billingState?.logsIngestedBytes ?? 0) +
+      (billingState?.metricsIngestedBytes ?? 0) +
+      (billingState?.tracesIngestedBytes ?? 0),
+  );
+  const ingestUsagePercent = $derived(
+    billingState?.ingestLimitBytes
+      ? Math.min(
+          100,
+          Math.round(
+            (totalIngestedBytes / billingState.ingestLimitBytes) * 100,
+          ),
+        )
+      : 0,
+  );
+  const signalRows = $derived(
+    billingState
+      ? [
+          {
+            signal: "Logs",
+            usedBytes: billingState.logsIngestedBytes,
+            retentionDays: billingState.logsRetentionDays,
+          },
+          {
+            signal: "Metrics",
+            usedBytes: billingState.metricsIngestedBytes,
+            retentionDays: billingState.metricsRetentionDays,
+          },
+          {
+            signal: "Traces",
+            usedBytes: billingState.tracesIngestedBytes,
+            retentionDays: billingState.tracesRetentionDays,
+          },
+        ]
+      : [],
+  );
+  const currentPlan = $derived(
+    billingState?.billingPlan === "starter" ||
+      billingState?.billingPlan === "pro"
+      ? PLANS[billingState.billingPlan]
+      : null,
+  );
 
-    return (
-      [
-        {
-          signal: "logs",
-          usedBytes: currentBillingState.logsIngestedBytes,
-          retentionDays: currentBillingState.logsRetentionDays,
-        },
-        {
-          signal: "metrics",
-          usedBytes: currentBillingState.metricsIngestedBytes,
-          retentionDays: currentBillingState.metricsRetentionDays,
-        },
-        {
-          signal: "traces",
-          usedBytes: currentBillingState.tracesIngestedBytes,
-          retentionDays: currentBillingState.tracesRetentionDays,
-        },
-      ] as const satisfies Array<{
-        signal: BillingSignal;
-        usedBytes: number;
-        retentionDays: number;
-      }>
-    ).map((signalCard) => ({
-      ...signalCard,
-      usagePercent:
-        currentBillingState.ingestLimitBytes > 0
-          ? Math.min(
-              100,
-              Math.round(
-                (signalCard.usedBytes / currentBillingState.ingestLimitBytes) *
-                  100,
-              ),
-            )
-          : 0,
-    }));
-  });
+  const formatDate = (date: Date | string | number) =>
+    new Intl.DateTimeFormat(undefined, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(date));
 
   const loadBillingState = async () => {
     loading = true;
@@ -119,7 +102,9 @@
     error = "";
     success = "";
 
-    const result = await createBillingPortalCommand({});
+    const result = await createBillingPortalCommand({
+      appId: page.params.app_id!,
+    });
     if (result.success === false) {
       error = result.error;
       portalLoading = false;
@@ -127,26 +112,6 @@
     }
 
     window.location.href = result.data.url;
-  };
-
-  const getStatusLabel = () => {
-    if (!billingState?.billingPlan || !billingState.billingStatus) {
-      return "No active plan";
-    }
-
-    return `${billingState.billingPlan} ${billingState.billingStatus}`;
-  };
-
-  const getTrialCopy = () => {
-    if (!billingState?.currentPeriodEnd) {
-      return "Choose a plan to activate your organization.";
-    }
-
-    if (billingState.billingStatus === "trialing") {
-      return `Trial ends on ${new Date(billingState.currentPeriodEnd).toLocaleDateString()}.`;
-    }
-
-    return `Current period ends on ${new Date(billingState.currentPeriodEnd).toLocaleDateString()}.`;
   };
 
   onMount(() => {
@@ -165,7 +130,7 @@
   });
 </script>
 
-<div class="mx-auto flex w-full max-w-6xl flex-col gap-6 py-1">
+<div class="mx-auto flex w-full max-w-4xl flex-col gap-5 py-1">
   {#if error}
     <div
       id="billing-error-banner"
@@ -184,157 +149,284 @@
     </div>
   {/if}
 
-  <div class="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-    <Card>
-      <CardHeader class="gap-1">
-        <CardTitle>Billing overview</CardTitle>
-        <CardDescription>
-          {loading ? "Loading billing state..." : getTrialCopy()}
-        </CardDescription>
-      </CardHeader>
-      <CardContent class="grid gap-4">
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div class="rounded-xl border p-4">
-            <p class="text-sm text-muted-foreground">Current status</p>
-            <p class="mt-2 text-lg font-semibold text-foreground">
-              {loading ? "Loading..." : getStatusLabel()}
-            </p>
-          </div>
-
-          <div class="rounded-xl border p-4">
-            <p class="text-sm text-muted-foreground">Current period</p>
-            <p class="mt-2 text-lg font-semibold text-foreground">
-              {loading
-                ? "Loading..."
-                : billingState?.currentPeriodEnd
-                  ? `${new Date(billingState.currentPeriodStart).toLocaleDateString()} to ${new Date(billingState.currentPeriodEnd).toLocaleDateString()}`
-                  : "Not available"}
-            </p>
-          </div>
-        </div>
-
-        <div class="grid gap-3">
-          <p class="text-sm font-medium text-foreground">Billing actions</p>
-          <p class="text-sm text-muted-foreground">
-            Open the billing portal to manage the organization subscription.
-          </p>
-          <div class="flex flex-wrap gap-3">
-            <Button
-              variant="outline"
-              disabled={loading || portalLoading}
-              loading={portalLoading}
-              onclick={openPortal}
+  <Card class="gap-5 py-5">
+    <CardHeader class="px-5">
+      {#if loading}
+        <Skeleton class="h-6 w-28" />
+        <Skeleton class="mt-1 h-4 w-44" />
+      {:else}
+        <div class="flex items-center gap-2">
+          <CardTitle class="text-xl capitalize">
+            {billingState?.billingPlan ?? "No active plan"}
+          </CardTitle>
+          {#if billingState?.billingStatus}
+            <Badge
+              variant={billingState.billingStatus === "active"
+                ? "secondary"
+                : billingState.billingStatus === "trialing"
+                  ? "outline"
+                  : "destructive"}
+              class="capitalize"
             >
-              Manage billing
-            </Button>
+              {billingState.billingStatus.replace("_", " ")}
+            </Badge>
+          {/if}
+        </div>
+        <CardDescription>
+          {#if currentPlan}
+            ${currentPlan.priceUsd} per month
+          {:else}
+            Add billing details to activate this organization.
+          {/if}
+        </CardDescription>
+      {/if}
 
-            <Button variant="outline" href="mailto:team@orvo.sh">
-              Contact sales
-            </Button>
+      <CardAction>
+        <Button
+          disabled={loading || portalLoading}
+          loading={portalLoading}
+          onclick={openPortal}
+        >
+          <IconExternalLink data-slot="button-icon" />
+          Manage billing
+        </Button>
+      </CardAction>
+    </CardHeader>
+
+    <Separator />
+
+    <CardContent class="grid gap-1 px-5 sm:grid-cols-2 sm:gap-8">
+      <div>
+        <p class="text-sm text-muted-foreground">Billing period</p>
+        {#if loading}
+          <Skeleton class="mt-2 h-5 w-48" />
+        {:else}
+          <p class="mt-1 font-medium tabular-nums">
+            {billingState?.currentPeriodStart && billingState.currentPeriodEnd
+              ? `${formatDate(billingState.currentPeriodStart)} – ${formatDate(billingState.currentPeriodEnd)}`
+              : "Not available"}
+          </p>
+        {/if}
+      </div>
+
+      <div class="max-sm:mt-4">
+        <p class="text-sm text-muted-foreground">
+          {billingState?.billingStatus === "trialing"
+            ? "Trial ends"
+            : "Period ends"}
+        </p>
+        {#if loading}
+          <Skeleton class="mt-2 h-5 w-28" />
+        {:else}
+          <p class="mt-1 font-medium tabular-nums">
+            {billingState?.currentPeriodEnd
+              ? formatDate(billingState.currentPeriodEnd)
+              : "Not available"}
+          </p>
+        {/if}
+      </div>
+    </CardContent>
+  </Card>
+
+  <Card class="gap-5 py-5">
+    <CardHeader class="px-5">
+      <CardTitle>Usage this billing cycle</CardTitle>
+      <CardDescription>
+        Logs, metrics, and traces share your included ingest allowance.
+      </CardDescription>
+    </CardHeader>
+
+    <CardContent class="grid gap-5 px-5">
+      <div class="grid gap-3">
+        <div class="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+          <div>
+            <p class="text-sm font-medium">Ingest</p>
+            {#if loading}
+              <Skeleton class="mt-2 h-7 w-48" />
+            {:else}
+              <p
+                class="mt-1 text-2xl font-semibold tracking-tight tabular-nums"
+              >
+                {formatBytes(totalIngestedBytes, "GB")}
+                <span class="text-base font-normal text-muted-foreground">
+                  of {formatBytes(billingState?.ingestLimitBytes ?? 0, "GB")}
+                </span>
+              </p>
+            {/if}
           </div>
+
+          {#if !loading}
+            <p class="text-sm text-muted-foreground tabular-nums">
+              {ingestUsagePercent}% used
+            </p>
+          {/if}
         </div>
 
-        <div class="grid gap-3 md:grid-cols-3">
-          {#each signalCards as usage (usage.signal)}
-            <div class="rounded-xl border p-4">
-              <p class="text-sm text-muted-foreground capitalize">
-                {usage.signal}
+        {#if loading}
+          <Skeleton class="h-2 w-full rounded-full" />
+        {:else}
+          <Progress
+            value={ingestUsagePercent}
+            aria-label={`${ingestUsagePercent}% of included ingest used`}
+            class={cn(
+              "h-2 bg-muted/80",
+              ingestUsagePercent >= 90
+                ? "*:bg-destructive"
+                : ingestUsagePercent >= 70
+                  ? "*:bg-amber-500"
+                  : "*:bg-primary",
+            )}
+          />
+        {/if}
+      </div>
+
+      <div class="overflow-hidden rounded-lg border">
+        {#if loading}
+          {#each [1, 2, 3] as row (row)}
+            <div
+              class="grid grid-cols-3 items-center gap-3 border-b px-4 py-3 last:border-b-0"
+            >
+              <Skeleton class="h-4 w-16" />
+              <Skeleton class="h-4 w-20 justify-self-end" />
+              <Skeleton class="h-4 w-24 justify-self-end" />
+            </div>
+          {/each}
+        {:else}
+          {#each signalRows as usage (usage.signal)}
+            <div
+              class="grid grid-cols-[1fr_auto] items-center gap-x-5 gap-y-1 border-b px-4 py-3 last:border-b-0 sm:grid-cols-[1fr_auto_auto]"
+            >
+              <p class="font-medium">{usage.signal}</p>
+              <p class="text-right tabular-nums">
+                {formatBytes(usage.usedBytes, "GB")}
               </p>
-              <p class="mt-2 text-lg font-semibold text-foreground">
-                {loading
-                  ? "Loading..."
-                  : `${(usage.usedBytes / bytesPerGb).toFixed(1)} GB used`}
-              </p>
-              <p class="mt-1 text-sm text-muted-foreground">
-                {loading
-                  ? ""
-                  : `${usage.retentionDays} day retention, ${usage.usagePercent}% of plan limit`}
+              <p
+                class="col-span-2 text-muted-foreground sm:col-span-1 sm:min-w-28 sm:text-right"
+              >
+                {usage.retentionDays}-day retention
               </p>
             </div>
           {/each}
-        </div>
-
-        {#if billingState?.chatUsage}
-          <div class="rounded-xl border p-4">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p class="text-sm text-muted-foreground">Scout credits</p>
-                <p class="mt-2 text-lg font-semibold text-foreground">
-                  {billingState.chatUsage.remainingCredits.toLocaleString()} remaining
-                </p>
-              </div>
-              <p class="text-sm text-muted-foreground">
-                {billingState.chatUsage.includedCredits.toLocaleString()} included
-                per period
-              </p>
-            </div>
-          </div>
         {/if}
-      </CardContent>
-    </Card>
+      </div>
 
-    <Card>
-      <CardHeader class="gap-1">
-        <CardTitle>Enterprise</CardTitle>
-        <CardDescription>
-          Custom retention, custom limits, and tailored commercial terms.
-        </CardDescription>
-      </CardHeader>
-      <CardContent class="grid gap-4">
-        <p class="text-sm text-muted-foreground">
-          If you need custom data retention, volume, or support requirements,
-          talk to the team.
-        </p>
-        <Button variant="outline" href="mailto:team@orvo.sh">
-          Contact sales
-        </Button>
-      </CardContent>
-    </Card>
-  </div>
+      {#if loading || billingState?.chatUsage}
+        <Separator />
 
-  <div class="grid gap-6 xl:grid-cols-3">
-    {#each planCards as plan (plan.key)}
-      <Card class="border-border/80">
-        <CardHeader class="gap-1">
-          <CardTitle>{plan.name}</CardTitle>
-          <CardDescription>{plan.priceLabel}</CardDescription>
-        </CardHeader>
-        <CardContent class="grid gap-4">
-          <div class="space-y-1 text-sm text-muted-foreground">
-            {#if plan.includedGb !== null}
-              <p>Ingest: {plan.includedGb} GB / month</p>
-            {/if}
-            {#if plan.chatCreditsIncluded !== null}
-              <p>
-                Scout: {plan.chatCreditsIncluded.toLocaleString()} credits / month
+        <div class="grid gap-3">
+          <div class="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+            <div>
+              <p class="text-sm font-medium">Scout credits</p>
+              {#if loading}
+                <Skeleton class="mt-2 h-6 w-44" />
+              {:else if billingState?.chatUsage}
+                <p
+                  class="mt-1 text-lg font-semibold tracking-tight tabular-nums"
+                >
+                  {billingState.chatUsage.usedCredits.toLocaleString()}
+                  <span class="text-sm font-normal text-muted-foreground">
+                    of {billingState.chatUsage.includedCredits.toLocaleString()} used
+                  </span>
+                </p>
+              {/if}
+            </div>
+
+            {#if billingState?.chatUsage}
+              <p class="text-sm text-muted-foreground tabular-nums">
+                {billingState.chatUsage.remainingCredits.toLocaleString()} remaining
               </p>
-            {/if}
-            {#if plan.retentionDays}
-              <p>Logs retention: {plan.retentionDays.logs} days</p>
-              <p>Metrics retention: {plan.retentionDays.metrics} days</p>
-              <p>Traces retention: {plan.retentionDays.traces} days</p>
-            {/if}
-            {#if plan.overagePricePerGb}
-              <p>${plan.overagePricePerGb.toFixed(2)} / GB overage</p>
             {/if}
           </div>
 
-          {#if plan.key === "enterprise"}
-            <Button variant="outline" href="mailto:team@orvo.sh">
-              Contact sales
-            </Button>
-          {:else}
-            <Button
-              disabled={loading || portalLoading}
-              loading={portalLoading}
-              variant="outline"
-              onclick={openPortal}
-            >
-              Manage plan
-            </Button>
+          {#if loading}
+            <Skeleton class="h-2 w-full rounded-full" />
+          {:else if billingState?.chatUsage}
+            {@const scoutUsagePercent = billingState.chatUsage.includedCredits
+              ? Math.min(
+                  100,
+                  Math.round(
+                    (billingState.chatUsage.usedCredits /
+                      billingState.chatUsage.includedCredits) *
+                      100,
+                  ),
+                )
+              : 0}
+            <Progress
+              value={scoutUsagePercent}
+              aria-label={`${scoutUsagePercent}% of included Scout credits used`}
+              class={cn(
+                "h-2 bg-muted/80",
+                scoutUsagePercent >= 90
+                  ? "*:bg-destructive"
+                  : scoutUsagePercent >= 70
+                    ? "*:bg-amber-500"
+                    : "*:bg-primary",
+              )}
+            />
           {/if}
-        </CardContent>
-      </Card>
-    {/each}
+        </div>
+      {/if}
+    </CardContent>
+  </Card>
+
+  <Card class="gap-5 py-5">
+    <CardHeader class="px-5">
+      <CardTitle>Plan details</CardTitle>
+      <CardDescription>Your current monthly allowances.</CardDescription>
+    </CardHeader>
+
+    <CardContent class="grid gap-5 px-5 sm:grid-cols-3">
+      <div>
+        <p class="text-sm text-muted-foreground">Included ingest</p>
+        {#if loading}
+          <Skeleton class="mt-2 h-5 w-20" />
+        {:else}
+          <p class="mt-1 font-medium tabular-nums">
+            {formatBytes(billingState?.ingestLimitBytes ?? 0, "GB")} / month
+          </p>
+        {/if}
+      </div>
+
+      <div>
+        <p class="text-sm text-muted-foreground">Data retention</p>
+        {#if loading}
+          <Skeleton class="mt-2 h-5 w-20" />
+        {:else}
+          <p class="mt-1 font-medium">
+            {billingState
+              ? `${billingState.logsRetentionDays} days`
+              : "Not available"}
+          </p>
+        {/if}
+      </div>
+
+      <div>
+        <p class="text-sm text-muted-foreground">Additional ingest</p>
+        {#if loading}
+          <Skeleton class="mt-2 h-5 w-24" />
+        {:else}
+          <p class="mt-1 font-medium tabular-nums">
+            {currentPlan?.overagePricePerGb
+              ? `$${currentPlan.overagePricePerGb.toFixed(2)} / GB`
+              : "Not available"}
+          </p>
+        {/if}
+      </div>
+    </CardContent>
+  </Card>
+
+  <div
+    class="flex flex-col gap-4 rounded-xl border bg-muted/40 p-5 sm:flex-row sm:items-center sm:justify-between"
+  >
+    <div>
+      <p class="font-medium">Need higher limits?</p>
+      <p class="mt-1 text-sm text-muted-foreground">
+        Talk to us about custom ingest, retention, and support.
+      </p>
+    </div>
+    <Button variant="outline" href="mailto:team@orvo.sh">
+      Contact sales
+      <IconArrowUpRight data-slot="button-icon" />
+    </Button>
   </div>
 </div>

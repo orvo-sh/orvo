@@ -152,6 +152,7 @@ const createServerContainer = (logger: Logger) => {
           webhookSecret: env.STRIPE_WEBHOOK_SECRET,
           starterPriceId: env.STRIPE_STARTER_PRICE_ID,
           proPriceId: env.STRIPE_PRO_PRICE_ID,
+          trialDays: 14,
         }
       : undefined,
   });

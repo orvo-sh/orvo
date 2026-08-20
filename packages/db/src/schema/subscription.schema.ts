@@ -7,6 +7,7 @@ import {
   timestamp,
   uniqueIndex
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 const subscription = pgTable(
   'subscription',
@@ -37,6 +38,11 @@ const subscription = pgTable(
   (table) => [
     index('subscription_reference_id_idx').on(table.referenceId),
     index('subscription_status_idx').on(table.status),
+    uniqueIndex('subscription_reference_live_uidx')
+      .on(table.referenceId)
+      .where(
+        sql`${table.status} in ('active', 'trialing', 'paused', 'past_due', 'unpaid', 'incomplete')`
+      ),
     uniqueIndex('subscription_stripe_subscription_id_uidx').on(table.stripeSubscriptionId)
   ]
 );

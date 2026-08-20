@@ -38,6 +38,7 @@ const createAuth = (
       webhookSecret: string;
       starterPriceId: string;
       proPriceId: string;
+      trialDays: number;
     };
   },
 ) => {
@@ -188,10 +189,12 @@ const createAuth = (
                 {
                   name: "starter",
                   priceId: config.stripe.starterPriceId,
+                  freeTrial: { days: config.stripe.trialDays },
                 },
                 {
                   name: "pro",
                   priceId: config.stripe.proPriceId,
+                  freeTrial: { days: config.stripe.trialDays },
                 },
               ],
               authorizeReference: async ({ user, referenceId }) => {
@@ -206,10 +209,13 @@ const createAuth = (
 
                 return currentMember?.role === "owner";
               },
-              getCheckoutSessionParams: async ({ user }) => ({
+              getCheckoutSessionParams: async ({ user, subscription }) => ({
                 params: {
                   payment_method_collection: "if_required",
                   customer_email: user.email,
+                },
+                options: {
+                  idempotencyKey: `orvo-subscription-checkout-${subscription.id}`,
                 },
               }),
               onSubscriptionCreated: async ({ subscription }) =>

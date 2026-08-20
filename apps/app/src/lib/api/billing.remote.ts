@@ -30,7 +30,7 @@ export const getBillingStateQuery = query(
 
 export const createBillingPortalCommand = command(
   createBillingPortalInputSchema,
-  () => {
+  (input) => {
     const event = getRequestEvent();
     const organizationId = getActiveOrganizationId(event);
 
@@ -43,7 +43,7 @@ export const createBillingPortalCommand = command(
     }
 
     return event.locals.container.billingService.createBillingPortalSession(
-      {},
+      input,
       {
         organizationId,
         userId: event.locals.auth!.user.id,
@@ -72,6 +72,9 @@ export const startFreeTrialCommand = command(
     return event.locals.container.billingService.startFreeTrial(input, {
       organizationId,
       userId: event.locals.auth!.user.id,
+      headers: event.request.headers,
+      origin: event.url.origin,
+      authService: event.locals.container.authService,
     });
   },
 );

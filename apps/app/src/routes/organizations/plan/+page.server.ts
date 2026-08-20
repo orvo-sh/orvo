@@ -13,7 +13,14 @@ export const load = (async (event) => {
 
   if (!billingState.success) error(500, billingState.error);
 
-  if (billingState.data.billingPlan) {
+  const accessState =
+    await event.locals.container.billingService.getOrganizationAccessState({
+      organizationId,
+    });
+
+  if (!accessState.success) error(500, accessState.error);
+
+  if (accessState.data.hasAccess) {
     const appsResult = await event.locals.container.appService.listApps({
       organizationId,
     });
@@ -28,5 +35,6 @@ export const load = (async (event) => {
 
   return {
     organizationId,
+    canStartTrial: billingState.data.trialStart === null,
   };
 }) satisfies PageServerLoad;

@@ -1,114 +1,139 @@
 import { recordError } from "$lib/instrumentation";
+import type { Auth } from "$lib/server/auth";
 import type { DB } from "@repo/db";
-import { organization } from "@repo/db/schema";
+import { organization, subscription } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
-import { eq } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import Stripe from "stripe";
 import { z } from "zod";
 
 import { startFreeTrialInputSchema } from "../schema";
+import { readRedirectUrl } from "../shared";
 
-const createStartFreeTrial = ({
-  db,
-  logger,
-  stripe,
-  config,
-  isOrganizationOwner,
-  getCurrentSubscription,
-  readStripePriceId,
-  syncStripeSubscriptionState,
-}: {
-  db: DB;
-  logger: Logger;
-  stripe: Stripe;
-  config: { trialDays: number };
-  isOrganizationOwner: (organizationId: string, userId: string) => Promise<boolean>;
-  getCurrentSubscription: (organizationId: string) => Promise<any>;
-  readStripePriceId: (plan: "starter" | "pro") => string;
-  syncStripeSubscriptionState: (context: {
-    organizationId: string;
-    plan: "starter" | "pro";
-    stripeSubscription: Stripe.Subscription;
-  }) => Promise<void>;
-}) => async (
-  input: z.input<typeof startFreeTrialInputSchema>,
-  context: { organizationId: string; userId: string },
-) => {
-  const validated = startFreeTrialInputSchema.safeParse(input);
-  if (!validated.success) {
-    return err(validated.error.message);
-  }
-
-  try {
-    if (!(await isOrganizationOwner(context.organizationId, context.userId))) {
-      return err("Only organization owners can start a trial.");
+const createStartFreeTrial =
+  ({
+    db,
+    logger,
+    stripe,
+    isOrganizationOwner,
+  }: {
+    db: DB;
+    logger: Logger;
+    stripe: Stripe;
+    isOrganizationOwner: (
+      organizationId: string,
+      userId: string,
+    ) => Promise<boolean>;
+  }) =>
+  async (
+    input: z.input<typeof startFreeTrialInputSchema>,
+    context: {
+      organizationId: string;
+      userId: string;
+      headers: Headers;
+      origin: string;
+      authService: Auth;
+    },
+  ) => {
+    const validated = startFreeTrialInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
     }
 
-    const currentOrganization = await db.query.organization.findFirst({
-      where: eq(organization.id, context.organizationId),
-    });
+    try {
+      if (
+        !(await isOrganizationOwner(context.organizationId, context.userId))
+      ) {
+        return err("Only organization owners can manage billing.");
+      }
 
-    if (!currentOrganization) {
-      return err("Organization not found.");
-    }
+      return await db.transaction(async (tx) => {
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${context.organizationId}))`,
+        );
 
-    const currentSubscription = await getCurrentSubscription(context.organizationId);
+        const currentOrganization = await tx.query.organization.findFirst({
+          columns: { stripeCustomerId: true },
+          where: eq(organization.id, context.organizationId),
+        });
+        if (!currentOrganization) {
+          return err("Organization not found.");
+        }
 
-    if (
-      currentSubscription &&
-      ["trialing", "active", "past_due", "paused", "unpaid"].includes(
-        currentSubscription.status,
-      )
-    ) {
-      return err("This organization already has a subscription.");
-    }
+        if (currentOrganization.stripeCustomerId) {
+          const stripeSubscriptions = await stripe.subscriptions.list({
+            customer: currentOrganization.stripeCustomerId,
+            status: "all",
+            limit: 100,
+          });
 
-    let stripeCustomerId = currentOrganization.stripeCustomerId;
-    if (!stripeCustomerId) {
-      const stripeCustomer = await stripe.customers.create({
-        name: currentOrganization.name,
-        metadata: {
-          organizationId: currentOrganization.id,
-          customerType: "organization",
-        },
+          if (
+            stripeSubscriptions.data.some((candidate) =>
+              [
+                "active",
+                "trialing",
+                "paused",
+                "past_due",
+                "unpaid",
+                "incomplete",
+              ].includes(candidate.status),
+            )
+          ) {
+            return err("This organization already has a subscription.");
+          }
+        }
+
+        await tx
+          .delete(subscription)
+          .where(
+            and(
+              eq(subscription.referenceId, context.organizationId),
+              eq(subscription.status, "incomplete"),
+              lt(
+                subscription.updatedAt,
+                new Date(Date.now() - 24 * 60 * 60 * 1_000),
+              ),
+            ),
+          );
+
+        const result = await context.authService.api.upgradeSubscription({
+          body: {
+            plan: validated.data.plan,
+            customerType: "organization",
+            referenceId: context.organizationId,
+            successUrl: new URL(
+              "/apps/new?checkout=success",
+              context.origin,
+            ).toString(),
+            cancelUrl: new URL(
+              "/organizations/plan?checkout=cancelled",
+              context.origin,
+            ).toString(),
+            returnUrl: new URL(
+              "/organizations/plan",
+              context.origin,
+            ).toString(),
+            disableRedirect: true,
+          },
+          headers: context.headers,
+        });
+
+        const checkoutUrl = readRedirectUrl(result);
+        if (!checkoutUrl) {
+          return err("Failed to open billing checkout.");
+        }
+
+        return ok({ url: checkoutUrl });
       });
-
-      stripeCustomerId = stripeCustomer.id;
-
-      await db
-        .update(organization)
-        .set({ stripeCustomerId })
-        .where(eq(organization.id, currentOrganization.id));
+    } catch (error) {
+      recordError(error);
+      logger.error(
+        "startFreeTrial: failed to open billing checkout",
+        error as Error,
+      );
+      return err("Failed to open billing checkout.");
     }
-
-    const stripeSubscription = await stripe.subscriptions.create({
-      customer: stripeCustomerId,
-      items: [{ price: readStripePriceId(validated.data.plan) }],
-      trial_period_days: config.trialDays,
-      metadata: {
-        userId: context.userId,
-        referenceId: context.organizationId,
-      },
-      trial_settings: {
-        end_behavior: {
-          missing_payment_method: "cancel",
-        },
-      },
-    });
-
-    await syncStripeSubscriptionState({
-      organizationId: context.organizationId,
-      plan: validated.data.plan,
-      stripeSubscription,
-    });
-
-    return ok({ id: stripeSubscription.id });
-  } catch (error) {
-    recordError(error);
-    logger.error("Failed to start free trial", error as Error);
-    return err("Failed to start the free trial.");
-  }
-};
+  };
 
 export { createStartFreeTrial };
