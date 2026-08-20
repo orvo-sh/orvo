@@ -13,17 +13,6 @@ const CHAT_ATTACHMENT_MEDIA_TYPES = [
 ] as const;
 
 const PLANS = {
-  starter: {
-    priceUsd: 19,
-    retentionDays: {
-      logs: 14,
-      metrics: 14,
-      traces: 14,
-    },
-    ingestLimitBytes: 50 * Math.pow(1024, 3),
-    chatCreditsIncluded: 150_000,
-    overagePricePerGb: null,
-  },
   pro: {
     priceUsd: 49,
     retentionDays: {
@@ -34,6 +23,7 @@ const PLANS = {
     ingestLimitBytes: 150 * Math.pow(1024, 3),
     chatCreditsIncluded: 1_200_000,
     overagePricePerGb: 0.32,
+    scoutOveragePricePerMillionCredits: 1,
   },
 };
 

@@ -113,7 +113,8 @@ func (service *service) ReserveSignalUsage(ctx context.Context, input ReserveSig
 		Notified100At:        pgutil.TimestampFromPtr(notified100At),
 	}
 
-	if totalIngestedBytes > organizationUsage.IngestLimitBytes {
+	if totalIngestedBytes > organizationUsage.IngestLimitBytes &&
+		!(billingState.PlanKey == "pro" && billingState.Status == "active") {
 		return errs.ErrBillingQuotaExceeded
 	}
 

@@ -36,8 +36,9 @@ const createAuth = (
     stripe?: {
       client: Stripe;
       webhookSecret: string;
-      starterPriceId: string;
       proPriceId: string;
+      ingestOveragePriceId: string;
+      scoutOveragePriceId: string;
       trialDays: number;
     };
   },
@@ -187,13 +188,12 @@ const createAuth = (
               enabled: true,
               plans: [
                 {
-                  name: "starter",
-                  priceId: config.stripe.starterPriceId,
-                  freeTrial: { days: config.stripe.trialDays },
-                },
-                {
                   name: "pro",
                   priceId: config.stripe.proPriceId,
+                  lineItems: [
+                    { price: config.stripe.ingestOveragePriceId },
+                    { price: config.stripe.scoutOveragePriceId },
+                  ],
                   freeTrial: { days: config.stripe.trialDays },
                 },
               ],
@@ -223,9 +223,7 @@ const createAuth = (
               onSubscriptionComplete: async ({ subscription }) =>
                 void (await billingService.onSubscriptionCreated(subscription)),
               onSubscriptionUpdate: async ({ subscription }) =>
-                await billingService.onSubscriptonChanged({
-                  organizationId: subscription.referenceId,
-                }),
+                void (await billingService.onSubscriptionCreated(subscription)),
               onSubscriptionDeleted: async ({ subscription }) =>
                 await billingService.onSubscriptionDeleted({
                   organizationId: subscription.referenceId,

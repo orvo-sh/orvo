@@ -62,6 +62,16 @@ const email =
     : null;
 const encryption = new Encryption({ secret: env.ENCRYPTION_SECRET });
 
+const createBillingService = (logger: Logger) =>
+  stripe
+    ? new BillingService(db, logger, email!, stripe, {
+        proPriceId: env.STRIPE_PRO_PRICE_ID,
+        trialDays: 14,
+        ingestEventName: "orvo_ingest_bytes_cumulative",
+        scoutEventName: "orvo_scout_credits_cumulative",
+      })
+    : null;
+
 const createServerContainer = (logger: Logger) => {
   const ingestionKeyService = new IngestionKeyService(db, logger);
   const agentService = new AgentService(
@@ -122,14 +132,10 @@ const createServerContainer = (logger: Logger) => {
     { otlpBaseUrl: env.INGEST_BASE_URL },
     logger,
   );
-  const chatUsageService = new ChatUsageService(db, logger);
-  const billingService = stripe
-    ? new BillingService(db, logger, email!, stripe, {
-        starterPriceId: env.STRIPE_STARTER_PRICE_ID,
-        proPriceId: env.STRIPE_PRO_PRICE_ID,
-        trialDays: 14,
-      })
-    : null;
+  const chatUsageService = new ChatUsageService(db, logger, {
+    allowUnmetered: mode === "local",
+  });
+  const billingService = createBillingService(logger);
   const uploadService = new UploadService(logger, storage, {
     cdnBaseUrl: env.CDN_BASE_URL,
     maxUploadSizeBytes: MAX_UPLOAD_FILE_SIZE_BYTES,
@@ -150,8 +156,9 @@ const createServerContainer = (logger: Logger) => {
       ? {
           client: stripe,
           webhookSecret: env.STRIPE_WEBHOOK_SECRET,
-          starterPriceId: env.STRIPE_STARTER_PRICE_ID,
           proPriceId: env.STRIPE_PRO_PRICE_ID,
+          ingestOveragePriceId: env.STRIPE_INGEST_OVERAGE_PRICE_ID,
+          scoutOveragePriceId: env.STRIPE_SCOUT_OVERAGE_PRICE_ID,
           trialDays: 14,
         }
       : undefined,
@@ -212,6 +219,7 @@ const createServerContainer = (logger: Logger) => {
 };
 
 const createWorkerContainer = (logger: Logger) => {
+  const billingService = createBillingService(logger);
   const notificationDeliveryService = new NotificationDeliveryService(
     db,
     logger,
@@ -231,6 +239,7 @@ const createWorkerContainer = (logger: Logger) => {
   );
 
   return {
+    billingService,
     clickhouse,
     db,
     heartbeatService,

@@ -1,0 +1,2 @@
+ALTER TABLE "organization_usage" ADD COLUMN "stripe_ingest_bytes_reported" bigint DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "organization_usage" ADD COLUMN "stripe_chat_credits_reported" bigint DEFAULT 0 NOT NULL;

@@ -5,6 +5,7 @@ order: 3
 previous: reference/environment-variables
 next: reference/error-codes
 ---
+
 # Limits
 
 This page documents product limits that are visible in the current codebase, plus a few practical query caps that affect day-to-day use.
@@ -13,14 +14,12 @@ This page documents product limits that are visible in the current codebase, plu
 
 Current plan defaults:
 
-- Starter: 14 days for logs, metrics, and traces
 - Pro: 30 days for logs, metrics, and traces
 
 ## Included ingestion volume
 
 Current plan defaults:
 
-- Starter: 50 GB included ingestion
 - Pro: 150 GB included ingestion
 
 ## Upload size

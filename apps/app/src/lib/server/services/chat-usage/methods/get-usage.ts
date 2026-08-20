@@ -5,7 +5,15 @@ import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
 
 const createGetUsage =
-  ({ db, logger }: { db: DB; logger: Logger }) =>
+  ({
+    db,
+    logger,
+    config,
+  }: {
+    db: DB;
+    logger: Logger;
+    config: { allowUnmetered: boolean };
+  }) =>
   async (context: { organizationId: string }) => {
     try {
       const usage = await db.query.organizationUsage.findFirst({
@@ -13,6 +21,11 @@ const createGetUsage =
           chatCreditsIncluded: true,
           chatCreditsUsed: true,
           currentPeriodEnd: true,
+        },
+        with: {
+          organization: {
+            columns: { billingPlan: true, billingStatus: true },
+          },
         },
         where: eq(organizationUsage.organizationId, context.organizationId),
       });
@@ -30,6 +43,10 @@ const createGetUsage =
         includedCredits: usage.chatCreditsIncluded,
         usedCredits: usage.chatCreditsUsed,
         remainingCredits,
+        canUseOverage:
+          config.allowUnmetered ||
+          (usage.organization.billingPlan === "pro" &&
+            usage.organization.billingStatus === "active"),
         periodEnd: usage.currentPeriodEnd,
       });
     } catch (error) {

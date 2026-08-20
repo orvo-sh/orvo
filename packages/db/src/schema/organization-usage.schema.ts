@@ -21,6 +21,12 @@ const organizationUsage = pgTable(
     ingestLimitBytes: bigint('ingest_limit_bytes', { mode: 'number' }).notNull(),
     chatCreditsIncluded: bigint('chat_credits_included', { mode: 'number' }).notNull().default(0),
     chatCreditsUsed: bigint('chat_credits_used', { mode: 'number' }).notNull().default(0),
+    stripeIngestBytesReported: bigint('stripe_ingest_bytes_reported', { mode: 'number' })
+      .notNull()
+      .default(0),
+    stripeChatCreditsReported: bigint('stripe_chat_credits_reported', { mode: 'number' })
+      .notNull()
+      .default(0),
     notified70At: timestamp('notified_70_at'),
     notified85At: timestamp('notified_85_at'),
     notified100At: timestamp('notified_100_at'),

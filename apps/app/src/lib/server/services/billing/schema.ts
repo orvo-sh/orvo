@@ -5,7 +5,7 @@ const createBillingPortalInputSchema = z.object({
   appId: z.string().trim().startsWith("app_").max(64),
 });
 const startFreeTrialInputSchema = z.object({
-  plan: z.enum(["starter", "pro"]),
+  plan: z.literal("pro"),
 });
 const updateBillingEmailInputSchema = z.object({
   billingEmail: z.string().trim().email().max(255),

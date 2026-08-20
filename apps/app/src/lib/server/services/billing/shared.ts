@@ -70,144 +70,132 @@ const readRedirectUrl = (result: unknown) => {
   return null;
 };
 
-const createIsOrganizationOwner = ({
-  db,
-}: {
-  db: DB;
-}) => async (organizationId: string, userId: string) => {
-  const currentMember = await db.query.member.findFirst({
-    where: and(
-      eq(member.organizationId, organizationId),
-      eq(member.userId, userId),
-    ),
-  });
-
-  return currentMember?.role === "owner";
-};
-
-const createGetCurrentSubscription = ({
-  db,
-}: {
-  db: DB;
-}) => async (organizationId: string) => {
-  const subscriptions = await db.query.subscription.findMany({
-    where: eq(subscription.referenceId, organizationId),
-    orderBy: [desc(subscription.periodEnd), desc(subscription.trialEnd)],
-  });
-
-  return (
-    subscriptions.find((candidate) =>
-      [
-        "active",
-        "trialing",
-        "paused",
-        "past_due",
-        "unpaid",
-        "incomplete",
-      ].includes(candidate.status),
-    ) ??
-    subscriptions[0] ??
-    null
-  );
-};
-
-const createReadStripePriceId = ({
-  config,
-}: {
-  config: { starterPriceId: string; proPriceId: string };
-}) => (plan: "starter" | "pro") =>
-  plan === "starter" ? config.starterPriceId : config.proPriceId;
-
-const createSyncStripeSubscriptionState = ({
-  db,
-  config,
-}: {
-  db: DB;
-  config: { trialDays: number };
-}) => async (context: {
-  organizationId: string;
-  plan: "starter" | "pro";
-  stripeSubscription: Stripe.Subscription;
-}) => {
-  const plan = {
-    starter: PLANS.starter,
-    pro: PLANS.pro,
-  }[context.plan];
-
-  const periodStart = readStripeSubscriptionPeriodStart(
-    context.stripeSubscription,
-  );
-  const periodEnd = readStripeSubscriptionPeriodEnd(context.stripeSubscription);
-  const fallbackStart =
-    context.stripeSubscription.trial_start ?? Math.floor(Date.now() / 1000);
-  const fallbackEnd =
-    context.stripeSubscription.trial_end ??
-    addDays(new Date(), config.trialDays).getTime() / 1000;
-
-  await db.transaction(async (tx) => {
-    await tx
-      .update(organization)
-      .set({
-        billingPlan: context.plan,
-        billingStatus:
-          context.stripeSubscription.status === "active"
-            ? "active"
-            : "trialing",
-      })
-      .where(eq(organization.id, context.organizationId));
-
-    const currentOrganizationUsage = await tx.query.organizationUsage.findFirst({
-      columns: { currentPeriodStart: true },
-      where: eq(organizationUsage.organizationId, context.organizationId),
+const createIsOrganizationOwner =
+  ({ db }: { db: DB }) =>
+  async (organizationId: string, userId: string) => {
+    const currentMember = await db.query.member.findFirst({
+      where: and(
+        eq(member.organizationId, organizationId),
+        eq(member.userId, userId),
+      ),
     });
-    const newPeriodStart = new Date((periodStart ?? fallbackStart) * 1000);
-    const periodChanged =
-      currentOrganizationUsage?.currentPeriodStart.getTime() !==
-      newPeriodStart.getTime();
 
-    const organizationUsageValues = {
-      logsRetentionDays: plan.retentionDays.logs,
-      tracesRetentionDays: plan.retentionDays.traces,
-      metricsRetentionDays: plan.retentionDays.metrics,
-      currentPeriodStart: newPeriodStart,
-      currentPeriodEnd: new Date((periodEnd ?? fallbackEnd) * 1000),
-      ingestLimitBytes: plan.ingestLimitBytes,
-      chatCreditsIncluded: plan.chatCreditsIncluded,
-    };
+    return currentMember?.role === "owner";
+  };
 
-    if (currentOrganizationUsage) {
+const createGetCurrentSubscription =
+  ({ db }: { db: DB }) =>
+  async (organizationId: string) => {
+    const subscriptions = await db.query.subscription.findMany({
+      where: eq(subscription.referenceId, organizationId),
+      orderBy: [desc(subscription.periodEnd), desc(subscription.trialEnd)],
+    });
+
+    return (
+      subscriptions.find((candidate) =>
+        [
+          "active",
+          "trialing",
+          "paused",
+          "past_due",
+          "unpaid",
+          "incomplete",
+        ].includes(candidate.status),
+      ) ??
+      subscriptions[0] ??
+      null
+    );
+  };
+
+const createSyncStripeSubscriptionState =
+  ({ db, config }: { db: DB; config: { trialDays: number } }) =>
+  async (context: {
+    organizationId: string;
+    plan: "pro";
+    stripeSubscription: Stripe.Subscription;
+  }) => {
+    const plan = PLANS.pro;
+
+    const periodStart = readStripeSubscriptionPeriodStart(
+      context.stripeSubscription,
+    );
+    const periodEnd = readStripeSubscriptionPeriodEnd(
+      context.stripeSubscription,
+    );
+    const fallbackStart =
+      context.stripeSubscription.trial_start ?? Math.floor(Date.now() / 1000);
+    const fallbackEnd =
+      context.stripeSubscription.trial_end ??
+      addDays(new Date(), config.trialDays).getTime() / 1000;
+
+    await db.transaction(async (tx) => {
       await tx
-        .update(organizationUsage)
+        .update(organization)
         .set({
-          ...organizationUsageValues,
-          ...(periodChanged
-            ? {
-                logsIngestedBytes: 0,
-                tracesIngestedBytes: 0,
-                metricsIngestedBytes: 0,
-                chatCreditsUsed: 0,
-                notified70At: null,
-                notified85At: null,
-                notified100At: null,
-              }
-            : {}),
+          billingPlan: context.plan,
+          billingStatus:
+            context.stripeSubscription.status === "active"
+              ? "active"
+              : context.stripeSubscription.status === "trialing"
+                ? "trialing"
+                : "past_due",
         })
-        .where(eq(organizationUsage.organizationId, context.organizationId));
-    } else {
-      await tx.insert(organizationUsage).values({
-        id: genId("orgu"),
-        organizationId: context.organizationId,
-        ...organizationUsageValues,
-      });
-    }
-  });
-};
+        .where(eq(organization.id, context.organizationId));
+
+      const currentOrganizationUsage =
+        await tx.query.organizationUsage.findFirst({
+          columns: { currentPeriodStart: true },
+          where: eq(organizationUsage.organizationId, context.organizationId),
+        });
+      const newPeriodStart = new Date((periodStart ?? fallbackStart) * 1000);
+      const periodChanged =
+        currentOrganizationUsage?.currentPeriodStart.getTime() !==
+        newPeriodStart.getTime();
+
+      const organizationUsageValues = {
+        logsRetentionDays: plan.retentionDays.logs,
+        tracesRetentionDays: plan.retentionDays.traces,
+        metricsRetentionDays: plan.retentionDays.metrics,
+        currentPeriodStart: newPeriodStart,
+        currentPeriodEnd: new Date((periodEnd ?? fallbackEnd) * 1000),
+        ingestLimitBytes: plan.ingestLimitBytes,
+        chatCreditsIncluded: plan.chatCreditsIncluded,
+      };
+
+      if (currentOrganizationUsage) {
+        await tx
+          .update(organizationUsage)
+          .set({
+            ...organizationUsageValues,
+            ...(periodChanged
+              ? {
+                  logsIngestedBytes: 0,
+                  tracesIngestedBytes: 0,
+                  metricsIngestedBytes: 0,
+                  chatCreditsUsed: 0,
+                  stripeIngestBytesReported: 0,
+                  stripeChatCreditsReported: 0,
+                  notified70At: null,
+                  notified85At: null,
+                  notified100At: null,
+                }
+              : {}),
+          })
+          .where(eq(organizationUsage.organizationId, context.organizationId));
+      } else {
+        await tx.insert(organizationUsage).values({
+          id: genId("orgu"),
+          organizationId: context.organizationId,
+          ...organizationUsageValues,
+        });
+      }
+    });
+  };
 
 export {
   billingStatusHasAccess,
   createGetCurrentSubscription,
   createIsOrganizationOwner,
-  createReadStripePriceId,
   createSyncStripeSubscriptionState,
   readRedirectUrl,
 };

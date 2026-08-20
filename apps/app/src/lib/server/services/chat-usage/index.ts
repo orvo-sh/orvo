@@ -11,9 +11,9 @@ class ChatUsageService {
   private getUsageMethod: ReturnType<typeof createGetUsage>;
   private recordUsageMethod: ReturnType<typeof createRecordUsage>;
 
-  constructor(db: DB, logger: Logger) {
+  constructor(db: DB, logger: Logger, config: { allowUnmetered: boolean }) {
     const childLogger = logger.child("ChatUsageService");
-    this.getUsageMethod = createGetUsage({ db, logger: childLogger });
+    this.getUsageMethod = createGetUsage({ db, logger: childLogger, config });
     this.recordUsageMethod = createRecordUsage({ db, logger: childLogger });
   }
 
@@ -24,7 +24,7 @@ class ChatUsageService {
   async canStart(context: { organizationId: string }) {
     const usage = await this.getUsageMethod(context);
     if (!usage.success) return usage;
-    return usage.data.remainingCredits > 0
+    return usage.data.remainingCredits > 0 || usage.data.canUseOverage
       ? usage
       : err(
           "This organization has used its Scout credits for the current billing period.",

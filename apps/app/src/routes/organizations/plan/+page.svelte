@@ -11,18 +11,18 @@
 
   let { data } = $props();
 
-  let loadingPlan = $state<string | null>(null);
+  let loading = $state(false);
 
-  const startTrial = async (plan: string) => {
-    loadingPlan = plan;
+  const startTrial = async () => {
+    loading = true;
 
     await startFreeTrialCommand({
-      plan: plan as "starter" | "pro",
+      plan: "pro",
     })
       .then((result) => {
         if (!result.success) {
           toast.error(result.error || "Failed to start the free trial.");
-          loadingPlan = null;
+          loading = false;
           return;
         }
 
@@ -30,7 +30,7 @@
       })
       .catch(() => {
         toast.error("Failed to start the free trial.");
-        loadingPlan = null;
+        loading = false;
       });
   };
 </script>
@@ -48,32 +48,10 @@
       </div>
     </div>
 
-    <div class="grid gap-5 lg:grid-cols-3">
+    <div class="mx-auto grid w-full max-w-3xl gap-5 md:grid-cols-2">
       {@render planCard({
         action: {
           kind: "trial",
-          planKey: "starter",
-          buttonId: "start-starter-trial-button",
-          variant: "outline",
-        },
-        description: "For small teams getting started.",
-        features: [
-          `${PLANS.starter.ingestLimitBytes / Math.pow(1024, 3)} GB included ingest`,
-          `${PLANS.starter.retentionDays.logs} day data retention`,
-          "No fee for extra seats",
-        ],
-        includedLabel: "Included:",
-        plan: {
-          name: "Starter",
-          description: "For small teams getting started.",
-          price: `$${PLANS.starter.priceUsd}/month`,
-        },
-      })}
-
-      {@render planCard({
-        action: {
-          kind: "trial",
-          planKey: "pro",
           buttonId: "start-pro-trial-button",
           showArrow: true,
         },
@@ -82,8 +60,10 @@
           `${PLANS.pro.ingestLimitBytes / Math.pow(1024, 3)} GB included ingest`,
           `${PLANS.pro.retentionDays.logs} day data retention`,
           `$${PLANS.pro.overagePricePerGb?.toFixed(2)} / GB overage`,
+          `${(PLANS.pro.chatCreditsIncluded / 1_000_000).toFixed(1)}M Scout credits`,
+          `$${PLANS.pro.scoutOveragePricePerMillionCredits} / 1M Scout credit overage`,
         ],
-        includedLabel: "Everything in Starter plus:",
+        includedLabel: "Included:",
         plan: {
           name: "Pro",
           description: "For teams shipping production apps.",
@@ -106,7 +86,7 @@
           "Security and procurement support",
           "Priority support",
         ],
-        includedLabel: "Everything in Professional plus:",
+        includedLabel: "Everything in Pro plus:",
         plan: {
           name: "Enterprise",
           description: "For custom scale and support.",
@@ -128,7 +108,6 @@
   action:
     | {
         kind: "trial";
-        planKey: string;
         buttonId: string;
         variant?: "outline";
         showArrow?: boolean;
@@ -182,9 +161,9 @@
           type="button"
           variant={action.variant}
           class="w-full"
-          loading={loadingPlan === action.planKey}
-          disabled={loadingPlan !== null}
-          onclick={() => startTrial(action.planKey)}
+          {loading}
+          disabled={loading}
+          onclick={startTrial}
         >
           {data.canStartTrial ? "Start 14 day trial" : "Subscribe"}
           <IconArrowRight data-slot="button-icon" />

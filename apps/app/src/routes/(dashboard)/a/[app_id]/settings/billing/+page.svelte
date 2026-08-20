@@ -69,10 +69,7 @@
       : [],
   );
   const currentPlan = $derived(
-    billingState?.billingPlan === "starter" ||
-      billingState?.billingPlan === "pro"
-      ? PLANS[billingState.billingPlan]
-      : null,
+    billingState?.billingPlan === "pro" ? PLANS.pro : null,
   );
 
   const formatDate = (date: Date | string | number) =>
@@ -375,7 +372,7 @@
       <CardDescription>Your current monthly allowances.</CardDescription>
     </CardHeader>
 
-    <CardContent class="grid gap-5 px-5 sm:grid-cols-3">
+    <CardContent class="grid gap-5 px-5 sm:grid-cols-2 lg:grid-cols-4">
       <div>
         <p class="text-sm text-muted-foreground">Included ingest</p>
         {#if loading}
@@ -408,6 +405,19 @@
           <p class="mt-1 font-medium tabular-nums">
             {currentPlan?.overagePricePerGb
               ? `$${currentPlan.overagePricePerGb.toFixed(2)} / GB`
+              : "Not available"}
+          </p>
+        {/if}
+      </div>
+
+      <div>
+        <p class="text-sm text-muted-foreground">Additional Scout usage</p>
+        {#if loading}
+          <Skeleton class="mt-2 h-5 w-24" />
+        {:else}
+          <p class="mt-1 font-medium tabular-nums">
+            {currentPlan
+              ? `$${currentPlan.scoutOveragePricePerMillionCredits.toFixed(2)} / 1M credits`
               : "Not available"}
           </p>
         {/if}

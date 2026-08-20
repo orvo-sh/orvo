@@ -5,6 +5,7 @@ order: 2
 previous: reference/api
 next: reference/limits
 ---
+
 # Environment variables
 
 This page lists the environment variables that are directly visible in the current codebase and safe to document.
@@ -30,8 +31,9 @@ GITHUB_CLIENT_ID="github-oauth-client-id"
 GITHUB_CLIENT_SECRET="github-oauth-client-secret"
 STRIPE_SECRET_KEY="sk_live_or_test_..."
 STRIPE_WEBHOOK_SECRET="whsec_..."
-STRIPE_STARTER_PRICE_ID="price_..."
 STRIPE_PRO_PRICE_ID="price_..."
+STRIPE_INGEST_OVERAGE_PRICE_ID="price_..."
+STRIPE_SCOUT_OVERAGE_PRICE_ID="price_..."
 ```
 
 Optional uploads/storage:

@@ -18,7 +18,7 @@ func TestIngestLogs(t *testing.T) {
 			Suffix:     "logs",
 			Plan:       "pro",
 			Status:     "active",
-			LimitBytes: 1024 * 1024,
+			LimitBytes: 1,
 		})
 		if err != nil {
 			t.Fatalf("seed logs app: %v", err)
@@ -55,7 +55,7 @@ func TestIngestLogs(t *testing.T) {
 			ClickhouseRaw: clickhouseRaw,
 			Tests: []test.Test{
 				{
-					Name: "successful logs ingest",
+					Name: "active pro ingest continues into metered overage",
 					Input: test.HttpRequest{
 						Method: "POST",
 						URL:    "/v1/logs",

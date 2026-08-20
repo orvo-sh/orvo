@@ -5,6 +5,8 @@ describe("createStartFreeTrial", () => {
   const upgradeSubscription = vi.fn();
   const listStripeSubscriptions = vi.fn();
   const deleteWhere = vi.fn();
+  const updateWhere = vi.fn();
+  const updateSet = vi.fn(() => ({ where: updateWhere }));
   const tx = {
     execute: vi.fn(),
     query: {
@@ -13,6 +15,7 @@ describe("createStartFreeTrial", () => {
       },
     },
     delete: vi.fn(() => ({ where: deleteWhere })),
+    update: vi.fn(() => ({ set: updateSet })),
   };
   const db = {
     transaction: vi.fn((callback) => callback(tx)),
@@ -42,9 +45,20 @@ describe("createStartFreeTrial", () => {
     });
     listStripeSubscriptions.mockResolvedValue({ data: [] });
     deleteWhere.mockResolvedValue(undefined);
+    updateWhere.mockResolvedValue(undefined);
     upgradeSubscription.mockResolvedValue({
       url: "https://checkout.stripe.test/session",
     });
+  });
+
+  test("replaces a customer id left behind by another Stripe account", async () => {
+    listStripeSubscriptions.mockRejectedValue({ code: "resource_missing" });
+
+    const result = await startFreeTrial({ plan: "pro" }, context);
+
+    expect(result.success).toBe(true);
+    expect(updateSet).toHaveBeenCalledWith({ stripeCustomerId: null });
+    expect(upgradeSubscription).toHaveBeenCalledOnce();
   });
 
   test("opens one managed checkout for a resubscription", async () => {

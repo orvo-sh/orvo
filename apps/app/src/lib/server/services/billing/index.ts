@@ -12,11 +12,8 @@ import { createGetBillingState } from "./methods/get-billing-state";
 import { createGetOrganizationAccessState } from "./methods/get-organization-access-state";
 import { createOnSubscriptionCreated } from "./methods/on-subscription-created";
 import { createStartFreeTrial } from "./methods/start-free-trial";
-import {
-  createOnSubscriptionDeleted,
-  createOnSubscriptonChanged,
-  createOnTrialExpired,
-} from "./methods/subscription-lifecycle";
+import { createSyncMeterUsage } from "./methods/sync-meter-usage";
+import { createOnSubscriptionDeleted } from "./methods/subscription-lifecycle";
 import { createUpdateBillingEmail } from "./methods/update-billing-email";
 import {
   createBillingPortalInputSchema,
@@ -44,10 +41,7 @@ class BillingService {
   private onSubscriptionCreatedMethod: ReturnType<
     typeof createOnSubscriptionCreated
   >;
-  private onSubscriptonChangedMethod: ReturnType<
-    typeof createOnSubscriptonChanged
-  >;
-  private onTrialExpiredMethod: ReturnType<typeof createOnTrialExpired>;
+  private syncMeterUsageMethod: ReturnType<typeof createSyncMeterUsage>;
   private onSubscriptionDeletedMethod: ReturnType<
     typeof createOnSubscriptionDeleted
   >;
@@ -58,9 +52,10 @@ class BillingService {
     _email: Email,
     stripe: Stripe,
     config: {
-      starterPriceId: string;
       proPriceId: string;
       trialDays: number;
+      ingestEventName: string;
+      scoutEventName: string;
     },
   ) {
     this.logger = logger.child("BillingService");
@@ -106,9 +101,13 @@ class BillingService {
       stripe,
       syncStripeSubscriptionState,
     });
-    this.onSubscriptonChangedMethod = createOnSubscriptonChanged();
-    this.onTrialExpiredMethod = createOnTrialExpired();
-    this.onSubscriptionDeletedMethod = createOnSubscriptionDeleted();
+    this.syncMeterUsageMethod = createSyncMeterUsage({
+      db,
+      logger: this.logger,
+      stripe,
+      config,
+    });
+    this.onSubscriptionDeletedMethod = createOnSubscriptionDeleted({ db });
   }
 
   async getBillingState(context: { organizationId: string }) {
@@ -156,12 +155,8 @@ class BillingService {
     return this.onSubscriptionCreatedMethod(subscription);
   }
 
-  async onSubscriptonChanged(_context: { organizationId: string }) {
-    return this.onSubscriptonChangedMethod(_context);
-  }
-
-  async onTrialExpired(_context: { organizationId: string }) {
-    return this.onTrialExpiredMethod(_context);
+  async syncMeterUsage() {
+    return this.syncMeterUsageMethod();
   }
 
   async onSubscriptionDeleted(_context: { organizationId: string }) {

@@ -62,14 +62,32 @@ const createStartFreeTrial =
         }
 
         if (currentOrganization.stripeCustomerId) {
-          const stripeSubscriptions = await stripe.subscriptions.list({
-            customer: currentOrganization.stripeCustomerId,
-            status: "all",
-            limit: 100,
-          });
+          let stripeSubscriptions: Stripe.ApiList<Stripe.Subscription> | null =
+            null;
+          try {
+            stripeSubscriptions = await stripe.subscriptions.list({
+              customer: currentOrganization.stripeCustomerId,
+              status: "all",
+              limit: 100,
+            });
+          } catch (error) {
+            if (
+              typeof error !== "object" ||
+              error === null ||
+              !("code" in error) ||
+              error.code !== "resource_missing"
+            ) {
+              throw error;
+            }
+
+            await tx
+              .update(organization)
+              .set({ stripeCustomerId: null })
+              .where(eq(organization.id, context.organizationId));
+          }
 
           if (
-            stripeSubscriptions.data.some((candidate) =>
+            stripeSubscriptions?.data.some((candidate) =>
               [
                 "active",
                 "trialing",

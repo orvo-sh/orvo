@@ -8,6 +8,7 @@ import { Logger } from "@repo/logger";
 import { PgBoss } from "pg-boss";
 
 import { HeartbeatWorker } from "./heartbeat-worker";
+import { BillingMeterWorker } from "./billing-meter-worker";
 import { NotificationDeliveryWorker } from "./notification-delivery-worker";
 import { ThresholdAlertWorker } from "./threshold-alert-worker";
 import { WorkerManager } from "./worker-manager";
@@ -37,6 +38,9 @@ const startCloudWorkers = async (logger: Logger) => {
   });
   const container = createWorkerContainer(workerLogger);
   const manager = new WorkerManager(boss, workerLogger, [
+    ...(container.billingService
+      ? [new BillingMeterWorker(workerLogger, container.billingService)]
+      : []),
     new HeartbeatWorker(workerLogger, container.heartbeatService),
     new ThresholdAlertWorker(
       workerLogger,
@@ -82,7 +86,10 @@ const startLocalWorkers = async (logger: Logger) => {
     try {
       for (const worker of workers) await worker.execute();
     } catch (error) {
-      workerLogger.error("LocalWorkerRuntime: worker cycle failed", error as Error);
+      workerLogger.error(
+        "LocalWorkerRuntime: worker cycle failed",
+        error as Error,
+      );
     } finally {
       running = false;
     }

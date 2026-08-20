@@ -120,19 +120,19 @@ test("create full-user state", async ({ page }) => {
 
   await db
     .update(organization)
-    .set({ billingPlan: "starter", billingStatus: "active" })
+    .set({ billingPlan: "pro", billingStatus: "active" })
     .where(eq(organization.id, orgData.id));
 
   await db.insert(organizationUsage).values({
     id: genId("orgu"),
     organizationId: orgData.id,
-    logsRetentionDays: 14,
-    tracesRetentionDays: 14,
-    metricsRetentionDays: 14,
+    logsRetentionDays: PLANS.pro.retentionDays.logs,
+    tracesRetentionDays: PLANS.pro.retentionDays.traces,
+    metricsRetentionDays: PLANS.pro.retentionDays.metrics,
     currentPeriodStart: new Date(),
     currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    ingestLimitBytes: 50 * Math.pow(1024, 3),
-    chatCreditsIncluded: PLANS.starter.chatCreditsIncluded,
+    ingestLimitBytes: PLANS.pro.ingestLimitBytes,
+    chatCreditsIncluded: PLANS.pro.chatCreditsIncluded,
   });
 
   await page.goto("/apps/new");

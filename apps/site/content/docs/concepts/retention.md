@@ -5,6 +5,7 @@ order: 5
 previous: concepts/attributes
 next: concepts/incidents
 ---
+
 # Retention
 
 Retention is how long Orvo keeps telemetry available for querying and investigation.
@@ -25,14 +26,13 @@ In the current product plans, retention is set per organization plan level.
 
 Today the implemented defaults are:
 
-- Starter: 14 days for logs, traces, and metrics
 - Pro: 30 days for logs, traces, and metrics
 
 Heartbeats and incidents are operational data and should still be treated as live workflow features first.
 
 ## Example
 
-If your team wants to compare this week's checkout errors to a release from three weeks ago, a 14-day retention window may be too short.
+If your team wants to compare this week's checkout errors to a release from three weeks ago, Pro's 30-day retention keeps both periods available.
 
 ## Related pages
 

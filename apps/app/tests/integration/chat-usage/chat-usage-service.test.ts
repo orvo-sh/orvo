@@ -1,7 +1,7 @@
 import { ChatUsageService } from "$lib/server/services/chat-usage";
 import { createSyncStripeSubscriptionState } from "$lib/server/services/billing/shared";
 import { eq, type DB } from "@repo/db";
-import { organizationUsage } from "@repo/db/schema";
+import { organization, organizationUsage } from "@repo/db/schema";
 import {
   afterAll,
   beforeAll,
@@ -31,7 +31,9 @@ describe("ChatUsageService", () => {
     container = await startPostgresContainer();
     db = getTestDb(container.getConnectionUri());
     await applyPostgresMigrations(db);
-    service = new ChatUsageService(db, createTestLogger() as never);
+    service = new ChatUsageService(db, createTestLogger() as never, {
+      allowUnmetered: false,
+    });
   });
 
   beforeEach(async () => {
@@ -40,19 +42,19 @@ describe("ChatUsageService", () => {
     const currentOrganization = await createOrganization(db, {
       id: "org_chat_usage",
       slug: "chat-usage-org",
-      billingPlan: "starter",
+      billingPlan: "pro",
       billingStatus: "active",
     });
     await db.insert(organizationUsage).values({
       id: "orgu_chat_usage",
       organizationId: currentOrganization.id,
-      logsRetentionDays: 14,
-      tracesRetentionDays: 14,
-      metricsRetentionDays: 14,
+      logsRetentionDays: 30,
+      tracesRetentionDays: 30,
+      metricsRetentionDays: 30,
       currentPeriodStart: new Date(Date.now() - 24 * 60 * 60 * 1_000),
       currentPeriodEnd: new Date(Date.now() + 29 * 24 * 60 * 60 * 1_000),
-      ingestLimitBytes: 50 * Math.pow(1024, 3),
-      chatCreditsIncluded: 150_000,
+      ingestLimitBytes: 150 * Math.pow(1024, 3),
+      chatCreditsIncluded: 1_200_000,
     });
   });
 
@@ -67,9 +69,9 @@ describe("ChatUsageService", () => {
     expect(usage).toMatchObject({
       success: true,
       data: {
-        includedCredits: 150_000,
+        includedCredits: 1_200_000,
         usedCredits: 0,
-        remainingCredits: 150_000,
+        remainingCredits: 1_200_000,
       },
     });
   });
@@ -85,21 +87,21 @@ describe("ChatUsageService", () => {
     );
     expect(result).toMatchObject({
       success: true,
-      data: { credits: 200 },
+      data: { credits: 575 },
     });
 
     const [usage] = await db
       .select({ chatCreditsUsed: organizationUsage.chatCreditsUsed })
       .from(organizationUsage)
       .where(eq(organizationUsage.organizationId, "org_chat_usage"));
-    expect(usage.chatCreditsUsed).toBe(200);
+    expect(usage.chatCreditsUsed).toBe(575);
 
     const currentUsage = await service.getUsage({
       organizationId: "org_chat_usage",
     });
     expect(currentUsage).toMatchObject({
       success: true,
-      data: { usedCredits: 200, remainingCredits: 149_800 },
+      data: { usedCredits: 575, remainingCredits: 1_199_425 },
     });
   });
 
@@ -118,14 +120,46 @@ describe("ChatUsageService", () => {
     });
     expect(usage).toMatchObject({
       success: true,
-      data: { usedCredits: 1_000, remainingCredits: 149_000 },
+      data: { usedCredits: 1_000, remainingCredits: 1_199_000 },
     });
   });
 
-  test("blocks new chats once the period allowance is exhausted", async () => {
+  test("blocks trial chats once the period allowance is exhausted", async () => {
+    await db
+      .update(organization)
+      .set({ billingStatus: "trialing" })
+      .where(eq(organization.id, "org_chat_usage"));
     await db
       .update(organizationUsage)
-      .set({ chatCreditsUsed: 150_000 })
+      .set({ chatCreditsUsed: 1_200_000 })
+      .where(eq(organizationUsage.organizationId, "org_chat_usage"));
+
+    const canStart = await service.canStart({
+      organizationId: "org_chat_usage",
+    });
+    expect(canStart.success).toBe(false);
+  });
+
+  test("allows active subscriptions to use metered overage", async () => {
+    await db
+      .update(organizationUsage)
+      .set({ chatCreditsUsed: 1_200_000 })
+      .where(eq(organizationUsage.organizationId, "org_chat_usage"));
+
+    const canStart = await service.canStart({
+      organizationId: "org_chat_usage",
+    });
+    expect(canStart.success).toBe(true);
+  });
+
+  test("does not grant unmetered Scout usage to a legacy plan", async () => {
+    await db
+      .update(organization)
+      .set({ billingPlan: "starter" })
+      .where(eq(organization.id, "org_chat_usage"));
+    await db
+      .update(organizationUsage)
+      .set({ chatCreditsUsed: 1_200_000 })
       .where(eq(organizationUsage.organizationId, "org_chat_usage"));
 
     const canStart = await service.canStart({
@@ -142,6 +176,8 @@ describe("ChatUsageService", () => {
         tracesIngestedBytes: 20,
         metricsIngestedBytes: 30,
         chatCreditsUsed: 40,
+        stripeIngestBytesReported: 60,
+        stripeChatCreditsReported: 40,
         notified70At: new Date(),
       })
       .where(eq(organizationUsage.organizationId, "org_chat_usage"));
@@ -172,6 +208,8 @@ describe("ChatUsageService", () => {
       metricsIngestedBytes: 0,
       chatCreditsIncluded: 1_200_000,
       chatCreditsUsed: 0,
+      stripeIngestBytesReported: 0,
+      stripeChatCreditsReported: 0,
       notified70At: null,
     });
   });

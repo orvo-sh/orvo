@@ -20,21 +20,6 @@
       variant: 'outline' as const
     },
     {
-      name: 'Starter',
-      description: 'For small teams getting production visibility.',
-      price: '$19',
-      suffix: 'per month',
-      features: [
-        '50 GB included ingest',
-        '150,000 Scout credits',
-        '14-day data retention',
-        'No fee for extra seats'
-      ],
-      action: 'Start 14-day trial',
-      href: 'https://app.orvo.sh/sign-up',
-      variant: 'outline' as const
-    },
-    {
       name: 'Pro',
       description: 'For teams shipping and investigating every day.',
       price: '$49',
@@ -43,12 +28,28 @@
         '150 GB included ingest',
         '1,200,000 Scout credits',
         '30-day data retention',
-        '$0.32 per GB overage'
+        '$0.32 per GB ingest overage',
+        '$1 per 1M Scout credits'
       ],
       action: 'Start 14-day trial',
       href: 'https://app.orvo.sh/sign-up',
       variant: 'default' as const,
       recommended: true
+    },
+    {
+      name: 'Enterprise',
+      description: 'For custom scale, controls, and support.',
+      price: 'Custom',
+      suffix: 'contact sales',
+      features: [
+        'Custom ingest and retention',
+        'Custom Scout allowance',
+        'Security and procurement support',
+        'Priority support'
+      ],
+      action: 'Contact sales',
+      href: 'mailto:team@orvo.sh',
+      variant: 'outline' as const
     }
   ];
 </script>
