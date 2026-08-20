@@ -70,9 +70,9 @@
   )}
 >
   <header
-    class="sticky top-0 z-10 flex h-14 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border/90 bg-background p-3"
+    class="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border/90 bg-background p-3"
   >
-    <div class="flex min-w-0 items-center gap-2 md:flex-1">
+    <div class="flex max-w-[40%] min-w-0 items-center gap-2">
       {#if back}
         <Button
           variant="ghost"
@@ -91,7 +91,7 @@
       <div
         class={cn("flex min-w-0 items-center gap-0.5", back && "not-md:hidden")}
       >
-        <div class="flex-1">
+        <div class="min-w-0 flex-1">
           <PageContainerAppSwitcher
             apps={page.data.apps}
             currentAppId={page.data.currentApp.id}
@@ -101,24 +101,26 @@
       </div>
     </div>
 
-    <div class="flex flex-1 items-center gap-2 md:justify-center">
+    <div
+      class="absolute left-1/2 flex max-w-[40%] -translate-x-1/2 items-center gap-2"
+    >
       {#if back}
         <a
           href={back.href}
-          class="text-sm font-normal tracking-tight text-muted-foreground not-md:hidden hover:text-secondary-foreground hover:underline"
+          class="truncate text-sm font-normal tracking-tight text-muted-foreground not-md:hidden hover:text-secondary-foreground hover:underline"
           >{back.title}</a
         >
         <span class="font-normal text-muted-foreground/20 not-md:hidden">
           /
         </span>
       {/if}
-      <h1 class="text-sm font-normal tracking-tight text-foreground">
+      <h1 class="truncate text-sm font-normal tracking-tight text-foreground">
         {title}
       </h1>
     </div>
 
-    <div class="flex-1">
-      <div class="flex w-auto flex-wrap items-center justify-end gap-2">
+    <div class="ml-auto min-w-0 shrink-0">
+      <div class="flex items-center justify-end gap-2">
         {#if actions}
           {@render actions()}
         {/if}

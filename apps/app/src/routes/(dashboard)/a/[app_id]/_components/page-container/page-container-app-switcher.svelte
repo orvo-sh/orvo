@@ -28,13 +28,11 @@
 
 <Popover.Root>
   <Popover.Trigger
-    class={buttonVariants({
-      variant: "ghost",
-    })}
+    class={buttonVariants({ variant: "ghost", class: "max-w-full" })}
   >
     {@const activeApp = apps.find((app) => app.id === currentAppId)!}
-    {activeApp.name}
-    <IconSelector />
+    <span class="truncate">{activeApp.name}</span>
+    <IconSelector class="shrink-0" />
   </Popover.Trigger>
 
   <Popover.Content
