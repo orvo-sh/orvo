@@ -10,6 +10,7 @@
     IconUserCircle,
     IconUsers as UsersIcon,
     IconKey as KeyIcon,
+    IconPlugConnected,
   } from "@tabler/icons-svelte";
   import type { Snippet } from "svelte";
 
@@ -79,6 +80,22 @@
           : []),
       ],
     },
+    ...(page.data.mode === "cloud"
+      ? [
+          {
+            label: "Integrations",
+            items: [
+              {
+                href: `${settingsBasePath}/integrations/mcp`,
+                label: "MCP",
+                icon: IconPlugConnected,
+                isActive: (pathname: string) =>
+                  pathname.startsWith(`${settingsBasePath}/integrations/mcp`),
+              },
+            ],
+          },
+        ]
+      : []),
     {
       label: "Account",
       items: [
@@ -124,6 +141,7 @@
                     isActive={item.isActive(page.url.pathname)}
                   >
                     {#snippet child({ props })}
+                      <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
                       <a href={item.href} {...props}>
                         <Icon />
                         <span>{item.label}</span>

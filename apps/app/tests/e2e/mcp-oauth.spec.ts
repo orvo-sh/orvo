@@ -95,10 +95,7 @@ test("authorizes one organization and exposes useful MCP tools", async ({
   expect(
     await db.query.mcpOauthGrant.findFirst({
       where: ({ clientId, userId }, { and, eq }) =>
-        and(
-          eq(clientId, registration.client_id),
-          eq(userId, testUser!.id),
-        ),
+        and(eq(clientId, registration.client_id), eq(userId, testUser!.id)),
     }),
   ).toBeUndefined();
 
@@ -187,6 +184,41 @@ test("authorizes one organization and exposes useful MCP tools", async ({
   expect(apps.result.structuredContent.data.apps).toEqual(
     expect.arrayContaining([expect.objectContaining({ id: appId })]),
   );
+
+  await page.goto(`/a/${appId}/settings/integrations/mcp`);
+  const connection = page
+    .getByTestId("mcp-connection")
+    .filter({ hasText: "MCP end-to-end test" });
+  await expect(connection).toBeVisible();
+  await connection.getByRole("button", { name: "Revoke" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Revoke MCP end-to-end test?" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Revoke access" }).click();
+  await expect(connection).toHaveCount(0);
+
+  const revokedResponse = await fetch(`${TEST_APP_ORIGIN}/api/mcp`, {
+    method: "POST",
+    headers: {
+      accept: "application/json, text/event-stream",
+      authorization: `Bearer ${token.access_token}`,
+      "content-type": "application/json",
+      "mcp-protocol-version": "2025-11-25",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "tools/list",
+    }),
+  });
+  expect(revokedResponse.status).toBe(401);
+
+  expect(
+    await db.query.mcpOauthGrant.findFirst({
+      where: ({ clientId, userId }, { and, eq }) =>
+        and(eq(clientId, registration.client_id), eq(userId, testUser!.id)),
+    }),
+  ).toBeUndefined();
 });
 
 test("keeps OAuth machine posts narrow and rejects other cross-site forms", async () => {

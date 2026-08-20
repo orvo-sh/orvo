@@ -8,4 +8,15 @@ const upsertMcpOauthGrantInputSchema = mcpOauthClientInputSchema.extend({
   organizationId: z.string().trim().min(1),
 });
 
-export { mcpOauthClientInputSchema, upsertMcpOauthGrantInputSchema };
+const listMcpConnectionsInputSchema = z.object({});
+
+const revokeMcpConnectionInputSchema = z.object({
+  id: z.string().trim().min(1),
+});
+
+export {
+  listMcpConnectionsInputSchema,
+  mcpOauthClientInputSchema,
+  revokeMcpConnectionInputSchema,
+  upsertMcpOauthGrantInputSchema,
+};
