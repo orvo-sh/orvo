@@ -8,6 +8,7 @@
     "format": "prettier --write .",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
+    "db:migrate": "pnpm --filter app run db:migrate",
     "local:metrics": "node scripts/orvo-local-metrics.mjs"
   },
   "devDependencies": {

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."chat_context_kind" ADD VALUE 'overview' BEFORE 'trace';

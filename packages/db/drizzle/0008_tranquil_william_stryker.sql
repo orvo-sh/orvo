@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "subscription_reference_live_uidx" ON "subscription" USING btree ("reference_id") WHERE "subscription"."status" in ('active', 'trialing', 'paused', 'past_due', 'unpaid', 'incomplete');

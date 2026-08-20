@@ -50,6 +50,20 @@
       "when": 1787225776534,
       "tag": "0006_drop_scout_credit_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787242510056,
+      "tag": "0007_robust_tenebrous",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787247219216,
+      "tag": "0008_tranquil_william_stryker",
+      "breakpoints": true
     }
   ]
 }
