@@ -13,6 +13,8 @@ export default defineConfig({
   },
   plugins: [tailwindcss(), sveltekit()],
   server: {
-    allowedHosts: ["decie2.local"]
-  }
+    port: 5173,
+    strictPort: true,
+    allowedHosts: ["decie2.local"],
+  },
 });
