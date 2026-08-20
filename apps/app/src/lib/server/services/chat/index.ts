@@ -5,7 +5,7 @@ import type { HeartbeatService } from "$lib/server/services/heartbeat";
 import type { IncidentService } from "$lib/server/services/incident";
 import type { LogsService } from "$lib/server/services/logs";
 import type { MetricsService } from "$lib/server/services/metrics";
-import type { ScoutCreditService } from "$lib/server/services/scout-credit";
+import type { ChatUsageService } from "$lib/server/services/chat-usage";
 import type { TracesService } from "$lib/server/services/traces";
 import type { DB } from "@repo/db";
 import type { Logger } from "@repo/logger";
@@ -37,7 +37,7 @@ class ChatService {
     db: DB,
     logger: Logger,
     model: LanguageModel | null,
-    scoutCreditService: ScoutCreditService,
+    chatUsageService: ChatUsageService,
     toolServices: {
       alertRuleService: AlertRuleService;
       appService: AppService;
@@ -59,7 +59,7 @@ class ChatService {
       db,
       logger: childLogger,
       model,
-      scoutCreditService,
+      chatUsageService,
       toolServices,
       toolApprovalSecret,
       cdnBaseUrl,

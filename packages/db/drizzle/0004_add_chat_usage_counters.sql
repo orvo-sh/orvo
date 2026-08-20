@@ -1,0 +1,2 @@
+ALTER TABLE "organization_usage" ADD COLUMN "chat_credits_included" bigint DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "organization_usage" ADD COLUMN "chat_credits_used" bigint DEFAULT 0 NOT NULL;

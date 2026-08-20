@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { PLANS } from "$lib/constants";
 import { getDb } from "@repo/db";
 import { organization, organizationUsage } from "@repo/db/schema";
 import { genId } from "@repo/utils";
@@ -131,6 +132,7 @@ test("create full-user state", async ({ page }) => {
     currentPeriodStart: new Date(),
     currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     ingestLimitBytes: 50 * Math.pow(1024, 3),
+    chatCreditsIncluded: PLANS.starter.chatCreditsIncluded,
   });
 
   await page.goto("/apps/new");

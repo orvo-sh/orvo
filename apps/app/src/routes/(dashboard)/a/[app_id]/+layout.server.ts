@@ -9,10 +9,9 @@ export const load = (async (event) => {
   }
   if (
     mode === "local" &&
-    [
-      "/settings/billing",
-      "/settings/notifications",
-    ].some((path) => event.url.pathname.includes(path))
+    ["/settings/billing", "/settings/notifications"].some((path) =>
+      event.url.pathname.includes(path),
+    )
   ) {
     throw redirect(302, `/a/${event.params.app_id}/settings`);
   }
@@ -115,7 +114,7 @@ export const load = (async (event) => {
             logsIngestedBytes: billingStateResult.data.logsIngestedBytes,
             metricsIngestedBytes: billingStateResult.data.metricsIngestedBytes,
             tracesIngestedBytes: billingStateResult.data.tracesIngestedBytes,
-            scoutCredits: billingStateResult.data.scoutCredits,
+            chatUsage: billingStateResult.data.chatUsage,
             usagePercent:
               billingStateResult.data.ingestLimitBytes > 0
                 ? Math.min(

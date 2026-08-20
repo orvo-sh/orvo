@@ -44,9 +44,9 @@
       logsIngestedBytes: number;
       metricsIngestedBytes: number;
       tracesIngestedBytes: number;
-      scoutCredits: {
-        total: number;
-        includedAllowance: number;
+      chatUsage: {
+        includedCredits: number;
+        remainingCredits: number;
       } | null;
       usagePercent: number;
     } | null;
@@ -200,9 +200,8 @@
         logsIngestedBytes={billingSummary?.logsIngestedBytes ?? 0}
         tracesIngestedBytes={billingSummary?.tracesIngestedBytes ?? 0}
         metricsIngestedBytes={billingSummary?.metricsIngestedBytes ?? 0}
-        scoutCreditsRemaining={billingSummary?.scoutCredits?.total ?? 0}
-        scoutCreditsIncluded={billingSummary?.scoutCredits?.includedAllowance ??
-          0}
+        chatCreditsRemaining={billingSummary?.chatUsage?.remainingCredits ?? 0}
+        chatCreditsIncluded={billingSummary?.chatUsage?.includedCredits ?? 0}
       />
     {/if}
     <Sidebar.Group>

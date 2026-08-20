@@ -157,22 +157,41 @@ const createSyncStripeSubscriptionState = ({
       .where(eq(organization.id, context.organizationId));
 
     const currentOrganizationUsage = await tx.query.organizationUsage.findFirst({
+      columns: { currentPeriodStart: true },
       where: eq(organizationUsage.organizationId, context.organizationId),
     });
+    const newPeriodStart = new Date((periodStart ?? fallbackStart) * 1000);
+    const periodChanged =
+      currentOrganizationUsage?.currentPeriodStart.getTime() !==
+      newPeriodStart.getTime();
 
     const organizationUsageValues = {
       logsRetentionDays: plan.retentionDays.logs,
       tracesRetentionDays: plan.retentionDays.traces,
       metricsRetentionDays: plan.retentionDays.metrics,
-      currentPeriodStart: new Date((periodStart ?? fallbackStart) * 1000),
+      currentPeriodStart: newPeriodStart,
       currentPeriodEnd: new Date((periodEnd ?? fallbackEnd) * 1000),
       ingestLimitBytes: plan.ingestLimitBytes,
+      chatCreditsIncluded: plan.chatCreditsIncluded,
     };
 
     if (currentOrganizationUsage) {
       await tx
         .update(organizationUsage)
-        .set(organizationUsageValues)
+        .set({
+          ...organizationUsageValues,
+          ...(periodChanged
+            ? {
+                logsIngestedBytes: 0,
+                tracesIngestedBytes: 0,
+                metricsIngestedBytes: 0,
+                chatCreditsUsed: 0,
+                notified70At: null,
+                notified85At: null,
+                notified100At: null,
+              }
+            : {}),
+        })
         .where(eq(organizationUsage.organizationId, context.organizationId));
     } else {
       await tx.insert(organizationUsage).values({

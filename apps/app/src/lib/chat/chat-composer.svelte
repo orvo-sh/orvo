@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { Button } from "@repo/components/ui/button";
-  import { Textarea } from "@repo/components/ui/textarea";
   import {
     CHAT_ATTACHMENT_MEDIA_TYPES,
     MAX_CHAT_ATTACHMENTS,
     MAX_UPLOAD_FILE_SIZE_BYTES,
   } from "$lib/constants";
+  import { Button } from "@repo/components/ui/button";
+  import { Textarea } from "@repo/components/ui/textarea";
   import {
     IconArrowUp,
     IconFile,
@@ -67,14 +67,23 @@
 </script>
 
 <div
-  class="relative z-10 w-full shrink-0 bg-background px-3 py-3 sm:px-4 sm:py-4"
+  class="relative z-10 w-full shrink-0 bg-background px-3 py-3 pt-0! sm:px-4 sm:py-4"
   class:flex-1={centered}
   class:flex={centered}
+  class:flex-col={centered}
   class:items-center={centered}
+  class:justify-center={centered}
 >
+  {#if centered}
+    <h2
+      class="-mt-[10%] mb-6 text-center text-2xl font-medium tracking-tight text-foreground"
+    >
+      What can Scout help with today?
+    </h2>
+  {/if}
   <form
     data-testid="chat-composer"
-    class="mx-auto max-w-3xl rounded-2xl border bg-card p-1.5 shadow-[0_10px_30px_-18px_hsl(var(--foreground)/0.35)] transition-[border-color,box-shadow] focus-within:border-ring/50 focus-within:shadow-[0_14px_38px_-20px_hsl(var(--foreground)/0.4)]"
+    class="mx-auto w-full max-w-3xl rounded-2xl border bg-card p-1.5 shadow-[0_10px_30px_-18px_hsl(var(--foreground)/0.35)] transition-[border-color,box-shadow] focus-within:border-ring/50 focus-within:shadow-[0_14px_38px_-20px_hsl(var(--foreground)/0.4)]"
     onsubmit={(event) => {
       event.preventDefault();
       void submit();

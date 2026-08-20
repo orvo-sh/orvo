@@ -21,7 +21,7 @@ const PLANS = {
       traces: 14,
     },
     ingestLimitBytes: 50 * Math.pow(1024, 3),
-    scoutCreditsPerPeriod: 150_000,
+    chatCreditsIncluded: 150_000,
     overagePricePerGb: null,
   },
   pro: {
@@ -32,7 +32,7 @@ const PLANS = {
       traces: 30,
     },
     ingestLimitBytes: 150 * Math.pow(1024, 3),
-    scoutCreditsPerPeriod: 1_200_000,
+    chatCreditsIncluded: 1_200_000,
     overagePricePerGb: 0.32,
   },
 };

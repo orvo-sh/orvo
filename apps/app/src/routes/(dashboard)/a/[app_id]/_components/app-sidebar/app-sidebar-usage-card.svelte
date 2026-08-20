@@ -12,15 +12,15 @@
     tracesIngestedBytes,
     metricsIngestedBytes,
     includedBytes,
-    scoutCreditsRemaining,
-    scoutCreditsIncluded,
+    chatCreditsRemaining,
+    chatCreditsIncluded,
   }: {
     logsIngestedBytes: number;
     tracesIngestedBytes: number;
     metricsIngestedBytes: number;
     includedBytes: number;
-    scoutCreditsRemaining: number;
-    scoutCreditsIncluded: number;
+    chatCreditsRemaining: number;
+    chatCreditsIncluded: number;
   } = $props();
 </script>
 
@@ -90,23 +90,23 @@
         </p>
       </div>
 
-      {#if scoutCreditsIncluded > 0}
-        {@const scoutPercentage =
-          (scoutCreditsRemaining / scoutCreditsIncluded) * 100}
+      {#if chatCreditsIncluded > 0}
+        {@const chatPercentage =
+          (chatCreditsRemaining / chatCreditsIncluded) * 100}
         <div class="mt-1 border-t pt-2">
           <div class="mb-1.5 flex items-center justify-between gap-2 text-sm">
             <span class="text-muted-foreground">Scout</span>
             <span class="text-secondary-foreground tabular-nums">
-              {scoutCreditsRemaining.toLocaleString()} left
+              {chatCreditsRemaining.toLocaleString()} left
             </span>
           </div>
           <Progress
-            value={scoutPercentage}
+            value={chatPercentage}
             class={cn(
               "h-1.5 bg-muted/80",
-              scoutPercentage <= 10
+              chatPercentage <= 10
                 ? "*:bg-destructive"
-                : scoutPercentage <= 30
+                : chatPercentage <= 30
                   ? "*:bg-amber-500"
                   : "*:bg-primary",
             )}

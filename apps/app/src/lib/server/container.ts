@@ -8,6 +8,7 @@ import { AlertWebhookDestinationService } from "$lib/server/services/alert-webho
 import { AppService } from "$lib/server/services/app";
 import { BillingService } from "$lib/server/services/billing";
 import { ChatService } from "$lib/server/services/chat";
+import { ChatUsageService } from "$lib/server/services/chat-usage";
 import { HeartbeatService } from "$lib/server/services/heartbeat";
 import { IncidentService } from "$lib/server/services/incident";
 import { IngestionKeyService } from "$lib/server/services/ingestion-key";
@@ -19,7 +20,6 @@ import { McpService } from "$lib/server/services/mcp";
 import { NotificationDeliveryService } from "$lib/server/services/notification-delivery";
 import { NotificationDestinationService } from "$lib/server/services/notification-destination";
 import { OnboardingService } from "$lib/server/services/onboarding";
-import { ScoutCreditService } from "$lib/server/services/scout-credit";
 import { TracesService } from "$lib/server/services/traces";
 import { UploadService } from "$lib/server/services/upload";
 import { getClickHouseClient } from "@repo/clickhouse";
@@ -123,9 +123,9 @@ const createServerContainer = (logger: Logger) => {
     { otlpBaseUrl: env.INGEST_BASE_URL },
     logger,
   );
-  const scoutCreditService = new ScoutCreditService(db, logger);
+  const chatUsageService = new ChatUsageService(db, logger);
   const billingService = stripe
-    ? new BillingService(db, logger, email!, stripe, scoutCreditService, {
+    ? new BillingService(db, logger, email!, stripe, {
         starterPriceId: env.STRIPE_STARTER_PRICE_ID,
         proPriceId: env.STRIPE_PRO_PRICE_ID,
         trialDays: 14,
@@ -174,7 +174,7 @@ const createServerContainer = (logger: Logger) => {
           env.OPENAI_MODEL || "gpt-5.6-luna",
         )
       : null,
-    scoutCreditService,
+    chatUsageService,
     {
       alertRuleService,
       appService,

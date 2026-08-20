@@ -26,7 +26,7 @@
       name: "Starter",
       priceLabel: `$${PLANS.starter.priceUsd}/month`,
       includedGb: Math.round(PLANS.starter.ingestLimitBytes / bytesPerGb),
-      scoutCredits: PLANS.starter.scoutCreditsPerPeriod,
+      chatCreditsIncluded: PLANS.starter.chatCreditsIncluded,
       retentionDays: PLANS.starter.retentionDays,
       overagePricePerGb: PLANS.starter.overagePricePerGb,
     },
@@ -35,7 +35,7 @@
       name: "Pro",
       priceLabel: `$${PLANS.pro.priceUsd}/month`,
       includedGb: Math.round(PLANS.pro.ingestLimitBytes / bytesPerGb),
-      scoutCredits: PLANS.pro.scoutCreditsPerPeriod,
+      chatCreditsIncluded: PLANS.pro.chatCreditsIncluded,
       retentionDays: PLANS.pro.retentionDays,
       overagePricePerGb: PLANS.pro.overagePricePerGb,
     },
@@ -44,7 +44,7 @@
       name: "Enterprise",
       priceLabel: "Custom",
       includedGb: null,
-      scoutCredits: null,
+      chatCreditsIncluded: null,
       retentionDays: null,
       overagePricePerGb: null,
     },
@@ -254,26 +254,20 @@
           {/each}
         </div>
 
-        {#if billingState?.scoutCredits}
+        {#if billingState?.chatUsage}
           <div class="rounded-xl border p-4">
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p class="text-sm text-muted-foreground">Scout credits</p>
                 <p class="mt-2 text-lg font-semibold text-foreground">
-                  {billingState.scoutCredits.total.toLocaleString()} remaining
+                  {billingState.chatUsage.remainingCredits.toLocaleString()} remaining
                 </p>
               </div>
               <p class="text-sm text-muted-foreground">
-                {billingState.scoutCredits.includedAllowance.toLocaleString()} included
+                {billingState.chatUsage.includedCredits.toLocaleString()} included
                 per period
               </p>
             </div>
-            {#if billingState.scoutCredits.purchased > 0}
-              <p class="mt-2 text-sm text-muted-foreground">
-                Includes {billingState.scoutCredits.purchased.toLocaleString()} purchased
-                credits.
-              </p>
-            {/if}
           </div>
         {/if}
       </CardContent>
@@ -310,8 +304,10 @@
             {#if plan.includedGb !== null}
               <p>Ingest: {plan.includedGb} GB / month</p>
             {/if}
-            {#if plan.scoutCredits !== null}
-              <p>Scout: {plan.scoutCredits.toLocaleString()} credits / month</p>
+            {#if plan.chatCreditsIncluded !== null}
+              <p>
+                Scout: {plan.chatCreditsIncluded.toLocaleString()} credits / month
+              </p>
             {/if}
             {#if plan.retentionDays}
               <p>Logs retention: {plan.retentionDays.logs} days</p>

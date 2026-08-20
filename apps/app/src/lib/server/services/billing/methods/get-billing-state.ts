@@ -10,24 +10,10 @@ const createGetBillingState =
     db,
     logger,
     getCurrentSubscription,
-    getScoutCreditBalance,
   }: {
     db: DB;
     logger: Logger;
     getCurrentSubscription: ReturnType<typeof createGetCurrentSubscription>;
-    getScoutCreditBalance: (organizationId: string) => Promise<
-      | {
-          success: true;
-          data: {
-            included: number;
-            purchased: number;
-            total: number;
-            includedAllowance: number;
-            periodEnd: Date | null;
-          };
-        }
-      | { success: false; error: string }
-    >;
   }) =>
   async (context: { organizationId: string }) => {
     try {
@@ -56,18 +42,23 @@ const createGetBillingState =
         return err("No organization found.");
       }
 
-      const scoutCreditBalance = await getScoutCreditBalance(
-        context.organizationId,
-      );
-
       return ok({
         billingPlan: currentOrganization.billingPlan,
         billingStatus:
           currentSubscription?.status ?? currentOrganization.billingStatus,
         trialStart: currentSubscription?.trialStart ?? null,
         trialEnd: currentSubscription?.trialEnd ?? null,
-        scoutCredits: scoutCreditBalance.success
-          ? scoutCreditBalance.data
+        chatUsage: currentOrganization.usage
+          ? {
+              includedCredits: currentOrganization.usage.chatCreditsIncluded,
+              usedCredits: currentOrganization.usage.chatCreditsUsed,
+              remainingCredits: Math.max(
+                0,
+                currentOrganization.usage.chatCreditsIncluded -
+                  currentOrganization.usage.chatCreditsUsed,
+              ),
+              periodEnd: currentOrganization.usage.currentPeriodEnd,
+            }
           : null,
         ...currentOrganization.usage,
       });
