@@ -6,6 +6,7 @@
     IconChevronDown as ChevronDownIcon,
     IconChevronRight as ChevronRightIcon,
   } from "@tabler/icons-svelte";
+  import { onMount, tick } from "svelte";
   import type { SpanRow } from "../../types";
 
   type WaterfallItem = {
@@ -27,6 +28,10 @@
   } = $props();
 
   let collapsedSpanIds = $state<string[]>([]);
+  let scrollViewport = $state<HTMLDivElement | null>(null);
+  let showTopShadow = $state(false);
+  let showLeftShadow = $state(false);
+  let showRightShadow = $state(false);
 
   const waterfall = $derived.by((): WaterfallItem[] => {
     if (spans.length === 0) return [];
@@ -113,18 +118,52 @@
       ? collapsedSpanIds.filter((value) => value !== spanId)
       : [...collapsedSpanIds, spanId];
   };
+
+  const updateScrollShadows = () => {
+    if (!scrollViewport) {
+      showTopShadow = false;
+      showLeftShadow = false;
+      showRightShadow = false;
+      return;
+    }
+
+    const { scrollTop, scrollLeft, clientWidth, scrollWidth } = scrollViewport;
+
+    showTopShadow = scrollTop > 1;
+    showLeftShadow = scrollLeft > 1;
+    showRightShadow = scrollLeft + clientWidth < scrollWidth - 1;
+  };
+
+  $effect(() => {
+    void waterfall.length;
+    void collapsedSpanIds.length;
+
+    void tick().then(updateScrollShadows);
+  });
+
+  onMount(() => {
+    if (!scrollViewport) return;
+
+    updateScrollShadows();
+    const resizeObserver = new ResizeObserver(updateScrollShadows);
+    resizeObserver.observe(scrollViewport);
+
+    return () => resizeObserver.disconnect();
+  });
 </script>
 
-<div class="h-full min-h-0 w-full overflow-x-auto">
+<div class="relative h-full min-h-0 w-full overflow-hidden">
   <div
-    class="flex h-full min-h-0 min-w-[56rem] flex-1 flex-col font-mono text-xs select-none"
+    bind:this={scrollViewport}
+    class="h-full min-h-0 w-full overflow-auto font-mono text-xs select-none"
+    onscroll={updateScrollShadows}
   >
     <div
-      class="flex shrink-0 items-center gap-0 border-b px-2 py-1.5 tracking-wide text-muted-foreground uppercase"
+      class="sticky top-0 z-20 flex min-w-[56rem] shrink-0 items-center gap-0 border-b bg-background py-1.5 pr-2 tracking-wide text-muted-foreground uppercase"
       role="row"
     >
       <Label
-        class="shrink-0 px-1 text-xs font-normal"
+        class="sticky left-0 z-30 self-stretch bg-background px-3 text-xs font-normal"
         style={`width:${LEFT_W}px`}
       >
         Span
@@ -150,14 +189,14 @@
       </div>
     </div>
 
-    <div class="min-h-0 flex-1 overflow-y-auto">
+    <div class="min-w-[56rem]">
       {#each waterfall as item (item.span.span_id)}
         {@const isError = item.span.status_code === 2}
         {@const isSelected = selectedSpanId === item.span.span_id}
         <div
           data-selected={isSelected}
           class={cn(
-            "group flex w-full cursor-pointer items-center gap-0 py-0.5 pr-2 pl-2 text-left transition-colors",
+            "group flex w-full cursor-pointer items-center gap-0 bg-background py-0.5 pr-2 text-left transition-colors",
             isError
               ? "bg-destructive/8 text-destructive hover:bg-destructive/18 data-[selected=true]:bg-destructive/18"
               : "text-primary hover:bg-muted data-[selected=true]:bg-muted",
@@ -173,13 +212,24 @@
           tabindex="0"
         >
           <div
-            class="flex h-8 min-w-0 shrink-0 items-center border-r pr-2"
+            class="sticky left-0 z-10 flex h-8 min-w-0 shrink-0 items-center bg-background pr-2"
             style="width:{LEFT_W}px; padding-left:{8 + item.depth * 12}px"
           >
+            <span
+              class={cn(
+                "pointer-events-none absolute inset-0 transition-colors",
+                isError
+                  ? "bg-destructive/8 group-hover:bg-destructive/18"
+                  : "group-hover:bg-muted",
+                isSelected && (isError ? "bg-destructive/18" : "bg-muted"),
+              )}
+              aria-hidden="true"
+            ></span>
+
             {#if item.hasChildren}
               <button
                 type="button"
-                class="mr-0.5 flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                class="relative mr-0.5 flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                 onclick={(event) => {
                   event.stopPropagation();
                   toggleCollapsed(item.span.span_id);
@@ -200,7 +250,7 @@
 
             <span
               class={cn(
-                "block min-w-0 truncate text-xs leading-none text-secondary-foreground",
+                "relative block min-w-0 truncate text-xs leading-none text-secondary-foreground",
                 isError && "text-destructive",
               )}
               title={item.span.name}
@@ -241,4 +291,32 @@
       {/each}
     </div>
   </div>
+
+  <div
+    class="pointer-events-none absolute top-0 bottom-0 z-40 border-l border-border"
+    style={`left:${LEFT_W}px`}
+    aria-hidden="true"
+  ></div>
+
+  <div
+    class="pointer-events-none absolute top-7 right-0 left-0 z-30 h-2 bg-linear-to-b from-border/60 via-transparent to-transparent transition-opacity duration-500"
+    class:opacity-0={!showTopShadow}
+    class:opacity-100={showTopShadow}
+    aria-hidden="true"
+  ></div>
+
+  <div
+    class="pointer-events-none absolute top-0 bottom-0 z-30 w-2 bg-linear-to-r from-border/60 via-transparent to-transparent transition-opacity duration-500"
+    class:opacity-0={!showLeftShadow}
+    class:opacity-100={showLeftShadow}
+    style={`left:${LEFT_W}px`}
+    aria-hidden="true"
+  ></div>
+
+  <div
+    class="pointer-events-none absolute top-0 right-0 bottom-0 z-30 w-2 bg-linear-to-l from-border/60 via-transparent to-transparent transition-opacity duration-500"
+    class:opacity-0={!showRightShadow}
+    class:opacity-100={showRightShadow}
+    aria-hidden="true"
+  ></div>
 </div>
