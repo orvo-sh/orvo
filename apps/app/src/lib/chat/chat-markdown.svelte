@@ -3,6 +3,7 @@
   import { resolve } from "$app/paths";
   import type { Snippet } from "svelte";
   import { Streamdown } from "svelte-streamdown";
+  import Code from "svelte-streamdown/code";
 
   import { useChatState } from "./chat-state.svelte";
 
@@ -71,6 +72,7 @@
   static={!streaming}
   parseIncompleteMarkdown={true}
   baseTheme="shadcn"
+  components={{ code: Code }}
   allowedLinkPrefixes={["https://", "http://", "orvo://"]}
   controls={{ code: true, table: true, mermaid: false }}
   animation={{

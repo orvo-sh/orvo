@@ -52,7 +52,7 @@
   }
 
   .chat-markdown :where(pre) {
-    @apply my-3 overflow-auto rounded-xl border bg-zinc-950 text-zinc-100;
+    @apply overflow-auto;
   }
 
   .chat-scroll {
