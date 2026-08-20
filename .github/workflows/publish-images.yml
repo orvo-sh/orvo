@@ -49,7 +49,9 @@ jobs:
           platforms: linux/arm64
           push: true
           tags: ghcr.io/orvo-sh/orvo-app:${{ github.sha }}
-          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            service=orvo-app
 
       - name: Build and publish ingest
         uses: docker/build-push-action@v6
@@ -59,4 +61,6 @@ jobs:
           platforms: linux/arm64
           push: true
           tags: ghcr.io/orvo-sh/orvo-ingest:${{ github.sha }}
-          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            service=orvo-ingest
