@@ -32,13 +32,12 @@ class AgentService {
     clickhouse: ClickHouse,
     logger: Logger,
     ingestionKeyService: IngestionKeyService,
-    config: { cdnBaseUrl: string; ingestBaseUrl: string },
+    config: { ingestBaseUrl: string },
   ) {
     const childLogger = logger.child("AgentService");
     this.createEnrollmentMethod = createCreateEnrollment({
       db,
       logger: childLogger,
-      config,
     });
     this.deleteHostMethod = createDeleteHost({ db, logger: childLogger });
     this.getHostMethod = createGetHost({ db, clickhouse, logger: childLogger });

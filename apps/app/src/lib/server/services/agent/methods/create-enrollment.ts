@@ -8,16 +8,10 @@ import { z } from "zod";
 
 import { createAgentEnrollmentInputSchema } from "../schema";
 
+const agentVersion = "0.1.1";
+
 const createCreateEnrollment =
-  ({
-    db,
-    logger,
-    config,
-  }: {
-    db: DB;
-    logger: Logger;
-    config: { cdnBaseUrl: string };
-  }) =>
+  ({ db, logger }: { db: DB; logger: Logger }) =>
   async (
     input: z.input<typeof createAgentEnrollmentInputSchema>,
     context: { appId: string; userId: string },
@@ -43,7 +37,7 @@ const createCreateEnrollment =
 
       return ok({
         expiresAt: expiresAt.toISOString(),
-        command: `curl --proto '=https' --tlsv1.2 -fsSL ${new URL("/agent/install.sh", config.cdnBaseUrl)} | sudo sh -s -- --enrollment-token '${token}'`,
+        command: `curl --proto '=https' --tlsv1.2 -fsSL https://github.com/orvo-sh/orvo/releases/download/agent-v${agentVersion}/install.sh | sudo sh -s -- --version ${agentVersion} --enrollment-token '${token}'`,
       });
     } catch (error) {
       recordError(error);

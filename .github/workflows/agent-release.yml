@@ -3,7 +3,7 @@ name: Agent Release
 on:
   push:
     tags:
-      - "agent-v*.*.*"
+      - 'agent-v*.*.*'
 
 concurrency:
   group: agent-release-${{ github.ref }}
@@ -77,7 +77,7 @@ jobs:
         env:
           GOOS: linux
           GOARCH: ${{ matrix.arch }}
-          CGO_ENABLED: "0"
+          CGO_ENABLED: '0'
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           PACKAGE="orvo-agent_${VERSION}_linux_${GOARCH}"
@@ -144,10 +144,10 @@ jobs:
               --title "Orvo Agent ${VERSION}" \
               --notes-file "releases/v${VERSION}.md"
             gh release upload "$GITHUB_REF_NAME" \
-              dist/*.tar.gz dist/checksums.txt --clobber
+              dist/*.tar.gz dist/checksums.txt packaging/install.sh --clobber
           else
             gh release create "$GITHUB_REF_NAME" \
-              dist/*.tar.gz dist/checksums.txt \
+              dist/*.tar.gz dist/checksums.txt packaging/install.sh \
               --latest=false \
               --verify-tag \
               --title "Orvo Agent ${VERSION}" \

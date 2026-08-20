@@ -1,11 +1,12 @@
 #!/usr/bin/env sh
 set -eu
 
-CHANNEL_URL="${ORVO_AGENT_CHANNEL_URL:-https://cdn.orvo.sh/agent/channels/stable.txt}"
+RELEASE_BASE_URL="${ORVO_AGENT_RELEASE_BASE_URL:-https://github.com/orvo-sh/orvo/releases/download}"
 INSTALL_ROOT="/usr/bin"
 CONFIG_ROOT="/etc/orvo-agent"
 STATE_ROOT="/var/lib/orvo-agent"
 SERVICE_NAME="orvo-agent"
+VERSION=""
 ENROLLMENT_TOKEN=""
 
 fail() {
@@ -14,11 +15,16 @@ fail() {
 }
 
 usage() {
-  printf '%s\n' 'Usage: install.sh --enrollment-token <token>'
+  printf '%s\n' 'Usage: install.sh --version <version> --enrollment-token <token>'
 }
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    --version)
+      [ "$#" -ge 2 ] || fail '--version requires a value'
+      VERSION="$2"
+      shift 2
+      ;;
     --enrollment-token)
       [ "$#" -ge 2 ] || fail '--enrollment-token requires a value'
       ENROLLMENT_TOKEN="$2"
@@ -34,11 +40,14 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
+[ -n "$VERSION" ] || fail 'missing --version'
+printf '%s\n' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' \
+  || fail 'version must match X.Y.Z'
 [ -n "$ENROLLMENT_TOKEN" ] || fail 'missing --enrollment-token'
 [ "$(uname -s)" = "Linux" ] || fail 'the production installer currently supports Linux only'
 [ "$(id -u)" -eq 0 ] || fail 'run this installer with sudo or as root'
 
-for command_name in curl sha256sum tar systemctl useradd; do
+for command_name in awk curl grep sha256sum tar systemctl useradd; do
   command -v "$command_name" >/dev/null 2>&1 || fail "missing required command: $command_name"
 done
 
@@ -51,17 +60,17 @@ esac
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT INT TERM
 
-curl --proto '=https' --tlsv1.2 -fsSL "$CHANNEL_URL" -o "$TMP_DIR/channel.txt"
-VERSION="$(sed -n 's/^version=//p' "$TMP_DIR/channel.txt")"
-URL="$(sed -n "s/^linux_${ARCH}_url=//p" "$TMP_DIR/channel.txt")"
-SHA256="$(sed -n "s/^linux_${ARCH}_sha256=//p" "$TMP_DIR/channel.txt")"
+RELEASE_URL="${RELEASE_BASE_URL%/}/agent-v${VERSION}"
+ASSET_NAME="orvo-agent_${VERSION}_linux_${ARCH}.tar.gz"
 
-[ -n "$VERSION" ] || fail 'release manifest is missing version'
-[ -n "$URL" ] || fail "release manifest does not contain linux_${ARCH}"
-[ -n "$SHA256" ] || fail "release manifest does not contain a checksum for linux_${ARCH}"
+curl --proto '=https' --tlsv1.2 -fsSL \
+  "$RELEASE_URL/checksums.txt" -o "$TMP_DIR/checksums.txt"
+SHA256="$(awk -v name="$ASSET_NAME" '$2 == name { print $1 }' "$TMP_DIR/checksums.txt")"
+[ -n "$SHA256" ] || fail "release checksums do not contain ${ASSET_NAME}"
 
 printf 'orvo-agent: downloading %s for linux/%s\n' "$VERSION" "$ARCH"
-curl --proto '=https' --tlsv1.2 -fsSL "$URL" -o "$TMP_DIR/orvo-agent.tar.gz"
+curl --proto '=https' --tlsv1.2 -fsSL \
+  "$RELEASE_URL/$ASSET_NAME" -o "$TMP_DIR/orvo-agent.tar.gz"
 printf '%s  %s\n' "$SHA256" "$TMP_DIR/orvo-agent.tar.gz" | sha256sum -c - >/dev/null \
   || fail 'artifact checksum verification failed'
 

@@ -2,16 +2,13 @@
 
 ## Releases and automatic updates
 
-- [ ] Add separate `stable` and `beta` channels, and never promote prerelease
-      tags to stable automatically.
-- [ ] Add a manual promotion and rollback workflow that can point a channel back
-      to an existing immutable version.
-- [ ] Replace the text channel file with a versioned JSON manifest containing the
-      release version, publication time, channel, per-platform URL, archive size,
-      SHA-256 digest, minimum updater version, rollout controls, and manifest
-      schema version.
-- [ ] Sign update manifests and embed the verification public key in
-      `orvo-agentctl`. Document signing-key rotation and emergency revocation.
+- [ ] Design automatic updates around immutable GitHub Releases without changing
+      the explicitly pinned version used by fresh installations.
+- [ ] Add signed release metadata containing the release version, publication
+      time, per-platform URL, archive size, SHA-256 digest, minimum updater
+      version, rollout controls, and schema version.
+- [ ] Embed the metadata verification public key in `orvo-agentctl`. Document
+      signing-key rotation and emergency revocation.
 - [ ] Change installation to versioned directories under
       `/opt/orvo-agent/versions/<version>` with an atomic `current` symlink.
       Preserve configuration, credentials, state, and queued telemetry across

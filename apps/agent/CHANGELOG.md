@@ -5,6 +5,13 @@ versioning while the project is pre-1.0.
 
 ## Unreleased
 
+## 0.1.1 - 2026-08-20
+
+### Changed
+
+- Install pinned agent versions directly from checksummed GitHub Release assets.
+- Publish the installer alongside each agent release.
+
 ## 0.1.0 - 2026-08-05
 
 ### Added

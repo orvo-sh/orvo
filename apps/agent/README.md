@@ -14,9 +14,9 @@ command on a Linux server. Enrollment creates a dedicated ingestion key and
 configures the agent automatically.
 
 Production installation currently supports systemd-based Linux hosts on amd64
-and arm64. The installer downloads versioned artifacts from `cdn.orvo.sh`,
-verifies their SHA-256 digest, enrolls the host, and starts the service as the
-unprivileged `orvo-agent` user.
+and arm64. The generated command pins a release version, downloads its installer
+and artifacts from GitHub Releases, verifies the archive's SHA-256 digest,
+enrolls the host, and starts the service as the unprivileged `orvo-agent` user.
 
 Useful commands after installation:
 
@@ -54,7 +54,9 @@ Agent releases use tags such as `agent-v0.1.1`. Every release must come
 from a tested commit on `main` and include curated notes at
 `releases/v0.1.1.md`.
 
-1. Update `CHANGELOG.md` and add `releases/vX.Y.Z.md` in the release PR.
+1. Update `CHANGELOG.md`, add `releases/vX.Y.Z.md`, and update the version in
+   the generated command in
+   `../app/src/lib/server/services/agent/methods/create-enrollment.ts`.
 2. Merge the PR and confirm CI passes on `main`.
 3. Test the exact commit locally with `make test build`.
 4. Create and push an annotated agent tag:
@@ -68,14 +70,14 @@ from a tested commit on `main` and include curated notes at
 
 The release workflow validates the tag and notes, tests and cross-compiles Linux
 amd64 and arm64 bundles, generates checksums and public build-provenance
-attestations, and publishes a GitHub Release. Orvo Cloud promotes selected
-agent releases to the stable CDN channel separately.
+attestations, and publishes the installer and artifacts in a GitHub Release.
 
 Verify a completed release with:
 
 ```bash
 gh release view agent-v0.1.1
-curl --fail https://cdn.orvo.sh/agent/channels/stable.txt
+curl --fail --location --remote-name \
+  https://github.com/orvo-sh/orvo/releases/download/agent-v0.1.1/orvo-agent_0.1.1_linux_amd64.tar.gz
 gh attestation verify orvo-agent_0.1.1_linux_amd64.tar.gz \
   --repo orvo-sh/orvo
 ```
