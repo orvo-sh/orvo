@@ -16,6 +16,28 @@ const parseMcpResponse = (text: string) => {
   return JSON.parse(eventData ?? text);
 };
 
+test("publishes MCP OAuth protected resource metadata", async ({ request }) => {
+  const nestedResponse = await request.get(
+    "/api/mcp/.well-known/oauth-protected-resource",
+  );
+  expect(nestedResponse.ok()).toBeTruthy();
+  await expect(nestedResponse.json()).resolves.toMatchObject({
+    resource: `${TEST_APP_ORIGIN}/api/mcp`,
+    authorization_servers: [expect.any(String)],
+    scopes_supported: ["mcp:read"],
+  });
+
+  const standardResponse = await request.get(
+    "/.well-known/oauth-protected-resource/api/mcp",
+  );
+  expect(standardResponse.ok()).toBeTruthy();
+  await expect(standardResponse.json()).resolves.toMatchObject({
+    resource: `${TEST_APP_ORIGIN}/api/mcp`,
+    authorization_servers: [expect.any(String)],
+    scopes_supported: ["mcp:read"],
+  });
+});
+
 test("authorizes one organization and exposes useful MCP tools", async ({
   page,
   request,

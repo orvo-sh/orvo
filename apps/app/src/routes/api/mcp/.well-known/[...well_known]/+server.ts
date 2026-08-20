@@ -11,13 +11,10 @@ export const GET: RequestHandler = async (event) => {
     event.locals.container.authService,
   )
     .getActions()
-    .getProtectedResourceMetadata(
-      {
-        resource: `${new URL(env.ORIGIN).origin}/api/mcp`,
-        scopes_supported: ["mcp:read"],
-      },
-      { externalScopes: ["mcp:read"] },
-    );
+    .getProtectedResourceMetadata({
+      resource: `${new URL(env.ORIGIN).origin}/api/mcp`,
+      scopes_supported: ["mcp:read"],
+    });
 
   return Response.json(metadata, {
     headers: { "Cache-Control": "public, max-age=60" },
