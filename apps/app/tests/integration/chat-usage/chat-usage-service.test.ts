@@ -143,13 +143,41 @@ describe("ChatUsageService", () => {
   test("allows active subscriptions to use metered overage", async () => {
     await db
       .update(organizationUsage)
-      .set({ chatCreditsUsed: 1_200_000 })
+      .set({ chatCreditsUsed: 1_200_000, scoutOverageEnabled: true })
       .where(eq(organizationUsage.organizationId, "org_chat_usage"));
 
     const canStart = await service.canStart({
       organizationId: "org_chat_usage",
     });
     expect(canStart.success).toBe(true);
+  });
+
+  test("blocks active subscriptions when automatic overage is disabled", async () => {
+    await db
+      .update(organizationUsage)
+      .set({ chatCreditsUsed: 1_200_000 })
+      .where(eq(organizationUsage.organizationId, "org_chat_usage"));
+
+    const canStart = await service.canStart({
+      organizationId: "org_chat_usage",
+    });
+    expect(canStart.success).toBe(false);
+  });
+
+  test("blocks Scout usage when its monthly overage budget is reached", async () => {
+    await db
+      .update(organizationUsage)
+      .set({
+        chatCreditsUsed: 2_200_000,
+        scoutOverageEnabled: true,
+        scoutOverageBudgetCents: 100,
+      })
+      .where(eq(organizationUsage.organizationId, "org_chat_usage"));
+
+    const canStart = await service.canStart({
+      organizationId: "org_chat_usage",
+    });
+    expect(canStart.success).toBe(false);
   });
 
   test("does not grant unmetered Scout usage to a legacy plan", async () => {
@@ -159,7 +187,7 @@ describe("ChatUsageService", () => {
       .where(eq(organization.id, "org_chat_usage"));
     await db
       .update(organizationUsage)
-      .set({ chatCreditsUsed: 1_200_000 })
+      .set({ chatCreditsUsed: 1_200_000, scoutOverageEnabled: true })
       .where(eq(organizationUsage.organizationId, "org_chat_usage"));
 
     const canStart = await service.canStart({

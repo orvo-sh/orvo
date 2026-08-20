@@ -32,9 +32,9 @@ type GetAppRetentionPolicyRow struct {
 	OrganizationID                 string      `json:"organization_id"`
 	PlanKey                        string      `json:"plan_key"`
 	Source                         string      `json:"source"`
-	LogsRetentionDays              int32       `json:"logs_retention_days"`
-	TracesRetentionDays            int32       `json:"traces_retention_days"`
-	MetricsRetentionDays           int32       `json:"metrics_retention_days"`
+	LogsRetentionDays              pgtype.Int4 `json:"logs_retention_days"`
+	TracesRetentionDays            pgtype.Int4 `json:"traces_retention_days"`
+	MetricsRetentionDays           pgtype.Int4 `json:"metrics_retention_days"`
 	LogsMaxIngestBytesPerPeriod    pgtype.Int8 `json:"logs_max_ingest_bytes_per_period"`
 	TracesMaxIngestBytesPerPeriod  pgtype.Int8 `json:"traces_max_ingest_bytes_per_period"`
 	MetricsMaxIngestBytesPerPeriod pgtype.Int8 `json:"metrics_max_ingest_bytes_per_period"`
@@ -120,6 +120,10 @@ SELECT
   traces_ingested_bytes,
   metrics_ingested_bytes,
   ingest_limit_bytes,
+  ingest_overage_enabled,
+  ingest_overage_budget_cents,
+  scout_overage_enabled,
+  scout_overage_budget_cents,
   notified_70_at,
   notified_85_at,
   notified_100_at,
@@ -130,9 +134,32 @@ WHERE organization_id = $1
 FOR UPDATE
 `
 
-func (q *Queries) GetOrganizationUsageForUpdate(ctx context.Context, organizationID string) (OrganizationUsage, error) {
+type GetOrganizationUsageForUpdateRow struct {
+	ID                       string           `json:"id"`
+	OrganizationID           string           `json:"organization_id"`
+	LogsRetentionDays        int32            `json:"logs_retention_days"`
+	TracesRetentionDays      int32            `json:"traces_retention_days"`
+	MetricsRetentionDays     int32            `json:"metrics_retention_days"`
+	CurrentPeriodStart       pgtype.Timestamp `json:"current_period_start"`
+	CurrentPeriodEnd         pgtype.Timestamp `json:"current_period_end"`
+	LogsIngestedBytes        int64            `json:"logs_ingested_bytes"`
+	TracesIngestedBytes      int64            `json:"traces_ingested_bytes"`
+	MetricsIngestedBytes     int64            `json:"metrics_ingested_bytes"`
+	IngestLimitBytes         int64            `json:"ingest_limit_bytes"`
+	IngestOverageEnabled     bool             `json:"ingest_overage_enabled"`
+	IngestOverageBudgetCents pgtype.Int4      `json:"ingest_overage_budget_cents"`
+	ScoutOverageEnabled      bool             `json:"scout_overage_enabled"`
+	ScoutOverageBudgetCents  pgtype.Int4      `json:"scout_overage_budget_cents"`
+	Notified70At             pgtype.Timestamp `json:"notified_70_at"`
+	Notified85At             pgtype.Timestamp `json:"notified_85_at"`
+	Notified100At            pgtype.Timestamp `json:"notified_100_at"`
+	CreatedAt                pgtype.Timestamp `json:"created_at"`
+	UpdatedAt                pgtype.Timestamp `json:"updated_at"`
+}
+
+func (q *Queries) GetOrganizationUsageForUpdate(ctx context.Context, organizationID string) (GetOrganizationUsageForUpdateRow, error) {
 	row := q.db.QueryRow(ctx, getOrganizationUsageForUpdate, organizationID)
-	var i OrganizationUsage
+	var i GetOrganizationUsageForUpdateRow
 	err := row.Scan(
 		&i.ID,
 		&i.OrganizationID,
@@ -145,6 +172,10 @@ func (q *Queries) GetOrganizationUsageForUpdate(ctx context.Context, organizatio
 		&i.TracesIngestedBytes,
 		&i.MetricsIngestedBytes,
 		&i.IngestLimitBytes,
+		&i.IngestOverageEnabled,
+		&i.IngestOverageBudgetCents,
+		&i.ScoutOverageEnabled,
+		&i.ScoutOverageBudgetCents,
 		&i.Notified70At,
 		&i.Notified85At,
 		&i.Notified100At,

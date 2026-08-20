@@ -15,10 +15,12 @@ import { createStartFreeTrial } from "./methods/start-free-trial";
 import { createSyncMeterUsage } from "./methods/sync-meter-usage";
 import { createOnSubscriptionDeleted } from "./methods/subscription-lifecycle";
 import { createUpdateBillingEmail } from "./methods/update-billing-email";
+import { createUpdateOverageSettings } from "./methods/update-overage-settings";
 import {
   createBillingPortalInputSchema,
   startFreeTrialInputSchema,
   updateBillingEmailInputSchema,
+  updateOverageSettingsInputSchema,
 } from "./schema";
 import {
   createGetCurrentSubscription,
@@ -37,6 +39,9 @@ class BillingService {
     typeof createCreateBillingPortalSession
   >;
   private updateBillingEmailMethod: ReturnType<typeof createUpdateBillingEmail>;
+  private updateOverageSettingsMethod: ReturnType<
+    typeof createUpdateOverageSettings
+  >;
   private startFreeTrialMethod: ReturnType<typeof createStartFreeTrial>;
   private onSubscriptionCreatedMethod: ReturnType<
     typeof createOnSubscriptionCreated
@@ -75,6 +80,7 @@ class BillingService {
       logger: this.logger,
       stripe,
       getCurrentSubscription,
+      isOrganizationOwner,
     });
     this.getOrganizationAccessStateMethod = createGetOrganizationAccessState({
       db,
@@ -87,6 +93,11 @@ class BillingService {
       isOrganizationOwner,
     });
     this.updateBillingEmailMethod = createUpdateBillingEmail({
+      logger: this.logger,
+      isOrganizationOwner,
+    });
+    this.updateOverageSettingsMethod = createUpdateOverageSettings({
+      db,
       logger: this.logger,
       isOrganizationOwner,
     });
@@ -110,7 +121,7 @@ class BillingService {
     this.onSubscriptionDeletedMethod = createOnSubscriptionDeleted({ db });
   }
 
-  async getBillingState(context: { organizationId: string }) {
+  async getBillingState(context: { organizationId: string; userId?: string }) {
     return this.getBillingStateMethod(context);
   }
 
@@ -136,6 +147,13 @@ class BillingService {
     context: { organizationId: string; userId: string },
   ) {
     return this.updateBillingEmailMethod(input, context);
+  }
+
+  async updateOverageSettings(
+    input: z.input<typeof updateOverageSettingsInputSchema>,
+    context: { organizationId: string; userId: string },
+  ) {
+    return this.updateOverageSettingsMethod(input, context);
   }
 
   async startFreeTrial(

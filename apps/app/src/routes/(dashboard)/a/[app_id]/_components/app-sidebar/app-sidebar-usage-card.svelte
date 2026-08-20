@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { PLANS } from "$lib/constants";
   import { cn } from "@repo/components";
   import { buttonVariants } from "@repo/components/ui/button";
   import * as Card from "@repo/components/ui/card";
@@ -12,16 +13,26 @@
     tracesIngestedBytes,
     metricsIngestedBytes,
     includedBytes,
-    chatCreditsRemaining,
+    chatCreditsUsed,
     chatCreditsIncluded,
   }: {
     logsIngestedBytes: number;
     tracesIngestedBytes: number;
     metricsIngestedBytes: number;
     includedBytes: number;
-    chatCreditsRemaining: number;
+    chatCreditsUsed: number;
     chatCreditsIncluded: number;
   } = $props();
+
+  const totalIngestedBytes = $derived(
+    logsIngestedBytes + tracesIngestedBytes + metricsIngestedBytes,
+  );
+  const ingestOverageBytes = $derived(
+    Math.max(0, totalIngestedBytes - includedBytes),
+  );
+  const scoutOverageCredits = $derived(
+    Math.max(0, chatCreditsUsed - chatCreditsIncluded),
+  );
 </script>
 
 <div class="p-2 pb-0">
@@ -65,9 +76,7 @@
 
     <Card.Content class="grid gap-2 px-2!">
       {@const percentage =
-        ((logsIngestedBytes + metricsIngestedBytes + tracesIngestedBytes) /
-          includedBytes) *
-        100}
+        includedBytes > 0 ? (totalIngestedBytes / includedBytes) * 100 : 0}
       <Progress
         value={percentage}
         class={cn(
@@ -82,35 +91,50 @@
 
       <div class="space-y-0.5">
         <p class="text-sm font-normal text-secondary-foreground tabular-nums">
-          {formatBytes(
-            logsIngestedBytes + metricsIngestedBytes + tracesIngestedBytes,
-            "GB",
-          )}
+          {formatBytes(totalIngestedBytes, "GB")}
           of {formatBytes(includedBytes, "GB")} used
         </p>
+        {#if ingestOverageBytes > 0}
+          <p class="text-xs text-destructive tabular-nums">
+            {formatBytes(ingestOverageBytes, "GB")} overage · approximately ${(
+              (ingestOverageBytes / Math.pow(1024, 3)) *
+              PLANS.pro.overagePricePerGb
+            ).toFixed(2)}
+          </p>
+        {/if}
       </div>
 
       {#if chatCreditsIncluded > 0}
-        {@const chatPercentage =
-          (chatCreditsRemaining / chatCreditsIncluded) * 100}
+        {@const chatPercentage = Math.min(
+          100,
+          (chatCreditsUsed / chatCreditsIncluded) * 100,
+        )}
         <div class="mt-1 border-t pt-2">
           <div class="mb-1.5 flex items-center justify-between gap-2 text-sm">
             <span class="text-muted-foreground">Scout</span>
             <span class="text-secondary-foreground tabular-nums">
-              {chatCreditsRemaining.toLocaleString()} credits
+              {chatCreditsUsed.toLocaleString()} of {chatCreditsIncluded.toLocaleString()}
             </span>
           </div>
           <Progress
             value={chatPercentage}
             class={cn(
               "h-1.5 bg-muted/80",
-              chatPercentage <= 10
+              chatPercentage >= 90
                 ? "*:bg-destructive"
-                : chatPercentage <= 30
+                : chatPercentage >= 70
                   ? "*:bg-amber-500"
                   : "*:bg-primary",
             )}
           />
+          {#if scoutOverageCredits > 0}
+            <p class="mt-1 text-xs text-destructive tabular-nums">
+              {scoutOverageCredits.toLocaleString()} overage · approximately ${(
+                (scoutOverageCredits / 1_000_000) *
+                PLANS.pro.scoutOveragePricePerMillionCredits
+              ).toFixed(2)}
+            </p>
+          {/if}
         </div>
       {/if}
     </Card.Content>

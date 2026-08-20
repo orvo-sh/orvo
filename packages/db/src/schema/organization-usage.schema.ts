@@ -1,5 +1,13 @@
 import { relations } from 'drizzle-orm';
-import { bigint, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex
+} from 'drizzle-orm/pg-core';
 
 import { organization } from './organization.schema.js';
 
@@ -21,6 +29,10 @@ const organizationUsage = pgTable(
     ingestLimitBytes: bigint('ingest_limit_bytes', { mode: 'number' }).notNull(),
     chatCreditsIncluded: bigint('chat_credits_included', { mode: 'number' }).notNull().default(0),
     chatCreditsUsed: bigint('chat_credits_used', { mode: 'number' }).notNull().default(0),
+    ingestOverageEnabled: boolean('ingest_overage_enabled').notNull().default(false),
+    ingestOverageBudgetCents: integer('ingest_overage_budget_cents'),
+    scoutOverageEnabled: boolean('scout_overage_enabled').notNull().default(false),
+    scoutOverageBudgetCents: integer('scout_overage_budget_cents'),
     stripeIngestBytesReported: bigint('stripe_ingest_bytes_reported', { mode: 'number' })
       .notNull()
       .default(0),

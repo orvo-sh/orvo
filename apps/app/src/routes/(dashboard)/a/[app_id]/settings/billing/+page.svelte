@@ -3,6 +3,7 @@
   import {
     createBillingPortalCommand,
     getBillingStateQuery,
+    updateOverageSettingsCommand,
   } from "$lib/api/billing.remote";
   import { PLANS } from "$lib/constants";
   import { cn } from "@repo/components";
@@ -17,10 +18,17 @@
     CardTitle,
   } from "@repo/components/ui/card";
   import { Progress } from "@repo/components/ui/progress";
+  import { Input } from "@repo/components/ui/input";
+  import { Label } from "@repo/components/ui/label";
   import { Separator } from "@repo/components/ui/separator";
   import { Skeleton } from "@repo/components/ui/skeleton";
+  import { Switch } from "@repo/components/ui/switch";
   import { formatBytes } from "@repo/utils";
-  import { IconArrowUpRight, IconExternalLink } from "@tabler/icons-svelte";
+  import {
+    IconArrowUpRight,
+    IconDeviceFloppy,
+    IconExternalLink,
+  } from "@tabler/icons-svelte";
   import { onMount } from "svelte";
 
   type BillingStateResult = Awaited<ReturnType<typeof getBillingStateQuery>>;
@@ -28,9 +36,14 @@
 
   let loading = $state(true);
   let portalLoading = $state(false);
+  let overageSettingsLoading = $state(false);
   let error = $state("");
   let success = $state("");
   let billingState = $state<BillingState | null>(null);
+  let ingestOverageEnabled = $state(false);
+  let ingestOverageBudget = $state("");
+  let scoutOverageEnabled = $state(false);
+  let scoutOverageBudget = $state("");
 
   const totalIngestedBytes = $derived(
     (billingState?.logsIngestedBytes ?? 0) +
@@ -46,6 +59,27 @@
           ),
         )
       : 0,
+  );
+  const ingestOverageBytes = $derived(
+    Math.max(0, totalIngestedBytes - (billingState?.ingestLimitBytes ?? 0)),
+  );
+  const currentPlan = $derived(
+    billingState?.billingPlan === "pro" ? PLANS.pro : null,
+  );
+  const ingestOverageCost = $derived(
+    (ingestOverageBytes / Math.pow(1024, 3)) *
+      (currentPlan?.overagePricePerGb ?? 0),
+  );
+  const scoutOverageCredits = $derived(
+    Math.max(
+      0,
+      (billingState?.chatUsage?.usedCredits ?? 0) -
+        (billingState?.chatUsage?.includedCredits ?? 0),
+    ),
+  );
+  const scoutOverageCost = $derived(
+    (scoutOverageCredits / 1_000_000) *
+      (currentPlan?.scoutOveragePricePerMillionCredits ?? 0),
   );
   const signalRows = $derived(
     billingState
@@ -68,16 +102,20 @@
         ]
       : [],
   );
-  const currentPlan = $derived(
-    billingState?.billingPlan === "pro" ? PLANS.pro : null,
-  );
-
   const formatDate = (date: Date | string | number) =>
     new Intl.DateTimeFormat(undefined, {
       day: "numeric",
       month: "short",
       year: "numeric",
     }).format(new Date(date));
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
 
   const loadBillingState = async () => {
     loading = true;
@@ -91,7 +129,60 @@
     }
 
     billingState = result.data;
+    ingestOverageEnabled = result.data.ingestOverageEnabled;
+    ingestOverageBudget = result.data.ingestOverageBudgetCents
+      ? String(result.data.ingestOverageBudgetCents / 100)
+      : "";
+    scoutOverageEnabled = result.data.scoutOverageEnabled;
+    scoutOverageBudget = result.data.scoutOverageBudgetCents
+      ? String(result.data.scoutOverageBudgetCents / 100)
+      : "";
     loading = false;
+  };
+
+  const saveOverageSettings = async () => {
+    const ingestBudgetCents = ingestOverageBudget.trim()
+      ? Math.round(Number(ingestOverageBudget) * 100)
+      : null;
+    const scoutBudgetCents = scoutOverageBudget.trim()
+      ? Math.round(Number(scoutOverageBudget) * 100)
+      : null;
+    if (
+      (ingestBudgetCents !== null &&
+        (!Number.isFinite(ingestBudgetCents) || ingestBudgetCents < 100)) ||
+      (scoutBudgetCents !== null &&
+        (!Number.isFinite(scoutBudgetCents) || scoutBudgetCents < 100))
+    ) {
+      error = "Monthly overage budgets must be at least $1, or left blank.";
+      return;
+    }
+
+    overageSettingsLoading = true;
+    error = "";
+    success = "";
+    const result = await updateOverageSettingsCommand({
+      ingestOverageEnabled,
+      ingestOverageBudgetCents: ingestBudgetCents,
+      scoutOverageEnabled,
+      scoutOverageBudgetCents: scoutBudgetCents,
+    });
+    if (!result.success) {
+      error = result.error;
+      overageSettingsLoading = false;
+      return;
+    }
+
+    if (billingState) {
+      billingState = {
+        ...billingState,
+        ingestOverageEnabled,
+        ingestOverageBudgetCents: ingestBudgetCents,
+        scoutOverageEnabled,
+        scoutOverageBudgetCents: scoutBudgetCents,
+      };
+    }
+    success = "Usage controls updated.";
+    overageSettingsLoading = false;
   };
 
   const openPortal = async () => {
@@ -274,6 +365,17 @@
                   : "*:bg-primary",
             )}
           />
+          {#if ingestOverageBytes > 0}
+            <div
+              class="flex flex-wrap items-center justify-between gap-2 text-sm"
+            >
+              <Badge variant="destructive">Overage</Badge>
+              <p class="text-muted-foreground tabular-nums">
+                {formatBytes(ingestOverageBytes, "GB")} additional · approximately
+                {formatCurrency(ingestOverageCost)}
+              </p>
+            </div>
+          {/if}
         {/if}
       </div>
 
@@ -360,9 +462,151 @@
                     : "*:bg-primary",
               )}
             />
+            {#if scoutOverageCredits > 0}
+              <div
+                class="flex flex-wrap items-center justify-between gap-2 text-sm"
+              >
+                <Badge variant="destructive">Overage</Badge>
+                <p class="text-muted-foreground tabular-nums">
+                  {scoutOverageCredits.toLocaleString()} additional credits · approximately
+                  {formatCurrency(scoutOverageCost)}
+                </p>
+              </div>
+            {/if}
           {/if}
         </div>
       {/if}
+    </CardContent>
+  </Card>
+
+  <Card class="gap-5 py-5">
+    <CardHeader class="px-5">
+      <CardTitle>Usage controls</CardTitle>
+      <CardDescription>
+        Choose whether usage can continue beyond the included monthly
+        allowances. Previously incurred usage remains billable when a control is
+        disabled.
+      </CardDescription>
+    </CardHeader>
+
+    <CardContent class="grid gap-4 px-5">
+      <div
+        class="grid gap-4 rounded-lg border p-4 sm:grid-cols-[1fr_12rem] sm:items-center"
+      >
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <Label for="ingest-overage-enabled">Automatic ingest overages</Label
+            >
+            <p class="mt-1 text-sm text-muted-foreground">
+              Continue ingesting at $0.32 per additional GB.
+            </p>
+          </div>
+          <Switch
+            id="ingest-overage-enabled"
+            bind:checked={ingestOverageEnabled}
+            disabled={loading ||
+              overageSettingsLoading ||
+              !billingState?.canManageBilling ||
+              billingState?.billingStatus !== "active"}
+          />
+        </div>
+
+        <div class="grid gap-1.5">
+          <Label for="ingest-overage-budget">Monthly budget</Label>
+          <div class="relative">
+            <span
+              class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground"
+              >$</span
+            >
+            <Input
+              id="ingest-overage-budget"
+              type="number"
+              min="1"
+              max="10000"
+              step="1"
+              placeholder="No limit"
+              class="pl-7"
+              bind:value={ingestOverageBudget}
+              disabled={loading ||
+                overageSettingsLoading ||
+                !ingestOverageEnabled ||
+                !billingState?.canManageBilling ||
+                billingState?.billingStatus !== "active"}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="grid gap-4 rounded-lg border p-4 sm:grid-cols-[1fr_12rem] sm:items-center"
+      >
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <Label for="scout-overage-enabled">Automatic Scout overages</Label>
+            <p class="mt-1 text-sm text-muted-foreground">
+              Continue Scout conversations at $1 per 1M additional credits.
+            </p>
+          </div>
+          <Switch
+            id="scout-overage-enabled"
+            bind:checked={scoutOverageEnabled}
+            disabled={loading ||
+              overageSettingsLoading ||
+              !billingState?.canManageBilling ||
+              billingState?.billingStatus !== "active"}
+          />
+        </div>
+
+        <div class="grid gap-1.5">
+          <Label for="scout-overage-budget">Monthly budget</Label>
+          <div class="relative">
+            <span
+              class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground"
+              >$</span
+            >
+            <Input
+              id="scout-overage-budget"
+              type="number"
+              min="1"
+              max="10000"
+              step="1"
+              placeholder="No limit"
+              class="pl-7"
+              bind:value={scoutOverageBudget}
+              disabled={loading ||
+                overageSettingsLoading ||
+                !scoutOverageEnabled ||
+                !billingState?.canManageBilling ||
+                billingState?.billingStatus !== "active"}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center"
+      >
+        <p class="text-sm text-muted-foreground">
+          {#if billingState?.billingStatus !== "active"}
+            Usage controls become available when the Pro subscription is active.
+          {:else if !billingState?.canManageBilling}
+            Only an organization owner can change usage controls.
+          {:else}
+            Leave a budget blank for no monthly overage limit.
+          {/if}
+        </p>
+        <Button
+          loading={overageSettingsLoading}
+          disabled={loading ||
+            overageSettingsLoading ||
+            !billingState?.canManageBilling ||
+            billingState?.billingStatus !== "active"}
+          onclick={saveOverageSettings}
+        >
+          <IconDeviceFloppy data-slot="button-icon" />
+          Save usage controls
+        </Button>
+      </div>
     </CardContent>
   </Card>
 

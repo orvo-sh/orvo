@@ -90,6 +90,7 @@ export const load = (async (event) => {
   const billingStateResult =
     await event.locals.container.billingService?.getBillingState({
       organizationId: activeOrganizationId,
+      userId: auth.user.id,
     });
 
   return {

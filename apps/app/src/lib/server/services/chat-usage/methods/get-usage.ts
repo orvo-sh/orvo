@@ -1,4 +1,5 @@
 import { recordError } from "$lib/instrumentation";
+import { PLANS } from "$lib/constants";
 import { eq, type DB } from "@repo/db";
 import { organizationUsage } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
@@ -21,6 +22,8 @@ const createGetUsage =
           chatCreditsIncluded: true,
           chatCreditsUsed: true,
           currentPeriodEnd: true,
+          scoutOverageEnabled: true,
+          scoutOverageBudgetCents: true,
         },
         with: {
           organization: {
@@ -38,15 +41,30 @@ const createGetUsage =
         0,
         usage.chatCreditsIncluded - usage.chatCreditsUsed,
       );
+      const overageCredits = Math.max(
+        0,
+        usage.chatCreditsUsed - usage.chatCreditsIncluded,
+      );
+      const overageCostCents =
+        (overageCredits / 1_000_000) *
+        PLANS.pro.scoutOveragePricePerMillionCredits *
+        100;
 
       return ok({
         includedCredits: usage.chatCreditsIncluded,
         usedCredits: usage.chatCreditsUsed,
         remainingCredits,
+        overageCredits,
+        overageCostCents,
+        overageEnabled: usage.scoutOverageEnabled,
+        overageBudgetCents: usage.scoutOverageBudgetCents,
         canUseOverage:
           config.allowUnmetered ||
           (usage.organization.billingPlan === "pro" &&
-            usage.organization.billingStatus === "active"),
+            usage.organization.billingStatus === "active" &&
+            usage.scoutOverageEnabled &&
+            (usage.scoutOverageBudgetCents === null ||
+              overageCostCents < usage.scoutOverageBudgetCents)),
         periodEnd: usage.currentPeriodEnd,
       });
     } catch (error) {

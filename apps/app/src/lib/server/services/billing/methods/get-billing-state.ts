@@ -12,13 +12,18 @@ const createGetBillingState =
     logger,
     stripe,
     getCurrentSubscription,
+    isOrganizationOwner,
   }: {
     db: DB;
     logger: Logger;
     stripe: Stripe;
     getCurrentSubscription: ReturnType<typeof createGetCurrentSubscription>;
+    isOrganizationOwner: (
+      organizationId: string,
+      userId: string,
+    ) => Promise<boolean>;
   }) =>
-  async (context: { organizationId: string }) => {
+  async (context: { organizationId: string; userId?: string }) => {
     try {
       const [currentOrganization, currentSubscription] = await Promise.all([
         db.query.organization.findFirst({
@@ -74,6 +79,9 @@ const createGetBillingState =
       }
 
       return ok({
+        canManageBilling: context.userId
+          ? await isOrganizationOwner(context.organizationId, context.userId)
+          : false,
         billingPlan: currentOrganization.billingPlan,
         billingStatus,
         hasPaymentMethod,

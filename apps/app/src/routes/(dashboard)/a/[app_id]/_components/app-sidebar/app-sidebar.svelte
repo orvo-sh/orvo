@@ -46,6 +46,7 @@
       tracesIngestedBytes: number;
       chatUsage: {
         includedCredits: number;
+        usedCredits: number;
         remainingCredits: number;
       } | null;
       usagePercent: number;
@@ -200,7 +201,7 @@
         logsIngestedBytes={billingSummary?.logsIngestedBytes ?? 0}
         tracesIngestedBytes={billingSummary?.tracesIngestedBytes ?? 0}
         metricsIngestedBytes={billingSummary?.metricsIngestedBytes ?? 0}
-        chatCreditsRemaining={billingSummary?.chatUsage?.remainingCredits ?? 0}
+        chatCreditsUsed={billingSummary?.chatUsage?.usedCredits ?? 0}
         chatCreditsIncluded={billingSummary?.chatUsage?.includedCredits ?? 0}
       />
     {/if}

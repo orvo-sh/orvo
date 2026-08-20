@@ -5,6 +5,7 @@ describe("createGetBillingState", () => {
   const findOrganization = vi.fn();
   const listPaymentMethods = vi.fn();
   const getCurrentSubscription = vi.fn();
+  const isOrganizationOwner = vi.fn();
   const getBillingState = createGetBillingState({
     db: {
       query: { organization: { findFirst: findOrganization } },
@@ -14,10 +15,12 @@ describe("createGetBillingState", () => {
       paymentMethods: { list: listPaymentMethods },
     } as never,
     getCurrentSubscription,
+    isOrganizationOwner,
   });
 
   beforeEach(() => {
     vi.clearAllMocks();
+    isOrganizationOwner.mockResolvedValue(true);
     findOrganization.mockResolvedValue({
       billingPlan: "starter",
       billingStatus: "trialing",
@@ -73,5 +76,23 @@ describe("createGetBillingState", () => {
       expect(result.data.hasPaymentMethod).toBeNull();
     }
     expect(listPaymentMethods).not.toHaveBeenCalled();
+  });
+
+  test("reports whether the current user can manage billing", async () => {
+    listPaymentMethods.mockResolvedValue({ data: [] });
+
+    const result = await getBillingState({
+      organizationId: "org_billing",
+      userId: "usr_owner",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.canManageBilling).toBe(true);
+    }
+    expect(isOrganizationOwner).toHaveBeenCalledWith(
+      "org_billing",
+      "usr_owner",
+    );
   });
 });

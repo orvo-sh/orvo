@@ -15,10 +15,11 @@ import (
 func TestIngestLogs(t *testing.T) {
 	withIngestFlowEnv(t, func(ctx context.Context, addr string, postgresDB *pgclient.Client, clickhouseDB *chclient.Client, clickhouseRaw chdriver.Conn) {
 		logsApp, err := test.SeedApp(ctx, postgresDB, test.SeedAppInput{
-			Suffix:     "logs",
-			Plan:       "pro",
-			Status:     "active",
-			LimitBytes: 1,
+			Suffix:               "logs",
+			Plan:                 "pro",
+			Status:               "active",
+			LimitBytes:           1,
+			IngestOverageEnabled: true,
 		})
 		if err != nil {
 			t.Fatalf("seed logs app: %v", err)
@@ -26,12 +27,25 @@ func TestIngestLogs(t *testing.T) {
 
 		quotaApp, err := test.SeedApp(ctx, postgresDB, test.SeedAppInput{
 			Suffix:     "quota",
-			Plan:       "starter",
+			Plan:       "pro",
 			Status:     "active",
 			LimitBytes: 1,
 		})
 		if err != nil {
 			t.Fatalf("seed quota app: %v", err)
+		}
+
+		zeroBudget := int32(0)
+		budgetApp, err := test.SeedApp(ctx, postgresDB, test.SeedAppInput{
+			Suffix:                   "budget",
+			Plan:                     "pro",
+			Status:                   "active",
+			LimitBytes:               1,
+			IngestOverageEnabled:     true,
+			IngestOverageBudgetCents: &zeroBudget,
+		})
+		if err != nil {
+			t.Fatalf("seed budget app: %v", err)
 		}
 
 		expiredTrialApp, err := test.SeedApp(ctx, postgresDB, test.SeedAppInput{
@@ -180,7 +194,7 @@ func TestIngestLogs(t *testing.T) {
 					},
 				},
 				{
-					Name: "starter quota exceeded is rejected",
+					Name: "disabled Pro overage is rejected",
 					Input: test.HttpRequest{
 						Method: "POST",
 						URL:    "/v1/logs",
@@ -211,6 +225,29 @@ func TestIngestLogs(t *testing.T) {
 							Args:  []any{quotaApp.AppID},
 							Expected: []test.Row{{
 								"count": uint64(0),
+							}},
+						}),
+					},
+				},
+				{
+					Name: "ingest overage budget is enforced",
+					Input: test.HttpRequest{
+						Method: "POST",
+						URL:    "/v1/logs",
+						Body:   logsBody,
+						Headers: map[string]string{
+							"Authorization": "Bearer " + budgetApp.IngestionKey,
+							"Content-Type":  "application/x-protobuf",
+						},
+					},
+					Validators: []test.Validator{
+						test.HttpStatusCodeValidator(402),
+						test.PostgresDBValidator(test.NewPostgresDBValidatorInput{
+							Name:  "budget rejection leaves logs usage unchanged",
+							Query: "SELECT logs_ingested_bytes FROM organization_usage WHERE organization_id = $1",
+							Args:  []any{budgetApp.OrganizationID},
+							Expected: []test.Row{{
+								"logs_ingested_bytes": int64(0),
 							}},
 						}),
 					},

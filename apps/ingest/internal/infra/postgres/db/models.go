@@ -364,6 +364,7 @@ func (ns NullBillingStatus) Value() (driver.Value, error) {
 type ChatContextKind string
 
 const (
+	ChatContextKindOverview  ChatContextKind = "overview"
 	ChatContextKindTrace     ChatContextKind = "trace"
 	ChatContextKindLog       ChatContextKind = "log"
 	ChatContextKindMetric    ChatContextKind = "metric"
@@ -1301,6 +1302,15 @@ type Jwk struct {
 	Crv        pgtype.Text      `json:"crv"`
 }
 
+type McpOauthGrant struct {
+	ID             string           `json:"id"`
+	ClientID       string           `json:"client_id"`
+	UserID         string           `json:"user_id"`
+	OrganizationID string           `json:"organization_id"`
+	CreatedAt      pgtype.Timestamp `json:"created_at"`
+	UpdatedAt      pgtype.Timestamp `json:"updated_at"`
+}
+
 type Member struct {
 	ID             string           `json:"id"`
 	OrganizationID string           `json:"organization_id"`
@@ -1344,6 +1354,126 @@ type NotificationDestination struct {
 	UpdatedAt               pgtype.Timestamp            `json:"updated_at"`
 }
 
+type OauthAccessToken struct {
+	ID                      string           `json:"id"`
+	Token                   pgtype.Text      `json:"token"`
+	ClientID                string           `json:"client_id"`
+	SessionID               pgtype.Text      `json:"session_id"`
+	UserID                  pgtype.Text      `json:"user_id"`
+	ReferenceID             pgtype.Text      `json:"reference_id"`
+	AuthorizationCodeID     pgtype.Text      `json:"authorization_code_id"`
+	Resources               []string         `json:"resources"`
+	RequestedUserInfoClaims []string         `json:"requested_user_info_claims"`
+	RefreshID               pgtype.Text      `json:"refresh_id"`
+	ExpiresAt               pgtype.Timestamp `json:"expires_at"`
+	CreatedAt               pgtype.Timestamp `json:"created_at"`
+	Revoked                 pgtype.Timestamp `json:"revoked"`
+	Confirmation            []byte           `json:"confirmation"`
+	Scopes                  []string         `json:"scopes"`
+}
+
+type OauthClient struct {
+	ID                               string           `json:"id"`
+	ClientID                         string           `json:"client_id"`
+	ClientSecret                     pgtype.Text      `json:"client_secret"`
+	Disabled                         pgtype.Bool      `json:"disabled"`
+	SkipConsent                      pgtype.Bool      `json:"skip_consent"`
+	EnableEndSession                 pgtype.Bool      `json:"enable_end_session"`
+	SubjectType                      pgtype.Text      `json:"subject_type"`
+	Scopes                           []string         `json:"scopes"`
+	UserID                           pgtype.Text      `json:"user_id"`
+	CreatedAt                        pgtype.Timestamp `json:"created_at"`
+	UpdatedAt                        pgtype.Timestamp `json:"updated_at"`
+	Name                             pgtype.Text      `json:"name"`
+	Uri                              pgtype.Text      `json:"uri"`
+	Icon                             pgtype.Text      `json:"icon"`
+	Contacts                         []string         `json:"contacts"`
+	Tos                              pgtype.Text      `json:"tos"`
+	Policy                           pgtype.Text      `json:"policy"`
+	SoftwareID                       pgtype.Text      `json:"software_id"`
+	SoftwareVersion                  pgtype.Text      `json:"software_version"`
+	SoftwareStatement                pgtype.Text      `json:"software_statement"`
+	RedirectUris                     []string         `json:"redirect_uris"`
+	PostLogoutRedirectUris           []string         `json:"post_logout_redirect_uris"`
+	BackchannelLogoutUri             pgtype.Text      `json:"backchannel_logout_uri"`
+	BackchannelLogoutSessionRequired pgtype.Bool      `json:"backchannel_logout_session_required"`
+	TokenEndpointAuthMethod          pgtype.Text      `json:"token_endpoint_auth_method"`
+	Jwks                             pgtype.Text      `json:"jwks"`
+	JwksUri                          pgtype.Text      `json:"jwks_uri"`
+	GrantTypes                       []string         `json:"grant_types"`
+	ResponseTypes                    []string         `json:"response_types"`
+	Public                           pgtype.Bool      `json:"public"`
+	Type                             pgtype.Text      `json:"type"`
+	RequirePkce                      pgtype.Bool      `json:"require_pkce"`
+	DpopBoundAccessTokens            pgtype.Bool      `json:"dpop_bound_access_tokens"`
+	ReferenceID                      pgtype.Text      `json:"reference_id"`
+	Metadata                         []byte           `json:"metadata"`
+}
+
+type OauthClientAssertion struct {
+	ID        string           `json:"id"`
+	ExpiresAt pgtype.Timestamp `json:"expires_at"`
+}
+
+type OauthClientResource struct {
+	ID         string           `json:"id"`
+	ClientID   string           `json:"client_id"`
+	ResourceID string           `json:"resource_id"`
+	Metadata   []byte           `json:"metadata"`
+	CreatedAt  pgtype.Timestamp `json:"created_at"`
+}
+
+type OauthConsent struct {
+	ID                      string           `json:"id"`
+	ClientID                string           `json:"client_id"`
+	UserID                  pgtype.Text      `json:"user_id"`
+	ReferenceID             pgtype.Text      `json:"reference_id"`
+	Resources               []string         `json:"resources"`
+	RequestedUserInfoClaims []string         `json:"requested_user_info_claims"`
+	Scopes                  []string         `json:"scopes"`
+	CreatedAt               pgtype.Timestamp `json:"created_at"`
+	UpdatedAt               pgtype.Timestamp `json:"updated_at"`
+}
+
+type OauthRefreshToken struct {
+	ID                      string           `json:"id"`
+	Token                   string           `json:"token"`
+	ClientID                string           `json:"client_id"`
+	SessionID               pgtype.Text      `json:"session_id"`
+	UserID                  string           `json:"user_id"`
+	ReferenceID             pgtype.Text      `json:"reference_id"`
+	AuthorizationCodeID     pgtype.Text      `json:"authorization_code_id"`
+	Resources               []string         `json:"resources"`
+	RequestedUserInfoClaims []string         `json:"requested_user_info_claims"`
+	ExpiresAt               pgtype.Timestamp `json:"expires_at"`
+	CreatedAt               pgtype.Timestamp `json:"created_at"`
+	Revoked                 pgtype.Timestamp `json:"revoked"`
+	RotatedAt               pgtype.Timestamp `json:"rotated_at"`
+	RotationReplayResponse  pgtype.Text      `json:"rotation_replay_response"`
+	RotationReplayExpiresAt pgtype.Timestamp `json:"rotation_replay_expires_at"`
+	AuthTime                pgtype.Timestamp `json:"auth_time"`
+	Confirmation            []byte           `json:"confirmation"`
+	Scopes                  []string         `json:"scopes"`
+}
+
+type OauthResource struct {
+	ID                            string           `json:"id"`
+	Identifier                    string           `json:"identifier"`
+	Name                          string           `json:"name"`
+	AccessTokenTtl                pgtype.Int4      `json:"access_token_ttl"`
+	RefreshTokenTtl               pgtype.Int4      `json:"refresh_token_ttl"`
+	SigningAlgorithm              pgtype.Text      `json:"signing_algorithm"`
+	SigningKeyID                  pgtype.Text      `json:"signing_key_id"`
+	AllowedScopes                 []string         `json:"allowed_scopes"`
+	CustomClaims                  []byte           `json:"custom_claims"`
+	DpopBoundAccessTokensRequired pgtype.Bool      `json:"dpop_bound_access_tokens_required"`
+	Disabled                      pgtype.Bool      `json:"disabled"`
+	CreatedAt                     pgtype.Timestamp `json:"created_at"`
+	UpdatedAt                     pgtype.Timestamp `json:"updated_at"`
+	PolicyVersion                 pgtype.Int4      `json:"policy_version"`
+	Metadata                      []byte           `json:"metadata"`
+}
+
 type Organization struct {
 	ID               string            `json:"id"`
 	Name             string            `json:"name"`
@@ -1357,22 +1487,30 @@ type Organization struct {
 }
 
 type OrganizationUsage struct {
-	ID                   string           `json:"id"`
-	OrganizationID       string           `json:"organization_id"`
-	LogsRetentionDays    int32            `json:"logs_retention_days"`
-	TracesRetentionDays  int32            `json:"traces_retention_days"`
-	MetricsRetentionDays int32            `json:"metrics_retention_days"`
-	CurrentPeriodStart   pgtype.Timestamp `json:"current_period_start"`
-	CurrentPeriodEnd     pgtype.Timestamp `json:"current_period_end"`
-	LogsIngestedBytes    int64            `json:"logs_ingested_bytes"`
-	TracesIngestedBytes  int64            `json:"traces_ingested_bytes"`
-	MetricsIngestedBytes int64            `json:"metrics_ingested_bytes"`
-	IngestLimitBytes     int64            `json:"ingest_limit_bytes"`
-	Notified70At         pgtype.Timestamp `json:"notified_70_at"`
-	Notified85At         pgtype.Timestamp `json:"notified_85_at"`
-	Notified100At        pgtype.Timestamp `json:"notified_100_at"`
-	CreatedAt            pgtype.Timestamp `json:"created_at"`
-	UpdatedAt            pgtype.Timestamp `json:"updated_at"`
+	ID                        string           `json:"id"`
+	OrganizationID            string           `json:"organization_id"`
+	LogsRetentionDays         int32            `json:"logs_retention_days"`
+	TracesRetentionDays       int32            `json:"traces_retention_days"`
+	MetricsRetentionDays      int32            `json:"metrics_retention_days"`
+	CurrentPeriodStart        pgtype.Timestamp `json:"current_period_start"`
+	CurrentPeriodEnd          pgtype.Timestamp `json:"current_period_end"`
+	LogsIngestedBytes         int64            `json:"logs_ingested_bytes"`
+	TracesIngestedBytes       int64            `json:"traces_ingested_bytes"`
+	MetricsIngestedBytes      int64            `json:"metrics_ingested_bytes"`
+	IngestLimitBytes          int64            `json:"ingest_limit_bytes"`
+	Notified70At              pgtype.Timestamp `json:"notified_70_at"`
+	Notified85At              pgtype.Timestamp `json:"notified_85_at"`
+	Notified100At             pgtype.Timestamp `json:"notified_100_at"`
+	CreatedAt                 pgtype.Timestamp `json:"created_at"`
+	UpdatedAt                 pgtype.Timestamp `json:"updated_at"`
+	ChatCreditsIncluded       int64            `json:"chat_credits_included"`
+	ChatCreditsUsed           int64            `json:"chat_credits_used"`
+	StripeIngestBytesReported int64            `json:"stripe_ingest_bytes_reported"`
+	StripeChatCreditsReported int64            `json:"stripe_chat_credits_reported"`
+	IngestOverageEnabled      bool             `json:"ingest_overage_enabled"`
+	IngestOverageBudgetCents  pgtype.Int4      `json:"ingest_overage_budget_cents"`
+	ScoutOverageEnabled       bool             `json:"scout_overage_enabled"`
+	ScoutOverageBudgetCents   pgtype.Int4      `json:"scout_overage_budget_cents"`
 }
 
 type PgbossJob struct {

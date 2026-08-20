@@ -13,7 +13,7 @@ type Querier interface {
 	GetAppRetentionPolicy(ctx context.Context, id string) (GetAppRetentionPolicyRow, error)
 	GetBillingState(ctx context.Context, referenceID string) (GetBillingStateRow, error)
 	GetHeartbeatMonitorByToken(ctx context.Context, token string) (GetHeartbeatMonitorByTokenRow, error)
-	GetOrganizationUsageForUpdate(ctx context.Context, organizationID string) (OrganizationUsage, error)
+	GetOrganizationUsageForUpdate(ctx context.Context, organizationID string) (GetOrganizationUsageForUpdateRow, error)
 	InsertPgBossJob(ctx context.Context, arg InsertPgBossJobParams) (string, error)
 	MarkAppHeartbeatsFirstReceived(ctx context.Context, arg MarkAppHeartbeatsFirstReceivedParams) error
 	MarkAppLogsFirstReceived(ctx context.Context, id string) error

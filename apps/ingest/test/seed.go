@@ -9,11 +9,13 @@ import (
 )
 
 type SeedAppInput struct {
-	Suffix     string
-	Plan       string
-	Status     string
-	LimitBytes int64
-	PeriodEnd  time.Time
+	Suffix                   string
+	Plan                     string
+	Status                   string
+	LimitBytes               int64
+	PeriodEnd                time.Time
+	IngestOverageEnabled     bool
+	IngestOverageBudgetCents *int32
 }
 
 type SeededApp struct {
@@ -66,10 +68,12 @@ func SeedApp(ctx context.Context, postgresDB *pgclient.Client, input SeedAppInpu
 			metrics_retention_days,
 			current_period_start,
 			current_period_end,
-			ingest_limit_bytes
+			ingest_limit_bytes,
+			ingest_overage_enabled,
+			ingest_overage_budget_cents
 		)
-		VALUES ($1, $2, 30, 30, 30, $3, $4, $5)
-	`, usageID, organizationID, now.Add(-time.Hour), periodEnd, input.LimitBytes); err != nil {
+		VALUES ($1, $2, 30, 30, 30, $3, $4, $5, $6, $7)
+	`, usageID, organizationID, now.Add(-time.Hour), periodEnd, input.LimitBytes, input.IngestOverageEnabled, input.IngestOverageBudgetCents); err != nil {
 		return nil, fmt.Errorf("insert organization usage: %w", err)
 	}
 

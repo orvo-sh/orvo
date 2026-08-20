@@ -14,6 +14,11 @@ import (
 	"github.com/orvo-sh/orvo/apps/ingest/pkg/util"
 )
 
+const (
+	bytesPerGiB              int64 = 1024 * 1024 * 1024
+	ingestOverageCentsPerGiB int64 = 32
+)
+
 type ReserveSignalUsageInput struct {
 	OrganizationID string
 	Signal         ReservationSignal
@@ -113,9 +118,17 @@ func (service *service) ReserveSignalUsage(ctx context.Context, input ReserveSig
 		Notified100At:        pgutil.TimestampFromPtr(notified100At),
 	}
 
-	if totalIngestedBytes > organizationUsage.IngestLimitBytes &&
-		!(billingState.PlanKey == "pro" && billingState.Status == "active") {
-		return errs.ErrBillingQuotaExceeded
+	if totalIngestedBytes > organizationUsage.IngestLimitBytes {
+		if billingState.PlanKey != "pro" || billingState.Status != "active" || !organizationUsage.IngestOverageEnabled {
+			return errs.ErrBillingQuotaExceeded
+		}
+
+		if organizationUsage.IngestOverageBudgetCents.Valid {
+			overageBytes := totalIngestedBytes - organizationUsage.IngestLimitBytes
+			if overageBytes*ingestOverageCentsPerGiB > int64(organizationUsage.IngestOverageBudgetCents.Int32)*bytesPerGiB {
+				return errs.ErrBillingQuotaExceeded
+			}
+		}
 	}
 
 	if err := queries.UpdateOrganizationUsage(ctx, updateOrganizationUsageParams); err != nil {

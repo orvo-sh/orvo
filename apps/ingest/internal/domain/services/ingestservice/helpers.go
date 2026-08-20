@@ -37,11 +37,11 @@ func (service *service) getSignalRetentionDays(ctx context.Context, signal billi
 
 	switch signal {
 	case billingservice.ReservationSignal_Logs:
-		return int(policy.LogsRetentionDays), nil
+		return int(policy.LogsRetentionDays.Int32), nil
 	case billingservice.ReservationSignal_Traces:
-		return int(policy.TracesRetentionDays), nil
+		return int(policy.TracesRetentionDays.Int32), nil
 	case billingservice.ReservationSignal_Metrics:
-		return int(policy.MetricsRetentionDays), nil
+		return int(policy.MetricsRetentionDays.Int32), nil
 	default:
 		return 0, nil
 	}
