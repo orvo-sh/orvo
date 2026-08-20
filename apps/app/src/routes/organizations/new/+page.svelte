@@ -1,9 +1,7 @@
 <script lang="ts">
-  import {
-    createOrganizationLogoUploadUrlCommand,
-  } from "$lib/api/organizations.remote";
   import { authClient } from "$lib/auth-client";
   import { MAX_UPLOAD_FILE_SIZE_BYTES } from "$lib/constants";
+  import { uploadFile } from "$lib/upload-file";
   import { OrvoLogo } from "@repo/components/icons/orvo-logo";
   import * as Avatar from "@repo/components/ui/avatar";
   import { Button } from "@repo/components/ui/button";
@@ -48,30 +46,7 @@
   };
 
   const uploadLogo = async (file: File) => {
-    const uploadUrlResult = await createOrganizationLogoUploadUrlCommand({
-      contentType: file.type,
-      fileSizeBytes: file.size,
-    });
-
-    if (uploadUrlResult.success === false) {
-      logoError = uploadUrlResult.error;
-      return false;
-    }
-
-    const uploadResponse = await fetch(uploadUrlResult.data.presignedUrl, {
-      method: "PUT",
-      body: file,
-      headers: {
-        "Content-Type": file.type,
-      },
-    });
-
-    if (!uploadResponse.ok) {
-      logoError = `Logo upload failed with status ${uploadResponse.status}.`;
-      return false;
-    }
-
-    logo = uploadUrlResult.data.url;
+    logo = await uploadFile(file);
     return true;
   };
 

@@ -59,6 +59,17 @@ class Storage {
     return url;
   }
 
+  async upload(key: string, body: Uint8Array, contentType: string) {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType
+      })
+    );
+  }
+
   async delete(key: string) {
     const command = new DeleteObjectCommand({
       Bucket: this.bucket,

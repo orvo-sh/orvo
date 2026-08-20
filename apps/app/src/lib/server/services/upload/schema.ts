@@ -6,4 +6,8 @@ const createUploadUrlInputSchema = z.object({
   purpose: z.enum(["image", "chat_attachment"]).default("image"),
 });
 
-export { createUploadUrlInputSchema };
+const uploadFileInputSchema = createUploadUrlInputSchema.extend({
+  data: z.instanceof(Uint8Array),
+});
+
+export { createUploadUrlInputSchema, uploadFileInputSchema };
