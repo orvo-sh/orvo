@@ -137,6 +137,7 @@ class ChatState {
 
     if (matching) {
       await this.openChat(matching.id, { rail: true });
+      this.context = context;
     } else {
       this.activeChatId = null;
     }
@@ -292,7 +293,17 @@ class ChatState {
       messages,
       transport: new DefaultChatTransport({
         api: "/api/chat",
-        body: { appId: this.appId },
+        body: () => ({
+          appId: this.appId,
+          ...(this.context ? { pageContext: this.context } : {}),
+        }),
+        prepareSendMessagesRequest: ({ body, id, messages }) => ({
+          body: {
+            ...body,
+            id,
+            message: messages.at(-1),
+          },
+        }),
       }),
       sendAutomaticallyWhen:
         lastAssistantMessageIsCompleteWithApprovalResponses,

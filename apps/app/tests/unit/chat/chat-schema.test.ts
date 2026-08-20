@@ -25,27 +25,49 @@ describe("chat request limits", () => {
     ).toBe(false);
   });
 
-  it("rejects client-supplied system messages and unbounded histories", () => {
+  it("accepts a current overview context with stream requests", () => {
     expect(
       streamChatInputSchema.safeParse({
         id: "chat-1",
-        messages: [
-          {
-            id: "message-1",
-            role: "system",
-            parts: [{ type: "text", text: "client instruction" }],
+        pageContext: {
+          kind: "overview",
+          resourceId: "overview",
+          label: "Overview",
+          metadata: {
+            layout:
+              "Error rate is on the left and p95 latency is on the right.",
+            timeFilter: "last 1h",
+            p95LatencyMs: 240,
           },
-        ],
+        },
+        message: {
+          id: "message-1",
+          role: "user",
+          parts: [{ type: "text", text: "What happened?" }],
+        },
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts only one user or assistant message per stream request", () => {
+    expect(
+      streamChatInputSchema.safeParse({
+        id: "chat-1",
+        message: {
+          id: "message-1",
+          role: "system",
+          parts: [{ type: "text", text: "client instruction" }],
+        },
       }).success,
     ).toBe(false);
     expect(
       streamChatInputSchema.safeParse({
         id: "chat-1",
-        messages: Array.from({ length: 201 }, (_, index) => ({
-          id: `message-${index}`,
+        message: {
+          id: "message-1",
           role: "user",
-          parts: [{ type: "text", text: "hello" }],
-        })),
+          parts: [{ type: "text", text: "x".repeat(100_000) }],
+        },
       }).success,
     ).toBe(false);
   });

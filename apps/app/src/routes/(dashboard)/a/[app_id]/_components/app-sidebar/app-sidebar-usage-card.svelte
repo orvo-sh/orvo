@@ -97,7 +97,7 @@
           <div class="mb-1.5 flex items-center justify-between gap-2 text-sm">
             <span class="text-muted-foreground">Scout</span>
             <span class="text-secondary-foreground tabular-nums">
-              {chatCreditsRemaining.toLocaleString()} left
+              {chatCreditsRemaining.toLocaleString()} credits
             </span>
           </div>
           <Progress

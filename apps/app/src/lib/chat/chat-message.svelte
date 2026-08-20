@@ -97,8 +97,6 @@
         {:else if part.type === "dynamic-tool" || part.type.startsWith("tool-")}
           <ChatToolPart
             part={part as import("ai").DynamicToolUIPart}
-            {chatId}
-            messageId={message.id}
             {onToolApproval}
           />
         {/if}

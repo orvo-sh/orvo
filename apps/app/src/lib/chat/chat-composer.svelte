@@ -19,11 +19,13 @@
     onSend,
     onStop,
     centered = false,
+    compact = false,
   }: {
     status: string;
     onSend: (text: string, files: File[]) => Promise<boolean>;
     onStop: () => Promise<void> | void;
     centered?: boolean;
+    compact?: boolean;
   } = $props();
 
   let value = $state("");
@@ -76,7 +78,9 @@
 >
   {#if centered}
     <h2
-      class="-mt-[10%] mb-6 text-center text-2xl font-medium tracking-tight text-foreground"
+      class="-mt-[10%] mb-6 text-center font-medium tracking-tight text-foreground"
+      class:text-lg={compact}
+      class:text-2xl={!compact}
     >
       What can Scout help with today?
     </h2>

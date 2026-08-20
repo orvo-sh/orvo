@@ -2,7 +2,12 @@
   import { goto } from "$app/navigation";
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
-  import { IconBinaryTree2 as TreeStructureIcon } from "@tabler/icons-svelte";
+  import * as Chat from "$lib/chat";
+  import { Button } from "@repo/components/ui/button";
+  import {
+    IconBinaryTree2 as TreeStructureIcon,
+    IconSparkle,
+  } from "@tabler/icons-svelte";
   import PageContainer from "../../_components/page-container/page-container.svelte";
   import type { Span } from "../types";
   import SpanDetailPanel from "./_components/span-detail-panel.svelte";
@@ -11,6 +16,7 @@
   let { data }: { data: { spans: Span[] } } = $props();
 
   let asideOpen = $state(Boolean(page.url.searchParams.get("span")));
+  const chat = Chat.useChatState();
   const spans = $derived(data.spans);
   const selectedSpanId = $derived(page.url.searchParams.get("span"));
 
@@ -50,8 +56,16 @@
       : null,
   );
 
+  const traceChatContext = $derived<Chat.ChatContextDescriptor>({
+    kind: "trace",
+    resourceId: page.params.trace_id ?? "",
+    label: traceMeta?.name ?? page.params.trace_id ?? "Trace",
+    metadata: { traceId: page.params.trace_id ?? "" },
+  });
+
   const updateSelectedSpan = (spanId: string | null) => {
     asideOpen = Boolean(spanId);
+    if (spanId) chat.closeRail();
     void goto(resolve(getTraceHref(spanId)), {
       replaceState: true,
       noScroll: true,
@@ -76,18 +90,32 @@
 
 <PageContainer
   title={traceMeta?.name ?? "Trace"}
-  chat={{
-    kind: "trace",
-    resourceId: page.params.trace_id,
-    label: traceMeta?.name ?? page.params.trace_id,
-    metadata: { traceId: page.params.trace_id },
-  }}
   back={{ href: backHref, title: "Traces" }}
   asideTitle={selectedSpan?.name ?? "Span details"}
   bind:asideOpen
   class="min-h-0 overflow-hidden"
   contentClass="p-0!"
 >
+  {#snippet actions()}
+    {#if page.data.mode === "cloud"}
+      <Button
+        variant="ghost"
+        size="icon"
+        class={chat.railOpen
+          ? "border-muted bg-muted text-foreground dark:bg-muted/50"
+          : ""}
+        aria-label="Open Scout"
+        aria-pressed={chat.railOpen}
+        onclick={() => {
+          asideOpen = false;
+          void chat.openContext(traceChatContext);
+        }}
+      >
+        <IconSparkle data-slot="button-icon" />
+      </Button>
+    {/if}
+  {/snippet}
+
   {#snippet aside()}
     {#if selectedSpan}
       <SpanDetailPanel span={selectedSpan} onClose={closeSelectedSpan} />

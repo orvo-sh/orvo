@@ -16,6 +16,7 @@ import { organization } from './organization.schema.js';
 import { user } from './user.schema.js';
 
 const chatContextKind = pgEnum('chat_context_kind', [
+  'overview',
   'trace',
   'log',
   'metric',

@@ -1,6 +1,7 @@
 import type { DB } from "@repo/db";
 import { chat } from "@repo/db/schema";
 import { and, eq } from "drizzle-orm";
+import type { UIMessage } from "ai";
 
 const findOwnedChat = async (
   db: DB,
@@ -16,43 +17,49 @@ const findOwnedChat = async (
     ),
   });
 
-const deriveChatTitle = (
-  messages: Array<{ role: string; parts: unknown[] }>,
-) => {
-  const text = messages
-    .find((message) => message.role === "user")
-    ?.parts.find(
-      (part): part is { type: "text"; text: string } =>
-        typeof part === "object" &&
-        part !== null &&
-        "type" in part &&
-        part.type === "text" &&
-        "text" in part &&
-        typeof part.text === "string",
-    )
-    ?.text.trim();
-
-  if (!text) {
-    const filename = messages
-      .find((message) => message.role === "user")
-      ?.parts.find(
-        (part): part is { type: "file"; filename: string } =>
-          typeof part === "object" &&
-          part !== null &&
-          "type" in part &&
-          part.type === "file" &&
-          "filename" in part &&
-          typeof part.filename === "string",
-      )?.filename;
-    return filename
-      ? `Attachment: ${filename}`.slice(0, 72).trimEnd()
-      : "New chat";
+const mergeChatToolApproval = (stored: UIMessage, incoming: UIMessage) => {
+  if (
+    stored.id !== incoming.id ||
+    stored.role !== "assistant" ||
+    incoming.role !== "assistant"
+  ) {
+    return null;
   }
 
-  const singleLine = text.replace(/\s+/g, " ");
-  return singleLine.length > 72
-    ? `${singleLine.slice(0, 71).trimEnd()}…`
-    : singleLine;
+  let changed = false;
+  const parts = stored.parts.map((part) => {
+    if (
+      !("toolCallId" in part) ||
+      part.state !== "approval-requested" ||
+      !part.approval
+    ) {
+      return part;
+    }
+    const response = incoming.parts.find(
+      (candidate) =>
+        "toolCallId" in candidate &&
+        candidate.toolCallId === part.toolCallId &&
+        candidate.state === "approval-responded" &&
+        candidate.approval.id === part.approval.id &&
+        candidate.approval.signature === part.approval.signature,
+    );
+    const approval =
+      response && "approval" in response ? response.approval : null;
+    if (!approval || typeof approval.approved !== "boolean") return part;
+
+    changed = true;
+    return {
+      ...part,
+      state: "approval-responded" as const,
+      approval: {
+        ...part.approval,
+        approved: approval.approved,
+        ...(approval.reason ? { reason: approval.reason.slice(0, 500) } : {}),
+      },
+    };
+  });
+
+  return changed ? ({ ...stored, parts } as UIMessage) : null;
 };
 
-export { deriveChatTitle, findOwnedChat };
+export { findOwnedChat, mergeChatToolApproval };

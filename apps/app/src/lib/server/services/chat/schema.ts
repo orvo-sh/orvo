@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const chatContextKindSchema = z.enum([
+  "overview",
   "trace",
   "log",
   "metric",
@@ -41,15 +42,16 @@ const listChatsInputSchema = z.object({
 
 const streamChatInputSchema = z.object({
   id: z.string().trim().min(1),
-  messages: z
-    .array(
-      z.object({
-        id: z.string().trim().min(1),
-        role: z.enum(["user", "assistant"]),
-        parts: z.array(z.record(z.string(), z.unknown())).max(100),
-      }),
-    )
-    .max(200),
+  pageContext: chatContextInputSchema.optional(),
+  message: z
+    .object({
+      id: z.string().trim().min(1),
+      role: z.enum(["user", "assistant"]),
+      parts: z.array(z.record(z.string(), z.unknown())).max(100),
+    })
+    .refine((message) => JSON.stringify(message).length <= 100_000, {
+      message: "Chat message is too large.",
+    }),
 });
 
 export {

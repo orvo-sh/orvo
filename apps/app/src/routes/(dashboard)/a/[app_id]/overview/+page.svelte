@@ -1,10 +1,16 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import * as Chat from "$lib/chat";
   import * as RightRail from "$lib/right-rail";
   import { Button } from "@repo/components/ui/button";
   import * as Select from "@repo/components/ui/select";
   import { formatNumber } from "@repo/utils";
-  import { IconChartBar, IconRoute, IconTerminal2 } from "@tabler/icons-svelte";
+  import {
+    IconChartBar,
+    IconRoute,
+    IconSparkle,
+    IconTerminal2,
+  } from "@tabler/icons-svelte";
 
   import { page } from "$app/state";
   import PageContainer from "../_components/page-container/page-container.svelte";
@@ -22,6 +28,7 @@
   let loading = $state(false);
   let selectedServiceName = $state<string | null>(null);
 
+  const chat = Chat.useChatState();
   const rightRail = RightRail.useRightRail();
 
   const selectedService = $derived(
@@ -141,6 +148,41 @@
     })) ?? [],
   );
 
+  const overviewChatContext = $derived<Chat.ChatContextDescriptor>({
+    kind: "overview",
+    resourceId: "overview",
+    label: "Overview",
+    metadata: {
+      layout:
+        "Top to bottom: Logs, Traces, and Metrics signal summaries; Error rate chart on the left and p95 latency chart on the top right on wide screens (stacked on narrow screens); Open incidents; Services needing attention. The time filter is in the page header.",
+      timeFilter: `last ${time}`,
+      logsTotal: data.logTrend?.total ?? 0,
+      tracesTotal: data.traceTrend?.total ?? 0,
+      metricPointsTotal: data.metricsTrend?.total ?? 0,
+      errorRatePercent: (data.traceMetrics?.summary.errorRate ?? 0) * 100,
+      errorRateChangePercent: errorRateTrend.change,
+      p95LatencyMs: data.traceMetrics?.summary.p95LatencyMs ?? 0,
+      p95LatencyChangePercent: latencyTrend.change,
+      openIncidentCount: data.incidents?.length ?? 0,
+      servicesNeedingAttention: (
+        data.servicesNeedingAttention
+          ?.map((service) => service.name)
+          .join(", ") || "None"
+      ).slice(0, 500),
+      hasReceivedTelemetry: data.hasReceivedFirstSignal,
+    },
+  });
+
+  $effect(() => {
+    if (
+      chat.railOpen &&
+      chat.context?.kind === "overview" &&
+      chat.context !== overviewChatContext
+    ) {
+      chat.context = overviewChatContext;
+    }
+  });
+
   $effect(() => {
     if (selectedServiceName && !selectedService) {
       selectedServiceName = null;
@@ -208,6 +250,21 @@
         </Button>
       {/each}
     </div>
+
+    {#if page.data.mode === "cloud"}
+      <Button
+        variant="ghost"
+        size="icon"
+        class={chat.railOpen
+          ? "border-muted bg-muted text-foreground dark:bg-muted/50"
+          : ""}
+        aria-label="Open Scout"
+        aria-pressed={chat.railOpen}
+        onclick={() => void chat.openContext(overviewChatContext)}
+      >
+        <IconSparkle data-slot="button-icon" />
+      </Button>
+    {/if}
   {/snippet}
   <div class="flex flex-col gap-4">
     {#if !data.hasReceivedFirstSignal}

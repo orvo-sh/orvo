@@ -39,6 +39,15 @@ const defaultTime = {
   preset: "last_hour",
 } as const;
 
+const intentSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(120)
+  .describe(
+    "A short sentence-case description of what you are looking for or trying to achieve with this call.",
+  );
+
 const jsonSafe = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 const result = (
@@ -77,6 +86,7 @@ const createChatTools = (
       description:
         "Summarize telemetry volume, open incidents, heartbeat health, and alert rules for the current app.",
       inputSchema: z.object({
+        intent: intentSchema,
         time: timeFilterSchema.optional().default(defaultTime),
       }),
       execute: async ({ time }) => {
@@ -143,6 +153,7 @@ const createChatTools = (
       description:
         "Search logs in the current app using time, structured filters, sorting, and pagination.",
       inputSchema: getLogsInputSchema.extend({
+        intent: intentSchema,
         time: timeFilterSchema.optional().default(defaultTime),
         limit: z.number().int().min(1).max(25).default(20),
       }),
@@ -154,7 +165,10 @@ const createChatTools = (
     }),
     get_log: tool({
       description: "Load one log from the current app by its ID.",
-      inputSchema: z.object({ id: z.string().trim().min(1).max(255) }),
+      inputSchema: z.object({
+        intent: intentSchema,
+        id: z.string().trim().min(1).max(255),
+      }),
       execute: async (input) =>
         toolResult(
           "get_log",
@@ -165,6 +179,7 @@ const createChatTools = (
       description:
         "Search traces in the current app using time, services, status, duration, attributes, sorting, and pagination.",
       inputSchema: getTracesInputSchema.extend({
+        intent: intentSchema,
         time: timeFilterSchema.optional().default(defaultTime),
         limit: z.number().int().min(1).max(25).default(20),
       }),
@@ -177,7 +192,10 @@ const createChatTools = (
     get_trace: tool({
       description:
         "Load a trace's root, error, and slow spans by trace ID. Very large traces are bounded.",
-      inputSchema: z.object({ id: z.string().trim().min(1).max(255) }),
+      inputSchema: z.object({
+        intent: intentSchema,
+        id: z.string().trim().min(1).max(255),
+      }),
       execute: async (input) =>
         toolResult(
           "get_trace",
@@ -188,6 +206,7 @@ const createChatTools = (
       description:
         "Load the trace-derived service graph for the current app over a selected time window.",
       inputSchema: z.object({
+        intent: intentSchema,
         time: timeFilterSchema.optional().default(defaultTime),
       }),
       execute: async (input) =>
@@ -202,6 +221,7 @@ const createChatTools = (
       inputSchema: getMetricsExplorerInputSchema
         .omit({ sampleLimit: true })
         .extend({
+          intent: intentSchema,
           time: timeFilterSchema.optional().default(defaultTime),
           bucketCount: z.number().int().min(10).max(60).default(30),
         }),
@@ -218,6 +238,7 @@ const createChatTools = (
       description:
         "List incidents in the current app, optionally filtered by status, source, or entity.",
       inputSchema: z.object({
+        intent: intentSchema,
         status: incidentStatusSchema.default("all"),
         sourceType: incidentSourceTypeSchema.optional(),
         sourceId: z.string().trim().min(1).optional(),
@@ -232,7 +253,10 @@ const createChatTools = (
     }),
     get_incident: tool({
       description: "Load one incident and its recent event history.",
-      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      inputSchema: z.object({
+        intent: intentSchema,
+        id: z.string().trim().min(1),
+      }),
       execute: async ({ id }) =>
         toolResult(
           "get_incident",
@@ -243,6 +267,7 @@ const createChatTools = (
       description:
         "List heartbeat monitors and their health in the current app.",
       inputSchema: z.object({
+        intent: intentSchema,
         limit: z.number().int().min(1).max(25).default(20),
       }),
       execute: async ({ limit }) => {
@@ -258,7 +283,10 @@ const createChatTools = (
     }),
     get_heartbeat_monitor: tool({
       description: "Load one heartbeat monitor from the current app.",
-      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      inputSchema: z.object({
+        intent: intentSchema,
+        id: z.string().trim().min(1),
+      }),
       execute: async ({ id }) => {
         const monitor = await dependencies.heartbeatService.getHeartbeatMonitor(
           id,
@@ -270,7 +298,7 @@ const createChatTools = (
     list_alert_rules: tool({
       description:
         "List alert rules for the current app with thresholds, enabled state, destinations, and open incident counts.",
-      inputSchema: z.object({}),
+      inputSchema: z.object({ intent: intentSchema }),
       execute: async () =>
         toolResult(
           "list_alert_rules",
@@ -280,7 +308,10 @@ const createChatTools = (
     get_alert_rule: tool({
       description:
         "Load one alert rule from the current app, including its scope and notification destinations.",
-      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      inputSchema: z.object({
+        intent: intentSchema,
+        id: z.string().trim().min(1),
+      }),
       execute: async ({ id }) =>
         toolResult(
           "get_alert_rule",
@@ -289,7 +320,9 @@ const createChatTools = (
     }),
     update_app: tool({
       description: "Rename the current app.",
-      inputSchema: updateAppInputSchema.omit({ id: true }),
+      inputSchema: updateAppInputSchema
+        .omit({ id: true })
+        .extend({ intent: intentSchema }),
       execute: async (input) =>
         toolResult(
           "update_app",
@@ -301,7 +334,7 @@ const createChatTools = (
     }),
     create_alert_rule: tool({
       description: "Create an alert rule for the current app.",
-      inputSchema: createAlertRuleInputSchema,
+      inputSchema: createAlertRuleInputSchema.extend({ intent: intentSchema }),
       execute: async (input) =>
         toolResult(
           "create_alert_rule",
@@ -310,7 +343,7 @@ const createChatTools = (
     }),
     update_alert_rule: tool({
       description: "Update an alert rule in the current app.",
-      inputSchema: updateAlertRuleInputSchema,
+      inputSchema: updateAlertRuleInputSchema.extend({ intent: intentSchema }),
       execute: async (input) =>
         toolResult(
           "update_alert_rule",
@@ -319,7 +352,9 @@ const createChatTools = (
     }),
     set_alert_rule_enabled: tool({
       description: "Enable or disable an alert rule in the current app.",
-      inputSchema: setAlertRuleEnabledInputSchema,
+      inputSchema: setAlertRuleEnabledInputSchema.extend({
+        intent: intentSchema,
+      }),
       execute: async (input) =>
         toolResult(
           "set_alert_rule_enabled",
@@ -331,7 +366,10 @@ const createChatTools = (
     }),
     delete_alert_rule: tool({
       description: "Permanently delete an alert rule from the current app.",
-      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      inputSchema: z.object({
+        intent: intentSchema,
+        id: z.string().trim().min(1),
+      }),
       execute: async ({ id }) =>
         toolResult(
           "delete_alert_rule",
@@ -340,7 +378,9 @@ const createChatTools = (
     }),
     create_heartbeat_monitor: tool({
       description: "Create a heartbeat monitor for the current app.",
-      inputSchema: createHeartbeatMonitorInputSchema,
+      inputSchema: createHeartbeatMonitorInputSchema.extend({
+        intent: intentSchema,
+      }),
       execute: async (input) =>
         toolResult(
           "create_heartbeat_monitor",
@@ -352,7 +392,9 @@ const createChatTools = (
     }),
     update_heartbeat_monitor: tool({
       description: "Update a heartbeat monitor in the current app.",
-      inputSchema: updateHeartbeatMonitorInputSchema,
+      inputSchema: updateHeartbeatMonitorInputSchema.extend({
+        intent: intentSchema,
+      }),
       execute: async (input) =>
         toolResult(
           "update_heartbeat_monitor",
@@ -364,7 +406,10 @@ const createChatTools = (
     }),
     toggle_heartbeat_monitor_paused: tool({
       description: "Pause or resume a heartbeat monitor in the current app.",
-      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      inputSchema: z.object({
+        intent: intentSchema,
+        id: z.string().trim().min(1),
+      }),
       execute: async ({ id }) =>
         toolResult(
           "toggle_heartbeat_monitor_paused",
@@ -377,7 +422,10 @@ const createChatTools = (
     regenerate_heartbeat_monitor_secret: tool({
       description:
         "Regenerate a heartbeat monitor secret, invalidating its existing check-in URL.",
-      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      inputSchema: z.object({
+        intent: intentSchema,
+        id: z.string().trim().min(1),
+      }),
       execute: async ({ id }) =>
         toolResult(
           "regenerate_heartbeat_monitor_secret",
@@ -389,7 +437,10 @@ const createChatTools = (
     }),
     send_heartbeat_monitor_test_alert: tool({
       description: "Send a test alert for a heartbeat monitor.",
-      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      inputSchema: z.object({
+        intent: intentSchema,
+        id: z.string().trim().min(1),
+      }),
       execute: async ({ id }) =>
         toolResult(
           "send_heartbeat_monitor_test_alert",
@@ -402,7 +453,10 @@ const createChatTools = (
     delete_heartbeat_monitor: tool({
       description:
         "Permanently delete a heartbeat monitor from the current app.",
-      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      inputSchema: z.object({
+        intent: intentSchema,
+        id: z.string().trim().min(1),
+      }),
       execute: async ({ id }) =>
         toolResult(
           "delete_heartbeat_monitor",
@@ -414,7 +468,10 @@ const createChatTools = (
     }),
     resolve_incident: tool({
       description: "Resolve an open incident in the current app.",
-      inputSchema: z.object({ id: z.string().trim().min(1) }),
+      inputSchema: z.object({
+        intent: intentSchema,
+        id: z.string().trim().min(1),
+      }),
       execute: async ({ id }) =>
         toolResult(
           "resolve_incident",
@@ -423,7 +480,7 @@ const createChatTools = (
     }),
     dismiss_incident: tool({
       description: "Dismiss an incident in the current app with a reason.",
-      inputSchema: dismissIncidentInputSchema,
+      inputSchema: dismissIncidentInputSchema.extend({ intent: intentSchema }),
       execute: async (input) =>
         toolResult(
           "dismiss_incident",

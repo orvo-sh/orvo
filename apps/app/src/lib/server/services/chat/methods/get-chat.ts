@@ -7,6 +7,7 @@ import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { getChatInputSchema } from "../schema";
+import { sanitizeChatMessagesForClient } from "../tools/presentation";
 import { findOwnedChat } from "./shared";
 
 const createGetChat =
@@ -36,12 +37,14 @@ const createGetChat =
 
       return ok({
         chat: { ...ownedChat, contexts },
-        messages: messages.map((message) => ({
-          id: message.id,
-          role: message.role,
-          parts: message.parts,
-          ...(message.metadata ? { metadata: message.metadata } : {}),
-        })),
+        messages: sanitizeChatMessagesForClient(
+          messages.map((message) => ({
+            id: message.id,
+            role: message.role,
+            parts: message.parts,
+            ...(message.metadata ? { metadata: message.metadata } : {}),
+          })) as import("ai").UIMessage[],
+        ),
       });
     } catch (error) {
       recordError(error);

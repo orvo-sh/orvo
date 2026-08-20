@@ -23,6 +23,11 @@
   const client = $derived(session?.client ?? null);
   const status = $derived(client?.status ?? "ready");
   const messages = $derived(client?.messages ?? []);
+  const title = $derived(
+    session?.thread.title && session.thread.title !== "New chat"
+      ? session.thread.title
+      : "Scout",
+  );
 
   $effect(() => {
     if (chatId && chat.activeChatId !== chatId) void chat.openChat(chatId);
@@ -45,9 +50,8 @@
     {#if mode === "rail"}
       <div class="flex h-14 shrink-0 items-center gap-2 border-b px-3">
         <div class="min-w-0 flex-1">
-          <div class="text-sm font-medium text-foreground">Scout</div>
-          <div class="truncate text-sm text-muted-foreground">
-            {chat.context?.label ?? "App assistant"}
+          <div class="truncate text-sm font-medium text-foreground">
+            {title}
           </div>
         </div>
 
@@ -129,6 +133,7 @@
         onSend={chat.send}
         onStop={() => client?.stop()}
         centered={!messages.length}
+        compact={mode === "rail"}
       />
     {/if}
   </section>
