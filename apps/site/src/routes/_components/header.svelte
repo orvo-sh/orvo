@@ -1,11 +1,14 @@
 <script lang="ts">
   import { cn } from '@repo/components';
+  import { GitHubIcon } from '@repo/components/icons/github';
   import { OrvoLogo } from '@repo/components/icons/orvo-logo';
   import { Button } from '@repo/components/ui/button';
   import * as NavigationMenu from '@repo/components/ui/navigation-menu';
   import * as Sheet from '@repo/components/ui/sheet';
   import { IconMenu } from '@tabler/icons-svelte';
   import type { HTMLAttributes } from 'svelte/elements';
+
+  let { githubStars }: { githubStars: number } = $props();
 
   const productFeatures = [
     {
@@ -82,7 +85,7 @@
         <NavigationMenu.Item>
           <NavigationMenu.Link>
             {#snippet child()}
-              <Button href="/#open-source" variant="ghost">Open source</Button>
+              <Button href="/docs/getting-started/local-mode" variant="ghost">Local</Button>
             {/snippet}
           </NavigationMenu.Link>
         </NavigationMenu.Item>
@@ -118,6 +121,26 @@
             {/snippet}
           </NavigationMenu.Link>
         </NavigationMenu.Item>
+
+        <NavigationMenu.Item>
+          <a
+            href="https://github.com/orvo-sh/orvo"
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`View Orvo on GitHub`}
+            class="border-foreground/20 bg-background hover:bg-foreground/5 focus-visible:ring-ring inline-flex h-8 overflow-hidden rounded-lg border transition-colors outline-none focus-visible:ring-2"
+          >
+            <span class="border-foreground/20 flex w-8 items-center justify-center border-r">
+              <GitHubIcon alt="" class="size-4 dark:invert" />
+            </span>
+            <span class="flex items-center px-3 font-mono text-sm font-medium">
+              {new Intl.NumberFormat('en', {
+                notation: 'compact',
+                maximumFractionDigits: 1
+              }).format(githubStars)}
+            </span>
+          </a>
+        </NavigationMenu.Item>
       </NavigationMenu.List>
     </NavigationMenu.Root>
     <Sheet.Root bind:open={mobileSheetOpen}>
@@ -137,7 +160,7 @@
         <div class="flex flex-1 flex-col overflow-y-auto p-1 pt-2">
           <div class="space-y-1">
             <Button
-              href="/#open-source"
+              href="/docs/getting-started/local-mode"
               variant="ghost"
               class="w-full justify-start"
               onclick={() => {
@@ -146,7 +169,7 @@
                 });
               }}
             >
-              Open source
+              Local
             </Button>
 
             <Button

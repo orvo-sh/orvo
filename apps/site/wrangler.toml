@@ -1,2 +1,6 @@
 compatibility_date = "2026-07-04"
 compatibility_flags = ["nodejs_compat"]
+
+[[kv_namespaces]]
+binding = "GITHUB_CACHE"
+id = "261c805dc7c743969f12906c1be36f1e"
