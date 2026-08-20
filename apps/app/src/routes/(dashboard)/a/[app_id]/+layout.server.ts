@@ -104,6 +104,7 @@ export const load = (async (event) => {
         ? {
             billingPlan: billingStateResult.data.billingPlan,
             billingStatus: billingStateResult.data.billingStatus,
+            hasPaymentMethod: billingStateResult.data.hasPaymentMethod,
             trialStart: billingStateResult.data.trialStart,
             trialEnd: billingStateResult.data.trialEnd,
             includedBytes: billingStateResult.data.ingestLimitBytes,

@@ -78,6 +78,7 @@ class BillingService {
     this.getBillingStateMethod = createGetBillingState({
       db,
       logger: this.logger,
+      stripe,
       getCurrentSubscription,
     });
     this.getOrganizationAccessStateMethod = createGetOrganizationAccessState({

@@ -10,11 +10,13 @@
 
   let {
     billingStatus,
+    hasPaymentMethod,
     trialEnd,
     billingHref,
     bannerVisible = $bindable(false),
   }: {
     billingStatus: string | null;
+    hasPaymentMethod: boolean | null;
     trialEnd: Date | string | null;
     billingHref: string;
     bannerVisible?: boolean;
@@ -33,6 +35,7 @@
   );
   const trialEnding = $derived(
     billingStatus === "trialing" &&
+      hasPaymentMethod === false &&
       daysRemaining !== null &&
       daysRemaining > 0 &&
       daysRemaining <= 5,

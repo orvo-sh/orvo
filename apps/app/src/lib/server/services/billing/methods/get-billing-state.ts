@@ -2,6 +2,7 @@ import { recordError } from "$lib/instrumentation";
 import type { DB } from "@repo/db";
 import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
+import type Stripe from "stripe";
 
 import type { createGetCurrentSubscription } from "../shared";
 
@@ -9,10 +10,12 @@ const createGetBillingState =
   ({
     db,
     logger,
+    stripe,
     getCurrentSubscription,
   }: {
     db: DB;
     logger: Logger;
+    stripe: Stripe;
     getCurrentSubscription: ReturnType<typeof createGetCurrentSubscription>;
   }) =>
   async (context: { organizationId: string }) => {
@@ -22,6 +25,7 @@ const createGetBillingState =
           columns: {
             billingPlan: true,
             billingStatus: true,
+            stripeCustomerId: true,
           },
           with: {
             usage: {
@@ -42,10 +46,37 @@ const createGetBillingState =
         return err("No organization found.");
       }
 
+      const billingStatus =
+        currentSubscription?.status ?? currentOrganization.billingStatus;
+      let hasPaymentMethod: boolean | null = null;
+      const stripeCustomerId =
+        currentSubscription?.stripeCustomerId ??
+        currentOrganization.stripeCustomerId;
+
+      if (billingStatus === "trialing") {
+        if (!stripeCustomerId) {
+          hasPaymentMethod = false;
+        } else {
+          try {
+            const paymentMethods = await stripe.paymentMethods.list({
+              customer: stripeCustomerId,
+              limit: 1,
+            });
+            hasPaymentMethod = paymentMethods.data.length > 0;
+          } catch (error) {
+            recordError(error);
+            logger.error(
+              "getBillingState: failed to check Stripe payment methods",
+              error as Error,
+            );
+          }
+        }
+      }
+
       return ok({
         billingPlan: currentOrganization.billingPlan,
-        billingStatus:
-          currentSubscription?.status ?? currentOrganization.billingStatus,
+        billingStatus,
+        hasPaymentMethod,
         trialStart: currentSubscription?.trialStart ?? null,
         trialEnd: currentSubscription?.trialEnd ?? null,
         chatUsage: currentOrganization.usage

@@ -19,11 +19,12 @@
 
 <Chat.Provider appId={data.currentApp.id}>
   <RightRail.Provider>
-    <div class="flex h-dvh w-full max-h-dvh flex-col overflow-hidden">
+    <div class="flex h-dvh max-h-dvh w-full flex-col overflow-hidden">
       {#if data.mode === "cloud"}
         <TrialStatus
           bind:bannerVisible={trialBannerVisible}
           billingStatus={data.billingSummary?.billingStatus ?? null}
+          hasPaymentMethod={data.billingSummary?.hasPaymentMethod ?? null}
           trialEnd={data.billingSummary?.trialEnd ?? null}
           billingHref={`/a/${data.currentApp.id}/settings/billing`}
         />
