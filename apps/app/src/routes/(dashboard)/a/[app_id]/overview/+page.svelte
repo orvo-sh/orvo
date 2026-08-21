@@ -1,7 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import * as Chat from "$lib/chat";
-  import * as RightRail from "$lib/right-rail";
   import { Button } from "@repo/components/ui/button";
   import * as Select from "@repo/components/ui/select";
   import { formatNumber } from "@repo/utils";
@@ -17,7 +16,6 @@
   import ChartCard from "./_components/chart-card.svelte";
   import IncidentsSection from "./_components/incidents-section.svelte";
   import { OnboardingBanner } from "./_components/onboarding-banner";
-  import ServiceSheet from "./_components/service-sheet.svelte";
   import ServicesSection from "./_components/services-section.svelte";
   import SignalSummaryCard from "./_components/signal-summary-card.svelte";
 
@@ -26,68 +24,8 @@
 
   let time = $state(data.time);
   let loading = $state(false);
-  let selectedServiceName = $state<string | null>(null);
 
   const chat = Chat.useChatState();
-  const rightRail = RightRail.useRightRail();
-
-  const selectedService = $derived(
-    (data.servicesNeedingAttention ?? []).find(
-      (service) => service.name === selectedServiceName,
-    ) ?? null,
-  );
-
-  const selectedServiceConnections = $derived.by(() => {
-    if (!selectedServiceName) {
-      return { incoming: [], outgoing: [] };
-    }
-
-    const incoming = new Map<
-      string,
-      { name: string; total: number; errors: number; errorRate: number }
-    >();
-    const outgoing = new Map<
-      string,
-      { name: string; total: number; errors: number; errorRate: number }
-    >();
-
-    for (const edge of data.serviceGraph?.edges ?? []) {
-      if (edge.target === selectedServiceName) {
-        incoming.set(edge.source, {
-          name: edge.source,
-          total: edge.total,
-          errors: edge.errors,
-          errorRate: edge.errorRate,
-        });
-      }
-
-      if (edge.source === selectedServiceName) {
-        outgoing.set(edge.target, {
-          name: edge.target,
-          total: edge.total,
-          errors: edge.errors,
-          errorRate: edge.errorRate,
-        });
-      }
-    }
-
-    return {
-      incoming: Array.from(incoming.values()).sort((left, right) => {
-        if (right.total !== left.total) {
-          return right.total - left.total;
-        }
-
-        return right.errors - left.errors;
-      }),
-      outgoing: Array.from(outgoing.values()).sort((left, right) => {
-        if (right.total !== left.total) {
-          return right.total - left.total;
-        }
-
-        return right.errors - left.errors;
-      }),
-    };
-  });
 
   const updateTime = async (nextTime: (typeof timeOptions)[number]) => {
     if (loading || time === nextTime) {
@@ -183,34 +121,6 @@
     }
   });
 
-  $effect(() => {
-    if (selectedServiceName && !selectedService) {
-      selectedServiceName = null;
-    }
-  });
-
-  $effect(() => {
-    if (!selectedService) {
-      rightRail.close("overview-service");
-      return;
-    }
-
-    rightRail.show({
-      id: "overview-service",
-      component: ServiceSheet,
-      persistOnNavigation: false,
-      widthClass: "sm:max-w-3xl",
-      props: {
-        service: selectedService,
-        incomingServices: selectedServiceConnections.incoming,
-        outgoingServices: selectedServiceConnections.outgoing,
-        time,
-        onClose: () => {
-          selectedServiceName = null;
-        },
-      },
-    });
-  });
 </script>
 
 <PageContainer title="Overview" contentClass="p-3">
@@ -340,11 +250,6 @@
         severity: "critical" | "warning" | "info";
         buckets: number[];
       }>}
-      {selectedServiceName}
-      onSelectService={(serviceName) => {
-        selectedServiceName =
-          selectedServiceName === serviceName ? null : serviceName;
-      }}
       {time}
       {loading}
     />

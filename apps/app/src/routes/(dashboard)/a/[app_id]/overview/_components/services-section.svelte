@@ -25,14 +25,10 @@
   let {
     services,
     time,
-    selectedServiceName = null,
-    onSelectService,
     loading = false,
   }: {
     services: ServiceRow[];
     time: "30m" | "1h" | "4h" | "24h" | "7d";
-    selectedServiceName?: string | null;
-    onSelectService: (serviceName: string) => void;
     loading?: boolean;
   } = $props();
 
@@ -194,24 +190,7 @@
           </Table.Header>
           <Table.Body>
             {#each services as service (service.name)}
-              <Table.Row
-                class={cn(
-                  "cursor-pointer",
-                  selectedServiceName === service.name && "bg-muted/50",
-                )}
-                role="button"
-                tabindex={0}
-                aria-pressed={selectedServiceName === service.name}
-                onclick={() => {
-                  onSelectService(service.name);
-                }}
-                onkeydown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onSelectService(service.name);
-                  }
-                }}
-              >
+              <Table.Row>
                 <Table.Cell class="h-10 pl-4">
                   <div class="min-w-0">
                     <div class="flex items-center gap-2">
