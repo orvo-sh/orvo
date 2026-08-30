@@ -66,6 +66,11 @@
       "svelte": "./src/lib/components/icons/nodejs/index.ts",
       "default": "./src/lib/components/icons/nodejs/index.ts"
     },
+    "./icons/opencode": {
+      "types": "./src/lib/components/icons/opencode/index.ts",
+      "svelte": "./src/lib/components/icons/opencode/index.ts",
+      "default": "./src/lib/components/icons/opencode/index.ts"
+    },
     "./icons/orvo-logo": {
       "types": "./src/lib/components/icons/orvo-logo/index.ts",
       "svelte": "./src/lib/components/icons/orvo-logo/index.ts",

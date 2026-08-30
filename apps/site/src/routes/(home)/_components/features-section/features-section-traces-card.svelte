@@ -9,7 +9,6 @@
   import {
     IconChevronDown as ChevronDownIcon,
     IconArrowUpRight,
-    IconBinaryTree2,
     IconWorldWww
   } from '@tabler/icons-svelte';
 
@@ -110,17 +109,14 @@
 </script>
 
 <Card.Root
-  class="bg-card/90 border-foreground/10 justify-between gap-0 p-0 md:col-span-2 xl:col-span-8"
+  class="bg-card/90 border-foreground/10 justify-between gap-0 p-0 shadow md:col-span-2 xl:col-span-8"
 >
   <div class="p-5 pb-0">
-    <h2 class="text-secondary-foreground flex items-center gap-2 text-lg font-medium">
-      <IconBinaryTree2 class="text-primary size-6" />
+    <h2 class="text-secondary-foreground flex items-center gap-1.5 font-sans text-lg font-medium">
       Traces
     </h2>
     <p class="text-muted-foreground mt-1.5 max-w-[84%] text-base leading-relaxed">
-      Follow checkout across Go auth, Postgres queries, Node.js orchestration, and Stripe in one
-      continuous timeline. Open the exact failed span and see where the request crossed service
-      boundaries before it broke.
+      Follow a request across services, spot slow spans, and see exactly where time went.
       <a
         href="/docs/product/traces"
         class="text-primary inline-flex text-base underline-offset-4 hover:underline"
@@ -131,8 +127,10 @@
     </p>
   </div>
 
-  <div class="px-5 pt-4 pb-5">
-    <div class="bg-background border-foreground/10 overflow-hidden rounded-xl border">
+  <div class="px-5 pt-4 pb-0">
+    <div
+      class="bg-background border-foreground/10 overflow-hidden rounded-xl rounded-b-none border border-b-0"
+    >
       <div class="h-full min-h-0 w-full overflow-x-auto">
         <div
           class="flex h-full min-h-0 min-w-[34rem] flex-1 flex-col font-mono text-xs select-none"
@@ -181,7 +179,7 @@
                 >
                   {#if span.hasChildren}
                     <span
-                      class="text-muted-foreground mr-0.5 flex size-4 shrink-0 items-center justify-center rounded-sm"
+                      class="text-muted-foreground mr-1.5 flex size-4 shrink-0 items-center justify-center rounded-sm"
                     >
                       <ChevronDownIcon class="size-3.5" />
                     </span>
@@ -190,7 +188,7 @@
                   {/if}
 
                   <span
-                    class="text-muted-foreground mr-1.5 flex size-4 shrink-0 items-center justify-center"
+                    class="text-muted-foreground mr-1.5 hidden size-4 shrink-0 items-center justify-center"
                   >
                     {#if span.icon === 'golang'}
                       <GolangIcon class="size-3.5" />

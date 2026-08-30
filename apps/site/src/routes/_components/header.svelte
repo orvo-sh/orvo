@@ -48,28 +48,18 @@
     }
   ];
 
-  let scrollTop = $state(0);
   let mobileSheetOpen = $state(false);
 </script>
 
-<svelte:document
-  onscroll={(e) => {
-    scrollTop = e.currentTarget?.scrollingElement?.scrollTop ?? 0;
-  }}
-/>
-
-<header
-  class={cn(
-    'border-foreground/10 from-background fixed top-0 z-30 w-full bg-linear-to-b to-transparent transition-colors',
-    scrollTop > 50 && 'border-b-border'
-  )}
->
-  <div class="mx-auto flex max-w-6xl items-center justify-between px-3 py-2 sm:px-6 sm:py-3">
-    <a href="/" class="flex-1">
+<header class={'bg-background border-border fixed top-0 z-30 w-full border-b'}>
+  <div
+    class="relative mx-auto flex max-w-6xl items-center justify-between px-3 py-2 sm:px-6 sm:py-3"
+  >
+    <a href="/">
       <OrvoLogo class="size-10" />
     </a>
 
-    <NavigationMenu.Root class="hidden flex-1 justify-end sm:flex">
+    <NavigationMenu.Root class="absolute left-1/2 hidden -translate-x-1/2 lg:flex">
       <NavigationMenu.List class="gap-2">
         <NavigationMenu.Item>
           <NavigationMenu.Trigger class="h-8!">Product</NavigationMenu.Trigger>
@@ -93,11 +83,15 @@
         <NavigationMenu.Item>
           <NavigationMenu.Link>
             {#snippet child()}
-              <Button href="/#pricing" variant="ghost">Pricing</Button>
+              <Button href="/pricing" variant="ghost">Pricing</Button>
             {/snippet}
           </NavigationMenu.Link>
         </NavigationMenu.Item>
+      </NavigationMenu.List>
+    </NavigationMenu.Root>
 
+    <NavigationMenu.Root class="ml-auto hidden justify-end lg:flex">
+      <NavigationMenu.List class="gap-2">
         <NavigationMenu.Item>
           <NavigationMenu.Link>
             {#snippet child()}
@@ -146,14 +140,14 @@
     <Sheet.Root bind:open={mobileSheetOpen}>
       <Sheet.Trigger>
         {#snippet child({ props }: { props: any })}
-          <Button variant="outline" size="icon" class="sm:hidden" {...props}>
+          <Button variant="outline" size="icon" class="lg:hidden" {...props}>
             <IconMenu data-slot="button-icon" />
             <span class="sr-only">Open menu</span>
           </Button>
         {/snippet}
       </Sheet.Trigger>
 
-      <Sheet.Content side="right" class="w-full max-w-sm gap-0 p-0 sm:hidden">
+      <Sheet.Content side="right" class="w-full max-w-sm gap-0 p-0 lg:hidden">
         <Sheet.Header class="border-b">
           <Sheet.Title>Menu</Sheet.Title>
         </Sheet.Header>
@@ -173,7 +167,7 @@
             </Button>
 
             <Button
-              href="/#pricing"
+              href="/pricing"
               variant="ghost"
               class="w-full justify-start"
               onclick={() => {

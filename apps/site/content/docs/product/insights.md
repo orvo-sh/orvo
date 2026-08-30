@@ -3,8 +3,9 @@ title: Insights
 description: Use Orvo insights to spot changes and risks faster.
 order: 10
 previous: product/deployments
-next: guides/investigate-a-production-incident
+next: product/scout
 ---
+
 # Insights
 
 Insights are the product behavior that helps surface `what changed` before you already know where to look.

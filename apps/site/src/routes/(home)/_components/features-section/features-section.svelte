@@ -1,8 +1,8 @@
 <script>
   import FeaturesSectionAlertsIncidentsCard from './features-section-alerts-incidents-card.svelte';
   import FeaturesSectionHeartbeatsCard from './features-section-heartbeats-card.svelte';
+  import FeaturesSectionHostMonitoringCard from './features-section-host-monitoring-card.svelte';
   import FeaturesSectionLogsCard from './features-section-logs-card.svelte';
-  import FeaturesSectionMcpCard from './features-section-mcp-card.svelte';
   import FeaturesSectionMetricsCard from './features-section-metrics-card.svelte';
   import FeaturesSectionScoutCard from './features-section-scout-card.svelte';
   import FeaturesSectionTracesCard from './features-section-traces-card.svelte';
@@ -13,13 +13,14 @@
   class="border-foreground/10 from-background via-muted/20 to-background border-b bg-linear-to-b py-16 md:py-24"
 >
   <div class="mx-auto flex w-full max-w-6xl flex-col gap-10 px-3 md:px-6">
-    <div class="max-w-2xl space-y-3">
+    <div class=" space-y-3">
       <h2 class="max-w-xl text-3xl font-medium tracking-tight text-balance lg:text-4xl">
-        One platform. Every signal.
+        The whole story, in one place.
       </h2>
-      <p class="text-secondary-foreground text-base leading-loose text-balance">
-        Follow what changed, where it spread, and what needs attention without bouncing between
-        tools.
+
+      <p class="text-secondary-foreground max-w-150 text-lg leading-relaxed">
+        Logs, traces, metrics, and everything in between. See what changed, follow where it spread,
+        and understand what needs your attention.
       </p>
     </div>
 
@@ -33,10 +34,8 @@
       <FeaturesSectionHeartbeatsCard />
 
       <FeaturesSectionAlertsIncidentsCard />
-
+      <FeaturesSectionHostMonitoringCard />
       <FeaturesSectionScoutCard />
-
-      <FeaturesSectionMcpCard />
     </div>
   </div>
 </section>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as Card from '@repo/components/ui/card';
-  import { IconActivityHeartbeat, IconArrowUpRight } from '@tabler/icons-svelte';
+  import { IconArrowUpRight } from '@tabler/icons-svelte';
   import FeaturesSectionMetricsChartCard from './features-section-metrics-chart-card.svelte';
 
   const latencyData = [
@@ -23,17 +23,14 @@
 </script>
 
 <Card.Root
-  class="aspect-square justify-between gap-0 overflow-hidden p-0 shadow-none xl:col-span-6"
+  class="from-card to-background aspect-square justify-between gap-0 overflow-hidden bg-linear-to-b p-0 shadow xl:col-span-6"
 >
   <div class="p-5 pb-0">
     <h2 class="text-secondary-foreground flex items-center gap-2 font-sans text-lg font-medium">
-      <IconActivityHeartbeat class="text-primary size-5" />
       Metrics
     </h2>
     <p class="text-muted-foreground mt-1.5 max-w-[84%] text-base leading-relaxed">
-      Watch latency, throughput, and error rate shift together before an incident spreads. Compare
-      broader health trends early, then move into traces or logs only when you need the deeper
-      story.
+      Query the numbers that matter, compare trends, and catch changes before they become incidents.
       <a
         href="/docs/product/metrics"
         target="_blank"

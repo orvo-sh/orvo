@@ -1,9 +1,8 @@
 <script>
+  import EasySetupSection from './_components/easy-setup-section.svelte';
   import FeaturesSection from './_components/features-section/features-section.svelte';
   import HeroSection from './_components/hero-section.svelte';
-  import LogsSection from './_components/logs-section.svelte';
   import PricingSection from './_components/pricing-section.svelte';
-  import SignalsSection from './_components/signals-section.svelte';
 </script>
 
 <svelte:head>
@@ -16,6 +15,5 @@
 
 <HeroSection />
 <FeaturesSection />
-<SignalsSection />
-<LogsSection />
+<EasySetupSection />
 <PricingSection />

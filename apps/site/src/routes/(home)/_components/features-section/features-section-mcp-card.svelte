@@ -4,7 +4,7 @@
   import { IconBraces, IconCircleCheck, IconPlugConnected } from '@tabler/icons-svelte';
 </script>
 
-<Card.Root class="justify-between gap-0 overflow-hidden p-0 shadow-none xl:col-span-4">
+<Card.Root class="justify-between gap-0 overflow-hidden p-0 shadow xl:col-span-4">
   <div class="p-5 pb-0">
     <div class="flex items-center justify-between gap-3">
       <h2 class="text-secondary-foreground flex items-center gap-2 text-lg font-medium">

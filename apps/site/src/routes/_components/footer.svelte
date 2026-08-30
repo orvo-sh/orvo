@@ -9,8 +9,7 @@
       label: 'Product',
       items: [
         { label: 'Features', href: '/#features', external: false },
-        { label: 'Open source', href: '/#open-source', external: false },
-        { label: 'Pricing', href: '/#pricing', external: false },
+        { label: 'Pricing', href: '/pricing', external: false },
         { label: 'Roadmap', href: 'https://feedback.orvo.sh/roadmap', external: true }
       ]
     },
