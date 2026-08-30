@@ -21,9 +21,9 @@ const PLANS = {
       traces: 30,
     },
     ingestLimitBytes: 150 * Math.pow(1024, 3),
-    chatCreditsIncluded: 1_200_000,
+    chatCreditsIncluded: 1_200,
     overagePricePerGb: 0.32,
-    scoutOveragePricePerMillionCredits: 1,
+    scoutOveragePricePerThousandCredits: 1,
   },
 };
 

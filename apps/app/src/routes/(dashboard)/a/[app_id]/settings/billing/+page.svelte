@@ -78,8 +78,8 @@
     ),
   );
   const scoutOverageCost = $derived(
-    (scoutOverageCredits / 1_000_000) *
-      (currentPlan?.scoutOveragePricePerMillionCredits ?? 0),
+    (scoutOverageCredits / 1_000) *
+      (currentPlan?.scoutOveragePricePerThousandCredits ?? 0),
   );
   const signalRows = $derived(
     billingState
@@ -544,7 +544,7 @@
           <div>
             <Label for="scout-overage-enabled">Automatic Scout overages</Label>
             <p class="mt-1 text-sm text-muted-foreground">
-              Continue Scout conversations at $1 per 1M additional credits.
+              Continue Scout conversations at $1 per 1,000 additional credits.
             </p>
           </div>
           <Switch
@@ -661,7 +661,7 @@
         {:else}
           <p class="mt-1 font-medium tabular-nums">
             {currentPlan
-              ? `$${currentPlan.scoutOveragePricePerMillionCredits.toFixed(2)} / 1M credits`
+              ? `$${currentPlan.scoutOveragePricePerThousandCredits.toFixed(2)} / 1,000 credits`
               : "Not available"}
           </p>
         {/if}

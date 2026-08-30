@@ -54,7 +54,7 @@ describe("ChatUsageService", () => {
       currentPeriodStart: new Date(Date.now() - 24 * 60 * 60 * 1_000),
       currentPeriodEnd: new Date(Date.now() + 29 * 24 * 60 * 60 * 1_000),
       ingestLimitBytes: 150 * Math.pow(1024, 3),
-      chatCreditsIncluded: 1_200_000,
+      chatCreditsIncluded: 1_200,
     });
   });
 
@@ -69,9 +69,9 @@ describe("ChatUsageService", () => {
     expect(usage).toMatchObject({
       success: true,
       data: {
-        includedCredits: 1_200_000,
+        includedCredits: 1_200,
         usedCredits: 0,
-        remainingCredits: 1_200_000,
+        remainingCredits: 1_200,
       },
     });
   });
@@ -87,21 +87,21 @@ describe("ChatUsageService", () => {
     );
     expect(result).toMatchObject({
       success: true,
-      data: { credits: 575 },
+      data: { credits: 1 },
     });
 
     const [usage] = await db
       .select({ chatCreditsUsed: organizationUsage.chatCreditsUsed })
       .from(organizationUsage)
       .where(eq(organizationUsage.organizationId, "org_chat_usage"));
-    expect(usage.chatCreditsUsed).toBe(575);
+    expect(usage.chatCreditsUsed).toBe(1);
 
     const currentUsage = await service.getUsage({
       organizationId: "org_chat_usage",
     });
     expect(currentUsage).toMatchObject({
       success: true,
-      data: { usedCredits: 575, remainingCredits: 1_199_425 },
+      data: { usedCredits: 1, remainingCredits: 1_199 },
     });
   });
 
@@ -120,7 +120,7 @@ describe("ChatUsageService", () => {
     });
     expect(usage).toMatchObject({
       success: true,
-      data: { usedCredits: 1_000, remainingCredits: 1_199_000 },
+      data: { usedCredits: 10, remainingCredits: 1_190 },
     });
   });
 
@@ -131,7 +131,7 @@ describe("ChatUsageService", () => {
       .where(eq(organization.id, "org_chat_usage"));
     await db
       .update(organizationUsage)
-      .set({ chatCreditsUsed: 1_200_000 })
+      .set({ chatCreditsUsed: 1_200 })
       .where(eq(organizationUsage.organizationId, "org_chat_usage"));
 
     const canStart = await service.canStart({
@@ -143,7 +143,7 @@ describe("ChatUsageService", () => {
   test("allows active subscriptions to use metered overage", async () => {
     await db
       .update(organizationUsage)
-      .set({ chatCreditsUsed: 1_200_000, scoutOverageEnabled: true })
+      .set({ chatCreditsUsed: 1_200, scoutOverageEnabled: true })
       .where(eq(organizationUsage.organizationId, "org_chat_usage"));
 
     const canStart = await service.canStart({
@@ -155,7 +155,7 @@ describe("ChatUsageService", () => {
   test("blocks active subscriptions when automatic overage is disabled", async () => {
     await db
       .update(organizationUsage)
-      .set({ chatCreditsUsed: 1_200_000 })
+      .set({ chatCreditsUsed: 1_200 })
       .where(eq(organizationUsage.organizationId, "org_chat_usage"));
 
     const canStart = await service.canStart({
@@ -168,7 +168,7 @@ describe("ChatUsageService", () => {
     await db
       .update(organizationUsage)
       .set({
-        chatCreditsUsed: 2_200_000,
+        chatCreditsUsed: 2_200,
         scoutOverageEnabled: true,
         scoutOverageBudgetCents: 100,
       })
@@ -187,7 +187,7 @@ describe("ChatUsageService", () => {
       .where(eq(organization.id, "org_chat_usage"));
     await db
       .update(organizationUsage)
-      .set({ chatCreditsUsed: 1_200_000, scoutOverageEnabled: true })
+      .set({ chatCreditsUsed: 1_200, scoutOverageEnabled: true })
       .where(eq(organizationUsage.organizationId, "org_chat_usage"));
 
     const canStart = await service.canStart({
@@ -234,7 +234,7 @@ describe("ChatUsageService", () => {
       logsIngestedBytes: 0,
       tracesIngestedBytes: 0,
       metricsIngestedBytes: 0,
-      chatCreditsIncluded: 1_200_000,
+      chatCreditsIncluded: 1_200,
       chatCreditsUsed: 0,
       stripeIngestBytesReported: 0,
       stripeChatCreditsReported: 0,

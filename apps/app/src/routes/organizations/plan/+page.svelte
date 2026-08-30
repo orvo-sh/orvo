@@ -60,8 +60,8 @@
           `${PLANS.pro.ingestLimitBytes / Math.pow(1024, 3)} GB included ingest`,
           `${PLANS.pro.retentionDays.logs} day data retention`,
           `$${PLANS.pro.overagePricePerGb?.toFixed(2)} / GB overage`,
-          `${(PLANS.pro.chatCreditsIncluded / 1_000_000).toFixed(1)}M Scout credits`,
-          `$${PLANS.pro.scoutOveragePricePerMillionCredits} / 1M Scout credit overage`,
+          `${PLANS.pro.chatCreditsIncluded.toLocaleString()} Scout credits`,
+          `$${PLANS.pro.scoutOveragePricePerThousandCredits} / 1,000 Scout credit overage`,
         ],
         includedLabel: "Included:",
         plan: {

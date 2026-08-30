@@ -78,6 +78,13 @@
       "when": 1787257854198,
       "tag": "0010_outstanding_the_spike",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1787594446643,
+      "tag": "0011_redenominate_scout_credits",
+      "breakpoints": true
     }
   ]
 }

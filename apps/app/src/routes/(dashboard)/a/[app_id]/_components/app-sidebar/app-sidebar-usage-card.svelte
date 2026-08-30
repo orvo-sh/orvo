@@ -130,8 +130,8 @@
           {#if scoutOverageCredits > 0}
             <p class="mt-1 text-xs text-destructive tabular-nums">
               {scoutOverageCredits.toLocaleString()} overage · approximately ${(
-                (scoutOverageCredits / 1_000_000) *
-                PLANS.pro.scoutOveragePricePerMillionCredits
+                (scoutOverageCredits / 1_000) *
+                PLANS.pro.scoutOveragePricePerThousandCredits
               ).toFixed(2)}
             </p>
           {/if}

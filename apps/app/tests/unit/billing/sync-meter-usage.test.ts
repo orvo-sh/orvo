@@ -12,9 +12,9 @@ describe("createSyncMeterUsage", () => {
       logsIngestedBytes: 100,
       tracesIngestedBytes: 200,
       metricsIngestedBytes: 300,
-      chatCredits: 1_350_000,
+      chatCredits: 1_350,
       ingestBytesReported: 500,
-      chatCreditsReported: 1_200_000,
+      chatCreditsReported: 1_200,
       organizationCustomerId: "cus_metered",
       subscriptionCustomerId: null,
     },
@@ -71,19 +71,19 @@ describe("createSyncMeterUsage", () => {
         event_name: "orvo_scout_credits_cumulative",
         payload: {
           stripe_customer_id: "cus_metered",
-          value: "1350000",
+          value: "1350",
         },
       }),
     );
     expect(updates).toEqual([
       { stripeIngestBytesReported: 600 },
-      { stripeChatCreditsReported: 1_350_000 },
+      { stripeChatCreditsReported: 1_350 },
     ]);
   });
 
   test("does not resend unchanged cumulative values", async () => {
     rows[0]!.ingestBytesReported = 600;
-    rows[0]!.chatCreditsReported = 1_350_000;
+    rows[0]!.chatCreditsReported = 1_350;
 
     await syncMeterUsage();
 
@@ -91,6 +91,6 @@ describe("createSyncMeterUsage", () => {
     expect(updates).toEqual([]);
 
     rows[0]!.ingestBytesReported = 500;
-    rows[0]!.chatCreditsReported = 1_200_000;
+    rows[0]!.chatCreditsReported = 1_200;
   });
 });

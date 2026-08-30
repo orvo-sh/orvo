@@ -46,8 +46,8 @@ const createGetUsage =
         usage.chatCreditsUsed - usage.chatCreditsIncluded,
       );
       const overageCostCents =
-        (overageCredits / 1_000_000) *
-        PLANS.pro.scoutOveragePricePerMillionCredits *
+        (overageCredits / 1_000) *
+        PLANS.pro.scoutOveragePricePerThousandCredits *
         100;
 
       return ok({
