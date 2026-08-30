@@ -1,3 +1,5 @@
+[] Add feedback widget to orvo (might require adding it to Sey first)
+
 [] Refine logs and traces page
 [] Make sure link to active trace in logs work
 [] Add button to go to logs during a trace
