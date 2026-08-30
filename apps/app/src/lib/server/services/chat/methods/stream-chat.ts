@@ -1,8 +1,8 @@
-import { recordError } from "$lib/instrumentation";
 import {
   CHAT_ATTACHMENT_MEDIA_TYPES,
   MAX_CHAT_ATTACHMENTS,
 } from "$lib/constants";
+import { recordError } from "$lib/instrumentation";
 import type { ChatUsageService } from "$lib/server/services/chat-usage";
 import { and, asc, eq, type DB } from "@repo/db";
 import { chat, chatContext, chatMessage } from "@repo/db/schema";
@@ -232,6 +232,14 @@ const createStreamChat =
         stream: result.stream,
         tools,
         originalMessages: messages,
+        messageMetadata: ({ part }) => {
+          if (part.type === "finish") {
+            return {
+              usage: part.totalUsage,
+              finishReason: part.finishReason,
+            };
+          }
+        },
         generateMessageId: () => genId("chatmsg"),
         onEnd: async ({ messages: completedMessages }) => {
           try {
