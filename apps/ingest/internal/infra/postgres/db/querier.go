@@ -14,12 +14,16 @@ type Querier interface {
 	GetBillingState(ctx context.Context, referenceID string) (GetBillingStateRow, error)
 	GetHeartbeatMonitorByToken(ctx context.Context, token string) (GetHeartbeatMonitorByTokenRow, error)
 	GetOrganizationUsageForUpdate(ctx context.Context, organizationID string) (GetOrganizationUsageForUpdateRow, error)
+	InsertHeartbeatIncidentEvent(ctx context.Context, arg InsertHeartbeatIncidentEventParams) error
+	InsertHeartbeatRecoveryDelivery(ctx context.Context, arg InsertHeartbeatRecoveryDeliveryParams) error
 	InsertPgBossJob(ctx context.Context, arg InsertPgBossJobParams) (string, error)
+	ListHeartbeatDestinationIDs(ctx context.Context, heartbeatMonitorID string) ([]string, error)
 	MarkAppHeartbeatsFirstReceived(ctx context.Context, arg MarkAppHeartbeatsFirstReceivedParams) error
 	MarkAppLogsFirstReceived(ctx context.Context, id string) error
 	MarkAppMetricsFirstReceived(ctx context.Context, id string) error
 	MarkAppTracesFirstReceived(ctx context.Context, id string) error
 	MarkHeartbeatMonitorHealthy(ctx context.Context, arg MarkHeartbeatMonitorHealthyParams) error
+	ResolveOpenHeartbeatIncident(ctx context.Context, arg ResolveOpenHeartbeatIncidentParams) (string, error)
 	TouchIngestionKeyLastUsed(ctx context.Context, id string) error
 	UpdateOrganizationUsage(ctx context.Context, arg UpdateOrganizationUsageParams) error
 }

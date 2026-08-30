@@ -8,6 +8,7 @@
   let {
     heartbeatMonitor,
     children,
+    onSuccess,
     open = $bindable(false),
   }: {
     heartbeatMonitor: {
@@ -15,6 +16,7 @@
       name: string;
     };
     children?: Snippet<[{ openDialog: () => void }]>;
+    onSuccess?: () => void | Promise<void>;
     open?: boolean;
   } = $props();
 
@@ -27,7 +29,11 @@
     }
 
     open = false;
-    await invalidateAll();
+    if (onSuccess) {
+      await onSuccess();
+    } else {
+      await invalidateAll();
+    }
     toast.success("Heartbeat monitor deleted.");
   };
 </script>

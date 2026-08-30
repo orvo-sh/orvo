@@ -27,6 +27,8 @@ type Config struct {
 	Traces            IngestBatcherConfig
 	Metrics           IngestBatcherConfig
 	HeartbeatCheckIns IngestBatcherConfig
+	AppBaseURL        string
+	IngestBaseURL     string
 }
 
 type Service interface {
@@ -48,6 +50,7 @@ type service struct {
 	heartbeatCheckInsBatcher *batcher.Batcher[models.HeartbeatCheckIn]
 
 	billingService billingservice.Service
+	config         Config
 }
 
 func New(postgres *postgres.Client, clickhouse *clickhouse.Client, logger *slog.Logger, billingService billingservice.Service, config Config) Service {
@@ -56,6 +59,7 @@ func New(postgres *postgres.Client, clickhouse *clickhouse.Client, logger *slog.
 		postgres:       postgres,
 		clickhouse:     clickhouse,
 		billingService: billingService,
+		config:         config,
 	}
 
 	svc.logsBatcher = batcher.New(

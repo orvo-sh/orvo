@@ -1,5 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
+  import { resolve } from "$app/paths";
+  import { page } from "$app/state";
   import {
     createHeartbeatMonitorCommand,
     updateHeartbeatMonitorCommand,
@@ -203,7 +205,17 @@
           <div
             class="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground"
           >
-            No destinations yet. Add one in settings first.
+            No destinations yet.
+            <a
+              href={resolve(
+                "/(dashboard)/a/[app_id]/settings/notification-destinations",
+                {
+                  app_id: page.params.app_id!,
+                },
+              )}
+              class="font-medium text-foreground underline underline-offset-2 hover:text-foreground/80"
+              >Add one in settings first.</a
+            >
           </div>
         {:else}
           <Select.Root type="multiple" bind:value={selectedDestinationIds}>

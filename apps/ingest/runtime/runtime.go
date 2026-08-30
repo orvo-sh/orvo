@@ -33,6 +33,8 @@ type Config struct {
 	HeartbeatBatchSize   int
 	MaxQueueSize         int
 	ClickHouseHTTPBridge bool
+	AppBaseURL           string
+	IngestBaseURL        string
 }
 
 func ConfigFromEnv() Config {
@@ -50,6 +52,8 @@ func ConfigFromEnv() Config {
 		MetricsBatchSize:   env.GetInt("INGEST_WORKER_METRICS_BATCH_SIZE", 1000),
 		HeartbeatBatchSize: env.GetInt("INGEST_WORKER_HEARTBEAT_BATCH_SIZE", 500),
 		MaxQueueSize:       env.GetInt("INGEST_WORKER_MAX_QUEUE_SIZE", 10000),
+		AppBaseURL:         env.GetString("ORIGIN", "http://localhost:5173"),
+		IngestBaseURL:      env.GetString("INGEST_BASE_URL", "http://localhost:4318"),
 	}
 }
 
@@ -100,6 +104,8 @@ func Run(ctx context.Context, config Config) error {
 			Traces:            ingestservice.IngestBatcherConfig{FlushInterval: config.FlushInterval, MaxQueueSize: config.MaxQueueSize, BatchSize: config.TracesBatchSize},
 			Metrics:           ingestservice.IngestBatcherConfig{FlushInterval: config.FlushInterval, MaxQueueSize: config.MaxQueueSize, BatchSize: config.MetricsBatchSize},
 			HeartbeatCheckIns: ingestservice.IngestBatcherConfig{FlushInterval: config.FlushInterval, MaxQueueSize: config.MaxQueueSize, BatchSize: config.HeartbeatBatchSize},
+			AppBaseURL:        config.AppBaseURL,
+			IngestBaseURL:     config.IngestBaseURL,
 		},
 	)
 	defer ingestService.Close()

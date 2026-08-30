@@ -7,7 +7,13 @@ export const load = (async ({ locals, params, parent }) => {
     error(404, "App not found.");
   }
 
-  const [monitorResult, historyResult, destinationsResult, incidentsResult] = await Promise.all([
+  const [
+    monitorResult,
+    historyResult,
+    destinationsResult,
+    incidentsResult,
+    incidentEventsResult,
+  ] = await Promise.all([
     locals.container.heartbeatService.getHeartbeatMonitor(
       params.heartbeat_monitor_id,
       {
@@ -33,6 +39,14 @@ export const load = (async ({ locals, params, parent }) => {
       },
       { appId: params.app_id },
     ),
+    locals.container.incidentService.listSourceEvents(
+      {
+        sourceType: "heartbeat",
+        sourceId: params.heartbeat_monitor_id,
+        limit: 40,
+      },
+      { appId: params.app_id },
+    ),
   ]);
 
   if (!monitorResult.success) {
@@ -45,7 +59,8 @@ export const load = (async ({ locals, params, parent }) => {
   if (
     !historyResult.success ||
     !destinationsResult.success ||
-    !incidentsResult.success
+    !incidentsResult.success ||
+    !incidentEventsResult.success
   ) {
     error(500, "Failed to load heartbeat monitor.");
   }
@@ -55,5 +70,6 @@ export const load = (async ({ locals, params, parent }) => {
     history: historyResult.data.history,
     destinations: destinationsResult.data.destinations,
     incidents: incidentsResult.data.incidents,
+    incidentEvents: incidentEventsResult.data.events,
   };
 }) satisfies PageServerLoad;

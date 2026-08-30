@@ -7,6 +7,7 @@ import { createDismissIncident } from "./methods/dismiss-incident";
 import { createGetIncidentDetail } from "./methods/get-incident-detail";
 import { createGetOpenIncidentCountBySourceIds } from "./methods/get-open-incident-count-by-source-ids";
 import { createListIncidents } from "./methods/list-incidents";
+import { createListSourceEvents } from "./methods/list-source-events";
 import { createOpenOrGetIncident } from "./methods/open-or-get-incident";
 import { createRecoverSourceIncident } from "./methods/recover-source-incident";
 import { createResolveIncident } from "./methods/resolve-incident";
@@ -41,11 +42,9 @@ class IncidentService {
   private getOpenIncidentCountBySourceIdsMethod: ReturnType<
     typeof createGetOpenIncidentCountBySourceIds
   >;
+  private listSourceEventsMethod: ReturnType<typeof createListSourceEvents>;
 
-  constructor(
-    db: DB,
-    logger: Logger,
-  ) {
+  constructor(db: DB, logger: Logger) {
     this.logger = logger.child("IncidentService");
     this.listIncidentsMethod = createListIncidents({
       db,
@@ -85,6 +84,10 @@ class IncidentService {
         db,
         logger: this.logger,
       });
+    this.listSourceEventsMethod = createListSourceEvents({
+      db,
+      logger: this.logger,
+    });
   }
 
   async listIncidents(
@@ -128,10 +131,7 @@ class IncidentService {
     return this.dismissIncidentMethod(input, context);
   }
 
-  async openOrGetIncident(
-    input: OpenIncidentInput,
-    tx?: Tx,
-  ) {
+  async openOrGetIncident(input: OpenIncidentInput, tx?: Tx) {
     return this.openOrGetIncidentMethod(input, tx);
   }
 
@@ -185,6 +185,17 @@ class IncidentService {
     sourceIds: string[];
   }) {
     return this.getOpenIncidentCountBySourceIdsMethod(input);
+  }
+
+  async listSourceEvents(
+    input: {
+      sourceType: "alert" | "heartbeat";
+      sourceId: string;
+      limit: number;
+    },
+    context: { appId: string },
+  ) {
+    return this.listSourceEventsMethod(input, context);
   }
 }
 

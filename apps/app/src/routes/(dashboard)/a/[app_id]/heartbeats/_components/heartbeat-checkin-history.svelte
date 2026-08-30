@@ -9,12 +9,13 @@
     history: {
       rangeStartAt: Date | string;
       rangeEndAt: Date | string;
+      windowSeconds: number;
       bucketSizeSeconds: number;
       buckets: Array<{
         startAt: Date | string;
         endAt: Date | string;
         count: number;
-        status: "healthy" | "missed" | "grace";
+        status: "healthy" | "missed" | "grace" | "pending";
       }>;
       recentCheckIns: Array<{
         checkedInAt: Date | string;
@@ -65,6 +66,11 @@
     return `${minutes}m ${remainingSeconds}s`;
   };
 
+  const formatHistoryWindow = (seconds: number) => {
+    const hours = Math.round(seconds / 3600);
+    return hours < 48 ? `${hours} hours` : `${Math.round(hours / 24)} days`;
+  };
+
   const formatTimeAgo = (value: Date | string) => {
     const seconds = Math.max(
       Math.floor((Date.now() - new Date(value).getTime()) / 1000),
@@ -80,7 +86,7 @@
   };
 
   const bucketClass = (
-    status: "healthy" | "missed" | "grace",
+    status: "healthy" | "missed" | "grace" | "pending",
     count: number,
   ) => {
     if (count > 0 || status === "healthy") {
@@ -91,7 +97,7 @@
       return "bg-destructive/80";
     }
 
-    return "bg-amber-500/70";
+    return status === "grace" ? "bg-amber-500/70" : "bg-muted-foreground/25";
   };
 
   const coveragePercent = $derived(
@@ -110,7 +116,9 @@
     <div class="space-y-1">
       <Card.Title class="text-base font-semibold">Heartbeat history</Card.Title>
       <Card.Description>
-        Last 24 hours grouped into {formatInterval(history.bucketSizeSeconds)} buckets.
+        Last {formatHistoryWindow(history.windowSeconds)} grouped into {formatInterval(
+          history.bucketSizeSeconds,
+        )} buckets.
       </Card.Description>
     </div>
 
@@ -128,6 +136,10 @@
       <span class="inline-flex items-center gap-1.5">
         <span class="size-2 rounded-full bg-destructive/80"></span>
         Missed
+      </span>
+      <span class="inline-flex items-center gap-1.5">
+        <span class="size-2 rounded-full bg-muted-foreground/25"></span>
+        Waiting
       </span>
     </div>
   </Card.Header>

@@ -1,37 +1,53 @@
 <script lang="ts">
-  import { invalidateAll } from "$app/navigation";
+  import { goto, invalidateAll } from "$app/navigation";
   import { page } from "$app/state";
-  import {
-    sendHeartbeatMonitorTestAlertCommand,
-    toggleHeartbeatMonitorPausedCommand,
-  } from "$lib/api/heartbeats.remote";
   import { startAutoRefresh } from "$lib/browser/auto-refresh";
   import { createNowStore } from "$lib/stores/now";
-  import { buttonVariants } from "@repo/components/ui/button";
+  import { Badge } from "@repo/components/ui/badge";
+  import { Button, buttonVariants } from "@repo/components/ui/button";
+  import * as Card from "@repo/components/ui/card";
+  import * as DropdownMenu from "@repo/components/ui/dropdown-menu";
+  import * as HoverCard from "@repo/components/ui/hover-card";
+  import * as InputGroup from "@repo/components/ui/input-group";
   import { toast } from "@repo/components/ui/sonner";
-  import * as Tooltip from "@repo/components/ui/tooltip";
-  import { IconInfoCircle, IconPencilMinus } from "@tabler/icons-svelte";
+  import { formatDuration } from "@repo/utils";
+  import {
+    IconActivityHeartbeat,
+    IconAlertTriangle,
+    IconArrowRight,
+    IconCopy,
+    IconInfoCircle,
+    IconPencil,
+    IconPlayerPause,
+    IconPlayerPlay,
+    IconTrash,
+  } from "@tabler/icons-svelte";
   import { onMount } from "svelte";
   import PageContainer from "../../_components/page-container/page-container.svelte";
   import CreateEditHeartbeatMonitor from "../_components/create-edit-heartbeat-monitor.svelte";
+  import DeleteHeartbeatMonitorDialog from "../_components/delete-heartbeat-monitor-dialog.svelte";
+  import ToggleHeartbeatMonitorPausedDialog from "../_components/toggle-heartbeat-monitor-paused-dialog.svelte";
 
   let { data } = $props();
 
   const nowStore = createNowStore(1000);
 
-  let pauseSubmitting = $state(false);
-  let testAlertSubmitting = $state(false);
+  let editOpen = $state(false);
+  let pauseOpen = $state(false);
+  let deleteOpen = $state(false);
+  let activeHistoryHover = $state<string | null>(null);
 
   const monitor = $derived(data.monitor);
   const history = $derived(data.history);
   const incidents = $derived(data.incidents ?? []);
+  const incidentEvents = $derived(data.incidentEvents ?? []);
 
-  onMount(() => {
-    return startAutoRefresh({
+  onMount(() =>
+    startAutoRefresh({
       refresh: () => invalidateAll(),
       intervalMs: 10_000,
-    });
-  });
+    }),
+  );
 
   const currentStatus = $derived(
     monitor.isPaused
@@ -42,17 +58,19 @@
           ? "late"
           : monitor.status === "missed"
             ? "down"
-            : "paused",
+            : "waiting",
   );
 
   const statusLabel = $derived(
     currentStatus === "up"
-      ? "Up"
+      ? "Healthy"
       : currentStatus === "late"
-        ? "Late"
+        ? "Running late"
         : currentStatus === "down"
-          ? "Down"
-          : "Paused",
+          ? "Heartbeat missed"
+          : currentStatus === "paused"
+            ? "Monitoring paused"
+            : "Waiting for first heartbeat",
   );
 
   const timeSinceLastCheckInSeconds = $derived(
@@ -71,29 +89,23 @@
   );
 
   const formatCompactDuration = (seconds: number | null) => {
-    if (seconds === null || !Number.isFinite(seconds)) {
-      return "00:00";
-    }
+    if (seconds === null || !Number.isFinite(seconds)) return "—";
 
     const total = Math.max(Math.floor(seconds), 0);
     const hours = Math.floor(total / 3600);
     const minutes = Math.floor((total % 3600) / 60);
     const remainingSeconds = total % 60;
 
-    if (hours > 0) {
-      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
-    }
-
-    return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+    return hours > 0
+      ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`
+      : `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
   };
 
   const formatRelativeTime = (value: Date | string | null) => {
-    if (!value) {
-      return "Waiting";
-    }
+    if (!value) return "No heartbeat received";
 
     const seconds = Math.max(
-      Math.floor((Date.now() - new Date(value).getTime()) / 1000),
+      Math.floor(($nowStore - new Date(value).getTime()) / 1000),
       0,
     );
 
@@ -105,17 +117,20 @@
     return `${Math.floor(hours / 24)}d ago`;
   };
 
-  const formatAbsoluteTime = (value: Date | string | null) => {
-    if (!value) {
-      return "Waiting for first heartbeat";
-    }
+  const formatAbsoluteTime = (value: Date | string | null) =>
+    value
+      ? new Intl.DateTimeFormat(undefined, {
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }).format(new Date(value))
+      : "—";
 
-    return new Intl.DateTimeFormat(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(value));
+  const formatHistoryWindow = (seconds: number) => {
+    const hours = Math.round(seconds / 3600);
+    return hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`;
   };
 
   const progressPercent = $derived(
@@ -133,22 +148,15 @@
   );
 
   const nextBeatLabel = $derived.by(() => {
-    if (monitor.isPaused) {
-      return "Monitoring paused";
-    }
-
-    if (timeSinceLastCheckInSeconds === null) {
-      return "Awaiting first beat";
-    }
-
+    if (monitor.isPaused) return "Paused for";
+    if (timeSinceLastCheckInSeconds === null)
+      return "First beat expected within";
     if (timeSinceLastCheckInSeconds < monitor.expectedEverySeconds) {
       return "Next beat expected in";
     }
-
     if (timeSinceLastCheckInSeconds < totalWindowSeconds) {
       return "Grace period ends in";
     }
-
     return "Overdue by";
   });
 
@@ -163,543 +171,541 @@
               0,
             ),
           )
-        : "00:00";
+        : "—";
     }
-
     if (timeSinceLastCheckInSeconds === null) {
       return formatCompactDuration(monitor.expectedEverySeconds);
     }
-
     if (timeSinceLastCheckInSeconds < monitor.expectedEverySeconds) {
       return formatCompactDuration(
         monitor.expectedEverySeconds - timeSinceLastCheckInSeconds,
       );
     }
-
     if (timeSinceLastCheckInSeconds < totalWindowSeconds) {
       return formatCompactDuration(
         totalWindowSeconds - timeSinceLastCheckInSeconds,
       );
     }
-
     return formatCompactDuration(
       timeSinceLastCheckInSeconds - totalWindowSeconds,
     );
   });
 
-  const destinationChips = $derived(
-    monitor.destinations.map((destination) => ({
-      id: destination.id,
-      label:
-        destination.kind === "email"
-          ? `Email · ${destination.name}`
-          : destination.kind === "webhook"
-            ? `Webhook · ${destination.name}`
-            : destination.name,
-    })),
-  );
-
   const bars = $derived(history.buckets.slice(-60));
-
+  const evaluatedBuckets = $derived(
+    history.buckets.filter(
+      (bucket) => bucket.status === "healthy" || bucket.status === "missed",
+    ),
+  );
   const uptimePercent = $derived(
-    history.buckets.length === 0
-      ? "0.00%"
+    evaluatedBuckets.length === 0
+      ? "Waiting"
       : `${(
-          ((history.buckets.length - history.stats.missedBuckets24h) /
-            history.buckets.length) *
+          (evaluatedBuckets.filter((bucket) => bucket.status === "healthy")
+            .length /
+            evaluatedBuckets.length) *
           100
         ).toFixed(2)}%`,
   );
-
-  const averageIntervalLabel = $derived(
-    history.stats.averageIntervalSeconds === null
-      ? "Waiting"
-      : formatCompactDuration(history.stats.averageIntervalSeconds),
-  );
-
-  const eventRows = $derived(
-    history.buckets
-      .slice()
-      .reverse()
-      .slice(0, 12)
-      .map((bucket) => ({
-        startAt: bucket.startAt,
-        status:
-          bucket.status === "healthy"
-            ? "up"
-            : bucket.status === "grace"
-              ? "late"
-              : "down",
-        label:
-          bucket.status === "healthy"
-            ? `${bucket.count} beat${bucket.count === 1 ? "" : "s"} received`
-            : bucket.status === "grace"
-              ? "Within grace period"
-              : "Missed beat",
-        detail:
-          bucket.status === "healthy"
-            ? `Last activity ${formatAbsoluteTime(bucket.startAt)}`
-            : bucket.status === "grace"
-              ? `Expected interval elapsed ${formatAbsoluteTime(bucket.endAt)}`
-              : `Grace expired ${formatAbsoluteTime(bucket.endAt)}`,
-        meta:
-          bucket.status === "healthy"
-            ? `${bucket.count} check-in${bucket.count === 1 ? "" : "s"}`
-            : bucket.status === "grace"
-              ? "grace"
-              : "down",
+  const activityRows = $derived(
+    [
+      ...history.buckets
+        .filter(
+          (bucket) => bucket.status === "healthy" || bucket.status === "grace",
+        )
+        .map((bucket) => ({
+          id: `heartbeat:${bucket.startAt}`,
+          occurredAt: bucket.endAt,
+          title:
+            bucket.status === "healthy"
+              ? `${bucket.count} heartbeat${bucket.count === 1 ? "" : "s"} received`
+              : "Heartbeat is running late",
+          detail:
+            bucket.status === "healthy"
+              ? formatAbsoluteTime(bucket.startAt)
+              : `Expected by ${formatAbsoluteTime(bucket.endAt)}`,
+          tone: bucket.status === "healthy" ? "healthy" : "warning",
+          incidentId: null,
+        })),
+      ...incidentEvents.map((event) => ({
+        id: event.id,
+        occurredAt: event.occurredAt,
+        title:
+          event.eventType === "incident.opened"
+            ? "Incident opened"
+            : event.eventType === "incident.resolved"
+              ? "Incident resolved"
+              : event.eventType === "incident.dismissed"
+                ? "Incident dismissed"
+                : event.eventType === "heartbeat.recovered"
+                  ? "Heartbeat recovered"
+                  : "Heartbeat missed",
+        detail: event.incidentTitle,
+        tone:
+          event.eventType === "heartbeat.recovered" ||
+          event.eventType === "incident.resolved"
+            ? "healthy"
+            : event.eventType === "incident.dismissed"
+              ? "muted"
+              : "critical",
+        incidentId: event.incidentId,
       })),
+    ]
+      .sort(
+        (left, right) =>
+          new Date(right.occurredAt).getTime() -
+          new Date(left.occurredAt).getTime(),
+      )
+      .slice(0, 12),
   );
 
-  const tooltipText = {
-    status:
-      "Up: beat arrived on time. Late: beat arrived after the interval but within the grace period. Down: grace period expired with no beat. Paused: monitoring is switched off.",
-    timing:
-      "The bar shows the current cycle: green is the expected interval, amber is the grace period. The dot marks where the monitor is right now.",
-    history:
-      "Green: arrived on time. Amber: arrived late, after the interval but before grace ended. Red: grace expired with no beat.",
-    uptime:
-      "Share of recent heartbeat windows that did not miss their grace deadline.",
-    average:
-      "Average time between consecutive beats in the recent history window.",
-    volume: "Number of heartbeat check-ins recorded in the last 24 hours.",
-    incidents: "Current open incidents for this heartbeat monitor.",
-  } as const;
-
-  const copy = async (value: string) => {
+  const copyHeartbeatUrl = async () => {
     try {
-      await navigator.clipboard.writeText(value);
-      toast.success("Copied to clipboard.");
+      await navigator.clipboard.writeText(monitor.secretUrl);
+      toast.success("Heartbeat URL copied.");
     } catch {
-      toast.error("Failed to copy.");
+      toast.error("Failed to copy heartbeat URL.");
     }
-  };
-
-  const togglePaused = async () => {
-    pauseSubmitting = true;
-    const result = await toggleHeartbeatMonitorPausedCommand(monitor.id);
-    pauseSubmitting = false;
-
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-
-    await invalidateAll();
-    toast.success(
-      result.data.paused ? "Heartbeat paused." : "Heartbeat resumed.",
-    );
-  };
-
-  const sendTestAlert = async () => {
-    testAlertSubmitting = true;
-    const result = await sendHeartbeatMonitorTestAlertCommand(monitor.id);
-    testAlertSubmitting = false;
-
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-
-    toast.success(
-      `Queued ${result.data.deliveryCount} test notification${result.data.deliveryCount === 1 ? "" : "s"}.`,
-    );
   };
 </script>
 
 <PageContainer
-  chat={{
+  title={monitor.name}
+  back={{ href: `/a/${page.params.app_id}/heartbeats`, title: "Heartbeats" }}
+  contentClass="p-3"
+  scout={{
     kind: "heartbeat",
     resourceId: monitor.id,
     label: monitor.name,
-    metadata: { status: currentStatus },
+    metadata: {
+      status: currentStatus,
+      expectedEverySeconds: monitor.expectedEverySeconds,
+      graceSeconds: monitor.graceSeconds,
+      lastCheckInAt: monitor.lastCheckInAt?.toISOString() ?? null,
+      uptime: uptimePercent,
+      openIncidentCount: incidents.length,
+    },
   }}
-  title={monitor.name}
-  back={{ href: `/a/${page.params.app_id}/heartbeats`, title: "Heartbeats" }}
 >
   {#snippet actions()}
     <CreateEditHeartbeatMonitor
-      heartbeatMonitor={data.monitor}
+      heartbeatMonitor={monitor}
       destinations={data.destinations}
-      class={buttonVariants({ variant: "outline", class: "hidden sm:flex" })}
-    >
-      <IconPencilMinus />
-      Create heartbeat
-    </CreateEditHeartbeatMonitor>
-    <CreateEditHeartbeatMonitor
-      destinations={data.destinations}
-      class={buttonVariants({
-        variant: "outline",
-        class: " sm:hidden",
-        size: "icon",
-      })}
-    >
-      <IconPencilMinus />
-    </CreateEditHeartbeatMonitor>
+      bind:open={editOpen}
+    />
+    <DeleteHeartbeatMonitorDialog
+      heartbeatMonitor={monitor}
+      bind:open={deleteOpen}
+      onSuccess={() => goto(`/a/${page.params.app_id}/heartbeats`)}
+    />
+    <ToggleHeartbeatMonitorPausedDialog
+      heartbeatMonitor={monitor}
+      bind:open={pauseOpen}
+    />
+
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger>
+        {#snippet child({ props })}
+          <Button {...props} variant="outline">Manage</Button>
+        {/snippet}
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content align="end" class="w-40">
+        <DropdownMenu.Item
+          onSelect={() => queueMicrotask(() => (editOpen = true))}
+        >
+          <IconPencil />
+          Edit
+        </DropdownMenu.Item>
+        <DropdownMenu.Item
+          onSelect={() => queueMicrotask(() => (pauseOpen = true))}
+        >
+          {#if monitor.isPaused}
+            <IconPlayerPlay />
+            Resume
+          {:else}
+            <IconPlayerPause />
+            Pause
+          {/if}
+        </DropdownMenu.Item>
+        <DropdownMenu.Item
+          variant="destructive"
+          onSelect={() => queueMicrotask(() => (deleteOpen = true))}
+        >
+          <IconTrash />
+          Delete
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
   {/snippet}
 
-  <div class="mb-4 grid grid-cols-1 gap-[14px] md:grid-cols-2 xl:grid-cols-4">
-    <div
-      class="rounded-[8px] border border-border bg-background px-[18px] py-4 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-shadow hover:shadow-[0_4px_14px_rgba(0,0,0,0.05)]"
+  <div class="flex w-full flex-col gap-3">
+    <section
+      class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
     >
-      <div class="mb-2 flex items-center justify-between gap-2">
-        <span class="flex items-center gap-1 text-xs text-muted-foreground">
-          Uptime (24h)
-          <Tooltip.Root>
-            <Tooltip.Trigger
-              class="inline-flex size-4 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <IconInfoCircle class="size-3" />
-            </Tooltip.Trigger>
-            <Tooltip.Content sideOffset={8} class="max-w-[220px] leading-5">
-              {tooltipText.uptime}
-            </Tooltip.Content>
-          </Tooltip.Root>
-        </span>
-        <svg
-          class="text-muted-foreground"
-          width="56"
-          height="20"
-          viewBox="0 0 64 22"
-          preserveAspectRatio="none"
-        >
-          <polyline
-            points="0,6 8,7 16,5 24,8 32,6 40,9 48,6 56,7 64,5"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <circle cx="64" cy="5" r="2" fill="currentColor" />
-        </svg>
-      </div>
-      <div class="text-[22px] font-semibold tracking-[-0.01em]">
-        {uptimePercent}
-      </div>
-      <div class="mt-1 text-[11.5px] text-muted-foreground">
-        {history.stats.missedBuckets24h} missed bucket{history.stats
-          .missedBuckets24h === 1
-          ? ""
-          : "s"}
-      </div>
-    </div>
-
-    <div
-      class="rounded-[8px] border border-border bg-background px-[18px] py-4 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-shadow hover:shadow-[0_4px_14px_rgba(0,0,0,0.05)]"
-    >
-      <div class="mb-2 flex items-center justify-between gap-2">
-        <span class="flex items-center gap-1 text-xs text-muted-foreground">
-          Avg interval
-          <Tooltip.Root>
-            <Tooltip.Trigger
-              class="inline-flex size-4 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <IconInfoCircle class="size-3" />
-            </Tooltip.Trigger>
-            <Tooltip.Content sideOffset={8} class="max-w-[220px] leading-5">
-              {tooltipText.average}
-            </Tooltip.Content>
-          </Tooltip.Root>
-        </span>
-        <svg
-          class="text-muted-foreground"
-          width="56"
-          height="20"
-          viewBox="0 0 64 22"
-          preserveAspectRatio="none"
-        >
-          <polyline
-            points="0,11 8,9 16,12 24,10 32,13 40,9 48,11 56,8 64,10"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <circle cx="64" cy="10" r="2" fill="currentColor" />
-        </svg>
-      </div>
-      <div class="text-[22px] font-semibold tracking-[-0.01em]">
-        {averageIntervalLabel}
-      </div>
-      <div class="mt-1 text-[11.5px] text-muted-foreground">
-        Target {formatCompactDuration(monitor.expectedEverySeconds)}
-      </div>
-    </div>
-
-    <div
-      class="rounded-[8px] border border-border bg-background px-[18px] py-4 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-shadow hover:shadow-[0_4px_14px_rgba(0,0,0,0.05)]"
-    >
-      <div class="mb-2 flex items-center justify-between gap-2">
-        <span class="flex items-center gap-1 text-xs text-muted-foreground">
-          Beats in 24h
-          <Tooltip.Root>
-            <Tooltip.Trigger
-              class="inline-flex size-4 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <IconInfoCircle class="size-3" />
-            </Tooltip.Trigger>
-            <Tooltip.Content sideOffset={8} class="max-w-[220px] leading-5">
-              {tooltipText.volume}
-            </Tooltip.Content>
-          </Tooltip.Root>
-        </span>
-        <svg
-          class="text-muted-foreground"
-          width="56"
-          height="20"
-          viewBox="0 0 64 22"
-          preserveAspectRatio="none"
-        >
-          <polyline
-            points="0,14 8,8 16,16 24,9 32,15 40,7 48,13 56,10 64,9"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <circle cx="64" cy="9" r="2" fill="currentColor" />
-        </svg>
-      </div>
-      <div class="text-[22px] font-semibold tracking-[-0.01em]">
-        {history.stats.totalCheckIns24h}
-      </div>
-      <div class="mt-1 text-[11.5px] text-muted-foreground">
-        Last beat {formatRelativeTime(monitor.lastCheckInAt)}
-      </div>
-    </div>
-
-    <div
-      class="rounded-[8px] border border-border bg-background px-[18px] py-4 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-shadow hover:shadow-[0_4px_14px_rgba(0,0,0,0.05)]"
-    >
-      <div class="mb-2 flex items-center justify-between gap-2">
-        <span class="flex items-center gap-1 text-xs text-muted-foreground">
-          Open incidents
-          <Tooltip.Root>
-            <Tooltip.Trigger
-              class="inline-flex size-4 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <IconInfoCircle class="size-3" />
-            </Tooltip.Trigger>
-            <Tooltip.Content sideOffset={8} class="max-w-[220px] leading-5">
-              {tooltipText.incidents}
-            </Tooltip.Content>
-          </Tooltip.Root>
-        </span>
-        <svg
-          class="text-muted-foreground"
-          width="56"
-          height="20"
-          viewBox="0 0 64 22"
-          preserveAspectRatio="none"
-        >
-          <polyline
-            points="0,20 8,18 16,16 24,14 32,12 40,10 48,8 56,6 64,4"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <circle cx="64" cy="4" r="2" fill="currentColor" />
-        </svg>
-      </div>
-      <div class="text-[22px] font-semibold tracking-[-0.01em]">
-        {incidents.length}
-      </div>
-      <div class="mt-1 text-[11.5px] text-muted-foreground">
-        Current heartbeat incidents
-      </div>
-    </div>
-  </div>
-
-  <div
-    class="mb-4 rounded-[8px] border border-border bg-background px-[22px] py-5 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-shadow hover:shadow-[0_4px_14px_rgba(0,0,0,0.05)]"
-  >
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <h2 class="flex items-center gap-1.5 text-[13px] font-semibold">
-        Beat history - last {bars.length}
-        <Tooltip.Root>
-          <Tooltip.Trigger
-            class="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <IconInfoCircle class="size-3.5" />
-          </Tooltip.Trigger>
-          <Tooltip.Content sideOffset={8} class="max-w-[236px] leading-5">
-            {tooltipText.history}
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </h2>
-
-      <div class="flex flex-wrap gap-4 text-[12.5px] text-muted-foreground">
-        <span class="inline-flex items-center gap-1.5">
-          <span class="size-[9px] rounded-[2px] bg-emerald-600"></span>
-          On time
-        </span>
-        <span class="inline-flex items-center gap-1.5">
-          <span class="size-[9px] rounded-[2px] bg-amber-600"></span>
-          Late (in grace)
-        </span>
-        <span class="inline-flex items-center gap-1.5">
-          <span class="size-[9px] rounded-[2px] bg-red-600"></span>
-          Down
-        </span>
-      </div>
-    </div>
-
-    <div class="flex h-9 items-stretch gap-[3px]">
-      {#each bars as bucket, index}
-        <div
-          class={`min-w-[3px] flex-1 rounded-[2px] transition-transform hover:scale-y-[1.08] ${
-            bucket.status === "healthy"
-              ? index >= bars.length - 6
-                ? "bg-emerald-600"
-                : "bg-emerald-200"
-              : bucket.status === "grace"
-                ? "bg-amber-600"
-                : "bg-red-600"
+      <div class="flex min-w-0 items-start gap-3">
+        <span
+          class={`flex size-11 shrink-0 items-center justify-center rounded-lg ${
+            currentStatus === "up"
+              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+              : currentStatus === "late"
+                ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                : currentStatus === "down"
+                  ? "bg-destructive/10 text-destructive"
+                  : "bg-muted text-muted-foreground"
           }`}
-          title={`${formatAbsoluteTime(bucket.startAt)} · ${bucket.count} check-in${bucket.count === 1 ? "" : "s"}`}
-        ></div>
-      {/each}
-    </div>
-
-    <div
-      class="mt-2 flex justify-between font-mono text-[11px] text-muted-foreground"
-    >
-      <span>{formatAbsoluteTime(bars[0]?.startAt ?? null)}</span>
-      <span>now</span>
-    </div>
-  </div>
-
-  <div class="grid gap-[14px] xl:grid-cols-[minmax(0,1.7fr)_320px]">
-    <div
-      class="overflow-hidden rounded-[8px] border border-border bg-background shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-shadow hover:shadow-[0_4px_14px_rgba(0,0,0,0.05)]"
-    >
-      <div class="px-[22px] pt-[18px] pb-1">
-        <h2 class="text-[13px] font-semibold">Event log</h2>
-      </div>
-
-      <div>
-        {#each eventRows as row}
-          <div
-            class="grid grid-cols-[auto_88px_1fr_auto] items-center gap-[14px] border-t border-border px-[22px] py-[11px] text-[13px] transition-colors hover:bg-muted/30 max-md:grid-cols-[auto_1fr]"
-          >
-            <span
-              class={`size-1.5 rounded-full ${
-                row.status === "up"
-                  ? "bg-emerald-600"
-                  : row.status === "late"
-                    ? "bg-amber-600"
-                    : "bg-red-600"
-              }`}
-            ></span>
-            <span class="font-mono text-muted-foreground max-md:hidden">
-              {formatAbsoluteTime(row.startAt)}
-            </span>
-            <span class="min-w-0">
-              <span class="block text-foreground">{row.label}</span>
-              <span class="block text-muted-foreground">{row.detail}</span>
-            </span>
-            <span
-              class="text-right font-mono text-muted-foreground max-md:hidden"
-            >
-              {row.meta}
-            </span>
-          </div>
-        {/each}
-      </div>
-    </div>
-
-    <div
-      class="overflow-hidden rounded-[8px] border border-border bg-background shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-shadow hover:shadow-[0_4px_14px_rgba(0,0,0,0.05)]"
-    >
-      <div class="px-[22px] pt-[18px] pb-1">
-        <h2 class="text-[13px] font-semibold">Heartbeat details</h2>
-      </div>
-
-      <div class="space-y-4 border-t border-border px-[22px] py-4">
-        <div class="space-y-2">
-          <div class="flex items-center justify-between gap-3">
-            <span class="text-[12.5px] text-muted-foreground"
-              >Heartbeat URL</span
-            >
-            <button
-              type="button"
-              class="text-[12.5px] font-medium text-foreground transition-colors hover:text-muted-foreground"
-              onclick={() => copy(monitor.secretUrl)}
-            >
-              Copy
-            </button>
-          </div>
-          <code
-            class="block overflow-x-auto rounded-[6px] border border-border bg-muted/30 px-3 py-2 text-[12px] text-foreground"
-          >
-            {monitor.secretUrl}
-          </code>
+        >
+          <IconActivityHeartbeat class="size-5" />
+        </span>
+        <div class="min-w-0">
+          <h2 class="text-lg font-semibold">{statusLabel}</h2>
+          {#if monitor.lastCheckInAt}
+            <p class="mt-1 text-xs text-muted-foreground">
+              Last heartbeat {formatRelativeTime(monitor.lastCheckInAt)} · {formatAbsoluteTime(
+                monitor.lastCheckInAt,
+              )}
+            </p>
+          {/if}
         </div>
+      </div>
 
-        <div class="space-y-3 text-[13px]">
-          <div class="flex items-start justify-between gap-3">
-            <span class="text-muted-foreground">Status</span>
-            <span class="font-medium text-foreground">{statusLabel}</span>
-          </div>
-          <div class="flex items-start justify-between gap-3">
-            <span class="text-muted-foreground">Expected cadence</span>
-            <span class="font-medium text-foreground">
-              {formatCompactDuration(monitor.expectedEverySeconds)}
-            </span>
-          </div>
-          <div class="flex items-start justify-between gap-3">
-            <span class="text-muted-foreground">Grace period</span>
-            <span class="font-medium text-foreground">
-              {formatCompactDuration(monitor.graceSeconds)}
-            </span>
-          </div>
-          <div class="flex items-start justify-between gap-3">
-            <span class="text-muted-foreground">Last beat</span>
-            <span class="text-right font-medium text-foreground">
-              {formatRelativeTime(monitor.lastCheckInAt)}
-            </span>
-          </div>
-          <div class="flex items-start justify-between gap-3">
-            <span class="text-muted-foreground">Last seen at</span>
-            <span class="text-right font-medium text-foreground">
-              {formatAbsoluteTime(monitor.lastCheckInAt)}
-            </span>
-          </div>
-          <div class="flex items-start justify-between gap-3">
-            <span class="text-muted-foreground">Destinations</span>
-            <span class="text-right font-medium text-foreground">
-              {monitor.destinations.length}
-            </span>
-          </div>
-        </div>
+      <div class="shrink-0 sm:text-right">
+        <p class="text-xs text-muted-foreground">{nextBeatLabel}</p>
+        <p class="mt-1 font-mono text-2xl font-semibold tabular-nums">
+          {nextBeatValue}
+        </p>
+      </div>
+    </section>
 
-        <div class="space-y-2">
-          <div class="text-[12.5px] text-muted-foreground">Channels</div>
-          <div class="flex flex-wrap gap-2">
-            {#if destinationChips.length === 0}
-              <span
-                class="inline-flex items-center rounded-full border border-dashed px-3 py-1.5 text-[12.5px] text-muted-foreground"
-              >
-                No channels
-              </span>
-            {:else}
-              {#each destinationChips as chip}
+    <section class="flex flex-col">
+      <Card.Root class="z-1 gap-0 overflow-hidden">
+        <Card.Content class="p-0">
+          <div class="px-5 py-4">
+            <div class="relative h-2 rounded-full bg-muted">
+              {#if currentStatus !== "paused" && timeSinceLastCheckInSeconds !== null}
                 <span
-                  class="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-[12px] font-medium text-foreground"
-                >
-                  <span class="size-1.5 rounded-full bg-emerald-600"></span>
-                  {chip.label}
-                </span>
-              {/each}
-            {/if}
+                  class="absolute inset-y-0 left-0 rounded-l-full bg-emerald-500/70"
+                  style={`width: ${expectedWindowPercent}%`}
+                ></span>
+                <span
+                  class="absolute inset-y-0 right-0 rounded-r-full bg-amber-500/70"
+                  style={`width: ${100 - expectedWindowPercent}%`}
+                ></span>
+                <span
+                  class="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-foreground shadow-sm"
+                  style={`left: ${progressPercent}%`}
+                ></span>
+              {/if}
+            </div>
+            <div
+              class="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground"
+            >
+              <span
+                >Expected every {formatDuration(
+                  monitor.expectedEverySeconds,
+                )}</span
+              >
+              <span>{formatDuration(monitor.graceSeconds)} grace</span>
+            </div>
           </div>
+
+          <div class="grid border-t sm:grid-cols-3 sm:divide-x">
+            <div class="px-5 py-4">
+              <p class="text-xs text-muted-foreground">
+                Uptime · {formatHistoryWindow(history.windowSeconds)}
+              </p>
+              <p class="mt-1 text-lg font-semibold">{uptimePercent}</p>
+            </div>
+            <div class="border-t px-5 py-4 sm:border-t-0">
+              <p class="text-xs text-muted-foreground">Average interval</p>
+              <p class="mt-1 text-lg font-semibold">
+                {history.stats.averageIntervalSeconds === null
+                  ? "Waiting"
+                  : formatDuration(history.stats.averageIntervalSeconds)}
+              </p>
+            </div>
+            <div class="border-t px-5 py-4 sm:border-t-0">
+              <p class="text-xs text-muted-foreground">
+                Check-ins · {formatHistoryWindow(history.windowSeconds)}
+              </p>
+              <p class="mt-1 text-lg font-semibold">
+                {history.stats.totalCheckIns24h}
+              </p>
+            </div>
+          </div>
+        </Card.Content>
+      </Card.Root>
+
+      {#if incidents.length > 0}
+        <a
+          href={`/a/${page.params.app_id}/incidents/${incidents[0].id}`}
+          class="-mt-2 flex flex-wrap items-center gap-2 rounded-b-xl border border-foreground/10 bg-secondary px-3.5 pt-4 pb-2 text-sm text-secondary-foreground inset-shadow-[0px_-1px_--theme(--color-white)] transition-colors hover:bg-secondary/80"
+        >
+          <IconAlertTriangle class="size-4 shrink-0 text-muted-foreground" />
+          <Badge variant="outline" class="h-5 bg-background/50 px-2 text-xs">
+            {incidents.length} open incident{incidents.length === 1 ? "" : "s"}
+          </Badge>
+          <span class="text-xs text-muted-foreground">
+            Opened {formatRelativeTime(incidents[0].openedAt)}
+          </span>
+          <span class="ml-auto inline-flex items-center gap-2 font-medium">
+            View incident
+            <IconArrowRight class="size-4" />
+          </span>
+        </a>
+      {/if}
+    </section>
+
+    <section class="flex flex-col">
+      <div
+        class="rounded-t-xl border border-foreground/10 bg-secondary pb-2 inset-shadow-[0px_1px_--theme(--color-white)]"
+      >
+        <div class="flex items-center px-3.5 py-0.75">
+          <h2 class="text-sm text-secondary-foreground">Check-in history</h2>
+          <HoverCard.Root
+            open={activeHistoryHover === "legend"}
+            openDelay={50}
+            closeDelay={0}
+            onOpenChange={(open) => {
+              if (open) {
+                activeHistoryHover = "legend";
+              } else if (activeHistoryHover === "legend") {
+                activeHistoryHover = null;
+              }
+            }}
+          >
+            <HoverCard.Trigger
+              aria-label="About check-in history"
+              class={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+            >
+              <IconInfoCircle
+                class="size-3.5 text-secondary-foreground opacity-75"
+              />
+            </HoverCard.Trigger>
+            <HoverCard.Content class="w-64 text-sm" side="top" align="start">
+              <div class="grid gap-2">
+                <span class="inline-flex items-center gap-2">
+                  <span class="size-2 rounded-sm bg-emerald-500"></span>
+                  Received
+                </span>
+                <span class="inline-flex items-center gap-2">
+                  <span class="size-2 rounded-sm bg-amber-500"></span>
+                  Grace period
+                </span>
+                <span class="inline-flex items-center gap-2">
+                  <span class="size-2 rounded-sm bg-destructive"></span>
+                  Missed
+                </span>
+                <span class="inline-flex items-center gap-2">
+                  <span class="size-2 rounded-sm bg-muted-foreground/25"></span>
+                  Waiting
+                </span>
+              </div>
+            </HoverCard.Content>
+          </HoverCard.Root>
         </div>
       </div>
+      <Card.Root class="z-1 -mt-2 gap-0 p-0">
+        <Card.Content class="px-4 py-4">
+          {#if bars.length === 0}
+            <p class="py-6 text-center text-sm text-muted-foreground">
+              No check-ins yet.
+            </p>
+          {:else}
+            <div class="flex h-10 items-stretch gap-1">
+              {#each bars as bucket (bucket.startAt)}
+                {@const hoverId = `bucket:${bucket.startAt}`}
+                <HoverCard.Root
+                  open={activeHistoryHover === hoverId}
+                  openDelay={50}
+                  closeDelay={0}
+                  onOpenChange={(open) => {
+                    if (open) {
+                      activeHistoryHover = hoverId;
+                    } else if (activeHistoryHover === hoverId) {
+                      activeHistoryHover = null;
+                    }
+                  }}
+                >
+                  <HoverCard.Trigger
+                    type="button"
+                    class={`min-w-1 flex-1 rounded-sm ${
+                      bucket.status === "healthy"
+                        ? "bg-emerald-500"
+                        : bucket.status === "grace"
+                          ? "bg-amber-500"
+                          : bucket.status === "missed"
+                            ? "bg-destructive"
+                            : "bg-muted-foreground/20"
+                    }`}
+                    aria-label={`${bucket.status} from ${formatAbsoluteTime(bucket.startAt)} to ${formatAbsoluteTime(bucket.endAt)}`}
+                  ></HoverCard.Trigger>
+                  <HoverCard.Content class="w-64 text-sm" side="top">
+                    <p class="text-muted-foreground">
+                      {formatAbsoluteTime(bucket.startAt)} – {formatAbsoluteTime(
+                        bucket.endAt,
+                      )}
+                    </p>
+                    <div class="mt-2 flex items-center gap-2">
+                      <span
+                        class={`size-2 rounded-sm ${
+                          bucket.status === "healthy"
+                            ? "bg-emerald-500"
+                            : bucket.status === "grace"
+                              ? "bg-amber-500"
+                              : bucket.status === "missed"
+                                ? "bg-destructive"
+                                : "bg-muted-foreground/25"
+                        }`}
+                      ></span>
+                      <span class="font-medium">
+                        {bucket.status === "healthy"
+                          ? "Received"
+                          : bucket.status === "grace"
+                            ? "Grace period"
+                            : bucket.status === "missed"
+                              ? "Missed"
+                              : "Waiting"}
+                      </span>
+                      {#if bucket.count > 0}
+                        <span class="ml-auto text-muted-foreground">
+                          {bucket.count} check-in{bucket.count === 1 ? "" : "s"}
+                        </span>
+                      {/if}
+                    </div>
+                  </HoverCard.Content>
+                </HoverCard.Root>
+              {/each}
+            </div>
+          {/if}
+        </Card.Content>
+      </Card.Root>
+    </section>
+
+    <div class="grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.6fr)]">
+      <section class="flex flex-col">
+        <div
+          class="flex items-center rounded-t-xl border border-foreground/10 bg-secondary px-3.5 pt-2 pb-4 inset-shadow-[0px_1px_--theme(--color-white)]"
+        >
+          <h2 class="text-sm text-secondary-foreground">Recent activity</h2>
+        </div>
+        <Card.Root class="z-1 -mt-2 gap-0 overflow-hidden p-0">
+          <Card.Content class="p-0">
+            {#if activityRows.length === 0}
+              <p class="px-5 py-10 text-center text-sm text-muted-foreground">
+                No heartbeat activity has been recorded yet.
+              </p>
+            {:else}
+              <div class="divide-y">
+                {#each activityRows as activity (activity.id)}
+                  <div
+                    class="grid grid-cols-[auto_1fr_auto] items-start gap-3 px-4 py-3"
+                  >
+                    <span
+                      class={`mt-1.5 size-2 rounded-full ${
+                        activity.tone === "healthy"
+                          ? "bg-emerald-500"
+                          : activity.tone === "warning"
+                            ? "bg-amber-500"
+                            : activity.tone === "muted"
+                              ? "bg-muted-foreground/40"
+                              : "bg-destructive"
+                      }`}
+                    ></span>
+                    <div class="min-w-0">
+                      {#if activity.incidentId}
+                        <a
+                          class="text-sm font-medium hover:underline"
+                          href={`/a/${page.params.app_id}/incidents/${activity.incidentId}`}
+                          >{activity.title}</a
+                        >
+                      {:else}
+                        <p class="text-sm font-medium">{activity.title}</p>
+                      {/if}
+                      <p class="text-xs text-muted-foreground">
+                        {activity.detail}
+                      </p>
+                    </div>
+                    <span class="font-mono text-xs text-muted-foreground">
+                      {formatRelativeTime(activity.occurredAt)}
+                    </span>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </Card.Content>
+        </Card.Root>
+      </section>
+
+      <section class="flex h-fit flex-col">
+        <div
+          class="flex items-center rounded-t-xl border border-foreground/10 bg-secondary px-3.5 pt-2 pb-4 inset-shadow-[0px_1px_--theme(--color-white)]"
+        >
+          <h2 class="text-sm text-secondary-foreground">Monitor details</h2>
+        </div>
+        <Card.Root class="z-1 -mt-2 gap-0 p-0">
+          <Card.Content class="p-0">
+            <div class="border-b p-4">
+              <span class="text-xs text-muted-foreground">Heartbeat URL</span>
+              <InputGroup.Root class="mt-2">
+                <InputGroup.Input
+                  class="font-mono text-xs"
+                  value={monitor.secretUrl}
+                  readonly
+                  title={monitor.secretUrl}
+                />
+                <InputGroup.Button
+                  aria-label="Copy heartbeat URL"
+                  onclick={copyHeartbeatUrl}
+                >
+                  <IconCopy data-slot="button-icon" />
+                  Copy
+                </InputGroup.Button>
+              </InputGroup.Root>
+            </div>
+
+            <dl class="divide-y text-sm">
+              <div class="flex items-center justify-between gap-3 px-4 py-3">
+                <dt class="text-muted-foreground">Expected cadence</dt>
+                <dd class="font-medium">
+                  {formatDuration(monitor.expectedEverySeconds)}
+                </dd>
+              </div>
+              <div class="flex items-center justify-between gap-3 px-4 py-3">
+                <dt class="text-muted-foreground">Grace period</dt>
+                <dd class="font-medium">
+                  {formatDuration(monitor.graceSeconds)}
+                </dd>
+              </div>
+              <div class="flex items-center justify-between gap-3 px-4 py-3">
+                <dt class="text-muted-foreground">Last received</dt>
+                <dd class="text-right font-medium">
+                  {monitor.lastCheckInAt
+                    ? formatRelativeTime(monitor.lastCheckInAt)
+                    : "Never"}
+                </dd>
+              </div>
+              <div class="flex items-start justify-between gap-3 px-4 py-3">
+                <dt class="pt-0.5 text-muted-foreground">Notifications</dt>
+                <dd class="flex max-w-[65%] flex-wrap justify-end gap-1.5">
+                  {#if monitor.destinations.length === 0}
+                    <span class="text-sm font-medium">None</span>
+                  {:else}
+                    {#each monitor.destinations as destination (destination.id)}
+                      <Badge variant="outline">
+                        {destination.kind === "email"
+                          ? `Email · ${destination.name}`
+                          : destination.kind === "webhook"
+                            ? `Webhook · ${destination.name}`
+                            : destination.name}
+                      </Badge>
+                    {/each}
+                  {/if}
+                </dd>
+              </div>
+            </dl>
+          </Card.Content>
+        </Card.Root>
+      </section>
     </div>
   </div>
 </PageContainer>

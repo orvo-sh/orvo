@@ -86,15 +86,17 @@ func SeedApp(ctx context.Context, postgresDB *pgclient.Client, input SeedAppInpu
 }
 
 type SeedHeartbeatInput struct {
-	Suffix          string
-	AppID           string
-	Status          string
-	WithDestination bool
+	Suffix           string
+	AppID            string
+	Status           string
+	WithDestination  bool
+	WithOpenIncident bool
 }
 
 type SeededHeartbeat struct {
-	MonitorID string
-	Token     string
+	MonitorID  string
+	Token      string
+	IncidentID string
 }
 
 func SeedHeartbeat(ctx context.Context, postgresDB *pgclient.Client, input SeedHeartbeatInput) (*SeededHeartbeat, error) {
@@ -147,8 +149,36 @@ func SeedHeartbeat(ctx context.Context, postgresDB *pgclient.Client, input SeedH
 		}
 	}
 
+	incidentID := ""
+	if input.WithOpenIncident {
+		incidentID = fmt.Sprintf("inc_%s", input.Suffix)
+		if _, err := postgresDB.Pool().Exec(ctx, `
+			INSERT INTO incident (
+				id,
+				app_id,
+				source_type,
+				source_id,
+				source_key,
+				type,
+				title,
+				severity,
+				status,
+				entity_type,
+				entity_id,
+				opened_at,
+				last_observed_at,
+				created_at,
+				updated_at
+			)
+			VALUES ($1, $2, 'heartbeat', $3, $4, 'heartbeat_missed', $5, 'critical', 'open', 'app', $2, $6, $6, $6, $6)
+		`, incidentID, input.AppID, monitorID, "heartbeat:"+monitorID+":missed", "API health "+input.Suffix, now); err != nil {
+			return nil, fmt.Errorf("insert heartbeat incident: %w", err)
+		}
+	}
+
 	return &SeededHeartbeat{
-		MonitorID: monitorID,
-		Token:     token,
+		MonitorID:  monitorID,
+		Token:      token,
+		IncidentID: incidentID,
 	}, nil
 }

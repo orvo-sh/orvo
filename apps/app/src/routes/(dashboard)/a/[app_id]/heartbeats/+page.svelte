@@ -60,6 +60,20 @@
 <PageContainer
   title="Heartbeats"
   contentClass="min-h-0 p-0! gap-2 overflow-hidden"
+  scout={{
+    kind: "heartbeat",
+    resourceId: "heartbeats",
+    label: "Heartbeats",
+    metadata: {
+      total: data.monitors.length,
+      healthy: data.monitors.filter(
+        (monitor) => monitor.status === "healthy" && !monitor.isPaused,
+      ).length,
+      missed: data.monitors.filter((monitor) => monitor.status === "missed")
+        .length,
+      paused: data.monitors.filter((monitor) => monitor.isPaused).length,
+    },
+  }}
 >
   {#snippet actions()}
     <CreateEditHeartbeatMonitor
@@ -148,7 +162,7 @@
   })()}
   <Card.Root
     data-empty={filteredMonitors.length === 0 ? "true" : undefined}
-    class="max-h-full min-h-0 gap-0 divide-y overflow-y-auto rounded-xl p-0 data-empty:ring-0"
+    class="max-h-full min-h-0 gap-0 divide-y overflow-y-auto rounded-xl p-0 data-empty:bg-transparent data-empty:shadow-none data-empty:ring-0"
   >
     {#each filteredMonitors as monitor (monitor.id)}
       <div
@@ -274,9 +288,7 @@
         </DropdownMenu.Root>
       </div>
     {:else}
-      <div
-        class="flex flex-col items-center text-sm text-muted-foreground pt-[5%]"
-      >
+      <div class="flex flex-col items-center text-muted-foreground pt-[5%]">
         No heartbeat monitors found.
       </div>
     {/each}

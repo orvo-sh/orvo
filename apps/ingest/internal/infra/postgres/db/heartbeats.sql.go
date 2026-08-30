@@ -14,21 +14,158 @@ import (
 const getHeartbeatMonitorByToken = `-- name: GetHeartbeatMonitorByToken :one
 SELECT
   heartbeat_monitor.id,
-  heartbeat_monitor.app_id
+  heartbeat_monitor.app_id,
+  heartbeat_monitor.name,
+  heartbeat_monitor.expected_every_seconds,
+  heartbeat_monitor.grace_seconds,
+  heartbeat_monitor.last_check_in_at,
+  heartbeat_monitor.status,
+  app.name AS app_name
 FROM heartbeat_monitor
+INNER JOIN app ON app.id = heartbeat_monitor.app_id
 WHERE heartbeat_monitor.token = $1
+FOR UPDATE OF heartbeat_monitor
 `
 
 type GetHeartbeatMonitorByTokenRow struct {
-	ID    string `json:"id"`
-	AppID string `json:"app_id"`
+	ID                   string                 `json:"id"`
+	AppID                string                 `json:"app_id"`
+	Name                 string                 `json:"name"`
+	ExpectedEverySeconds int32                  `json:"expected_every_seconds"`
+	GraceSeconds         int32                  `json:"grace_seconds"`
+	LastCheckInAt        pgtype.Timestamp       `json:"last_check_in_at"`
+	Status               HeartbeatMonitorStatus `json:"status"`
+	AppName              string                 `json:"app_name"`
 }
 
 func (q *Queries) GetHeartbeatMonitorByToken(ctx context.Context, token string) (GetHeartbeatMonitorByTokenRow, error) {
 	row := q.db.QueryRow(ctx, getHeartbeatMonitorByToken, token)
 	var i GetHeartbeatMonitorByTokenRow
-	err := row.Scan(&i.ID, &i.AppID)
+	err := row.Scan(
+		&i.ID,
+		&i.AppID,
+		&i.Name,
+		&i.ExpectedEverySeconds,
+		&i.GraceSeconds,
+		&i.LastCheckInAt,
+		&i.Status,
+		&i.AppName,
+	)
 	return i, err
+}
+
+const insertHeartbeatIncidentEvent = `-- name: InsertHeartbeatIncidentEvent :exec
+INSERT INTO incident_event (
+  id,
+  app_id,
+  incident_id,
+  event_type,
+  occurred_at,
+  metadata,
+  created_at
+)
+VALUES ($1, $2, $3, $4, $5, $6, $5)
+`
+
+type InsertHeartbeatIncidentEventParams struct {
+	ID         string            `json:"id"`
+	AppID      string            `json:"app_id"`
+	IncidentID string            `json:"incident_id"`
+	EventType  IncidentEventType `json:"event_type"`
+	OccurredAt pgtype.Timestamp  `json:"occurred_at"`
+	Metadata   []byte            `json:"metadata"`
+}
+
+func (q *Queries) InsertHeartbeatIncidentEvent(ctx context.Context, arg InsertHeartbeatIncidentEventParams) error {
+	_, err := q.db.Exec(ctx, insertHeartbeatIncidentEvent,
+		arg.ID,
+		arg.AppID,
+		arg.IncidentID,
+		arg.EventType,
+		arg.OccurredAt,
+		arg.Metadata,
+	)
+	return err
+}
+
+const insertHeartbeatRecoveryDelivery = `-- name: InsertHeartbeatRecoveryDelivery :exec
+INSERT INTO notification_delivery (
+  id,
+  app_id,
+  destination_id,
+  incident_id,
+  source_kind,
+  source_id,
+  event_type,
+  payload,
+  status,
+  next_attempt_at,
+  created_at,
+  updated_at
+)
+VALUES (
+  $1,
+  $2,
+  $3,
+  $4,
+  'heartbeat',
+  $5,
+  'heartbeat.recovered',
+  $6,
+  'pending',
+  $7,
+  $7,
+  $7
+)
+`
+
+type InsertHeartbeatRecoveryDeliveryParams struct {
+	ID            string           `json:"id"`
+	AppID         string           `json:"app_id"`
+	DestinationID string           `json:"destination_id"`
+	IncidentID    pgtype.Text      `json:"incident_id"`
+	SourceID      string           `json:"source_id"`
+	Payload       []byte           `json:"payload"`
+	NextAttemptAt pgtype.Timestamp `json:"next_attempt_at"`
+}
+
+func (q *Queries) InsertHeartbeatRecoveryDelivery(ctx context.Context, arg InsertHeartbeatRecoveryDeliveryParams) error {
+	_, err := q.db.Exec(ctx, insertHeartbeatRecoveryDelivery,
+		arg.ID,
+		arg.AppID,
+		arg.DestinationID,
+		arg.IncidentID,
+		arg.SourceID,
+		arg.Payload,
+		arg.NextAttemptAt,
+	)
+	return err
+}
+
+const listHeartbeatDestinationIDs = `-- name: ListHeartbeatDestinationIDs :many
+SELECT destination_id
+FROM heartbeat_monitor_destination
+WHERE heartbeat_monitor_id = $1
+`
+
+func (q *Queries) ListHeartbeatDestinationIDs(ctx context.Context, heartbeatMonitorID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listHeartbeatDestinationIDs, heartbeatMonitorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var destination_id string
+		if err := rows.Scan(&destination_id); err != nil {
+			return nil, err
+		}
+		items = append(items, destination_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const markHeartbeatMonitorHealthy = `-- name: MarkHeartbeatMonitorHealthy :exec
@@ -48,4 +185,40 @@ type MarkHeartbeatMonitorHealthyParams struct {
 func (q *Queries) MarkHeartbeatMonitorHealthy(ctx context.Context, arg MarkHeartbeatMonitorHealthyParams) error {
 	_, err := q.db.Exec(ctx, markHeartbeatMonitorHealthy, arg.ID, arg.LastCheckInAt)
 	return err
+}
+
+const resolveOpenHeartbeatIncident = `-- name: ResolveOpenHeartbeatIncident :one
+WITH latest AS (
+  SELECT id
+  FROM incident
+  WHERE
+    incident.app_id = $1
+    AND incident.source_key = $2
+    AND incident.status = 'open'
+  ORDER BY incident.opened_at DESC
+  LIMIT 1
+  FOR UPDATE
+)
+UPDATE incident
+SET
+  status = 'resolved',
+  resolved_at = $3,
+  last_observed_at = $3,
+  updated_at = $3
+FROM latest
+WHERE incident.id = latest.id
+RETURNING incident.id
+`
+
+type ResolveOpenHeartbeatIncidentParams struct {
+	AppID      string           `json:"app_id"`
+	SourceKey  string           `json:"source_key"`
+	ResolvedAt pgtype.Timestamp `json:"resolved_at"`
+}
+
+func (q *Queries) ResolveOpenHeartbeatIncident(ctx context.Context, arg ResolveOpenHeartbeatIncidentParams) (string, error) {
+	row := q.db.QueryRow(ctx, resolveOpenHeartbeatIncident, arg.AppID, arg.SourceKey, arg.ResolvedAt)
+	var id string
+	err := row.Scan(&id)
+	return id, err
 }

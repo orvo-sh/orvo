@@ -54,10 +54,11 @@ func TestIngestHeartbeatCheckIn(t *testing.T) {
 		}
 
 		missedHeartbeat, err := test.SeedHeartbeat(ctx, postgresDB, test.SeedHeartbeatInput{
-			Suffix:          "missed",
-			AppID:           missedApp.AppID,
-			Status:          "missed",
-			WithDestination: true,
+			Suffix:           "missed",
+			AppID:            missedApp.AppID,
+			Status:           "missed",
+			WithDestination:  true,
+			WithOpenIncident: true,
 		})
 		if err != nil {
 			t.Fatalf("seed missed heartbeat: %v", err)
@@ -112,7 +113,7 @@ func TestIngestHeartbeatCheckIn(t *testing.T) {
 					},
 				},
 				{
-					Name: "missed heartbeat check-in stays focused on monitor and clickhouse",
+					Name: "missed heartbeat check-in resolves its incident",
 					Input: test.HttpRequest{
 						Method: "GET",
 						URL:    "/v1/heartbeats/" + missedHeartbeat.Token,
@@ -128,11 +129,29 @@ func TestIngestHeartbeatCheckIn(t *testing.T) {
 							}},
 						}),
 						test.PostgresDBValidator(test.NewPostgresDBValidatorInput{
-							Name:  "heartbeat check-in does not create notification deliveries",
-							Query: "SELECT COUNT(*) AS count FROM notification_delivery WHERE source_id = $1",
+							Name:  "heartbeat incident is resolved",
+							Query: "SELECT status FROM incident WHERE id = $1",
+							Args:  []any{missedHeartbeat.IncidentID},
+							Expected: []test.Row{{
+								"status": "resolved",
+							}},
+						}),
+						test.PostgresDBValidator(test.NewPostgresDBValidatorInput{
+							Name:  "heartbeat recovery events are recorded",
+							Query: "SELECT event_type FROM incident_event WHERE incident_id = $1 ORDER BY occurred_at, event_type",
+							Args:  []any{missedHeartbeat.IncidentID},
+							Expected: []test.Row{
+								{"event_type": "incident.resolved"},
+								{"event_type": "heartbeat.recovered"},
+							},
+						}),
+						test.PostgresDBValidator(test.NewPostgresDBValidatorInput{
+							Name:  "heartbeat recovery notification is queued",
+							Query: "SELECT event_type, status FROM notification_delivery WHERE source_id = $1",
 							Args:  []any{missedHeartbeat.MonitorID},
 							Expected: []test.Row{{
-								"count": int64(0),
+								"event_type": "heartbeat.recovered",
+								"status":     "pending",
 							}},
 						}),
 						test.EventuallyClickhouseDBValidator(test.NewClickhouseDBValidatorInput{
