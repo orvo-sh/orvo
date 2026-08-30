@@ -18,7 +18,7 @@ const webhookDestinationInputSchema = z.object({
 const emailDestinationInputSchema = z.object({
   kind: z.literal("email"),
   name: z.string().trim().min(2).max(64),
-  recipients: z.array(z.email().max(320)).max(50).default([]),
+  recipients: z.array(z.email().max(320)).max(5).default([]),
   isEnabled: z.boolean().default(true),
 });
 

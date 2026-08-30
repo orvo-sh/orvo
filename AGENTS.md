@@ -107,6 +107,9 @@ This repo is a Svelte monorepo with shared UI in `packages/components` and produ
 - Auth, onboarding, and organization management pages should use simple structure, sparse decoration, and library-default controls.
 - Prefer one strong container, one clear heading block, and one obvious primary action over layered marketing-style composition.
 - Use supporting copy sparingly. Interfaces should explain themselves mostly through structure and labels.
+- When a form field needs a supporting description, use the shared `FieldDescription` with a leading filled information-circle icon such as `IconInfoCircleFilled`. Keep the copy `text-sm` and muted; do not use bare `text-xs` helper text beneath fields.
+- Keep simple create and edit dialogs compact. A clear title and well-labeled fields are usually enough; dialog descriptions are optional, not required.
+- Only add a dialog description when it communicates a meaningful constraint, consequence, or context that the title and fields cannot convey. Never add generic instructional copy that merely restates the dialog or form, such as “Choose where...”, “Configure...”, or “Update how...”.
 - Use contrast through spacing, weight, and surface changes more than through bright colors.
 - Motion should be minimal and functional.
 

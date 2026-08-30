@@ -9,7 +9,7 @@ export const load = (async (event) => {
   }
   if (
     mode === "local" &&
-    ["/settings/billing", "/settings/notifications"].some((path) =>
+    ["/settings/billing", "/settings/notification-destinations"].some((path) =>
       event.url.pathname.includes(path),
     )
   ) {

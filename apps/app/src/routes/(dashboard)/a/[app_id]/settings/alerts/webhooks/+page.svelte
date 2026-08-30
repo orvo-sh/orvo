@@ -5,7 +5,7 @@
     </h2>
     <p class="mt-2 text-sm text-muted-foreground">
       Alert rules now use shared notification destinations. Manage webhook and
-      email destinations from the notifications settings page instead.
+      email destinations from the Notification destinations page instead.
     </p>
   </div>
 </div>

@@ -3,14 +3,14 @@
   import { Button } from "@repo/components/ui/button";
   import * as Sidebar from "@repo/components/ui/sidebar";
   import {
-    IconBell as BellIcon,
     IconCreditCard as CreditCardIcon,
-    IconPlus as PlusIcon,
     IconSettings as GearSixIcon,
-    IconUserCircle,
-    IconUsers as UsersIcon,
-    IconKey as KeyIcon,
+    IconBellPin,
     IconPlugConnected,
+    IconUserCircle,
+    IconKey as KeyIcon,
+    IconPlus as PlusIcon,
+    IconUsers as UsersIcon,
   } from "@tabler/icons-svelte";
   import type { Snippet } from "svelte";
 
@@ -40,11 +40,13 @@
         ...(page.data.mode === "cloud"
           ? [
               {
-                href: `${settingsBasePath}/notifications`,
-                label: "Notifications",
-                icon: BellIcon,
+                href: `${settingsBasePath}/notification-destinations`,
+                label: "Notification destinations",
+                icon: IconBellPin,
                 isActive: (pathname: string) =>
-                  pathname.startsWith(`${settingsBasePath}/notifications`),
+                  pathname.startsWith(
+                    `${settingsBasePath}/notification-destinations`,
+                  ),
               },
             ]
           : []),
@@ -124,6 +126,11 @@
         <PlusIcon data-slot="button-icon" />
         Invite member
       </Button>
+    {:else if page.url.pathname.startsWith(`${settingsBasePath}/notification-destinations`)}
+      <Button href={`${page.url.pathname}?create=1`}>
+        <PlusIcon data-slot="button-icon" />
+        Add destination
+      </Button>
     {/if}
   {/snippet}
 
@@ -156,7 +163,9 @@
       {/each}
     </aside>
 
-    <div class="min-h-0 min-w-0 flex-1 overflow-y-auto p-6">
+    <div
+      class={`min-h-0 min-w-0 flex-1 overflow-y-auto ${page.url.pathname.startsWith(`${settingsBasePath}/notification-destinations`) ? "p-3" : "p-6"}`}
+    >
       {@render children?.()}
     </div>
   </div>
