@@ -9,7 +9,7 @@
   import { onMount } from "svelte";
 
   import { Button } from "@repo/components/ui/button";
-  import { IconChevronLeft, IconX } from "@tabler/icons-svelte";
+  import { IconChevronLeft, IconSparkle, IconX } from "@tabler/icons-svelte";
   import PageContainerAppSwitcher from "./page-container-app-switcher.svelte";
 
   let {
@@ -22,7 +22,7 @@
     class: className = "",
     contentClass,
     back,
-    chat,
+    scout,
   }: {
     title: string;
     actions?: Snippet;
@@ -33,7 +33,7 @@
     class?: string;
     contentClass?: string;
     back?: { href: string; title: string };
-    chat?: Chat.ChatContextDescriptor;
+    scout?: Chat.ChatContextDescriptor;
   } = $props();
 
   let isMobile = $state(false);
@@ -59,7 +59,7 @@
   const chatState = Chat.useChatState();
 
   $effect(() => {
-    if (chat && asideOpen && chatState.railOpen) chatState.closeRail();
+    if (scout && asideOpen && chatState.railOpen) chatState.closeRail();
   });
 </script>
 
@@ -124,8 +124,22 @@
         {#if actions}
           {@render actions()}
         {/if}
-        {#if chat}
-          <Chat.Trigger context={chat} onOpen={() => (asideOpen = false)} />
+        {#if scout && page.data.mode === "cloud"}
+          <Button
+            variant="ghost"
+            size="icon"
+            class={chatState.railOpen
+              ? "border-muted bg-muted text-foreground dark:bg-muted/50"
+              : ""}
+            aria-label="Open Scout"
+            aria-pressed={chatState.railOpen}
+            onclick={() => {
+              asideOpen = false;
+              void chatState.openContext(scout);
+            }}
+          >
+            <IconSparkle data-slot="button-icon" />
+          </Button>
         {/if}
       </div>
     </div>

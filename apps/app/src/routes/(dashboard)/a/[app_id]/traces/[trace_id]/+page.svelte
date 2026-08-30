@@ -3,11 +3,7 @@
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import * as Chat from "$lib/chat";
-  import { Button } from "@repo/components/ui/button";
-  import {
-    IconBinaryTree2 as TreeStructureIcon,
-    IconSparkle,
-  } from "@tabler/icons-svelte";
+  import { IconBinaryTree2 as TreeStructureIcon } from "@tabler/icons-svelte";
   import PageContainer from "../../_components/page-container/page-container.svelte";
   import type { Span } from "../types";
   import SpanDetailPanel from "./_components/span-detail-panel.svelte";
@@ -95,27 +91,8 @@
   bind:asideOpen
   class="min-h-0 overflow-hidden"
   contentClass="p-0!"
+  scout={traceChatContext}
 >
-  {#snippet actions()}
-    {#if page.data.mode === "cloud"}
-      <Button
-        variant="ghost"
-        size="icon"
-        class={chat.railOpen
-          ? "border-muted bg-muted text-foreground dark:bg-muted/50"
-          : ""}
-        aria-label="Open Scout"
-        aria-pressed={chat.railOpen}
-        onclick={() => {
-          asideOpen = false;
-          void chat.openContext(traceChatContext);
-        }}
-      >
-        <IconSparkle data-slot="button-icon" />
-      </Button>
-    {/if}
-  {/snippet}
-
   {#snippet aside()}
     {#if selectedSpan}
       <SpanDetailPanel span={selectedSpan} onClose={closeSelectedSpan} />

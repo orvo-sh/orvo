@@ -20,11 +20,14 @@
 
 <PageContainer
   title="Logs"
-  chat={state.selectedLog
+  scout={state.selectedLog
     ? {
         kind: "log",
-        resourceId: state.selectedLog.id,
-        label: state.selectedLog.body?.slice(0, 160) || state.selectedLog.id,
+        resourceId: state.selectedLog.id ?? "",
+        label:
+          state.selectedLog.body?.slice(0, 160) ||
+          state.selectedLog.id ||
+          "Log",
         metadata: {
           serviceName: state.selectedLog.service_name,
           severity: state.selectedLog.severity_text,

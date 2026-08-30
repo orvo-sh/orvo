@@ -131,7 +131,7 @@
   }
 </script>
 
-<section class="flex flex-col">
+<section class="mt-1 flex flex-col">
   <div
     class="flex translate-y-2 items-center justify-between rounded-t-xl border border-foreground/10 bg-secondary pb-2 inset-shadow-[0px_1px_--theme(--color-white)]"
   >

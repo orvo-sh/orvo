@@ -194,7 +194,7 @@
 
 <PageContainer
   title="Incident detail"
-  chat={{
+  scout={{
     kind: "incident",
     resourceId: incident.id,
     label: incident.title,

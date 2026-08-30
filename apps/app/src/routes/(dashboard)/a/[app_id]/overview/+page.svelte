@@ -4,12 +4,7 @@
   import { Button } from "@repo/components/ui/button";
   import * as Select from "@repo/components/ui/select";
   import { formatNumber } from "@repo/utils";
-  import {
-    IconChartBar,
-    IconRoute,
-    IconSparkle,
-    IconTerminal2,
-  } from "@tabler/icons-svelte";
+  import { IconChartBar, IconRoute, IconTerminal2 } from "@tabler/icons-svelte";
 
   import { page } from "$app/state";
   import PageContainer from "../_components/page-container/page-container.svelte";
@@ -120,10 +115,9 @@
       chat.context = overviewChatContext;
     }
   });
-
 </script>
 
-<PageContainer title="Overview" contentClass="p-3">
+<PageContainer title="Overview" contentClass="p-3" scout={overviewChatContext}>
   {#snippet actions()}
     <Select.Root
       type="single"
@@ -160,27 +154,12 @@
         </Button>
       {/each}
     </div>
-
-    {#if page.data.mode === "cloud"}
-      <Button
-        variant="ghost"
-        size="icon"
-        class={chat.railOpen
-          ? "border-muted bg-muted text-foreground dark:bg-muted/50"
-          : ""}
-        aria-label="Open Scout"
-        aria-pressed={chat.railOpen}
-        onclick={() => void chat.openContext(overviewChatContext)}
-      >
-        <IconSparkle data-slot="button-icon" />
-      </Button>
-    {/if}
   {/snippet}
-  <div class="flex flex-col gap-4">
+  <div class="flex flex-col">
     {#if !data.hasReceivedFirstSignal}
       <OnboardingBanner ingestionKey={data.ingestionKey ?? ""} />
     {/if}
-    <section class="grid gap-3 lg:grid-cols-3">
+    <section class="grid gap-3 pb-3 lg:grid-cols-3">
       <SignalSummaryCard
         icon={IconTerminal2}
         title="Logs"

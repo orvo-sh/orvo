@@ -119,7 +119,7 @@
 
 <PageContainer
   title="Metrics"
-  chat={page.params.metric_name
+  scout={page.params.metric_name
     ? {
         kind: "metric",
         resourceId: decodeMetricName(page.params.metric_name),
