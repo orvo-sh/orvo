@@ -1,8 +1,10 @@
 <script lang="ts">
   /* eslint-disable svelte/no-navigation-without-resolve -- external URLs are data-driven */
   import { resolve } from '$app/paths';
+  import { GitHubIcon } from '@repo/components/icons/github';
   import { OrvoLogo } from '@repo/components/icons/orvo-logo';
-  import { IconBrandGithub, IconExternalLink } from '@tabler/icons-svelte';
+
+  import { IconExternalLink } from '@tabler/icons-svelte';
 
   const links = [
     {
@@ -50,7 +52,7 @@
         rel="noreferrer"
         class="text-muted-foreground hover:text-foreground mt-5 inline-flex items-center gap-2 text-sm transition-colors"
       >
-        <IconBrandGithub class="size-4" />
+        <GitHubIcon class="size-4" />
         orvo-sh/orvo
       </a>
     </div>
