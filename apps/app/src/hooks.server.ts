@@ -22,6 +22,7 @@ const oauthFormEndpoints = new Set([
   "/api/auth/oauth2/revoke",
   "/api/auth/oauth2/token",
 ]);
+const signedFormEndpoints = new Set(["/api/integrations/slack/actions"]);
 const formContentTypes = new Set([
   "application/x-www-form-urlencoded",
   "multipart/form-data",
@@ -54,7 +55,8 @@ export const handle = async ({ event, resolve }) => {
     unsafeMethods.has(event.request.method) &&
     formContentTypes.has(contentType) &&
     requestOrigin !== event.url.origin &&
-    !oauthFormEndpoints.has(event.url.pathname);
+    !oauthFormEndpoints.has(event.url.pathname) &&
+    !signedFormEndpoints.has(event.url.pathname);
 
   if (isForbiddenCrossSiteForm) {
     const message = `Cross-site ${event.request.method} form submissions are forbidden`;

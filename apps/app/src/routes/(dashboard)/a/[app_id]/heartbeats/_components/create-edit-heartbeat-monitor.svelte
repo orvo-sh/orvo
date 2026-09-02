@@ -40,7 +40,7 @@
     destinations: {
       id: string;
       name: string;
-      kind: "webhook" | "email";
+      kind: "webhook" | "email" | "slack";
     }[];
     onSuccess?: () => void | Promise<void>;
     child?: Snippet<[{ props: Record<string, unknown> }]>;
@@ -239,7 +239,11 @@
                   <div class="flex min-w-0 items-center gap-2">
                     <span class="truncate">{destination.name}</span>
                     <Badge variant="outline" class="h-4 text-xs">
-                      {destination.kind === "webhook" ? "Webhook" : "Email"}
+                      {destination.kind === "webhook"
+                        ? "Webhook"
+                        : destination.kind === "slack"
+                          ? "Slack"
+                          : "Email"}
                     </Badge>
                   </div>
                 </Select.Item>

@@ -1,8 +1,13 @@
 import type { Email, EmailInput } from "$lib/server/email";
 import { recordError } from "$lib/instrumentation";
-import { notificationDestination, notificationEventType } from "@repo/db/schema";
+import {
+  notificationDestination,
+  notificationEventType,
+} from "@repo/db/schema";
 import type { Encryption } from "@repo/encryption";
 import { formatDuration } from "@repo/utils";
+
+import { buildSlackMessage } from "../slack-integration/shared";
 
 const deliveryRetryMinutes = [1, 5, 15];
 
@@ -34,7 +39,8 @@ const buildEmailContent = (
         template: "destination-test" as const,
         props: {
           appName: app.name,
-          destinationName: destination?.name ?? heartbeat?.name ?? "Heartbeat monitor",
+          destinationName:
+            destination?.name ?? heartbeat?.name ?? "Heartbeat monitor",
         },
       };
     }
@@ -110,7 +116,9 @@ const buildEmailContent = (
         ? `${formatComparator(rule.comparator)} ${formatObservedValue(rule.threshold)}`
         : "Unknown threshold";
     const windowLabel =
-      typeof rule.windowMinutes === "number" ? `${rule.windowMinutes}m` : "Unknown";
+      typeof rule.windowMinutes === "number"
+        ? `${rule.windowMinutes}m`
+        : "Unknown";
 
     if (eventType === "alert.opened") {
       return {
@@ -220,46 +228,139 @@ const formatSignalType = (signalType?: string) =>
         .join(" ")
     : "Unknown signal";
 
-const createSendToDestination = ({
-  encryption,
-  email,
-}: {
-  encryption: Encryption;
-  email: Nullable<Email>;
-}) => async (
-  destination: typeof notificationDestination.$inferSelect,
-  payload: Record<string, unknown>,
-  eventType: (typeof notificationEventType.enumValues)[number],
-) => {
-  if (destination.kind === "webhook") {
-    try {
-      const headers = destination.webhookHeadersEncrypted
-        ? (JSON.parse(
-            encryption.decrypt(destination.webhookHeadersEncrypted),
-          ) as Array<{ key: string; value: string }>)
-        : [];
-      const response = await fetch(destination.webhookUrl ?? "", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...Object.fromEntries(headers.map((header) => [header.key, header.value])),
-        },
-        body: JSON.stringify(payload),
-      });
-      const body = await response.text().catch(() => "");
+const createSendToDestination =
+  ({ encryption, email }: { encryption: Encryption; email: Nullable<Email> }) =>
+  async (
+    destination: typeof notificationDestination.$inferSelect,
+    payload: Record<string, unknown>,
+    eventType: (typeof notificationEventType.enumValues)[number],
+  ) => {
+    if (destination.kind === "slack") {
+      try {
+        if (!destination.slackWebhookUrlEncrypted) {
+          return {
+            success: false as const,
+            httpStatus: null,
+            errorMessage: "Slack destination is missing its webhook URL.",
+          };
+        }
 
-      if (response.ok) {
+        const response = await fetch(
+          encryption.decrypt(destination.slackWebhookUrlEncrypted),
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            signal: AbortSignal.timeout(10_000),
+            body: JSON.stringify(
+              buildSlackMessage(payload, eventType, destination.id),
+            ),
+          },
+        );
+        const body = await response.text().catch(() => "");
+
+        return response.ok
+          ? {
+              success: true as const,
+              httpStatus: response.status,
+              errorMessage: null,
+            }
+          : {
+              success: false as const,
+              httpStatus: response.status,
+              errorMessage:
+                body.slice(0, 2000) || "Slack webhook request failed.",
+            };
+      } catch (error) {
+        recordError(error);
         return {
-          success: true as const,
-          httpStatus: response.status,
-          errorMessage: null,
+          success: false as const,
+          httpStatus: null,
+          errorMessage:
+            error instanceof Error
+              ? error.message
+              : "Slack webhook request failed.",
         };
+      }
+    }
+
+    if (destination.kind === "webhook") {
+      try {
+        const headers = destination.webhookHeadersEncrypted
+          ? (JSON.parse(
+              encryption.decrypt(destination.webhookHeadersEncrypted),
+            ) as Array<{ key: string; value: string }>)
+          : [];
+        const response = await fetch(destination.webhookUrl ?? "", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            ...Object.fromEntries(
+              headers.map((header) => [header.key, header.value]),
+            ),
+          },
+          body: JSON.stringify(payload),
+        });
+        const body = await response.text().catch(() => "");
+
+        if (response.ok) {
+          return {
+            success: true as const,
+            httpStatus: response.status,
+            errorMessage: null,
+          };
+        }
+
+        return {
+          success: false as const,
+          httpStatus: response.status,
+          errorMessage: body.slice(0, 2000) || "Webhook request failed.",
+        };
+      } catch (error) {
+        recordError(error);
+        return {
+          success: false as const,
+          httpStatus: null,
+          errorMessage:
+            error instanceof Error ? error.message : "Webhook request failed.",
+        };
+      }
+    }
+
+    if (!email) {
+      return {
+        success: false as const,
+        httpStatus: null,
+        errorMessage: "Email delivery is not configured.",
+      };
+    }
+
+    const recipients = destination.emailRecipients.filter(Boolean);
+    if (recipients.length === 0) {
+      return {
+        success: false as const,
+        httpStatus: null,
+        errorMessage: "Email destination has no recipients.",
+      };
+    }
+
+    const emailContent = buildEmailContent(payload, eventType);
+    if (!emailContent) {
+      return {
+        success: false as const,
+        httpStatus: null,
+        errorMessage: "Unsupported email notification type.",
+      };
+    }
+
+    try {
+      for (const recipient of recipients) {
+        await sendEmailContent(email, recipient, emailContent);
       }
 
       return {
-        success: false as const,
-        httpStatus: response.status,
-        errorMessage: body.slice(0, 2000) || "Webhook request failed.",
+        success: true as const,
+        httpStatus: null,
+        errorMessage: null,
       };
     } catch (error) {
       recordError(error);
@@ -267,55 +368,9 @@ const createSendToDestination = ({
         success: false as const,
         httpStatus: null,
         errorMessage:
-          error instanceof Error ? error.message : "Webhook request failed.",
+          error instanceof Error ? error.message : "Email request failed.",
       };
     }
-  }
-
-  if (!email) {
-    return {
-      success: false as const,
-      httpStatus: null,
-      errorMessage: "Email delivery is not configured.",
-    };
-  }
-
-  const recipients = destination.emailRecipients.filter(Boolean);
-  if (recipients.length === 0) {
-    return {
-      success: false as const,
-      httpStatus: null,
-      errorMessage: "Email destination has no recipients.",
-    };
-  }
-
-  const emailContent = buildEmailContent(payload, eventType);
-  if (!emailContent) {
-    return {
-      success: false as const,
-      httpStatus: null,
-      errorMessage: "Unsupported email notification type.",
-    };
-  }
-
-  try {
-    for (const recipient of recipients) {
-      await sendEmailContent(email, recipient, emailContent);
-    }
-
-    return {
-      success: true as const,
-      httpStatus: null,
-      errorMessage: null,
-    };
-  } catch (error) {
-    recordError(error);
-    return {
-      success: false as const,
-      httpStatus: null,
-      errorMessage: error instanceof Error ? error.message : "Email request failed.",
-    };
-  }
-};
+  };
 
 export { createSendToDestination, deliveryRetryMinutes };

@@ -696,7 +696,7 @@
                           ? `Email · ${destination.name}`
                           : destination.kind === "webhook"
                             ? `Webhook · ${destination.name}`
-                            : destination.name}
+                            : `Slack · ${destination.name}`}
                       </Badge>
                     {/each}
                   {/if}

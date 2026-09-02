@@ -4,6 +4,7 @@
   import * as Sidebar from "@repo/components/ui/sidebar";
   import {
     IconCreditCard as CreditCardIcon,
+    IconBrandSlack,
     IconSettings as GearSixIcon,
     IconBellPin,
     IconPlugConnected,
@@ -93,6 +94,13 @@
                 icon: IconPlugConnected,
                 isActive: (pathname: string) =>
                   pathname.startsWith(`${settingsBasePath}/integrations/mcp`),
+              },
+              {
+                href: `${settingsBasePath}/integrations/slack`,
+                label: "Slack",
+                icon: IconBrandSlack,
+                isActive: (pathname: string) =>
+                  pathname.startsWith(`${settingsBasePath}/integrations/slack`),
               },
             ],
           },

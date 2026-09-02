@@ -1,11 +1,15 @@
 import { relations, sql } from 'drizzle-orm';
-import { boolean, pgEnum, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { boolean, pgEnum, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 import { app } from './app.schema.js';
 import { heartbeatMonitorDestination } from './index.js';
 import { user } from './user.schema.js';
 
-const notificationDestinationKind = pgEnum('notification_destination_kind', ['webhook', 'email']);
+const notificationDestinationKind = pgEnum('notification_destination_kind', [
+  'webhook',
+  'email',
+  'slack'
+]);
 
 const notificationDestination = pgTable(
   'notification_destination',
@@ -23,6 +27,11 @@ const notificationDestination = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    slackTeamId: text('slack_team_id'),
+    slackTeamName: text('slack_team_name'),
+    slackChannelId: text('slack_channel_id'),
+    slackChannelName: text('slack_channel_name'),
+    slackWebhookUrlEncrypted: text('slack_webhook_url_encrypted'),
     createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
     updatedBy: text('updated_by').references(() => user.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -30,15 +39,16 @@ const notificationDestination = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull()
-  }
+  },
+  (table) => [
+    uniqueIndex('notification_destination_one_slack_per_app_uidx')
+      .on(table.appId)
+      .where(sql`${table.kind} = 'slack'`)
+  ]
 );
 
-const notificationDestinationRelations = relations(
-  notificationDestination,
-  ({ many }) => ({
-    heartbeatMonitors: many(heartbeatMonitorDestination),
-  }),
-);
+const notificationDestinationRelations = relations(notificationDestination, ({ many }) => ({
+  heartbeatMonitors: many(heartbeatMonitorDestination)
+}));
 
 export { notificationDestination, notificationDestinationKind, notificationDestinationRelations };
-

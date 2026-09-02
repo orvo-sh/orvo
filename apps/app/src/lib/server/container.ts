@@ -20,6 +20,7 @@ import { McpService } from "$lib/server/services/mcp";
 import { NotificationDeliveryService } from "$lib/server/services/notification-delivery";
 import { NotificationDestinationService } from "$lib/server/services/notification-destination";
 import { OnboardingService } from "$lib/server/services/onboarding";
+import { SlackIntegrationService } from "$lib/server/services/slack-integration";
 import { TracesService } from "$lib/server/services/traces";
 import { UploadService } from "$lib/server/services/upload";
 import { getClickHouseClient } from "@repo/clickhouse";
@@ -110,6 +111,21 @@ const createServerContainer = (logger: Logger) => {
   const logsService = new LogsService(clickhouse, logger);
   const tracesService = new TracesService(clickhouse, logger);
   const incidentService = new IncidentService(db, logger);
+  const slackIntegrationService = new SlackIntegrationService(
+    db,
+    logger,
+    encryption,
+    notificationDeliveryService,
+    incidentService,
+    {
+      clientId: env.SLACK_CLIENT_ID ?? "",
+      clientSecret: env.SLACK_CLIENT_SECRET ?? "",
+      redirectUri: new URL(
+        "/api/integrations/slack/callback",
+        env.ORIGIN,
+      ).toString(),
+    },
+  );
   const metricsService = new MetricsService(clickhouse, logger);
   const heartbeatService = new HeartbeatService(
     db,
@@ -214,6 +230,7 @@ const createServerContainer = (logger: Logger) => {
     metricsService,
     notificationDestinationService,
     onboardingService,
+    slackIntegrationService,
     tracesService,
   };
 };

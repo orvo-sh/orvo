@@ -119,7 +119,11 @@ class IncidentService {
 
   async resolveIncident(
     input: z.input<typeof resolveIncidentInputSchema>,
-    context: { appId: string; userId: string },
+    context: {
+      appId: string;
+      userId?: string;
+      metadata?: Record<string, unknown>;
+    },
   ) {
     return this.resolveIncidentMethod(input, context);
   }

@@ -41,7 +41,9 @@
 
   const destinations = $derived(
     data.destinationsResult.success
-      ? data.destinationsResult.data.destinations
+      ? data.destinationsResult.data.destinations.filter(
+          (destination) => destination.kind !== "slack",
+        )
       : [],
   );
   const defaultRecipients = $derived(
@@ -106,6 +108,8 @@
   };
 
   const openEdit = (destination: (typeof destinations)[number]) => {
+    if (destination.kind === "slack") return;
+
     editingId = destination.id;
     kind = destination.kind;
     name = destination.name;
@@ -242,6 +246,8 @@
   const toggleDestination = async (
     destination: (typeof destinations)[number],
   ) => {
+    if (destination.kind === "slack") return;
+
     togglingId = destination.id;
     const result = await updateNotificationDestinationCommand(
       destination.kind === "webhook"
