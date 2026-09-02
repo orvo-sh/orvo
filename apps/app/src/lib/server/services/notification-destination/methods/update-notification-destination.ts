@@ -15,7 +15,10 @@ const createUpdateNotificationDestination = ({
   db: DB;
   logger: Logger;
   prepareDestinationInput: (
-    input: z.infer<typeof updateNotificationDestinationInputSchema>,
+    input: Exclude<
+      z.infer<typeof updateNotificationDestinationInputSchema>,
+      { kind: "slack" }
+    >,
     organizationId: string,
   ) => Promise<
     | {
@@ -47,6 +50,23 @@ const createUpdateNotificationDestination = ({
 
     if (!existing) {
       return err("Notification destination not found.");
+    }
+
+    if (existing.kind === "slack" || validated.data.kind === "slack") {
+      if (existing.kind !== "slack" || validated.data.kind !== "slack") {
+        return err("The notification destination type cannot be changed.");
+      }
+
+      await db
+        .update(notificationDestination)
+        .set({
+          name: validated.data.name,
+          isEnabled: validated.data.isEnabled,
+          updatedBy: context.userId,
+        })
+        .where(eq(notificationDestination.id, existing.id));
+
+      return ok(undefined);
     }
 
     const destination = await prepareDestinationInput(

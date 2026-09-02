@@ -1,3 +1,4 @@
+import { createUpdateNotificationDestination } from "$lib/server/services/notification-destination/methods/update-notification-destination";
 import { createCompleteOauth } from "$lib/server/services/slack-integration/methods/complete-oauth";
 import { createProcessAction } from "$lib/server/services/slack-integration/methods/process-action";
 import { hashSlackOauthState } from "$lib/server/services/slack-integration/shared";
@@ -190,6 +191,54 @@ describe("Slack integration", () => {
       appId: "app_slack",
     });
     expect(await db.query.notificationDestination.findFirst()).toBeUndefined();
+  });
+
+  test("updates Slack destination settings without replacing its connection", async () => {
+    await db.insert(notificationDestination).values({
+      id: "ntds_slack",
+      appId: "app_slack",
+      name: "Slack · alerts",
+      kind: "slack",
+      slackTeamId: "T123",
+      slackTeamName: "Orvo",
+      slackChannelId: "C123",
+      slackChannelName: "alerts",
+      slackWebhookUrlEncrypted: "encrypted-webhook",
+      isEnabled: true,
+    });
+    const prepareDestinationInput = vi.fn();
+
+    const result = await createUpdateNotificationDestination({
+      db,
+      logger: createTestLogger() as never,
+      prepareDestinationInput: prepareDestinationInput as never,
+    })(
+      {
+        id: "ntds_slack",
+        kind: "slack",
+        name: "Primary Slack",
+        isEnabled: false,
+      },
+      {
+        appId: "app_slack",
+        organizationId: "org_slack",
+        userId: "user_slack",
+      },
+    );
+
+    expect(result).toMatchObject({ success: true });
+    expect(prepareDestinationInput).not.toHaveBeenCalled();
+    expect(
+      await db.query.notificationDestination.findFirst({
+        where: ({ id }, { eq }) => eq(id, "ntds_slack"),
+      }),
+    ).toMatchObject({
+      name: "Primary Slack",
+      isEnabled: false,
+      slackTeamId: "T123",
+      slackChannelId: "C123",
+      slackWebhookUrlEncrypted: "encrypted-webhook",
+    });
   });
 
   test("resolves only incidents belonging to the Slack destination app", async () => {

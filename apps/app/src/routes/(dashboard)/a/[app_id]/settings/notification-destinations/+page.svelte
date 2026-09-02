@@ -9,6 +9,7 @@
     updateNotificationDestinationCommand,
   } from "$lib/api/notification-destinations.remote";
   import { cn } from "@repo/components";
+  import { SlackIcon } from "@repo/components/icons/slack";
   import * as AlertDialog from "@repo/components/ui/alert-dialog";
   import { Badge } from "@repo/components/ui/badge";
   import { Button } from "@repo/components/ui/button";
@@ -41,9 +42,7 @@
 
   const destinations = $derived(
     data.destinationsResult.success
-      ? data.destinationsResult.data.destinations.filter(
-          (destination) => destination.kind !== "slack",
-        )
+      ? data.destinationsResult.data.destinations
       : [],
   );
   const defaultRecipients = $derived(
@@ -62,7 +61,7 @@
   let togglingId = $state("");
   let editingId = $state("");
   let destinationToDelete = $state<(typeof destinations)[number] | null>(null);
-  let kind = $state<"webhook" | "email">("webhook");
+  let kind = $state<"webhook" | "email" | "slack">("webhook");
   let name = $state("");
   let url = $state("");
   let headers = $state<Array<{ key: string; value: string }>>([]);
@@ -71,8 +70,9 @@
   let isEnabled = $state(true);
   let formError = $state("");
   let createQueryHandled = $state(false);
+  let slackCallbackHandled = $state(false);
 
-  const resetForm = (nextKind: "webhook" | "email") => {
+  const resetForm = (nextKind: "webhook" | "email" | "slack") => {
     editingId = "";
     kind = nextKind;
     name = "";
@@ -108,8 +108,6 @@
   };
 
   const openEdit = (destination: (typeof destinations)[number]) => {
-    if (destination.kind === "slack") return;
-
     editingId = destination.id;
     kind = destination.kind;
     name = destination.name;
@@ -175,12 +173,18 @@
               headers: preparedHeaders,
               isEnabled,
             }
-          : {
-              kind,
-              name,
-              recipients,
-              isEnabled,
-            };
+          : kind === "email"
+            ? {
+                kind,
+                name,
+                recipients,
+                isEnabled,
+              }
+            : {
+                kind,
+                name,
+                isEnabled,
+              };
       const result = editingId
         ? await updateNotificationDestinationCommand({
             id: editingId,
@@ -246,8 +250,6 @@
   const toggleDestination = async (
     destination: (typeof destinations)[number],
   ) => {
-    if (destination.kind === "slack") return;
-
     togglingId = destination.id;
     const result = await updateNotificationDestinationCommand(
       destination.kind === "webhook"
@@ -259,13 +261,20 @@
             headers: destination.headers,
             isEnabled: !destination.isEnabled,
           }
-        : {
-            id: destination.id,
-            kind: destination.kind,
-            name: destination.name,
-            recipients: destination.emailRecipients,
-            isEnabled: !destination.isEnabled,
-          },
+        : destination.kind === "email"
+          ? {
+              id: destination.id,
+              kind: destination.kind,
+              name: destination.name,
+              recipients: destination.emailRecipients,
+              isEnabled: !destination.isEnabled,
+            }
+          : {
+              id: destination.id,
+              kind: destination.kind,
+              name: destination.name,
+              isEnabled: !destination.isEnabled,
+            },
     );
     togglingId = "";
 
@@ -290,9 +299,31 @@
       createQueryHandled = false;
     }
   });
+
+  $effect(() => {
+    if (
+      page.url.searchParams.get("connected") === "slack" &&
+      !slackCallbackHandled
+    ) {
+      slackCallbackHandled = true;
+      toast.success("Slack destination connected.");
+      replaceState(
+        resolve("/(dashboard)/a/[app_id]/settings/notification-destinations", {
+          app_id: page.params.app_id!,
+        }),
+        page.state,
+      );
+    }
+  });
 </script>
 
 <div class="flex w-full max-w-4xl flex-col gap-8">
+  {#if page.url.searchParams.get("error")}
+    <p class="text-sm text-destructive" role="alert">
+      {page.url.searchParams.get("error")}
+    </p>
+  {/if}
+
   {#if loadError}
     <p class="text-sm text-destructive" role="alert">{loadError}</p>
   {:else if destinations.length === 0}
@@ -345,12 +376,17 @@
                     {destination.headers.length === 1 ? "header" : "headers"}.
                   </span>
                 {/if}
-              {:else}
+              {:else if destination.kind === "email"}
                 Email notifications are sent to
                 <span class="font-medium text-secondary-foreground">
                   {destination
                     .emailRecipients[0]}{#if destination.emailRecipients.length > 1}
                     + {destination.emailRecipients.length - 1} more{/if}.
+                </span>
+              {:else}
+                Slack notifications are sent to
+                <span class="font-medium text-secondary-foreground">
+                  {destination.slackTeamName} · #{destination.slackChannelName}.
                 </span>
               {/if}
             </div>
@@ -427,25 +463,32 @@
           <Label for="destination-type">Destination type</Label>
           <Select.Root type="single" bind:value={kind}>
             <Select.Trigger id="destination-type" class="w-full">
-              {kind === "webhook" ? "Webhook" : "Email"}
+              {kind === "webhook"
+                ? "Webhook"
+                : kind === "email"
+                  ? "Email"
+                  : "Slack"}
             </Select.Trigger>
             <Select.Content>
               <Select.Item value="webhook" label="Webhook" />
               <Select.Item value="email" label="Email" />
+              <Select.Item value="slack" label="Slack" />
             </Select.Content>
           </Select.Root>
         </div>
       {/if}
 
-      <div class="grid gap-2">
-        <Label for="destination-name">Name</Label>
-        <Input
-          id="destination-name"
-          bind:value={name}
-          maxlength={64}
-          placeholder="Primary on-call"
-        />
-      </div>
+      {#if kind !== "slack" || editingId}
+        <div class="grid gap-2">
+          <Label for="destination-name">Name</Label>
+          <Input
+            id="destination-name"
+            bind:value={name}
+            maxlength={64}
+            placeholder="Primary on-call"
+          />
+        </div>
+      {/if}
 
       {#if kind === "webhook"}
         <div class="grid gap-2">
@@ -501,7 +544,7 @@
             </div>
           {/each}
         </div>
-      {:else}
+      {:else if kind === "email"}
         <div class="grid gap-2">
           <Label for="destination-recipients">Recipients</Label>
           <InputGroup.Root
@@ -552,14 +595,31 @@
             <span>Press Enter or Space to add up to 5 email addresses.</span>
           </FieldDescription>
         </div>
+      {:else if !editingId}
+        <div class="flex items-start gap-3 rounded-lg border bg-muted/40 p-4">
+          <div
+            class="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background"
+          >
+            <SlackIcon class="size-4.5" />
+          </div>
+          <div class="space-y-1">
+            <p class="text-sm font-medium">Connect a Slack channel</p>
+            <p class="text-sm text-muted-foreground">
+              Slack will ask you to choose the workspace and channel where Orvo
+              should send notifications.
+            </p>
+          </div>
+        </div>
       {/if}
 
-      <div
-        class="flex items-center justify-between gap-4 rounded-lg border px-3 py-3"
-      >
-        <Label for="destination-enabled">Enabled</Label>
-        <Switch id="destination-enabled" bind:checked={isEnabled} />
-      </div>
+      {#if kind !== "slack" || editingId}
+        <div
+          class="flex items-center justify-between gap-4 rounded-lg border px-3 py-3"
+        >
+          <Label for="destination-enabled">Enabled</Label>
+          <Switch id="destination-enabled" bind:checked={isEnabled} />
+        </div>
+      {/if}
 
       {#if formError}
         <p class="text-sm text-destructive" role="alert">{formError}</p>
@@ -570,15 +630,24 @@
       <Button variant="outline" onclick={() => handleDialogOpenChange(false)}>
         Cancel
       </Button>
-      <Button loading={submitting} onclick={submit}>
-        {#if editingId}
-          <IconPencil data-slot="button-icon" />
-          Save changes
-        {:else}
-          <IconPlus data-slot="button-icon" />
-          Add destination
-        {/if}
-      </Button>
+      {#if kind === "slack" && !editingId}
+        <Button
+          href={`/api/integrations/slack/connect?app_id=${encodeURIComponent(page.params.app_id!)}`}
+        >
+          <SlackIcon class="size-4" data-slot="button-icon" />
+          Connect to Slack
+        </Button>
+      {:else}
+        <Button loading={submitting} onclick={submit}>
+          {#if editingId}
+            <IconPencil data-slot="button-icon" />
+            Save changes
+          {:else}
+            <IconPlus data-slot="button-icon" />
+            Add destination
+          {/if}
+        </Button>
+      {/if}
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>

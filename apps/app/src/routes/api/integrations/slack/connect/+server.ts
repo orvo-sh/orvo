@@ -27,7 +27,7 @@ export const GET = (async (event) => {
   if (!result.success) {
     throw redirect(
       303,
-      `/a/${encodeURIComponent(appId)}/settings/integrations/slack?error=${encodeURIComponent(result.error)}`,
+      `/a/${encodeURIComponent(appId)}/settings/notification-destinations?error=${encodeURIComponent(result.error)}`,
     );
   }
 

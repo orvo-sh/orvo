@@ -57,7 +57,10 @@ const createPrepareDestinationInput =
   async (
     input:
       | z.infer<typeof createNotificationDestinationInputSchema>
-      | z.infer<typeof updateNotificationDestinationInputSchema>,
+      | Exclude<
+          z.infer<typeof updateNotificationDestinationInputSchema>,
+          { kind: "slack" }
+        >,
     organizationId: string,
   ) => {
     if (input.kind === "webhook") {

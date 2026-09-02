@@ -20,7 +20,7 @@ export const GET = (async (event) => {
     if ("appId" in result && result.appId) {
       throw redirect(
         303,
-        `/a/${encodeURIComponent(result.appId)}/settings/integrations/slack?error=${encodeURIComponent(result.error)}`,
+        `/a/${encodeURIComponent(result.appId)}/settings/notification-destinations?error=${encodeURIComponent(result.error)}`,
       );
     }
     return new Response(result.error, { status: 400 });
@@ -28,6 +28,6 @@ export const GET = (async (event) => {
 
   throw redirect(
     303,
-    `/a/${encodeURIComponent(result.data.appId)}/settings/integrations/slack?connected=1`,
+    `/a/${encodeURIComponent(result.data.appId)}/settings/notification-destinations?connected=slack`,
   );
 }) satisfies RequestHandler;

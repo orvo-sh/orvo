@@ -22,6 +22,12 @@ const emailDestinationInputSchema = z.object({
   isEnabled: z.boolean().default(true),
 });
 
+const slackDestinationInputSchema = z.object({
+  kind: z.literal("slack"),
+  name: z.string().trim().min(2).max(64),
+  isEnabled: z.boolean().default(true),
+});
+
 const createNotificationDestinationInputSchema = z.discriminatedUnion("kind", [
   webhookDestinationInputSchema,
   emailDestinationInputSchema,
@@ -32,6 +38,9 @@ const updateNotificationDestinationInputSchema = z.discriminatedUnion("kind", [
     id: destinationIdSchema,
   }),
   emailDestinationInputSchema.extend({
+    id: destinationIdSchema,
+  }),
+  slackDestinationInputSchema.extend({
     id: destinationIdSchema,
   }),
 ]);
@@ -45,6 +54,7 @@ export {
   destinationIdSchema,
   emailDestinationInputSchema,
   notificationHeaderSchema,
+  slackDestinationInputSchema,
   testNotificationDestinationInputSchema,
   updateNotificationDestinationInputSchema,
   webhookDestinationInputSchema,
