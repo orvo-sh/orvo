@@ -67,6 +67,8 @@ const createBillingService = (logger: Logger) =>
   stripe
     ? new BillingService(db, logger, email!, stripe, {
         proPriceId: env.STRIPE_PRO_PRICE_ID,
+        ingestOveragePriceId: env.STRIPE_INGEST_OVERAGE_PRICE_ID,
+        scoutOveragePriceId: env.STRIPE_SCOUT_OVERAGE_PRICE_ID,
         trialDays: 14,
         ingestEventName: "orvo_ingest_bytes_cumulative",
         scoutEventName: "orvo_scout_credits_cumulative",

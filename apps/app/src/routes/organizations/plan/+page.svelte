@@ -26,7 +26,7 @@
           return;
         }
 
-        window.location.href = result.data.url;
+        window.location.href = "/apps/new";
       })
       .catch(() => {
         toast.error("Failed to start the free trial.");

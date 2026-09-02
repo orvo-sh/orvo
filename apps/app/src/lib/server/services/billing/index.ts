@@ -58,6 +58,8 @@ class BillingService {
     stripe: Stripe,
     config: {
       proPriceId: string;
+      ingestOveragePriceId: string;
+      scoutOveragePriceId: string;
       trialDays: number;
       ingestEventName: string;
       scoutEventName: string;
@@ -105,7 +107,9 @@ class BillingService {
       db,
       logger: this.logger,
       stripe,
+      config,
       isOrganizationOwner,
+      syncStripeSubscriptionState,
     });
     this.onSubscriptionCreatedMethod = createOnSubscriptionCreated({
       logger: this.logger,
@@ -161,9 +165,6 @@ class BillingService {
     context: {
       organizationId: string;
       userId: string;
-      headers: Headers;
-      origin: string;
-      authService: Auth;
     },
   ) {
     return this.startFreeTrialMethod(input, context);

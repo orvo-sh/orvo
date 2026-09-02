@@ -2,8 +2,10 @@ import { createStartFreeTrial } from "$lib/server/services/billing/methods/start
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 describe("createStartFreeTrial", () => {
-  const upgradeSubscription = vi.fn();
+  const createStripeCustomer = vi.fn();
+  const createStripeSubscription = vi.fn();
   const listStripeSubscriptions = vi.fn();
+  const syncStripeSubscriptionState = vi.fn();
   const deleteWhere = vi.fn();
   const updateWhere = vi.fn();
   const updateSet = vi.fn(() => ({ where: updateWhere }));
@@ -24,30 +26,80 @@ describe("createStartFreeTrial", () => {
     db: db as never,
     logger: { error: vi.fn() } as never,
     stripe: {
-      subscriptions: { list: listStripeSubscriptions },
+      customers: { create: createStripeCustomer },
+      subscriptions: {
+        create: createStripeSubscription,
+        list: listStripeSubscriptions,
+      },
     } as never,
+    config: {
+      proPriceId: "price_pro",
+      ingestOveragePriceId: "price_ingest",
+      scoutOveragePriceId: "price_scout",
+      trialDays: 14,
+    },
     isOrganizationOwner: vi.fn().mockResolvedValue(true),
+    syncStripeSubscriptionState,
   });
   const context = {
     organizationId: "org_billing",
     userId: "usr_owner",
-    headers: new Headers(),
-    origin: "https://orvo.test",
-    authService: {
-      api: { upgradeSubscription },
-    } as never,
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     tx.query.organization.findFirst.mockResolvedValue({
+      id: "org_billing",
+      name: "Billing organization",
       stripeCustomerId: "cus_billing",
     });
     listStripeSubscriptions.mockResolvedValue({ data: [] });
+    createStripeCustomer.mockResolvedValue({ id: "cus_new" });
+    createStripeSubscription.mockResolvedValue({
+      id: "sub_direct",
+      status: "trialing",
+    });
     deleteWhere.mockResolvedValue(undefined);
     updateWhere.mockResolvedValue(undefined);
-    upgradeSubscription.mockResolvedValue({
-      url: "https://checkout.stripe.test/session",
+    syncStripeSubscriptionState.mockResolvedValue(undefined);
+  });
+
+  test("creates and synchronizes the Pro trial without Checkout", async () => {
+    const result = await startFreeTrial({ plan: "pro" }, context);
+
+    expect(result).toEqual({
+      success: true,
+      data: { id: "sub_direct" },
+    });
+    expect(createStripeCustomer).not.toHaveBeenCalled();
+    expect(createStripeSubscription).toHaveBeenCalledWith(
+      {
+        customer: "cus_billing",
+        items: [
+          { price: "price_pro" },
+          { price: "price_ingest" },
+          { price: "price_scout" },
+        ],
+        trial_period_days: 14,
+        metadata: {
+          userId: "usr_owner",
+          referenceId: "org_billing",
+        },
+        trial_settings: {
+          end_behavior: {
+            missing_payment_method: "cancel",
+          },
+        },
+      },
+      { idempotencyKey: "orvo-subscription-trial-org_billing" },
+    );
+    expect(syncStripeSubscriptionState).toHaveBeenCalledWith({
+      organizationId: "org_billing",
+      plan: "pro",
+      stripeSubscription: {
+        id: "sub_direct",
+        status: "trialing",
+      },
     });
   });
 
@@ -57,32 +109,28 @@ describe("createStartFreeTrial", () => {
     const result = await startFreeTrial({ plan: "pro" }, context);
 
     expect(result.success).toBe(true);
-    expect(updateSet).toHaveBeenCalledWith({ stripeCustomerId: null });
-    expect(upgradeSubscription).toHaveBeenCalledOnce();
-  });
-
-  test("opens one managed checkout for a resubscription", async () => {
-    const result = await startFreeTrial({ plan: "pro" }, context);
-
-    expect(result).toEqual({
-      success: true,
-      data: { url: "https://checkout.stripe.test/session" },
-    });
-    expect(upgradeSubscription).toHaveBeenCalledOnce();
-    expect(upgradeSubscription).toHaveBeenCalledWith(
-      expect.objectContaining({
-        body: expect.objectContaining({
-          plan: "pro",
+    expect(updateSet).toHaveBeenNthCalledWith(1, { stripeCustomerId: null });
+    expect(createStripeCustomer).toHaveBeenCalledWith(
+      {
+        name: "Billing organization",
+        metadata: {
+          organizationId: "org_billing",
           customerType: "organization",
-          referenceId: "org_billing",
-          disableRedirect: true,
-        }),
-      }),
+        },
+      },
+      { idempotencyKey: "orvo-customer-org_billing" },
+    );
+    expect(updateSet).toHaveBeenNthCalledWith(2, {
+      stripeCustomerId: "cus_new",
+    });
+    expect(createStripeSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({ customer: "cus_new" }),
+      expect.anything(),
     );
   });
 
   test.each(["active", "trialing", "incomplete", "past_due"])(
-    "blocks checkout when Stripe already has a %s subscription",
+    "blocks direct provisioning when Stripe already has a %s subscription",
     async (status) => {
       listStripeSubscriptions.mockResolvedValue({ data: [{ status }] });
 
@@ -92,7 +140,8 @@ describe("createStartFreeTrial", () => {
         success: false,
         error: "This organization already has a subscription.",
       });
-      expect(upgradeSubscription).not.toHaveBeenCalled();
+      expect(createStripeSubscription).not.toHaveBeenCalled();
+      expect(syncStripeSubscriptionState).not.toHaveBeenCalled();
     },
   );
 });

@@ -74,9 +74,6 @@ export const startFreeTrialCommand = command(
     return event.locals.container.billingService.startFreeTrial(input, {
       organizationId,
       userId: event.locals.auth!.user.id,
-      headers: event.request.headers,
-      origin: event.url.origin,
-      authService: event.locals.container.authService,
     });
   },
 );
