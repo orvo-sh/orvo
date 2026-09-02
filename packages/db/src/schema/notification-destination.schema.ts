@@ -1,4 +1,4 @@
-import { relations, sql } from 'drizzle-orm';
+import { isNotNull, relations, sql } from 'drizzle-orm';
 import { boolean, pgEnum, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 import { app } from './app.schema.js';
@@ -43,7 +43,7 @@ const notificationDestination = pgTable(
   (table) => [
     uniqueIndex('notification_destination_one_slack_per_app_uidx')
       .on(table.appId)
-      .where(sql`${table.kind} = 'slack'`)
+      .where(isNotNull(table.slackTeamId))
   ]
 );
 

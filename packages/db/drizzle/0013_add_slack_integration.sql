@@ -16,4 +16,4 @@ ALTER TABLE "slack_oauth_state" ADD CONSTRAINT "slack_oauth_state_app_id_app_id_
 ALTER TABLE "slack_oauth_state" ADD CONSTRAINT "slack_oauth_state_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "slack_oauth_state" ADD CONSTRAINT "slack_oauth_state_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "slack_oauth_state_expires_at_idx" ON "slack_oauth_state" USING btree ("expires_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "notification_destination_one_slack_per_app_uidx" ON "notification_destination" USING btree ("app_id") WHERE "notification_destination"."kind" = 'slack';
+CREATE UNIQUE INDEX "notification_destination_one_slack_per_app_uidx" ON "notification_destination" USING btree ("app_id") WHERE "notification_destination"."slack_team_id" IS NOT NULL;
