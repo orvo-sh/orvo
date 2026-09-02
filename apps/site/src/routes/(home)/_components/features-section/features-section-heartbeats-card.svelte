@@ -6,16 +6,12 @@
   const monitors = [
     {
       name: 'daily-billing-sync',
-      cadence: 'Every hour',
-      lastCheckIn: '2 min ago',
       status: 'healthy',
       statusLabel: 'Healthy',
       checkIns: Array.from({ length: 24 }, (_, index) => (index === 16 ? 'grace' : 'healthy'))
     },
     {
       name: 'webhook-replay',
-      cadence: 'Every 5 min',
-      lastCheckIn: '4 min ago',
       status: 'grace',
       statusLabel: 'In grace',
       checkIns: Array.from({ length: 24 }, (_, index) =>
@@ -24,8 +20,6 @@
     },
     {
       name: 'nightly-backup',
-      cadence: 'Every day',
-      lastCheckIn: '2 days ago',
       status: 'missed',
       statusLabel: 'Missed',
       checkIns: Array.from({ length: 24 }, (_, index) =>
@@ -53,10 +47,10 @@
 
   <div class="px-5 pt-4 pb-0">
     <div
-      class="bg-background border-foreground/10 overflow-hidden rounded-xl rounded-b-none border border-b-0"
+      class="bg-background border-foreground/10 overflow-hidden rounded-xl rounded-b-none border border-b-0 font-mono text-xs select-none"
     >
       <div
-        class="text-muted-foreground border-border/70 flex items-center justify-between border-b px-3.5 py-2.5 text-[10px] font-medium tracking-wide uppercase"
+        class="text-muted-foreground border-border/70 flex items-center justify-between border-b px-3.5 py-2.5 text-xs font-normal tracking-wide uppercase"
       >
         <span>Monitor</span>
         <span>Last 24 runs</span>
@@ -65,16 +59,11 @@
       <div class="divide-border/70 divide-y">
         {#each monitors as monitor (monitor.name)}
           <div class="px-3.5 py-3.5">
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <p class="text-secondary-foreground truncate font-mono text-xs">{monitor.name}</p>
-                <p class="text-muted-foreground mt-1 text-[11px]">
-                  {monitor.cadence} · Last beat {monitor.lastCheckIn}
-                </p>
-              </div>
+            <div class="flex items-center justify-between gap-3">
+              <p class="text-secondary-foreground min-w-0 truncate text-xs">{monitor.name}</p>
               <span
                 class={cn(
-                  'flex shrink-0 items-center gap-1.5 text-[11px]',
+                  'flex shrink-0 items-center gap-1.5 text-xs',
                   monitor.status === 'healthy' && 'text-emerald-700',
                   monitor.status === 'grace' && 'text-amber-700',
                   monitor.status === 'missed' && 'text-destructive'
@@ -99,7 +88,7 @@
               {#each monitor.checkIns as status, index (index)}
                 <span
                   class={cn(
-                    'h-3 min-w-0 flex-1 rounded-[2px]',
+                    'h-4 min-w-0 flex-1 rounded-[2px]',
                     status === 'healthy' && 'bg-emerald-500/85',
                     status === 'grace' && 'bg-amber-500/80',
                     status === 'missed' && 'bg-destructive/80'
