@@ -9,9 +9,7 @@
 >
   <div class="flex w-full max-w-6xl flex-col gap-10 px-3 pt-24 md:gap-16 md:px-6 md:pt-28">
     <div class="relative">
-      <h1
-        class="mt-5 max-w-3xl font-serif text-4xl font-medium text-balance sm:text-5xl lg:text-6xl"
-      >
+      <h1 class="mt-5 max-w-3xl text-4xl font-normal text-balance sm:text-5xl lg:text-6xl">
         Observability for the rest of us.
       </h1>
       <p class="text-secondary-foreground mt-3 mb-7 max-w-4xl text-lg leading-relaxed text-balance">

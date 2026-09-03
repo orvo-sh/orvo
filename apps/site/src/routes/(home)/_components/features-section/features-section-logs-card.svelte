@@ -69,9 +69,7 @@
 
 <Card.Root class="aspect-square p-0 shadow xl:col-span-6">
   <div class="p-5 pb-0">
-    <h2 class="text-secondary-foreground flex items-center gap-1.5 font-sans text-lg font-medium">
-      Logs
-    </h2>
+    <h2 class="text-secondary-foreground flex items-center gap-1.5 text-lg font-medium">Logs</h2>
     <p class="text-muted-foreground mt-1.5 max-w-[86%] text-base leading-relaxed">
       Search, filter, and explore structured logs with context that stays attached.
       <a

@@ -26,9 +26,7 @@
   class="from-card to-background aspect-square justify-between gap-0 overflow-hidden bg-linear-to-b p-0 shadow xl:col-span-6"
 >
   <div class="p-5 pb-0">
-    <h2 class="text-secondary-foreground flex items-center gap-2 font-sans text-lg font-medium">
-      Metrics
-    </h2>
+    <h2 class="text-secondary-foreground flex items-center gap-2 text-lg font-medium">Metrics</h2>
     <p class="text-muted-foreground mt-1.5 max-w-[84%] text-base leading-relaxed">
       Query the numbers that matter, compare trends, and catch changes before they become incidents.
       <a

@@ -31,7 +31,7 @@
 
 <Card.Root class="justify-between gap-0 overflow-hidden p-0 shadow xl:col-span-4">
   <div class="p-5 pb-0">
-    <h2 class="text-secondary-foreground font-sans text-lg font-medium">Heartbeats</h2>
+    <h2 class="text-secondary-foreground text-lg font-medium">Heartbeats</h2>
     <p class="text-muted-foreground mt-1.5 max-w-[90%] text-base leading-relaxed">
       Know when scheduled work checks in, drifts, or stops before a missed job becomes a customer
       problem.
@@ -47,12 +47,12 @@
 
   <div class="px-5 pt-4 pb-0">
     <div
-      class="bg-background border-foreground/10 overflow-hidden rounded-xl rounded-b-none border border-b-0 font-mono text-xs select-none"
+      class="bg-background border-foreground/10 overflow-hidden rounded-xl rounded-b-none border border-b-0 text-sm select-none"
     >
       <div
         class="text-muted-foreground border-border/70 flex items-center justify-between border-b px-3.5 py-2.5 text-xs font-normal tracking-wide uppercase"
       >
-        <span>Monitor</span>
+        <span></span>
         <span>Last 24 runs</span>
       </div>
 
@@ -63,7 +63,7 @@
               <p class="text-secondary-foreground min-w-0 truncate text-xs">{monitor.name}</p>
               <span
                 class={cn(
-                  'flex shrink-0 items-center gap-1.5 text-xs',
+                  'flex shrink-0 items-center gap-1.5 text-sm',
                   monitor.status === 'healthy' && 'text-emerald-700',
                   monitor.status === 'grace' && 'text-amber-700',
                   monitor.status === 'missed' && 'text-destructive'
@@ -89,9 +89,9 @@
                 <span
                   class={cn(
                     'h-4 min-w-0 flex-1 rounded-[2px]',
-                    status === 'healthy' && 'bg-emerald-500/85',
-                    status === 'grace' && 'bg-amber-500/80',
-                    status === 'missed' && 'bg-destructive/80'
+                    status === 'healthy' && 'bg-linear-to-t from-emerald-500 to-emerald-500/65',
+                    status === 'grace' && 'bg-linear-to-t from-amber-500 to-amber-500/65',
+                    status === 'missed' && 'from-destructive to-destructive/65 bg-linear-to-t'
                   )}
                   title={`Run ${index + 1}: ${status}`}
                 ></span>

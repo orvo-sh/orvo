@@ -109,12 +109,10 @@
 </script>
 
 <Card.Root
-  class="bg-card/90 border-foreground/10 justify-between gap-0 p-0 shadow md:col-span-2 xl:col-span-8"
+  class="border-foreground/10 justify-between gap-0 p-0 shadow md:col-span-2 xl:col-span-8"
 >
   <div class="p-5 pb-0">
-    <h2 class="text-secondary-foreground flex items-center gap-1.5 font-sans text-lg font-medium">
-      Traces
-    </h2>
+    <h2 class="text-secondary-foreground flex items-center gap-1.5 text-lg font-medium">Traces</h2>
     <p class="text-muted-foreground mt-1.5 max-w-[84%] text-base leading-relaxed">
       Follow a request across services, spot slow spans, and see exactly where time went.
       <a
