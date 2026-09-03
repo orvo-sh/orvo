@@ -11,9 +11,9 @@ Alerts are the rules that tell Orvo when a signal deserves attention.
 
 ## What is it?
 
-The current product supports threshold-based alert rules over application and container signals.
+Orvo supports threshold-based alert rules over application and container signals.
 
-Implemented signal types include:
+Signal types include:
 
 - Error rate
 - P95 latency
@@ -40,7 +40,7 @@ An alert rule defines:
 - optional re-notification timing
 - destinations for delivery
 
-When a rule breaches, Orvo can open an incident and send notifications through configured webhook or email destinations.
+When a rule breaches, Orvo opens an incident and sends notifications through the email, Slack, or webhook destinations attached to the rule.
 
 ## Common workflows
 
@@ -55,7 +55,7 @@ Create a small set of rules around:
 
 ### Route the right alerts
 
-Attach different destinations depending on the team or workflow. For example, email for broad visibility and webhooks for automation.
+Attach different destinations depending on the team or workflow. For example, use email for direct delivery, Slack for the on-call channel, and webhooks for automation.
 
 ## Best practices
 

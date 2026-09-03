@@ -39,7 +39,7 @@ Use metrics when you need to answer:
 
 ## How it works in Orvo
 
-Today, metrics can be grouped by:
+Metrics can be grouped by:
 
 - no grouping
 - metric

@@ -7,11 +7,7 @@ next: integrations/webhooks
 ---
 # Email
 
-Email destinations are useful when humans need a clear record of an alert, incident, or missed heartbeat without requiring a custom webhook workflow.
-
-## What email is for
-
-In the current product, email destinations can be attached to alert rules and heartbeat monitors through reusable notification destinations.
+Use an email destination to send alert and heartbeat notifications directly to a person, an on-call rotation, or a shared inbox.
 
 ## When to use it
 
@@ -22,15 +18,17 @@ Email works well for:
 - a fallback delivery path
 - a shared engineering inbox
 
-## How it works in Orvo
+## Create an email destination
 
-A notification destination can be created with:
+1. Open your app in Orvo.
+2. Go to **Settings → Notification destinations**.
+3. Select **Add notification destination**, then choose **Email**.
+4. Enter a name and add up to 5 email addresses. Press Enter or Space after each address.
+5. Select **Add destination**.
 
-- a readable name
-- up to 50 recipients
-- enabled or disabled state
+Attach the destination when you create or edit an alert rule or heartbeat monitor. Use **Test destination** from its action menu to send a test email.
 
-You can then attach it to the alert rules or heartbeat monitors that need it.
+You can edit the name, recipients, and enabled state later. Disabled destinations remain attached to their rules and monitors but do not receive notifications.
 
 ## Best practices
 

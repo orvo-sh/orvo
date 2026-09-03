@@ -1,6 +1,6 @@
 ---
 title: Environment variables
-description: Configuration values used by Orvo SDKs and integrations.
+description: Configure Orvo services and optional integrations.
 order: 2
 previous: reference/api
 next: reference/limits
@@ -8,7 +8,7 @@ next: reference/limits
 
 # Environment variables
 
-This page lists the environment variables that are directly visible in the current codebase and safe to document.
+Use environment variables to configure a self-hosted Orvo deployment and its optional cloud integrations. Start with the repository's `.env.example` files, then provide secrets through your deployment platform rather than committing them.
 
 ## App service variables
 
@@ -22,6 +22,7 @@ INGEST_BASE_URL="https://ingest.orvo.sh"
 ENCRYPTION_SECRET="replace-me"
 BETTER_AUTH_SECRET="replace-me"
 RESEND_API_KEY="re_..."
+RESEND_FROM_EMAIL="Orvo <notifications@example.com>"
 ```
 
 Optional platform integrations:
@@ -29,11 +30,17 @@ Optional platform integrations:
 ```env
 GITHUB_CLIENT_ID="github-oauth-client-id"
 GITHUB_CLIENT_SECRET="github-oauth-client-secret"
+SLACK_CLIENT_ID="slack-client-id"
+SLACK_CLIENT_SECRET="slack-client-secret"
+SLACK_SIGNING_SECRET="slack-signing-secret"
 STRIPE_SECRET_KEY="sk_live_or_test_..."
 STRIPE_WEBHOOK_SECRET="whsec_..."
 STRIPE_PRO_PRICE_ID="price_..."
 STRIPE_INGEST_OVERAGE_PRICE_ID="price_..."
 STRIPE_SCOUT_OVERAGE_PRICE_ID="price_..."
+BILLING_SALES_EMAIL="sales@example.com"
+OPENAI_API_KEY="sk-..."
+OPENAI_MODEL="gpt-5.6-luna"
 ```
 
 Optional uploads/storage:
@@ -52,6 +59,7 @@ Optional self-telemetry for the app server:
 ```env
 PROD_OTEL_BASE_URL="https://ingest.orvo.sh"
 PROD_OTEL_INGEST_KEY="ing_test_or_prod_..."
+PUBLIC_ORVO_OTLP_BASE_URL="https://ingest.orvo.sh"
 ```
 
 ## Ingest service variables
@@ -78,6 +86,7 @@ OTEL_INGESTION_KEY="ing_test_..."
 - Never commit real secrets to the repo.
 - Use placeholders in local examples and docs.
 - Keep `INGEST_BASE_URL` and any SDK exporter endpoints aligned.
+- GitHub, Slack, Stripe, email delivery, object storage, and Scout are optional. Configure only the integrations enabled in your deployment.
 
 ## Related pages
 

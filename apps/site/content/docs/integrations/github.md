@@ -1,6 +1,6 @@
 ---
 title: GitHub
-description: Connect Orvo activity with GitHub workflows.
+description: Sign in to Orvo with a GitHub account and add GitHub release context to telemetry.
 order: 4
 previous: integrations/webhooks
 next: integrations/mcp
@@ -8,32 +8,22 @@ next: integrations/mcp
 
 # GitHub
 
-GitHub matters to Orvo in two different ways: account access and deployment context.
+Orvo Cloud supports GitHub as a sign-in provider. This connects your GitHub identity for authentication; it does not import repositories, commits, pull requests, or deployments.
 
-## Current product shape
+## Sign in with GitHub
 
-The current app can be configured with GitHub OAuth credentials for authentication.
+Select **Continue with GitHub** on the Orvo sign-in page and authorize the requested account access. Your organization membership and app access are still managed in Orvo.
 
-What is not exposed as a large first-party feature today is a dedicated GitHub deployment sync or release dashboard inside Orvo.
+GitHub sign-in is not available in Orvo Local. Local installations use email and password authentication.
 
-## Practical workflow today
+## Correlate releases with telemetry
 
-If you want stronger GitHub-to-Orvo correlation right now:
+To investigate a release, add its version, commit SHA, or other release identifier to the telemetry emitted by your services. Use the standard `deployment.environment` resource attribute for the environment and a consistent `deployment.version` attribute for the release.
 
-- add release or commit metadata to your telemetry
-- include deployment version attributes in logs and traces
-- use [Webhooks](/docs/integrations/webhooks) for custom automation around deploy events
-
-## When to use GitHub context
-
-GitHub context is useful when a problem appears right after:
-
-- a merge
-- a deployment
-- an infrastructure config change
+You can then search or filter logs and traces by those values and compare metrics around the deployment window.
 
 ## Related pages
 
-- [Deployments](/docs/product/deployments)
+- [Deployment context](/docs/product/deployments)
 - [Track a deployment](/docs/guides/track-a-deployment)
 - [Environment variables](/docs/reference/environment-variables)

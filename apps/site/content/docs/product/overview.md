@@ -37,15 +37,15 @@ Use [Incidents](/docs/product/incidents) to follow active problems opened by ale
 
 ### Hosts
 
-Use [Hosts](/docs/product/hosts) to understand how host-level identity and infrastructure telemetry fit into the product today.
+Use [Hosts](/docs/product/hosts) to monitor CPU, memory, filesystem utilization, load, and reporting status for Linux servers running Orvo Agent.
 
-### Deployments
+### Scout
 
-Use [Deployments](/docs/product/deployments) to understand how release context should show up in your telemetry, even if you are not yet relying on a dedicated deployments surface.
+Use [Scout](/docs/product/scout) to investigate the current app in plain language or make approved changes to alerts, heartbeats, incidents, and app settings.
 
-### Insights
+### Deployment context
 
-Use [Insights](/docs/product/insights) to understand the kinds of changes Orvo should surface automatically and how to use the current product areas as that workflow evolves.
+Add release metadata to your telemetry so you can compare behavior before and after a [deployment](/docs/product/deployments).
 
 ## A practical workflow
 

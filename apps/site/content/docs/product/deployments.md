@@ -1,19 +1,15 @@
 ---
-title: Deployments
-description: Track releases and their impact on production health.
+title: Deployment context
+description: Add release metadata to telemetry and measure the impact of a deployment.
 order: 9
 previous: product/incidents
-next: product/insights
+next: product/scout
 ---
-# Deployments
+# Deployment context
 
-Deployments are the missing link between `something changed` and `that is probably why production shifted`.
+Release metadata connects a change in production health to the version that introduced it. Orvo reads deployment context from your telemetry; you do not need to create a deployment record in the app.
 
-## Current product shape
-
-Orvo's current strength is not a large standalone deployments UI. The practical workflow today is to carry deployment context inside your telemetry and use it across logs, traces, metrics, and incidents.
-
-Useful deployment fields include:
+Add these resource attributes to logs, traces, and metrics where possible:
 
 - `deployment.environment`
 - `deployment.version`
@@ -28,11 +24,11 @@ Deployment context matters when you need to answer:
 - Is only production affected?
 - Did latency change after a rollout?
 
-## How to use it in Orvo today
+## Investigate a deployment
 
 ### Put release data in telemetry
 
-If your logs and traces carry the deployment version, Orvo queries become much more useful.
+Set the version or release identifier in the instrumentation for every deployed service. Use one consistent value across logs and traces from the same release.
 
 ### Compare before and after
 
@@ -40,7 +36,7 @@ Use [Logs](/docs/product/logs) and [Metrics](/docs/product/metrics) around the r
 
 ### Link incidents to change windows
 
-If an [Incident](/docs/product/incidents) starts right after a deployment and the failing events share the same release attribute, you have a strong first clue.
+If an [Incident](/docs/product/incidents) starts after a deployment, filter the related telemetry by version. A problem isolated to the new version is a strong signal to inspect or roll back that release.
 
 ## Best practices
 

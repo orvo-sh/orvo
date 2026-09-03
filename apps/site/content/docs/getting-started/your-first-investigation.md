@@ -68,7 +68,7 @@ Look for recent change markers inside the telemetry itself:
 - A new route or span name
 - A spike that lines up with an [Incident](/docs/product/incidents) or [Alert](/docs/product/alerts)
 
-Even without a dedicated deployments surface, good deployment metadata makes this step much easier.
+Consistent deployment metadata makes it easier to isolate a regression to one release.
 
 ## A simple first-pass conclusion
 

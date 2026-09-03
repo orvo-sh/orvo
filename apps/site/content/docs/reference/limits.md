@@ -8,42 +8,30 @@ next: reference/error-codes
 
 # Limits
 
-This page documents product limits that are visible in the current codebase, plus a few practical query caps that affect day-to-day use.
+These limits apply to Orvo Cloud unless a section says otherwise.
 
 ## Retention
-
-Current plan defaults:
 
 - Pro: 30 days for logs, metrics, and traces
 
 ## Included ingestion volume
 
-Current plan defaults:
-
 - Pro: 150 GB included ingestion
 
 ## Upload size
 
-The current max upload file size constant is 10 MB.
+Uploads can be up to 10 MB. Scout accepts up to 5 attachments per message.
 
-## Query caps in the app
+## Query limits
 
-A few implemented request limits are worth knowing:
-
-- Logs and traces list requests cap at 500 rows per request
-- Metrics bucket count caps at 240
-- Log and trace filter arrays cap at 50 conditions
+- Logs and traces list requests return at most 500 rows per request.
+- Metric queries return at most 240 time buckets.
+- A log or trace query accepts at most 50 filter conditions.
 
 ## Notification destination caps
 
-Current destination validation includes:
-
-- up to 20 custom webhook headers
-- up to 50 email recipients
-
-## Notes
-
-Not every operational limit is exposed as a polished product contract yet. If you need a specific hard guarantee around request size, throughput, or plan behavior, validate it against the current deploy rather than assuming more than the code or plan currently shows.
+- A webhook destination accepts up to 20 custom headers.
+- An email destination accepts up to 5 recipients.
 
 ## Related pages
 

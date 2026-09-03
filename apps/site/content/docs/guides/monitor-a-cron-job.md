@@ -36,7 +36,7 @@ Trigger the job or send a manual request to the heartbeat URL, then confirm that
 
 ## Step 4: verify missed behavior
 
-If the job does not check in before the expected interval plus grace period, Orvo should move the monitor to `missed` and can open an incident.
+If the job does not check in before the expected interval plus grace period, Orvo moves the monitor to `missed` and can open an incident.
 
 ## What to check next
 

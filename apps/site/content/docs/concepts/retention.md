@@ -22,13 +22,11 @@ Short retention is fine for live debugging. Longer retention helps with:
 
 ## How Orvo uses it
 
-In the current product plans, retention is set per organization plan level.
-
-Today the implemented defaults are:
+Orvo Cloud sets retention by organization plan:
 
 - Pro: 30 days for logs, traces, and metrics
 
-Heartbeats and incidents are operational data and should still be treated as live workflow features first.
+Orvo Local keeps logs, traces, and metrics for 7 days.
 
 ## Example
 
@@ -38,4 +36,4 @@ If your team wants to compare this week's checkout errors to a release from thre
 
 - [Limits](/docs/reference/limits)
 - [Production best practices](/docs/guides/production-best-practices)
-- [Changelog](/docs/reference/changelog)
+- [Product overview](/docs/product/overview)

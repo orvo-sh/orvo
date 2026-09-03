@@ -3,11 +3,10 @@ title: Error codes
 description: Reference for Orvo error codes and common fixes.
 order: 4
 previous: reference/limits
-next: reference/changelog
 ---
 # Error codes
 
-These are the exact ingest-service error identifiers currently visible in the codebase.
+The ingest API returns an error identifier in the response body when it rejects a request. Use the identifier with the HTTP status to find the likely cause.
 
 ## Ingestion and auth
 
@@ -51,6 +50,12 @@ These are the exact ingest-service error identifiers currently visible in the co
 
 ## Availability and billing
 
+### `internal`
+
+- HTTP status: 500
+- Meaning: the ingest service could not complete the request
+- Common fix: retry with backoff; if the error continues, check the ingest service logs
+
 ### `queue_unavailable`
 
 - HTTP status: 503
@@ -66,7 +71,7 @@ These are the exact ingest-service error identifiers currently visible in the co
 ### `billing_quota_exceeded`
 
 - HTTP status: 402
-- Meaning: the app or organization exceeded an implemented usage limit
+- Meaning: the app or organization exceeded its ingestion allowance
 - Common fix: reduce ingest volume or move to a higher plan
 
 ## Heartbeats

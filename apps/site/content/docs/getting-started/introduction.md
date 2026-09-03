@@ -40,7 +40,7 @@ Most teams start the same way:
 
 ## What Orvo collects
 
-Orvo currently works best when you send:
+For the most useful investigations, send:
 
 - Logs with useful structured attributes.
 - Traces with clear span names and service boundaries.

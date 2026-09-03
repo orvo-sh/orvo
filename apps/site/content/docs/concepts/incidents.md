@@ -23,7 +23,7 @@ Incidents give you one object to track:
 
 ## How Orvo uses it
 
-In the current product, incidents are opened from:
+Orvo opens incidents from:
 
 - Alert threshold breaches
 - Missed heartbeat monitors

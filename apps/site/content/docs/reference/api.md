@@ -8,7 +8,7 @@ next: reference/environment-variables
 
 # API
 
-This page documents the public HTTP surfaces that are clear in the current codebase today.
+Orvo accepts telemetry through the OpenTelemetry Protocol (OTLP) over HTTP. It also provides a dedicated endpoint for heartbeat check-ins.
 
 ## Ingest API
 
@@ -41,13 +41,13 @@ Heartbeat check-ins are authenticated by the secret token embedded in the URL it
 
 The ingest service accepts OTLP payloads and is built to handle standard OTLP HTTP input, including JSON and protobuf forms used by OpenTelemetry tooling.
 
-## Common response behavior
+## Successful responses
 
-Successful ingest requests return standard OTLP success responses. The onboarding service currently treats `202 Accepted` as the success case for test telemetry sends.
+Successful ingest requests return `202 Accepted` with the standard OTLP response for the exported signal.
 
 ## Error handling
 
-See [Error codes](/docs/reference/error-codes) for the currently implemented ingest error identifiers.
+See [Error codes](/docs/reference/error-codes) for the identifiers returned when ingestion fails.
 
 ## Related pages
 

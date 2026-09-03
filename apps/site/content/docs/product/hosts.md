@@ -1,50 +1,47 @@
 ---
 title: Hosts
-description: Monitor servers and infrastructure in Orvo.
+description: Monitor Linux servers with Orvo Agent.
 order: 7
 previous: product/heartbeats
 next: product/incidents
 ---
 # Hosts
 
-Hosts matter when the application looks unhealthy but the real problem sits lower in the stack.
+Hosts gives you a live inventory of Linux servers monitored by Orvo Agent. Use it to find infrastructure pressure or a server that has stopped reporting.
 
-## What is it?
+## Add a host
 
-Orvo already stores host-related identity on metrics, including fields such as `host.id`, `host.name`, and `host.arch` when those arrive with telemetry.
+1. Open **Hosts** and select **Add host**.
+2. Enter a display name and environment.
+3. Select **Generate command**.
+4. Copy the one-time enrollment command and run it on the Linux server.
 
-## Current product shape
+The enrollment command expires at the time shown in the dialog and can be used once. The Hosts page refreshes automatically while it waits for the first metrics.
 
-Today, Orvo does not expose a large dedicated host inventory page in the same way it exposes logs or traces.
+## What Orvo collects
 
-Instead, host and infrastructure context shows up through:
+The host list shows:
 
-- metric dimensions and grouping
-- log and resource attributes
-- container-focused alert signals
-- the surrounding app investigation workflow
+- reporting status
+- CPU utilization
+- memory utilization
+- filesystem utilization
+- one-minute load average
+- the time the host last reported
 
-## When to use it
+Open a host to view these signals over the last hour, 4 hours, 24 hours, or 7 days. The detail page also shows its system hostname, host ID, operating system, architecture, agent version, and reported environment.
 
-Host context helps when you need to answer:
+## Reporting status
 
-- Is one machine or node unhealthy?
-- Did CPU or memory saturation precede the app issue?
-- Is a container simply no longer reporting?
+- **Connecting** means the host is enrolled but has not sent metrics yet.
+- **Active** means the agent is reporting normally.
+- **Not reporting** means Orvo has received data from the host before, but the agent is no longer reporting.
 
-## How it works in Orvo
+## Edit or delete a host
 
-For now, the practical workflow is:
+You can change the display name and environment stored in Orvo from the host detail page. Changing the environment there does not change the installed agent's configuration.
 
-1. Use [Metrics](/docs/product/metrics) to inspect infrastructure-related signals.
-2. Filter or group by the host or container dimensions you send.
-3. Use [Alerts](/docs/product/alerts) for container CPU, memory, or stale reporting conditions.
-
-## Best practices
-
-- Send host identity consistently in infrastructure telemetry.
-- Keep service telemetry and infrastructure telemetry aligned on environment.
-- Treat host investigation as supporting context, not a replacement for app logs and traces.
+Deleting a host revokes its ingestion key and removes it from Hosts. Existing telemetry remains until the end of its normal retention period. To reconnect a deleted host, enroll the agent again.
 
 ## Related pages
 
