@@ -5,7 +5,7 @@
   import { IconArrowUpRight } from '@tabler/icons-svelte';
 </script>
 
-<Card.Root class="justify-between gap-0 overflow-hidden p-0 shadow xl:col-span-6">
+<Card.Root class="justify-between gap-0 overflow-hidden p-0 shadow md:col-span-6">
   <div class="p-5 pb-0">
     <h2 class="text-secondary-foreground text-lg font-medium">Alerts &amp; incidents</h2>
     <p class="text-muted-foreground mt-1.5 max-w-[92%] text-base leading-relaxed">

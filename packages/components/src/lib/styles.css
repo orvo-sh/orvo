@@ -19,7 +19,7 @@
 
 :root {
   --background: oklch(0.99 0 0);
-  --foreground: oklch(0.28 0.03 255);
+  --foreground: oklch(0.19 0.03 255);
 
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.2 0.03 255);
@@ -115,7 +115,6 @@
 
 @theme inline {
   --font-sans: 'Geist Variable';
-  --font-serif: 'Newsreader Variable', serif;
   --font-mono: 'Geist Mono', monospace;
 
   --color-sidebar-ring: var(--sidebar-ring);

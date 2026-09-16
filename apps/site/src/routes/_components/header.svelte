@@ -128,10 +128,12 @@
               <GitHubIcon alt="" class="size-4 dark:invert" />
             </span>
             <span class="flex items-center px-3 font-mono text-sm font-medium">
-              {new Intl.NumberFormat('en', {
-                notation: 'compact',
-                maximumFractionDigits: 1
-              }).format(githubStars)}
+              {githubStars > 100
+                ? new Intl.NumberFormat('en', {
+                    notation: 'compact',
+                    maximumFractionDigits: 1
+                  }).format(githubStars)
+                : 'Star us'}
             </span>
           </a>
         </NavigationMenu.Item>

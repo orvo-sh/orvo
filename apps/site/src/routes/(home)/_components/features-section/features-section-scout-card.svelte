@@ -39,7 +39,7 @@
   ];
 </script>
 
-<Card.Root class="gap-0 overflow-hidden p-0 shadow xl:col-span-12">
+<Card.Root class="gap-0 overflow-hidden p-0 shadow md:col-span-12">
   <div class="grid lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]">
     <div class="flex flex-col p-5 sm:p-6 lg:border-r">
       <h2 class="text-secondary-foreground text-lg font-medium">

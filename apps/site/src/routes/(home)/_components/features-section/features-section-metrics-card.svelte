@@ -23,7 +23,7 @@
 </script>
 
 <Card.Root
-  class="from-card to-background aspect-square justify-between gap-0 overflow-hidden bg-linear-to-b p-0 shadow xl:col-span-6"
+  class="from-card to-background aspect-square justify-between gap-0 overflow-hidden bg-linear-to-b p-0 shadow md:col-span-6"
 >
   <div class="p-5 pb-0">
     <h2 class="text-secondary-foreground flex items-center gap-2 text-lg font-medium">Metrics</h2>
