@@ -55,6 +55,10 @@
     @apply overflow-auto;
   }
 
+  .chat-message-contained {
+    contain: layout style;
+  }
+
   .chat-scroll {
     scrollbar-gutter: stable;
     scrollbar-width: thin;

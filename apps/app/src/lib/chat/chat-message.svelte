@@ -44,6 +44,7 @@
   id={`chat-message-${message.id}`}
   data-chat-message={message.id}
   class="group/message w-full scroll-m-24"
+  class:chat-message-contained={!streaming}
   class:flex={message.role === "user"}
   class:justify-end={message.role === "user"}
 >
@@ -108,7 +109,7 @@
         </div>
       {/if}
 
-      {#if text && !streaming}
+      {#if !streaming && text}
         <Button
           variant="ghost"
           size="icon-xs"

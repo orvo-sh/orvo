@@ -56,6 +56,7 @@ class ChatState {
     this.historyLoading = true;
     this.historyError = null;
     try {
+      await Promise.resolve();
       const result = await listChatsQuery({ limit: 50 }).run();
       if (!result.success) {
         this.historyError = result.error;
@@ -83,6 +84,7 @@ class ChatState {
     this.loading = true;
     this.error = null;
     try {
+      await Promise.resolve();
       const result = await getChatQuery({ id }).run();
       if (!result.success) {
         this.error = result.error;
@@ -229,14 +231,13 @@ class ChatState {
     }
 
     this.touchSession(session.thread.id);
-    try {
-      await session.client.sendMessage({ text: cleanText, files: attachments });
-      return true;
-    } catch (error) {
-      this.error =
-        error instanceof Error ? error.message : "Failed to send message.";
-      return false;
-    }
+    void session.client
+      .sendMessage({ text: cleanText, files: attachments })
+      .catch((error) => {
+        this.error =
+          error instanceof Error ? error.message : "Failed to send message.";
+      });
+    return true;
   };
 
   deleteChat = async (id: string) => {
@@ -264,8 +265,8 @@ class ChatState {
     this.sessionAccess.set(id, ++this.sessionSequence);
   };
 
-  pruneSessions = () => {
-    if (this.sessions.size <= 8) return;
+  pruneSessions = (limit = 3) => {
+    if (this.sessions.size <= limit) return;
     const removable = [...this.sessions.entries()]
       .filter(
         ([id, session]) =>
@@ -280,7 +281,7 @@ class ChatState {
       );
 
     for (const [id] of removable) {
-      if (this.sessions.size <= 8) break;
+      if (this.sessions.size <= limit) break;
       this.sessions.delete(id);
       this.sessionAccess.delete(id);
     }

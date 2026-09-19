@@ -20,6 +20,17 @@
   } = $props();
 
   const chat = useChatState();
+  const components = { code: Code };
+  const allowedLinkPrefixes = ["https://", "http://", "orvo://"];
+  const controls = { code: true, table: true, mermaid: false };
+  const streamingAnimation = {
+    enabled: true,
+    animateOnMount: false,
+    type: "fade" as const,
+    duration: 140,
+    timingFunction: "ease-out" as const,
+    tokenize: "word" as const,
+  };
 
   const openTrace = async (href: string) => {
     const traceId = href.slice("orvo://trace/".length);
@@ -72,16 +83,9 @@
   static={!streaming}
   parseIncompleteMarkdown={true}
   baseTheme="shadcn"
-  components={{ code: Code }}
-  allowedLinkPrefixes={["https://", "http://", "orvo://"]}
-  controls={{ code: true, table: true, mermaid: false }}
-  animation={{
-    enabled: streaming,
-    animateOnMount: false,
-    type: "fade",
-    duration: 140,
-    timingFunction: "ease-out",
-    tokenize: "word",
-  }}
+  {components}
+  {allowedLinkPrefixes}
+  {controls}
+  animation={streaming ? streamingAnimation : undefined}
   class="chat-markdown"
 />
