@@ -11,25 +11,25 @@ describe("LogsService log volume queries", () => {
       buildLog({
         app_id: "app_a",
         id: "log_error",
-        timestamp: "2026-06-28T09:10:00.000Z",
+        timestamp: "2099-06-28T09:10:00.000Z",
         severity_text: "error",
       }),
       buildLog({
         app_id: "app_a",
         id: "log_warn",
-        timestamp: "2026-06-28T09:20:00.000Z",
+        timestamp: "2099-06-28T09:20:00.000Z",
         severity_text: "warning",
       }),
       buildLog({
         app_id: "app_a",
         id: "log_debug",
-        timestamp: "2026-06-28T10:20:00.000Z",
+        timestamp: "2099-06-28T10:20:00.000Z",
         severity_text: "debug",
       }),
       buildLog({
         app_id: "app_a",
         id: "log_info",
-        timestamp: "2026-06-28T10:40:00.000Z",
+        timestamp: "2099-06-28T10:40:00.000Z",
         severity_text: "info",
       }),
     ]);
@@ -71,12 +71,12 @@ describe("LogsService log volume queries", () => {
       buildLog({
         app_id: "app_a",
         service_name: "api",
-        timestamp: "2026-06-28T09:10:00.000Z",
+        timestamp: "2099-06-28T09:10:00.000Z",
       }),
       buildLog({
         app_id: "app_a",
         service_name: "worker",
-        timestamp: "2026-06-28T09:20:00.000Z",
+        timestamp: "2099-06-28T09:20:00.000Z",
       }),
     ]);
 
@@ -100,7 +100,9 @@ describe("LogsService log volume queries", () => {
       return;
     }
 
-    expect(result.data.buckets.reduce((sum, bucket) => sum + bucket.total, 0)).toBe(1);
+    expect(
+      result.data.buckets.reduce((sum, bucket) => sum + bucket.total, 0),
+    ).toBe(1);
   });
 
   test("groups service volumes by service name", async () => {
@@ -109,21 +111,21 @@ describe("LogsService log volume queries", () => {
         app_id: "app_a",
         id: "api_error",
         service_name: "api",
-        timestamp: "2026-06-28T09:10:00.000Z",
+        timestamp: "2099-06-28T09:10:00.000Z",
         severity_text: "error",
       }),
       buildLog({
         app_id: "app_a",
         id: "api_info",
         service_name: "api",
-        timestamp: "2026-06-28T10:10:00.000Z",
+        timestamp: "2099-06-28T10:10:00.000Z",
         severity_text: "info",
       }),
       buildLog({
         app_id: "app_a",
         id: "worker_error",
         service_name: "worker",
-        timestamp: "2026-06-28T10:10:00.000Z",
+        timestamp: "2099-06-28T10:10:00.000Z",
         severity_text: "fatal",
       }),
     ]);
@@ -147,27 +149,27 @@ describe("LogsService log volume queries", () => {
         name: "api",
         buckets: [
           {
-            startAtUtc: "2026-06-28T09:00:00.000Z",
+            startAtUtc: "2099-06-28T09:00:00.000Z",
             total: 1,
             errors: 1,
           },
           {
-            startAtUtc: "2026-06-28T09:24:00.000Z",
+            startAtUtc: "2099-06-28T09:24:00.000Z",
             total: 0,
             errors: 0,
           },
           {
-            startAtUtc: "2026-06-28T09:48:00.000Z",
+            startAtUtc: "2099-06-28T09:48:00.000Z",
             total: 1,
             errors: 0,
           },
           {
-            startAtUtc: "2026-06-28T10:12:00.000Z",
+            startAtUtc: "2099-06-28T10:12:00.000Z",
             total: 0,
             errors: 0,
           },
           {
-            startAtUtc: "2026-06-28T10:36:00.000Z",
+            startAtUtc: "2099-06-28T10:36:00.000Z",
             total: 0,
             errors: 0,
           },
@@ -177,27 +179,27 @@ describe("LogsService log volume queries", () => {
         name: "worker",
         buckets: [
           {
-            startAtUtc: "2026-06-28T09:00:00.000Z",
+            startAtUtc: "2099-06-28T09:00:00.000Z",
             total: 0,
             errors: 0,
           },
           {
-            startAtUtc: "2026-06-28T09:24:00.000Z",
+            startAtUtc: "2099-06-28T09:24:00.000Z",
             total: 0,
             errors: 0,
           },
           {
-            startAtUtc: "2026-06-28T09:48:00.000Z",
+            startAtUtc: "2099-06-28T09:48:00.000Z",
             total: 1,
             errors: 1,
           },
           {
-            startAtUtc: "2026-06-28T10:12:00.000Z",
+            startAtUtc: "2099-06-28T10:12:00.000Z",
             total: 0,
             errors: 0,
           },
           {
-            startAtUtc: "2026-06-28T10:36:00.000Z",
+            startAtUtc: "2099-06-28T10:36:00.000Z",
             total: 0,
             errors: 0,
           },

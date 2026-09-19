@@ -47,8 +47,8 @@ const useLogsServiceHarness = () => {
 
 const baseRange = {
   kind: "range" as const,
-  start: "2026-06-28T09:00:00.000Z",
-  end: "2026-06-28T11:00:00.000Z",
+  start: "2099-06-28T09:00:00.000Z",
+  end: "2099-06-28T11:00:00.000Z",
 };
 
 const buildRange = (start: string, end: string) => ({

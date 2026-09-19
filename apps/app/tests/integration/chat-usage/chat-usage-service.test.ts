@@ -215,12 +215,23 @@ describe("ChatUsageService", () => {
       organizationId: "org_chat_usage",
       plan: "pro",
       stripeSubscription: {
+        id: "sub_chat_usage",
+        customer: "cus_chat_usage",
         status: "active",
+        trial_start: null,
+        trial_end: null,
+        cancel_at_period_end: false,
+        cancel_at: null,
+        canceled_at: null,
+        ended_at: null,
+        schedule: null,
         items: {
           data: [
             {
               current_period_start: periodStart,
               current_period_end: periodStart + 30 * 24 * 60 * 60,
+              quantity: 1,
+              price: { recurring: { interval: "month" } },
             },
           ],
         },

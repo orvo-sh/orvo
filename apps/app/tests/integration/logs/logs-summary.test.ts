@@ -10,11 +10,11 @@ describe("LogsService summary methods", () => {
     await insertLogs(harness.clickhouse, [
       buildLog({
         app_id: "app_a",
-        timestamp: "2026-06-28T09:10:00.000Z",
+        timestamp: "2099-06-28T09:10:00.000Z",
       }),
       buildLog({
         app_id: "app_a",
-        timestamp: "2026-06-28T09:20:00.000Z",
+        timestamp: "2099-06-28T09:20:00.000Z",
       }),
       buildLog({
         app_id: "app_a",
@@ -37,19 +37,19 @@ describe("LogsService summary methods", () => {
     await insertLogs(harness.clickhouse, [
       buildLog({
         app_id: "app_a",
-        timestamp: "2026-06-28T09:10:00.000Z",
+        timestamp: "2099-06-28T09:10:00.000Z",
       }),
       buildLog({
         app_id: "app_a",
-        timestamp: "2026-06-28T09:20:00.000Z",
+        timestamp: "2099-06-28T09:20:00.000Z",
       }),
       buildLog({
         app_id: "app_a",
-        timestamp: "2026-06-28T09:30:00.000Z",
+        timestamp: "2099-06-28T09:30:00.000Z",
       }),
       buildLog({
         app_id: "app_a",
-        timestamp: "2026-06-28T07:10:00.000Z",
+        timestamp: "2099-06-28T07:10:00.000Z",
       }),
     ]);
 
@@ -73,19 +73,19 @@ describe("LogsService summary methods", () => {
         app_id: "app_a",
         service_name: "api",
         severity_text: "error",
-        timestamp: "2026-06-28T10:05:00.000Z",
+        timestamp: "2099-06-28T10:05:00.000Z",
       }),
       buildLog({
         app_id: "app_a",
         service_name: "api",
         severity_text: "info",
-        timestamp: "2026-06-28T10:15:00.000Z",
+        timestamp: "2099-06-28T10:15:00.000Z",
       }),
       buildLog({
         app_id: "app_a",
         service_name: "worker",
         severity_text: "warn",
-        timestamp: "2026-06-28T10:20:00.000Z",
+        timestamp: "2099-06-28T10:20:00.000Z",
       }),
     ]);
 
@@ -104,13 +104,13 @@ describe("LogsService summary methods", () => {
         name: "api",
         total: 2,
         errors: 1,
-        lastSeen: "2026-06-28T10:15:00.000Z",
+        lastSeen: "2099-06-28T10:15:00.000Z",
       },
       {
         name: "worker",
         total: 1,
         errors: 0,
-        lastSeen: "2026-06-28T10:20:00.000Z",
+        lastSeen: "2099-06-28T10:20:00.000Z",
       },
     ]);
   });

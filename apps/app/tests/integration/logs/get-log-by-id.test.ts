@@ -11,7 +11,7 @@ describe("LogsService.getLogById", () => {
       buildLog({
         id: "log_a",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:00:00.000Z",
+        timestamp: "2099-06-28T10:00:00.000Z",
       }),
     ]);
 
@@ -26,7 +26,7 @@ describe("LogsService.getLogById", () => {
     }
 
     expect(result.data.log?.id).toBe("log_a");
-    expect(result.data.log?.timestamp).toBe("2026-06-28T10:00:00.000Z");
+    expect(result.data.log?.timestamp).toBe("2099-06-28T10:00:00.000Z");
   });
 
   test("returns null when the log does not exist", async () => {

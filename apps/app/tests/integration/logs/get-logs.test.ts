@@ -11,13 +11,13 @@ describe("LogsService.getLogs", () => {
       buildLog({
         id: "log_a_1",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:00:00.000Z",
+        timestamp: "2099-06-28T10:00:00.000Z",
         body: "app a message",
       }),
       buildLog({
         id: "log_b_1",
         app_id: "app_b",
-        timestamp: "2026-06-28T10:01:00.000Z",
+        timestamp: "2099-06-28T10:01:00.000Z",
         body: "app b message",
       }),
     ]);
@@ -42,17 +42,17 @@ describe("LogsService.getLogs", () => {
       buildLog({
         id: "log_a",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:00:00.000Z",
+        timestamp: "2099-06-28T10:00:00.000Z",
       }),
       buildLog({
         id: "log_c",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:05:00.000Z",
+        timestamp: "2099-06-28T10:05:00.000Z",
       }),
       buildLog({
         id: "log_b",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:05:00.000Z",
+        timestamp: "2099-06-28T10:05:00.000Z",
       }),
     ]);
 
@@ -78,17 +78,17 @@ describe("LogsService.getLogs", () => {
       buildLog({
         id: "log_3",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:03:00.000Z",
+        timestamp: "2099-06-28T10:03:00.000Z",
       }),
       buildLog({
         id: "log_2",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:02:00.000Z",
+        timestamp: "2099-06-28T10:02:00.000Z",
       }),
       buildLog({
         id: "log_1",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:01:00.000Z",
+        timestamp: "2099-06-28T10:01:00.000Z",
       }),
     ]);
 
@@ -131,17 +131,17 @@ describe("LogsService.getLogs", () => {
       buildLog({
         id: "log_c",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:00:00.000Z",
+        timestamp: "2099-06-28T10:00:00.000Z",
       }),
       buildLog({
         id: "log_b",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:00:00.000Z",
+        timestamp: "2099-06-28T10:00:00.000Z",
       }),
       buildLog({
         id: "log_a",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:00:00.000Z",
+        timestamp: "2099-06-28T10:00:00.000Z",
       }),
     ]);
 
@@ -182,17 +182,17 @@ describe("LogsService.getLogs", () => {
       buildLog({
         id: "log_start",
         app_id: "app_a",
-        timestamp: "2026-06-28T09:00:00.000Z",
+        timestamp: "2099-06-28T09:00:00.000Z",
       }),
       buildLog({
         id: "log_end",
         app_id: "app_a",
-        timestamp: "2026-06-28T11:00:00.000Z",
+        timestamp: "2099-06-28T11:00:00.000Z",
       }),
       buildLog({
         id: "log_outside",
         app_id: "app_a",
-        timestamp: "2026-06-28T11:00:00.001Z",
+        timestamp: "2099-06-28T11:00:00.001Z",
       }),
     ]);
 
@@ -217,7 +217,7 @@ describe("LogsService.getLogs", () => {
       buildLog({
         id: "log_api_error",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:10:00.000Z",
+        timestamp: "2099-06-28T10:10:00.000Z",
         service_name: "api",
         severity_text: "error",
         body: "database connection failed",
@@ -225,7 +225,7 @@ describe("LogsService.getLogs", () => {
       buildLog({
         id: "log_api_info",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:20:00.000Z",
+        timestamp: "2099-06-28T10:20:00.000Z",
         service_name: "api",
         severity_text: "info",
         body: "request completed",
@@ -233,7 +233,7 @@ describe("LogsService.getLogs", () => {
       buildLog({
         id: "log_worker",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:30:00.000Z",
+        timestamp: "2099-06-28T10:30:00.000Z",
         service_name: "worker",
         severity_text: "warn",
         body: "retrying job",
@@ -278,7 +278,7 @@ describe("LogsService.getLogs", () => {
       buildLog({
         id: "log_match",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:10:00.000Z",
+        timestamp: "2099-06-28T10:10:00.000Z",
         resource_attributes: {
           "host.name": "web-01",
         },
@@ -289,7 +289,7 @@ describe("LogsService.getLogs", () => {
       buildLog({
         id: "log_other",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:20:00.000Z",
+        timestamp: "2099-06-28T10:20:00.000Z",
         resource_attributes: {
           "host.name": "worker-01",
         },
@@ -332,13 +332,13 @@ describe("LogsService.getLogs", () => {
       buildLog({
         id: "log_api",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:10:00.000Z",
+        timestamp: "2099-06-28T10:10:00.000Z",
         service_name: "api",
       }),
       buildLog({
         id: "log_worker",
         app_id: "app_a",
-        timestamp: "2026-06-28T10:20:00.000Z",
+        timestamp: "2099-06-28T10:20:00.000Z",
         service_name: "worker",
       }),
     ]);
