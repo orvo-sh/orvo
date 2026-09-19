@@ -7,8 +7,8 @@ import { suppressTracing } from "@opentelemetry/core";
 import { Logger } from "@repo/logger";
 import { PgBoss } from "pg-boss";
 
-import { HeartbeatWorker } from "./heartbeat-worker";
 import { BillingMeterWorker } from "./billing-meter-worker";
+import { HeartbeatWorker } from "./heartbeat-worker";
 import { NotificationDeliveryWorker } from "./notification-delivery-worker";
 import { ThresholdAlertWorker } from "./threshold-alert-worker";
 import { WorkerManager } from "./worker-manager";

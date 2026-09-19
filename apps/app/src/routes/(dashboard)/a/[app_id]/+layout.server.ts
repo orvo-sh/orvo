@@ -82,7 +82,9 @@ export const load = (async (event) => {
   if (
     accessResult &&
     (!accessResult.success ||
-      (!accessResult.data.hasAccess && !accessResult.data.trialExpired))
+      (!accessResult.data.hasAccess &&
+        !accessResult.data.trialExpired &&
+        accessResult.data.billingStatus !== "past_due"))
   ) {
     throw redirect(302, "/organizations/plan");
   }

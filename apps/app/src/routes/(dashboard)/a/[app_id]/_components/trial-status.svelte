@@ -79,6 +79,27 @@
   </div>
 {/if}
 
+{#if billingStatus === "past_due" && !isBillingPage}
+  <AlertDialog.Root open={true} onOpenChange={() => {}}>
+    <AlertDialog.Content data-testid="past-due-billing-dialog">
+      <AlertDialog.Header>
+        <AlertDialog.Title>Payment needs attention</AlertDialog.Title>
+        <AlertDialog.Description>
+          This organization’s payment is overdue. You can still access the
+          dashboard, but update your billing details to restore uninterrupted
+          service.
+        </AlertDialog.Description>
+      </AlertDialog.Header>
+      <AlertDialog.Footer>
+        <Button href={billingHref} class="w-full sm:w-auto">
+          <CreditCardIcon data-slot="button-icon" />
+          Manage billing
+        </Button>
+      </AlertDialog.Footer>
+    </AlertDialog.Content>
+  </AlertDialog.Root>
+{/if}
+
 {#if trialExpired && !isBillingPage}
   <AlertDialog.Root open={true} onOpenChange={() => {}}>
     <AlertDialog.Content data-testid="trial-expired-dialog">

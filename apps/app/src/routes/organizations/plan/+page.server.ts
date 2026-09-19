@@ -20,7 +20,10 @@ export const load = (async (event) => {
 
   if (!accessState.success) error(500, accessState.error);
 
-  if (accessState.data.hasAccess) {
+  if (
+    accessState.data.hasAccess ||
+    accessState.data.billingStatus === "past_due"
+  ) {
     const appsResult = await event.locals.container.appService.listApps({
       organizationId,
     });

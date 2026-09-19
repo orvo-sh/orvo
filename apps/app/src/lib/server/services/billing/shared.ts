@@ -127,8 +127,56 @@ const createSyncStripeSubscriptionState =
     const fallbackEnd =
       context.stripeSubscription.trial_end ??
       addDays(new Date(), config.trialDays).getTime() / 1000;
+    const stripeCustomer = context.stripeSubscription.customer;
+    const stripeSchedule = context.stripeSubscription.schedule;
+    const stripeSubscriptionValues = {
+      plan: context.plan,
+      referenceId: context.organizationId,
+      trialStart: context.stripeSubscription.trial_start
+        ? new Date(context.stripeSubscription.trial_start * 1000)
+        : null,
+      trialEnd: context.stripeSubscription.trial_end
+        ? new Date(context.stripeSubscription.trial_end * 1000)
+        : null,
+      stripeCustomerId:
+        typeof stripeCustomer === "string" ? stripeCustomer : stripeCustomer.id,
+      stripeSubscriptionId: context.stripeSubscription.id,
+      status: context.stripeSubscription.status,
+      periodStart: periodStart ? new Date(periodStart * 1000) : null,
+      periodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
+      cancelAtPeriodEnd: context.stripeSubscription.cancel_at_period_end,
+      cancelAt: context.stripeSubscription.cancel_at
+        ? new Date(context.stripeSubscription.cancel_at * 1000)
+        : null,
+      canceledAt: context.stripeSubscription.canceled_at
+        ? new Date(context.stripeSubscription.canceled_at * 1000)
+        : null,
+      endedAt: context.stripeSubscription.ended_at
+        ? new Date(context.stripeSubscription.ended_at * 1000)
+        : null,
+      seats: context.stripeSubscription.items.data[0]?.quantity ?? null,
+      billingInterval:
+        context.stripeSubscription.items.data[0]?.price.recurring?.interval ??
+        null,
+      stripeScheduleId:
+        typeof stripeSchedule === "string"
+          ? stripeSchedule
+          : (stripeSchedule?.id ?? null),
+      updatedAt: new Date(),
+    };
 
     await db.transaction(async (tx) => {
+      await tx
+        .insert(subscription)
+        .values({
+          id: genId("sub"),
+          ...stripeSubscriptionValues,
+        })
+        .onConflictDoUpdate({
+          target: subscription.stripeSubscriptionId,
+          set: stripeSubscriptionValues,
+        });
+
       await tx
         .update(organization)
         .set({
