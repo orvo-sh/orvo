@@ -311,7 +311,7 @@ describe("Slack integration", () => {
     expect(await db.select().from(slackEvent)).toHaveLength(1);
   });
 
-  test("queues direct messages and replies in an existing Scout thread", async () => {
+  test("queues DMs and unaddressed replies in an existing Scout thread", async () => {
     const ingestEvent = createIngestEvent({
       db,
       logger: createTestLogger() as never,
@@ -374,6 +374,26 @@ describe("Slack integration", () => {
     expect(
       await ingestEvent({
         type: "event_callback",
+        event_id: "EvReplyForSomeoneElse",
+        team_id: "T123",
+        event: {
+          type: "message",
+          user: "U123",
+          text: "<@U456> can you take a look?",
+          channel: "C123",
+          channel_type: "channel",
+          ts: "124.003",
+          thread_ts: "123.456",
+        },
+      }),
+    ).toMatchObject({
+      success: true,
+      data: { queued: false, eventId: "EvReplyForSomeoneElse" },
+    });
+
+    expect(
+      await ingestEvent({
+        type: "event_callback",
         event_id: "EvUnrelated",
         team_id: "T123",
         event: {
@@ -382,7 +402,7 @@ describe("Slack integration", () => {
           text: "Unrelated channel conversation",
           channel: "C_OTHER",
           channel_type: "channel",
-          ts: "124.003",
+          ts: "124.004",
         },
       }),
     ).toMatchObject({

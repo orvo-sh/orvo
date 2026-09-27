@@ -1,10 +1,6 @@
 import { recordError } from "$lib/instrumentation";
 import type { DB } from "@repo/db";
-import {
-  notificationDestination,
-  slackEvent,
-  slackScoutThread,
-} from "@repo/db/schema";
+import { slackEvent, slackScoutThread } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
 import { and, eq } from "drizzle-orm";
@@ -31,32 +27,16 @@ const createIngestEvent =
             return ok({ queued: false, eventId: parsed.data.event_id });
           }
 
-          const [thread, destinations] = await Promise.all([
-            db.query.slackScoutThread.findFirst({
-              columns: { id: true },
-              where: and(
-                eq(slackScoutThread.teamId, parsed.data.team_id),
-                eq(slackScoutThread.channelId, parsed.data.event.channel),
-                eq(slackScoutThread.threadTs, parsed.data.event.thread_ts),
-              ),
-            }),
-            db.query.notificationDestination.findMany({
-              columns: { slackBotUserId: true },
-              where: and(
-                eq(notificationDestination.kind, "slack"),
-                eq(notificationDestination.slackTeamId, parsed.data.team_id),
-              ),
-            }),
-          ]);
+          const thread = await db.query.slackScoutThread.findFirst({
+            columns: { id: true },
+            where: and(
+              eq(slackScoutThread.teamId, parsed.data.team_id),
+              eq(slackScoutThread.channelId, parsed.data.event.channel),
+              eq(slackScoutThread.threadTs, parsed.data.event.thread_ts),
+            ),
+          });
 
-          if (
-            !thread ||
-            destinations.some(
-              ({ slackBotUserId }) =>
-                slackBotUserId &&
-                parsed.data.event.text.includes(`<@${slackBotUserId}>`),
-            )
-          ) {
+          if (!thread || /<@[^>]+>/.test(parsed.data.event.text)) {
             return ok({ queued: false, eventId: parsed.data.event_id });
           }
         }
