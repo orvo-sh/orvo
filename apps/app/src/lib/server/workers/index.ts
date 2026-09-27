@@ -8,6 +8,7 @@ import { Logger } from "@repo/logger";
 import { PgBoss } from "pg-boss";
 
 import { BillingMeterWorker } from "./billing-meter-worker";
+import { BillingReconciliationWorker } from "./billing-reconciliation-worker";
 import { HeartbeatWorker } from "./heartbeat-worker";
 import { NotificationDeliveryWorker } from "./notification-delivery-worker";
 import { ThresholdAlertWorker } from "./threshold-alert-worker";
@@ -39,7 +40,13 @@ const startCloudWorkers = async (logger: Logger) => {
   const container = createWorkerContainer(workerLogger);
   const manager = new WorkerManager(boss, workerLogger, [
     ...(container.billingService
-      ? [new BillingMeterWorker(workerLogger, container.billingService)]
+      ? [
+          new BillingMeterWorker(workerLogger, container.billingService),
+          new BillingReconciliationWorker(
+            workerLogger,
+            container.billingService,
+          ),
+        ]
       : []),
     new HeartbeatWorker(workerLogger, container.heartbeatService),
     new ThresholdAlertWorker(
@@ -60,11 +67,42 @@ const startCloudWorkers = async (logger: Logger) => {
   await context.with(suppressTracing(context.active()), async () => {
     await manager.start();
   });
+  if (container.billingService) {
+    void container.billingService.reconcileSubscriptions().catch((error) => {
+      workerLogger.error(
+        "WorkerRuntime: initial billing reconciliation failed",
+        error as Error,
+      );
+    });
+  }
 };
 
 const startLocalWorkers = async (logger: Logger) => {
   const workerLogger = logger.child("LocalWorkerRuntime");
   const container = createWorkerContainer(workerLogger);
+  if (container.billingService) {
+    const reconciliation = new BillingReconciliationWorker(
+      workerLogger,
+      container.billingService,
+    );
+    let reconciling = false;
+    const reconcile = async () => {
+      if (reconciling) return;
+      reconciling = true;
+      try {
+        await reconciliation.execute();
+      } catch (error) {
+        workerLogger.error(
+          "LocalWorkerRuntime: billing reconciliation failed",
+          error as Error,
+        );
+      } finally {
+        reconciling = false;
+      }
+    };
+    void reconcile();
+    setInterval(() => void reconcile(), 6 * 60 * 60_000).unref();
+  }
   const workers = [
     new HeartbeatWorker(workerLogger, container.heartbeatService),
     new ThresholdAlertWorker(

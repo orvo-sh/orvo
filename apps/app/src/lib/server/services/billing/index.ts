@@ -11,6 +11,7 @@ import { createCreateBillingPortalSession } from "./methods/create-billing-porta
 import { createGetBillingState } from "./methods/get-billing-state";
 import { createGetOrganizationAccessState } from "./methods/get-organization-access-state";
 import { createOnSubscriptionCreated } from "./methods/on-subscription-created";
+import { createReconcileSubscriptions } from "./methods/reconcile-subscriptions";
 import { createStartFreeTrial } from "./methods/start-free-trial";
 import { createSyncMeterUsage } from "./methods/sync-meter-usage";
 import { createOnSubscriptionDeleted } from "./methods/subscription-lifecycle";
@@ -31,6 +32,9 @@ import {
 @Instrument({ prefix: "billing" })
 class BillingService {
   private logger: Logger;
+  private reconcileSubscriptionsMethod: ReturnType<
+    typeof createReconcileSubscriptions
+  >;
   private getBillingStateMethod: ReturnType<typeof createGetBillingState>;
   private getOrganizationAccessStateMethod: ReturnType<
     typeof createGetOrganizationAccessState
@@ -45,6 +49,9 @@ class BillingService {
   private startFreeTrialMethod: ReturnType<typeof createStartFreeTrial>;
   private onSubscriptionCreatedMethod: ReturnType<
     typeof createOnSubscriptionCreated
+  >;
+  private syncStripeSubscriptionStateMethod: ReturnType<
+    typeof createSyncStripeSubscriptionState
   >;
   private syncMeterUsageMethod: ReturnType<typeof createSyncMeterUsage>;
   private onSubscriptionDeletedMethod: ReturnType<
@@ -76,6 +83,15 @@ class BillingService {
       db,
       config,
     });
+    this.syncStripeSubscriptionStateMethod = syncStripeSubscriptionState;
+    this.reconcileSubscriptionsMethod = createReconcileSubscriptions({
+      db,
+      stripe,
+      logger: this.logger,
+      config,
+      getCurrentSubscription,
+      syncStripeSubscriptionState,
+    });
 
     this.getBillingStateMethod = createGetBillingState({
       db,
@@ -88,6 +104,7 @@ class BillingService {
       db,
       logger: this.logger,
       getCurrentSubscription,
+      reconcileSubscriptions: this.reconcileSubscriptionsMethod,
     });
     this.createBillingPortalSessionMethod = createCreateBillingPortalSession({
       db,
@@ -174,8 +191,20 @@ class BillingService {
     return this.onSubscriptionCreatedMethod(subscription);
   }
 
+  async syncStripeSubscriptionState(context: {
+    organizationId: string;
+    plan: "pro";
+    stripeSubscription: Stripe.Subscription;
+  }) {
+    return this.syncStripeSubscriptionStateMethod(context);
+  }
+
   async syncMeterUsage() {
     return this.syncMeterUsageMethod();
+  }
+
+  async reconcileSubscriptions(context?: { organizationId: string }) {
+    return this.reconcileSubscriptionsMethod(context);
   }
 
   async onSubscriptionDeleted(_context: { organizationId: string }) {

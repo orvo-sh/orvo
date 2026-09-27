@@ -13,19 +13,40 @@ const createGetOrganizationAccessState =
     db,
     logger,
     getCurrentSubscription,
+    reconcileSubscriptions,
   }: {
     db: DB;
     logger: Logger;
     getCurrentSubscription: ReturnType<typeof createGetCurrentSubscription>;
+    reconcileSubscriptions?: (context: {
+      organizationId: string;
+    }) => Promise<void>;
   }) =>
   async (context: { organizationId: string }) => {
     try {
-      const [currentOrganization, currentSubscription] = await Promise.all([
+      let [currentOrganization, currentSubscription] = await Promise.all([
         db.query.organization.findFirst({
           where: eq(organization.id, context.organizationId),
         }),
         getCurrentSubscription(context.organizationId),
       ]);
+
+      if (
+        reconcileSubscriptions &&
+        currentSubscription?.status === "trialing" &&
+        currentSubscription.trialEnd &&
+        currentSubscription.trialEnd.getTime() <= Date.now() &&
+        (!currentSubscription.updatedAt ||
+          currentSubscription.updatedAt.getTime() < Date.now() - 5 * 60_000)
+      ) {
+        await reconcileSubscriptions(context);
+        [currentOrganization, currentSubscription] = await Promise.all([
+          db.query.organization.findFirst({
+            where: eq(organization.id, context.organizationId),
+          }),
+          getCurrentSubscription(context.organizationId),
+        ]);
+      }
 
       const billingStatus =
         currentSubscription?.status ?? currentOrganization?.billingStatus;

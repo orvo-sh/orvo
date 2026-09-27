@@ -229,6 +229,19 @@ const createAuth = (
                   organizationId: subscription.referenceId,
                 }),
             },
+            onEvent: async (event) => {
+              if (
+                event.type !== "customer.subscription.created" &&
+                event.type !== "customer.subscription.updated"
+              ) {
+                return;
+              }
+
+              const organizationId = event.data.object.metadata?.referenceId;
+              if (!organizationId) return;
+
+              await billingService.reconcileSubscriptions({ organizationId });
+            },
             organization: {
               enabled: true,
             },
