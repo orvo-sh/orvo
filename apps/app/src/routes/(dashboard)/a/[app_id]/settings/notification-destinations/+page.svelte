@@ -8,6 +8,10 @@
     testNotificationDestinationCommand,
     updateNotificationDestinationCommand,
   } from "$lib/api/notification-destinations.remote";
+  import {
+    getSlackChannelsQuery,
+    updateSlackChannelCommand,
+  } from "$lib/api/slack-integrations.remote";
   import { cn } from "@repo/components";
   import { SlackIcon } from "@repo/components/icons/slack";
   import * as AlertDialog from "@repo/components/ui/alert-dialog";
@@ -33,6 +37,7 @@
     IconInfoCircleFilled,
     IconPencil,
     IconPlus,
+    IconRefresh,
     IconSend,
     IconTrash,
     IconX,
@@ -53,6 +58,11 @@
   const loadError = $derived(
     data.destinationsResult.success ? "" : data.destinationsResult.error,
   );
+  const slackIntegration = $derived(
+    data.slackIntegrationResult.success
+      ? data.slackIntegrationResult.data.integration
+      : null,
+  );
 
   let dialogOpen = $state(false);
   let submitting = $state(false);
@@ -70,7 +80,44 @@
   let isEnabled = $state(true);
   let formError = $state("");
   let createQueryHandled = $state(false);
-  let slackCallbackHandled = $state(false);
+  let slackChannels = $state<Array<{ id: string; name: string }>>([]);
+  let loadingSlackChannels = $state(false);
+  let updatingSlackChannel = $state(false);
+  let selectedSlackChannelId = $state("");
+
+  const loadSlackChannels = async () => {
+    if (!slackIntegration?.slackBotUserId) return;
+
+    loadingSlackChannels = true;
+    const result = await getSlackChannelsQuery({});
+    loadingSlackChannels = false;
+
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+
+    slackChannels = result.data.channels;
+  };
+
+  const updateSlackChannel = async (channelId: string) => {
+    if (!channelId || channelId === slackIntegration?.slackChannelId) return;
+
+    const previousChannelId = selectedSlackChannelId;
+    selectedSlackChannelId = channelId;
+    updatingSlackChannel = true;
+    const result = await updateSlackChannelCommand({ channelId });
+    updatingSlackChannel = false;
+
+    if (!result.success) {
+      selectedSlackChannelId = previousChannelId;
+      toast.error(result.error);
+      return;
+    }
+
+    await invalidateAll();
+    toast.success("Slack notification channel updated.");
+  };
 
   const resetForm = (nextKind: "webhook" | "email" | "slack") => {
     editingId = "";
@@ -119,6 +166,10 @@
     isEnabled = destination.isEnabled;
     formError = "";
     dialogOpen = true;
+    if (destination.kind === "slack") {
+      selectedSlackChannelId = destination.slackChannelId ?? "";
+      void loadSlackChannels();
+    }
   };
 
   const addRecipient = () => {
@@ -299,22 +350,6 @@
       createQueryHandled = false;
     }
   });
-
-  $effect(() => {
-    if (
-      page.url.searchParams.get("connected") === "slack" &&
-      !slackCallbackHandled
-    ) {
-      slackCallbackHandled = true;
-      toast.success("Slack destination connected.");
-      replaceState(
-        resolve("/(dashboard)/a/[app_id]/settings/notification-destinations", {
-          app_id: page.params.app_id!,
-        }),
-        page.state,
-      );
-    }
-  });
 </script>
 
 <div class="flex w-full max-w-4xl flex-col gap-8">
@@ -383,11 +418,13 @@
                     .emailRecipients[0]}{#if destination.emailRecipients.length > 1}
                     + {destination.emailRecipients.length - 1} more{/if}.
                 </span>
-              {:else}
+              {:else if destination.slackChannelName}
                 Slack notifications are sent to
                 <span class="font-medium text-secondary-foreground">
                   {destination.slackTeamName} · #{destination.slackChannelName}.
                 </span>
+              {:else}
+                Choose a channel to start receiving Slack notifications.
               {/if}
             </div>
           </div>
@@ -407,7 +444,8 @@
             </DropdownMenu.Trigger>
             <DropdownMenu.Content align="end" class="w-44">
               <DropdownMenu.Item
-                disabled={testingId.length > 0}
+                disabled={testingId.length > 0 ||
+                  (destination.kind === "slack" && !destination.slackChannelId)}
                 onSelect={() => void testDestination(destination.id)}
               >
                 {#if testingId === destination.id}
@@ -433,14 +471,16 @@
                   Enable
                 {/if}
               </DropdownMenu.Item>
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item
-                variant="destructive"
-                onSelect={() => (destinationToDelete = destination)}
-              >
-                <IconTrash />
-                Delete
-              </DropdownMenu.Item>
+              {#if destination.kind !== "slack"}
+                <DropdownMenu.Separator />
+                <DropdownMenu.Item
+                  variant="destructive"
+                  onSelect={() => (destinationToDelete = destination)}
+                >
+                  <IconTrash />
+                  Delete
+                </DropdownMenu.Item>
+              {/if}
             </DropdownMenu.Content>
           </DropdownMenu.Root>
         </div>
@@ -461,7 +501,18 @@
       {#if !editingId}
         <div class="grid gap-2">
           <Label for="destination-type">Destination type</Label>
-          <Select.Root type="single" bind:value={kind}>
+          <Select.Root
+            type="single"
+            value={kind}
+            onValueChange={(value) => {
+              if (!value) return;
+              kind = value as "webhook" | "email" | "slack";
+              if (kind === "slack" && slackIntegration?.slackBotUserId) {
+                selectedSlackChannelId = slackIntegration.slackChannelId ?? "";
+                void loadSlackChannels();
+              }
+            }}
+          >
             <Select.Trigger id="destination-type" class="w-full">
               {kind === "webhook"
                 ? "Webhook"
@@ -478,7 +529,7 @@
         </div>
       {/if}
 
-      {#if kind !== "slack" || editingId}
+      {#if kind !== "slack"}
         <div class="grid gap-2">
           <Label for="destination-name">Name</Label>
           <Input
@@ -595,24 +646,71 @@
             <span>Press Enter or Space to add up to 5 email addresses.</span>
           </FieldDescription>
         </div>
-      {:else if !editingId}
-        <div class="flex items-start gap-3 rounded-lg border bg-muted/40 p-4">
-          <div
-            class="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background"
-          >
-            <SlackIcon class="size-4.5" />
+      {:else if slackIntegration?.slackBotUserId}
+        <div class="grid gap-2">
+          <Label for="slack-notification-channel">Channel</Label>
+          <div class="flex items-center gap-2">
+            <Select.Root
+              type="single"
+              value={selectedSlackChannelId}
+              disabled={loadingSlackChannels || updatingSlackChannel}
+              onValueChange={(value) => {
+                if (value) void updateSlackChannel(value);
+              }}
+            >
+              <Select.Trigger
+                id="slack-notification-channel"
+                class="min-w-0 flex-1"
+              >
+                {slackIntegration.slackChannelName
+                  ? `#${slackIntegration.slackChannelName}`
+                  : loadingSlackChannels
+                    ? "Loading channels…"
+                    : "Choose a channel"}
+              </Select.Trigger>
+              <Select.Content>
+                {#each slackChannels as channel (channel.id)}
+                  <Select.Item value={channel.id} label={`#${channel.name}`} />
+                {/each}
+              </Select.Content>
+            </Select.Root>
+            <Button
+              variant="outline"
+              size="icon"
+              loading={loadingSlackChannels}
+              onclick={loadSlackChannels}
+              title="Refresh channels"
+              aria-label="Refresh Slack channels"
+            >
+              <IconRefresh data-slot="button-icon" />
+            </Button>
           </div>
-          <div class="space-y-1">
-            <p class="text-sm font-medium">Connect a Slack channel</p>
+          <FieldDescription class="flex items-start gap-1.5 text-sm">
+            <IconInfoCircleFilled class="mt-0.5 size-4 shrink-0" />
+            <span>
+              Don’t see a channel? Run <code>/invite @Orvo</code> in that channel,
+              then refresh the list.
+            </span>
+          </FieldDescription>
+        </div>
+      {:else}
+        <div class="flex items-start gap-3 rounded-lg border bg-muted/40 p-3">
+          <div
+            class="flex size-8 shrink-0 items-center justify-center rounded-md border bg-background"
+          >
+            <SlackIcon class="size-4" />
+          </div>
+          <div class="space-y-0.5">
+            <p class="text-sm font-medium">Connect Slack first</p>
             <p class="text-sm text-muted-foreground">
-              Slack will ask you to choose the workspace and channel where Orvo
-              should send notifications.
+              Set up the Slack workspace integration before choosing a
+              notification channel.
             </p>
           </div>
         </div>
       {/if}
 
-      {#if kind !== "slack" || editingId}
+      {#if kind !== "slack"}
         <div
           class="flex items-center justify-between gap-4 rounded-lg border px-3 py-3"
         >
@@ -628,16 +726,11 @@
 
     <Dialog.Footer>
       <Button variant="outline" onclick={() => handleDialogOpenChange(false)}>
-        Cancel
+        {kind === "slack" && slackIntegration?.slackBotUserId
+          ? "Done"
+          : "Cancel"}
       </Button>
-      {#if kind === "slack" && !editingId}
-        <Button
-          href={`/api/integrations/slack/connect?app_id=${encodeURIComponent(page.params.app_id!)}`}
-        >
-          <SlackIcon class="size-4" data-slot="button-icon" />
-          Connect to Slack
-        </Button>
-      {:else}
+      {#if kind !== "slack"}
         <Button loading={submitting} onclick={submit}>
           {#if editingId}
             <IconPencil data-slot="button-icon" />
@@ -646,6 +739,15 @@
             <IconPlus data-slot="button-icon" />
             Add destination
           {/if}
+        </Button>
+      {:else if !slackIntegration?.slackBotUserId}
+        <Button
+          href={resolve("/(dashboard)/a/[app_id]/settings/integrations/slack", {
+            app_id: page.params.app_id!,
+          })}
+        >
+          <SlackIcon class="size-4" data-slot="button-icon" />
+          Go to Slack integration
         </Button>
       {/if}
     </Dialog.Footer>

@@ -7,19 +7,26 @@ export const load = (async ({ locals, params, parent }) => {
     error(404, "App not found.");
   }
 
-  const [destinationsResult, defaultRecipientsResult] = await Promise.all([
-    locals.container.notificationDestinationService.listNotificationDestinations(
-      {
+  const [destinationsResult, defaultRecipientsResult, slackIntegrationResult] =
+    await Promise.all([
+      locals.container.notificationDestinationService.listNotificationDestinations(
+        {
+          appId: params.app_id,
+        },
+      ),
+      locals.container.notificationDestinationService.getDefaultEmailRecipients(
+        {
+          organizationId: parentData.activeOrganizationId,
+        },
+      ),
+      locals.container.slackIntegrationService.getIntegration({
         appId: params.app_id,
-      },
-    ),
-    locals.container.notificationDestinationService.getDefaultEmailRecipients({
-      organizationId: parentData.activeOrganizationId,
-    }),
-  ]);
+      }),
+    ]);
 
   return {
     destinationsResult,
     defaultRecipientsResult,
+    slackIntegrationResult,
   };
 }) satisfies PageServerLoad;

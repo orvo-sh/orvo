@@ -1,82 +1,17 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
   import { page } from "$app/state";
-  import {
-    disconnectSlackIntegrationCommand,
-    getSlackChannelsQuery,
-    testSlackIntegrationCommand,
-    updateSlackChannelCommand,
-  } from "$lib/api/slack-integrations.remote";
+  import { disconnectSlackIntegrationCommand } from "$lib/api/slack-integrations.remote";
   import { SlackIcon } from "@repo/components/icons/slack";
   import * as AlertDialog from "@repo/components/ui/alert-dialog";
   import { Badge } from "@repo/components/ui/badge";
   import { Button } from "@repo/components/ui/button";
-  import * as Card from "@repo/components/ui/card";
-  import * as Select from "@repo/components/ui/select";
   import { toast } from "@repo/components/ui/sonner";
-  import {
-    IconExternalLink,
-    IconRefresh,
-    IconSend,
-    IconTrash,
-  } from "@tabler/icons-svelte";
-  import { onMount } from "svelte";
+  import { IconExternalLink, IconTrash } from "@tabler/icons-svelte";
 
   let { data } = $props();
-  let testing = $state(false);
   let disconnecting = $state(false);
   let disconnectOpen = $state(false);
-  let channels = $state<Array<{ id: string; name: string }>>([]);
-  let loadingChannels = $state(false);
-  let updatingChannel = $state(false);
-  let selectedChannelId = $derived(data.integration?.slackChannelId ?? "");
-
-  const loadChannels = async () => {
-    loadingChannels = true;
-    const result = await getSlackChannelsQuery({});
-    loadingChannels = false;
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-    channels = result.data.channels;
-  };
-
-  const updateChannel = async (channelId: string) => {
-    if (!channelId || channelId === data.integration?.slackChannelId) return;
-    selectedChannelId = channelId;
-    updatingChannel = true;
-    const result = await updateSlackChannelCommand({ channelId });
-    updatingChannel = false;
-    if (!result.success) {
-      selectedChannelId = data.integration?.slackChannelId ?? "";
-      toast.error(result.error);
-      return;
-    }
-    await invalidateAll();
-    toast.success("Slack notification channel updated.");
-  };
-
-  onMount(() => {
-    if (data.integration?.slackBotUserId) void loadChannels();
-  });
-
-  const testConnection = async () => {
-    if (!data.integration?.slackChannelId) {
-      toast.error("Choose a notification channel first.");
-      return;
-    }
-    testing = true;
-    const result = await testSlackIntegrationCommand({});
-    testing = false;
-
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-
-    toast.success("Test notification sent to Slack.");
-  };
 
   const disconnect = async () => {
     disconnecting = true;
@@ -96,13 +31,10 @@
 
 <div class="flex w-full max-w-2xl flex-col gap-8">
   <section class="space-y-1">
-    <div class="flex items-center gap-2">
-      <SlackIcon class="size-5" />
-      <h2 class="text-base font-medium">Scout for Slack</h2>
-    </div>
+    <h2 class="text-base font-medium">Scout for Slack</h2>
     <p class="max-w-xl text-sm text-muted-foreground">
-      Investigate telemetry, continue Scout conversations, approve actions, and
-      receive incident notifications in Slack.
+      Bring Scout conversations and Orvo notifications into your Slack
+      workspace.
     </p>
   </section>
 
@@ -112,134 +44,53 @@
     </p>
   {/if}
 
-  {#if data.integration?.slackBotUserId}
-    <Card.Root class="gap-0 overflow-hidden p-0">
-      <Card.Header
-        class="flex-row items-center justify-between border-b px-5 py-4"
+  <div class="rounded-lg border">
+    <div class="flex items-center gap-3 px-4 py-3">
+      <div
+        class="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted"
       >
-        <div>
-          <Card.Title class="text-sm">Scout for Slack</Card.Title>
-          <Card.Description
-            >Scout and notifications are ready for this app.</Card.Description
-          >
-        </div>
-        <Badge
-          variant="outline"
-          class="border-green-600/20 bg-green-600/7 text-green-700"
-        >
-          Connected
-        </Badge>
-      </Card.Header>
-      <Card.Content class="grid gap-5 px-5 py-5 sm:grid-cols-2">
-        <div class="space-y-1">
-          <p class="text-xs font-medium text-muted-foreground">Workspace</p>
-          <p class="text-sm font-medium">{data.integration.slackTeamName}</p>
-        </div>
-        <div class="space-y-1">
-          <p class="text-xs font-medium text-muted-foreground">
-            Notification channel
+        <SlackIcon class="size-4.5" />
+      </div>
+
+      <div class="min-w-0 flex-1">
+        <div class="flex flex-wrap items-center gap-2">
+          <p class="truncate text-sm font-medium">
+            {data.integration?.slackBotUserId
+              ? data.integration.slackTeamName
+              : "Slack"}
           </p>
-          <div class="flex items-center gap-2">
-            <Select.Root
-              type="single"
-              value={selectedChannelId}
-              disabled={loadingChannels || updatingChannel}
-              onValueChange={(value) => {
-                if (value) void updateChannel(value);
-              }}
-            >
-              <Select.Trigger class="min-w-48 bg-background">
-                {data.integration.slackChannelName
-                  ? `#${data.integration.slackChannelName}`
-                  : loadingChannels
-                    ? "Loading channels…"
-                    : "Choose a channel"}
-              </Select.Trigger>
-              <Select.Content>
-                {#each channels as channel (channel.id)}
-                  <Select.Item value={channel.id} label={`#${channel.name}`} />
-                {/each}
-              </Select.Content>
-            </Select.Root>
-            <Button
+          {#if data.integration?.slackBotUserId}
+            <Badge
               variant="outline"
-              size="icon"
-              loading={loadingChannels}
-              onclick={loadChannels}
-              title="Refresh channels"
-              aria-label="Refresh Slack channels"
+              class="border-green-600/20 bg-green-600/7 text-green-700"
             >
-              <IconRefresh data-slot="button-icon" />
-            </Button>
-          </div>
+              Connected
+            </Badge>
+          {/if}
         </div>
-      </Card.Content>
-      <Card.Footer class="justify-between gap-2 border-t px-5 py-4">
-        <Button
-          variant="outline"
-          loading={testing}
-          disabled={!data.integration.slackChannelId}
-          onclick={testConnection}
-        >
-          <IconSend data-slot="button-icon" />
-          Test notification
-        </Button>
-        <Button variant="ghost" onclick={() => (disconnectOpen = true)}>
-          <IconTrash data-slot="button-icon" />
+        <p class="text-xs text-muted-foreground">
+          {data.integration?.slackBotUserId
+            ? "Scout is installed in this workspace."
+            : data.integration
+              ? "Reconnect Slack to finish setting up Scout."
+              : "Install Scout in your workspace to get started."}
+        </p>
+      </div>
+
+      {#if data.integration?.slackBotUserId}
+        <Button variant="outline" onclick={() => (disconnectOpen = true)}>
           Disconnect
         </Button>
-      </Card.Footer>
-    </Card.Root>
-
-    <p class="text-sm text-muted-foreground">
-      Message Orvo directly, or invite it to a channel and mention
-      <strong>@Orvo</strong> once to start a Scout conversation. Replies in that
-      thread continue the same chat without another mention. Incident
-      notifications are sent to
-      {data.integration.slackChannelName
-        ? `#${data.integration.slackChannelName}`
-        : "the channel selected above"}. If a channel is missing, invite Orvo
-      there and refresh the list.
-    </p>
-    <Card.Root class="gap-2 p-5">
-      <Card.Title class="text-sm">Slack Events API request URL</Card.Title>
-      <Card.Description>
-        Configure this URL under your Slack app's Event Subscriptions and
-        subscribe to <code>app_mention</code>, <code>message.channels</code>,
-        <code>message.groups</code>, and <code>message.im</code>. Enable the
-        Agent experience and Messages tab under App Home for native sessions and
-        DMs.
-      </Card.Description>
-      <code
-        class="mt-2 overflow-x-auto rounded-md border bg-muted px-3 py-2 text-xs"
-        >{data.requestUrl}</code
-      >
-    </Card.Root>
-  {:else}
-    <Card.Root class="items-start gap-5 p-5">
-      <div
-        class="flex size-10 items-center justify-center rounded-lg border bg-muted"
-      >
-        <SlackIcon class="size-5" />
-      </div>
-      <div class="space-y-1">
-        <Card.Title class="text-sm">
-          {data.integration ? "Reconnect Slack" : "Connect Scout to Slack"}
-        </Card.Title>
-        <Card.Description>
-          {data.integration
-            ? "Reconnect to grant the bot permissions Scout needs for DMs, thread replies, streaming responses, and approvals."
-            : "Install Scout in your workspace. After connecting, choose the default notification channel in Orvo and invite Scout wherever you want to use it."}
-        </Card.Description>
-      </div>
-      <Button
-        href={`/api/integrations/slack/connect?app_id=${encodeURIComponent(page.params.app_id!)}`}
-      >
-        <IconExternalLink data-slot="button-icon" />
-        {data.integration ? "Reconnect Slack" : "Connect Slack"}
-      </Button>
-    </Card.Root>
-  {/if}
+      {:else}
+        <Button
+          href={`/api/integrations/slack/connect?app_id=${encodeURIComponent(page.params.app_id!)}`}
+        >
+          <IconExternalLink data-slot="button-icon" />
+          {data.integration ? "Reconnect" : "Connect Slack"}
+        </Button>
+      {/if}
+    </div>
+  </div>
 </div>
 
 <AlertDialog.Root bind:open={disconnectOpen}>
@@ -247,10 +98,8 @@
     <AlertDialog.Header>
       <AlertDialog.Title>Disconnect Slack?</AlertDialog.Title>
       <AlertDialog.Description>
-        Orvo will stop sending notifications for this app to
-        {data.integration?.slackChannelName
-          ? `#${data.integration.slackChannelName}`
-          : "Slack"}.
+        Scout conversations and Slack notifications will stop working for this
+        app until you reconnect the workspace.
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>

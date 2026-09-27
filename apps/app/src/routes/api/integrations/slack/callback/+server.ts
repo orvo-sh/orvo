@@ -28,6 +28,6 @@ export const GET = (async (event) => {
 
   throw redirect(
     303,
-    `/a/${encodeURIComponent(result.data.appId)}/settings/integrations/slack?connected=slack`,
+    `/a/${encodeURIComponent(result.data.appId)}/settings/integrations/slack`,
   );
 }) satisfies RequestHandler;

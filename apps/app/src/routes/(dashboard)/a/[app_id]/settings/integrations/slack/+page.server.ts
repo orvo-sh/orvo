@@ -1,7 +1,7 @@
 import { error } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 
-export const load = (async ({ locals, params, parent, url }) => {
+export const load = (async ({ locals, params, parent }) => {
   const parentData = await parent();
   if (!parentData.currentApp) error(404, "App not found.");
 
@@ -10,11 +10,5 @@ export const load = (async ({ locals, params, parent, url }) => {
   });
   if (!result.success) error(500, result.error);
 
-  return {
-    integration: result.data.integration,
-    requestUrl: new URL(
-      "/api/integrations/slack/events",
-      url.origin,
-    ).toString(),
-  };
+  return { integration: result.data.integration };
 }) satisfies PageServerLoad;

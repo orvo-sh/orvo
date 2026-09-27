@@ -53,15 +53,13 @@ test("creates a notification destination without reopening the dialog", async ({
   await page.waitForTimeout(500);
   await expect(dialog).toBeHidden();
 
-  await page.goto(
-    `/a/${appId}/settings/notification-destinations?create=1`,
-  );
+  await page.goto(`/a/${appId}/settings/notification-destinations?create=1`);
   await dialog.getByLabel("Destination type").click();
   await page.getByRole("option", { name: "Slack" }).click();
 
-  await expect(dialog.getByText("Connect a Slack channel")).toBeVisible();
+  await expect(dialog.getByText("Connect Slack first")).toBeVisible();
   await expect(
-    dialog.getByRole("link", { name: "Connect to Slack" }),
-  ).toHaveAttribute("href", `/api/integrations/slack/connect?app_id=${appId}`);
+    dialog.getByRole("link", { name: "Go to Slack integration" }),
+  ).toHaveAttribute("href", `/a/${appId}/settings/integrations/slack`);
   await expect(dialog.getByLabel("Name")).toHaveCount(0);
 });
