@@ -321,7 +321,7 @@ const createChatTools = (
     update_app: tool({
       description: "Rename the current app.",
       inputSchema: updateAppInputSchema
-        .omit({ id: true })
+        .omit({ id: true, logo: true })
         .extend({ intent: intentSchema }),
       execute: async (input) =>
         toolResult(

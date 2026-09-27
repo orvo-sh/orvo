@@ -1,13 +1,14 @@
 import { recordError } from "$lib/instrumentation";
 import type { AlertRuleService } from "$lib/server/services/alert-rule";
 import type { IngestionKeyService } from "$lib/server/services/ingestion-key";
-import type { DB } from "@repo/db";
+import { and, eq, type DB } from "@repo/db";
 import { app } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
 import { err, genId, ok } from "@repo/utils";
 import { z } from "zod";
 
 import { createAppInputSchema } from "../schema";
+import { isAppNameConflict } from "./shared";
 
 const createCreateApp = ({
   db,
@@ -29,16 +30,36 @@ const createCreateApp = ({
   }
 
   try {
+    const existingApp = await db.query.app.findFirst({
+      columns: { id: true },
+      where: and(
+        eq(app.organizationId, context.organizationId),
+        eq(app.name, validated.data.name),
+      ),
+    });
+    if (existingApp) {
+      return err("An app with this name already exists.");
+    }
+
     const id = genId("app");
 
-    await db.transaction(async (tx) => {
-      await tx.insert(app).values({
-        id,
-        organizationId: context.organizationId,
-        name: validated.data.name,
-        createdBy: context.userId,
-        updatedBy: context.userId,
-      });
+    const created = await db.transaction(async (tx) => {
+      const [createdApp] = await tx
+        .insert(app)
+        .values({
+          id,
+          organizationId: context.organizationId,
+          name: validated.data.name,
+          logo: validated.data.logo,
+          createdBy: context.userId,
+          updatedBy: context.userId,
+        })
+        .onConflictDoNothing({ target: [app.organizationId, app.name] })
+        .returning({ id: app.id });
+
+      if (!createdApp) {
+        return false;
+      }
 
       const results = await Promise.all([
         ingestionKeyService.createIngestionKey(
@@ -57,10 +78,20 @@ const createCreateApp = ({
           throw new Error(result.error);
         }
       }
+
+      return true;
     });
+
+    if (!created) {
+      return err("An app with this name already exists.");
+    }
 
     return ok({ id });
   } catch (error) {
+    if (isAppNameConflict(error)) {
+      return err("An app with this name already exists.");
+    }
+
     recordError(error);
     logger.error("Failed to create app", error as Error);
     return err("Failed to create app.");

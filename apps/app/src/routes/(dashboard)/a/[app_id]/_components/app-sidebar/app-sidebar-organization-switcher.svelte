@@ -1,6 +1,5 @@
 <script lang="ts">
   import { authClient } from "$lib/auth-client";
-  import * as Avatar from "@repo/components/ui/avatar";
   import { buttonVariants } from "@repo/components/ui/button";
   import * as DropdownMenu from "@repo/components/ui/dropdown-menu";
   import * as Sidebar from "@repo/components/ui/sidebar";
@@ -15,7 +14,6 @@
     organizations: {
       id: string;
       name: string;
-      logo?: string | null;
     }[];
     activeOrganizationId?: string;
   } = $props();
@@ -63,23 +61,9 @@
         {@const activeOrganization = organizations.find(
           (organization) => organization.id === activeOrganizationId,
         )!}
-        <span class="flex min-w-0 items-center gap-2">
-          <Avatar.Root size="xs" class="-translate-x-px after:rounded-xs">
-            <Avatar.Image
-              class="rounded-xs!"
-              src={activeOrganization.logo ?? undefined}
-              alt={activeOrganization.name}
-            />
-            <Avatar.Fallback
-              class="rounded-xs! text-[0.7rem]"
-              id={activeOrganization.id}
-              name={activeOrganization.name}
-            />
-          </Avatar.Root>
-          <span class="min-w-0 text-left">
-            <span class="block truncate text-sm font-medium">
-              {activeOrganization.name}
-            </span>
+        <span class="min-w-0 text-left">
+          <span class="block truncate text-sm font-medium">
+            {activeOrganization.name}
           </span>
         </span>
 
@@ -98,21 +82,7 @@
             disabled={loading}
             onSelect={() => selectOrganization(organization.id)}
           >
-            <span class="flex flex-1 gap-2">
-              <Avatar.Root size="xs" class="after:rounded-xs">
-                <Avatar.Image
-                  class="rounded-xs!"
-                  src={organization.logo ?? undefined}
-                  alt={organization.name}
-                />
-                <Avatar.Fallback
-                  class="rounded-xs! text-[0.7rem]"
-                  id={organization.id}
-                  name={organization.name}
-                />
-              </Avatar.Root>
-              {organization.name}
-            </span>
+            <span class="flex-1 truncate">{organization.name}</span>
             {#if organization.id == activeOrganizationId}
               <IconCheck />
             {/if}

@@ -1,6 +1,11 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { cn } from "@repo/components";
+  import {
+    Avatar,
+    AvatarFallback,
+    AvatarImage,
+  } from "@repo/components/ui/avatar";
   import { Button, buttonVariants } from "@repo/components/ui/button";
   import { Input } from "@repo/components/ui/input";
   import * as Popover from "@repo/components/ui/popover";
@@ -19,6 +24,7 @@
     apps: {
       id: string;
       name: string;
+      logo: string | null;
     }[];
     currentAppId: string;
   } = $props();
@@ -31,6 +37,18 @@
     class={buttonVariants({ variant: "ghost", class: "max-w-full" })}
   >
     {@const activeApp = apps.find((app) => app.id === currentAppId)!}
+    <Avatar size="xs" class="after:rounded-xs">
+      <AvatarImage
+        src={activeApp.logo ?? undefined}
+        alt={activeApp.name}
+        class="rounded-xs object-cover"
+      />
+      <AvatarFallback
+        id={activeApp.id}
+        name={activeApp.name}
+        class="rounded-xs text-[0.7rem]"
+      />
+    </Avatar>
     <span class="truncate">{activeApp.name}</span>
     <IconSelector class="shrink-0" />
   </Popover.Trigger>
@@ -64,7 +82,7 @@
     <div class="flex max-h-52 flex-col gap-1 overflow-y-auto p-1">
       {#each apps.filter((app) => app.name
           .toLowerCase()
-          .includes(search.toLowerCase())) as app}
+          .includes(search.toLowerCase())) as app (app.id)}
         {@const selected = app.id === currentAppId}
         <a
           href={`/a/${app.id}/${page.url.pathname.split("/")[3] ?? ""}`}
@@ -74,6 +92,18 @@
             selected && "bg-muted/80",
           )}
         >
+          <Avatar size="xs" class="after:rounded-xs">
+            <AvatarImage
+              src={app.logo ?? undefined}
+              alt={app.name}
+              class="rounded-xs object-cover"
+            />
+            <AvatarFallback
+              id={app.id}
+              name={app.name}
+              class="rounded-xs text-[0.7rem]"
+            />
+          </Avatar>
           <span class="min-w-0 flex-1 truncate text-foreground">{app.name}</span
           >
           {#if selected}

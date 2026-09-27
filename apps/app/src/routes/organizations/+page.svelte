@@ -1,9 +1,5 @@
 <script lang="ts">
-  import {
-    Avatar,
-    AvatarFallback,
-    AvatarImage,
-  } from "@repo/components/ui/avatar";
+  import { Avatar, AvatarFallback } from "@repo/components/ui/avatar";
   import { Button } from "@repo/components/ui/button";
   import {
     Card,
@@ -72,7 +68,7 @@
           <CardDescription>Pick one to continue into Orvo.</CardDescription>
         </CardHeader>
         <CardContent class="max-h-80 space-y-3 overflow-y-auto p-3">
-          {#each data.organizations as organization}
+          {#each data.organizations as organization (organization.id)}
             <Button
               id={`organization-option-${organization.id}`}
               type="button"
@@ -82,11 +78,6 @@
               onclick={() => handleSelectOrganization(organization.id)}
             >
               <Avatar class="size-10 rounded-lg">
-                <AvatarImage
-                  src={organization.logo ?? undefined}
-                  alt={organization.name}
-                  class="rounded-lg"
-                />
                 <AvatarFallback class="rounded-lg">
                   {getInitials(organization.name)}
                 </AvatarFallback>

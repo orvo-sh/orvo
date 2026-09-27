@@ -25,7 +25,6 @@
     organizations: {
       id: string;
       name: string;
-      logo?: string | null;
     }[];
     activeOrganizationId?: string;
     user: {

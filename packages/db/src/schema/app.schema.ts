@@ -12,6 +12,7 @@ const app = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
+    logo: text('logo'),
     createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
     updatedBy: text('updated_by').references(() => user.id, { onDelete: 'set null' }),
     logsFirstReceivedAt: timestamp('logs_first_received_at'),
