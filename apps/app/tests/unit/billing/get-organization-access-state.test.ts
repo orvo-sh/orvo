@@ -2,6 +2,35 @@ import { createGetOrganizationAccessState } from "$lib/server/services/billing/m
 import { describe, expect, test, vi } from "vitest";
 
 describe("createGetOrganizationAccessState", () => {
+  test("keeps billing recovery available when Stripe reconciliation fails", async () => {
+    const staleSubscription = {
+      status: "trialing",
+      trialEnd: new Date(0),
+      updatedAt: new Date(0),
+    };
+    const getAccess = createGetOrganizationAccessState({
+      db: {
+        query: {
+          organization: {
+            findFirst: vi.fn().mockResolvedValue({ billingStatus: "trialing" }),
+          },
+        },
+      } as never,
+      logger: { error: vi.fn() } as never,
+      getCurrentSubscription: vi.fn().mockResolvedValue(staleSubscription),
+      reconcileSubscriptions: vi
+        .fn()
+        .mockRejectedValue(new Error("Ownership mismatch")),
+    });
+    expect(await getAccess({ organizationId: "org_cartlane" })).toMatchObject({
+      success: true,
+      data: {
+        hasAccess: false,
+        trialExpired: true,
+        subscription: staleSubscription,
+      },
+    });
+  });
   test("refreshes an expired local trial before denying an active Stripe subscription", async () => {
     const reconcileSubscriptions = vi.fn().mockResolvedValue(undefined);
     const getCurrentSubscription = vi

@@ -39,7 +39,13 @@ const createGetOrganizationAccessState =
         (!currentSubscription.updatedAt ||
           currentSubscription.updatedAt.getTime() < Date.now() - 5 * 60_000)
       ) {
-        await reconcileSubscriptions(context);
+        try {
+          await reconcileSubscriptions(context);
+        } catch (error) {
+          // Reconciliation logs the cause. Preserve recovery routes using the
+          // last known state without granting access to an unverified plan.
+          recordError(error);
+        }
         [currentOrganization, currentSubscription] = await Promise.all([
           db.query.organization.findFirst({
             where: eq(organization.id, context.organizationId),
