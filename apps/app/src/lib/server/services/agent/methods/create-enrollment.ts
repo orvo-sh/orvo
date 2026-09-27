@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { createAgentEnrollmentInputSchema } from "../schema";
 
-const agentVersion = "0.1.1";
+const agentVersion = "0.1.2";
 
 const createCreateEnrollment =
   ({ db, logger }: { db: DB; logger: Logger }) =>

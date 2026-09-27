@@ -95,7 +95,8 @@ fi
 
 chown -R orvo-agent:orvo-agent "$STATE_ROOT"
 systemctl daemon-reload
-systemctl enable --now "$SERVICE_NAME.service"
+systemctl enable "$SERVICE_NAME.service"
+systemctl restart "$SERVICE_NAME.service"
 
 for attempt in 1 2 3 4 5 6 7 8 9 10; do
   if curl -fsS http://127.0.0.1:13133/ >/dev/null 2>&1; then

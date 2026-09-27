@@ -5,6 +5,13 @@ versioning while the project is pre-1.0.
 
 ## Unreleased
 
+## 0.1.2 - 2026-09-27
+
+### Fixed
+
+- Restart an existing agent service after enrollment so upgrades load the new
+  binary and ingestion credentials immediately.
+
 ## 0.1.1 - 2026-08-20
 
 ### Changed
