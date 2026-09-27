@@ -39,6 +39,7 @@ FROM base AS runner
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
+ENV BODY_SIZE_LIMIT=100M
 
 COPY --from=build /out/app /app
 
