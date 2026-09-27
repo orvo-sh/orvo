@@ -8,7 +8,7 @@ import type { AppService } from "$lib/server/services/app";
 import { updateAppInputSchema } from "$lib/server/services/app";
 import type { HeartbeatService } from "$lib/server/services/heartbeat";
 import {
-  createHeartbeatMonitorInputSchema,
+  createHeartbeatMonitorsInputSchema,
   updateHeartbeatMonitorInputSchema,
 } from "$lib/server/services/heartbeat";
 import type { IncidentService } from "$lib/server/services/incident";
@@ -377,14 +377,15 @@ const createChatTools = (
         ),
     }),
     create_heartbeat_monitor: tool({
-      description: "Create a heartbeat monitor for the current app.",
-      inputSchema: createHeartbeatMonitorInputSchema.extend({
+      description:
+        "Create one or more heartbeat monitors for the current app in one atomic bulk action. Always include every requested monitor in the monitors array instead of calling this tool repeatedly.",
+      inputSchema: createHeartbeatMonitorsInputSchema.extend({
         intent: intentSchema,
       }),
       execute: async (input) =>
         toolResult(
           "create_heartbeat_monitor",
-          await dependencies.heartbeatService.createHeartbeatMonitor(
+          await dependencies.heartbeatService.createHeartbeatMonitors(
             input,
             context,
           ),

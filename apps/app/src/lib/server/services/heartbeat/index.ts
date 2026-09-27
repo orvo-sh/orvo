@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import type { IncidentService } from "../incident";
 import { createCreateHeartbeatMonitor } from "./methods/create-heartbeat-monitor";
+import { createCreateHeartbeatMonitors } from "./methods/create-heartbeat-monitors";
 import { createDeleteHeartbeatMonitor } from "./methods/delete-heartbeat-monitor";
 import { createEvaluateDueMonitors } from "./methods/evaluate-due-monitors";
 import { createGetHeartbeatCheckInHistory } from "./methods/get-heartbeat-check-in-history";
@@ -18,6 +19,7 @@ import { createToggleHeartbeatMonitorPaused } from "./methods/toggle-heartbeat-m
 import { createUpdateHeartbeatMonitor } from "./methods/update-heartbeat-monitor";
 import {
   createHeartbeatMonitorInputSchema,
+  createHeartbeatMonitorsInputSchema,
   deleteHeartbeatMonitorInputSchema,
   getHeartbeatMonitorInputSchema,
   recordHeartbeatCheckInBySecretInputSchema,
@@ -38,12 +40,17 @@ class HeartbeatService {
   private listHeartbeatMonitorsMethod: ReturnType<
     typeof createListHeartbeatMonitors
   >;
-  private getHeartbeatMonitorMethod: ReturnType<typeof createGetHeartbeatMonitor>;
+  private getHeartbeatMonitorMethod: ReturnType<
+    typeof createGetHeartbeatMonitor
+  >;
   private getHeartbeatCheckInHistoryMethod: ReturnType<
     typeof createGetHeartbeatCheckInHistory
   >;
   private createHeartbeatMonitorMethod: ReturnType<
     typeof createCreateHeartbeatMonitor
+  >;
+  private createHeartbeatMonitorsMethod: ReturnType<
+    typeof createCreateHeartbeatMonitors
   >;
   private updateHeartbeatMonitorMethod: ReturnType<
     typeof createUpdateHeartbeatMonitor
@@ -63,7 +70,9 @@ class HeartbeatService {
   private recordHeartbeatCheckInBySecretMethod: ReturnType<
     typeof createRecordHeartbeatCheckInBySecret
   >;
-  private evaluateDueMonitorsMethod: ReturnType<typeof createEvaluateDueMonitors>;
+  private evaluateDueMonitorsMethod: ReturnType<
+    typeof createEvaluateDueMonitors
+  >;
 
   constructor(
     db: DB,
@@ -101,6 +110,12 @@ class HeartbeatService {
       logger: this.logger,
     });
     this.createHeartbeatMonitorMethod = createCreateHeartbeatMonitor({
+      db,
+      logger: this.logger,
+      loadDestinations,
+      config,
+    });
+    this.createHeartbeatMonitorsMethod = createCreateHeartbeatMonitors({
       db,
       logger: this.logger,
       loadDestinations,
@@ -172,6 +187,13 @@ class HeartbeatService {
     context: { appId: string; userId: string },
   ) {
     return this.createHeartbeatMonitorMethod(input, context);
+  }
+
+  async createHeartbeatMonitors(
+    input: z.input<typeof createHeartbeatMonitorsInputSchema>,
+    context: { appId: string; userId: string },
+  ) {
+    return this.createHeartbeatMonitorsMethod(input, context);
   }
 
   async updateHeartbeatMonitor(

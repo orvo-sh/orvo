@@ -483,6 +483,16 @@ const compactMessagesForModel = (messages: UIMessage[]) => {
           });
           continue;
         }
+        if (
+          "state" in part &&
+          (part.state === "approval-requested" ||
+            part.state === "approval-responded")
+        ) {
+          // Approval signatures cover the exact tool input, so keep the
+          // server-authoritative part intact until the tool is executed.
+          parts.push(part);
+          continue;
+        }
         if (!("output" in part)) continue;
         const toolName =
           "toolName" in part && typeof part.toolName === "string"

@@ -150,6 +150,60 @@ describe("chat tool result compaction", () => {
     expect(serialized.length).toBeLessThan(2_000);
   });
 
+  it("preserves signed approval responses for tool execution", async () => {
+    const messages = compactMessagesForModel([
+      {
+        id: "assistant-approval",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            toolName: "create_heartbeat_monitor",
+            toolCallId: "call-1",
+            state: "approval-responded",
+            input: {
+              intent: "Create five heartbeat monitors",
+              monitors: [
+                {
+                  name: "Worker one",
+                  expectedEverySeconds: 300,
+                  graceSeconds: 60,
+                  destinationIds: [],
+                },
+              ],
+            },
+            approval: {
+              id: "approval-1",
+              signature: "signed-input",
+              approved: true,
+            },
+          },
+        ],
+      },
+    ]);
+
+    expect(messages[0]?.parts[0]).toEqual(
+      expect.objectContaining({
+        state: "approval-responded",
+        approval: {
+          id: "approval-1",
+          signature: "signed-input",
+          approved: true,
+        },
+      }),
+    );
+    expect(await convertToModelMessages(messages)).toContainEqual({
+      role: "assistant",
+      content: expect.arrayContaining([
+        expect.objectContaining({
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "create_heartbeat_monitor",
+        }),
+      ]),
+    });
+  });
+
   it("bounds history while preserving required OpenAI reasoning references", async () => {
     const messages = compactMessagesForModel([
       ...Array.from({ length: 45 }, (_, index) => ({

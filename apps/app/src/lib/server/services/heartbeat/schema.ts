@@ -10,6 +10,10 @@ const createHeartbeatMonitorInputSchema = z.object({
   destinationIds: z.array(heartbeatIdSchema).max(20).default([]),
 });
 
+const createHeartbeatMonitorsInputSchema = z.object({
+  monitors: z.array(createHeartbeatMonitorInputSchema).min(1).max(20),
+});
+
 const updateHeartbeatMonitorInputSchema =
   createHeartbeatMonitorInputSchema.extend({
     id: heartbeatIdSchema,
@@ -26,6 +30,7 @@ const recordHeartbeatCheckInBySecretInputSchema = z.object({
 
 export {
   createHeartbeatMonitorInputSchema,
+  createHeartbeatMonitorsInputSchema,
   deleteHeartbeatMonitorInputSchema,
   getHeartbeatMonitorInputSchema,
   heartbeatIdSchema,
