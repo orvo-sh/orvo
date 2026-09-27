@@ -89,15 +89,19 @@
     if (!slackIntegration?.slackBotUserId) return;
 
     loadingSlackChannels = true;
-    const result = await getSlackChannelsQuery({});
-    loadingSlackChannels = false;
+    try {
+      const result = await getSlackChannelsQuery({}).run();
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
 
-    if (!result.success) {
-      toast.error(result.error);
-      return;
+      slackChannels = result.data.channels;
+    } catch {
+      toast.error("Failed to load Slack channels.");
+    } finally {
+      loadingSlackChannels = false;
     }
-
-    slackChannels = result.data.channels;
   };
 
   const updateSlackChannel = async (channelId: string) => {
