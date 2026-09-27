@@ -26,8 +26,6 @@ type ReserveSignalUsageInput struct {
 }
 
 func (service *service) ReserveSignalUsage(ctx context.Context, input ReserveSignalUsageInput) apperr.Error {
-	service.logger.InfoContext(ctx, "ReserveSignalUsage: reserving usage", slog.Any("input", input))
-
 	tx, err := service.postgres.Pool().BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		service.logger.ErrorContext(ctx, "ReserveSignalUsage: failed to begin transaction", slog.Any("error", err))

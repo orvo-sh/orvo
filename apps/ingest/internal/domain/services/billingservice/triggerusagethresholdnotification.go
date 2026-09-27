@@ -19,8 +19,6 @@ type triggerUsageThresholdNotificationInput struct {
 }
 
 func (service *service) triggerUsageThresholdNotification(ctx context.Context, input triggerUsageThresholdNotificationInput, txq *pgdb.Queries) apperr.Error {
-	service.logger.InfoContext(ctx, "triggerUsageThresholdNotification: triggering usage threshold notification", slog.Any("input", input))
-
 	payload, err := json.Marshal(map[string]any{
 		"organizationId": input.OrganizationID,
 		"threshold":      input.Threshold,
@@ -30,7 +28,7 @@ func (service *service) triggerUsageThresholdNotification(ctx context.Context, i
 		return errs.ErrInternal
 	}
 
-	jobID, err := txq.InsertPgBossJob(ctx, pgdb.InsertPgBossJobParams{
+	_, err = txq.InsertPgBossJob(ctx, pgdb.InsertPgBossJobParams{
 		Name: usageThresholdNotificationsQueue,
 		Data: payload,
 	})
@@ -45,11 +43,6 @@ func (service *service) triggerUsageThresholdNotification(ctx context.Context, i
 		service.logger.ErrorContext(ctx, "triggerUsageThresholdNotification: failed to insert pg-boss job", slog.Any("error", err))
 		return errs.ErrInternal
 	}
-
-	service.logger.InfoContext(ctx, "triggerUsageThresholdNotification: enqueued pg-boss job",
-		slog.String("queue", usageThresholdNotificationsQueue),
-		slog.String("job_id", jobID),
-	)
 
 	return nil
 }

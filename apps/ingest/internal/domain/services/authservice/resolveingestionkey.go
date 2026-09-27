@@ -9,12 +9,9 @@ import (
 	"github.com/orvo-sh/orvo/apps/ingest/internal/domain/models"
 	"github.com/orvo-sh/orvo/apps/ingest/pkg/apperr"
 	"github.com/orvo-sh/orvo/apps/ingest/pkg/pgutil"
-	"github.com/orvo-sh/orvo/apps/ingest/pkg/util"
 )
 
 func (service *service) ResolveIngestionKey(ctx context.Context, rawKey string) (*models.ResolvedIngestionKey, apperr.Error) {
-	service.logger.InfoContext(ctx, "ResolveIngestionKey: resolving ingestion key", slog.String("ingestion_key", util.Redact(rawKey, 4, util.RedactDirectionEnd)))
-
 	service.mu.RLock()
 	if entry, ok := service.cache[rawKey]; ok && time.Now().Before(entry.expiresAt) {
 		service.mu.RUnlock()

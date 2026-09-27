@@ -2,7 +2,6 @@ package ingestservice
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/orvo-sh/orvo/apps/ingest/internal/domain/errs"
 	"github.com/orvo-sh/orvo/apps/ingest/internal/domain/models"
@@ -11,12 +10,6 @@ import (
 )
 
 func (service *service) IngestMetrics(ctx context.Context, input IngestMetricsInput) apperr.Error {
-	service.logger.InfoContext(ctx, "IngestMetrics: ingesting metrics",
-		slog.String("app_id", input.ResolvedIngestionKey.AppID),
-		slog.String("ingestion_key_id", input.ResolvedIngestionKey.IngestionKeyID),
-		slog.Int("resource_metrics_count", len(input.ResourceMetrics)),
-	)
-
 	points := service.transformMetrics(input.ResourceMetrics)
 	if len(points) == 0 {
 		return nil

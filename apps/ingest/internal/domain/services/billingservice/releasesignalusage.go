@@ -19,8 +19,6 @@ type ReleaseSignalUsageInput struct {
 }
 
 func (service *service) ReleaseSignalUsage(ctx context.Context, input ReleaseSignalUsageInput) apperr.Error {
-	service.logger.InfoContext(ctx, "ReleaseSignalUsage: releasing usage", slog.Any("input", input))
-
 	tx, err := service.postgres.Pool().BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		service.logger.ErrorContext(ctx, "ReleaseSignalUsage: failed to begin transaction", slog.Any("error", err))

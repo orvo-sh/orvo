@@ -20,8 +20,6 @@ import (
 )
 
 func (service *service) IngestHeartbeatCheckIn(ctx context.Context, token string) (time.Time, apperr.Error) {
-	service.logger.InfoContext(ctx, "IngestHeartbeatCheckIn: ingesting heartbeat check-in")
-
 	tx, err := service.postgres.Pool().BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		service.logger.ErrorContext(ctx, "IngestHeartbeatCheckIn: failed to begin transaction", "error", err)
