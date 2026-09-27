@@ -89,7 +89,9 @@
           <p class="text-sm font-medium">{data.integration.slackTeamName}</p>
         </div>
         <div class="space-y-1">
-          <p class="text-xs font-medium text-muted-foreground">Channel</p>
+          <p class="text-xs font-medium text-muted-foreground">
+            Notification channel
+          </p>
           <p class="text-sm font-medium">
             #{data.integration.slackChannelName}
           </p>
@@ -108,14 +110,19 @@
     </Card.Root>
 
     <p class="text-sm text-muted-foreground">
-      Mention <strong>@Orvo</strong> in #{data.integration.slackChannelName} to start
-      a Scout conversation. Each Slack thread becomes a persistent Scout chat.
+      Message Orvo directly, or invite it to a channel and mention
+      <strong>@Orvo</strong> once to start a Scout conversation. Replies in that
+      thread continue the same chat without another mention. Incident
+      notifications are sent to #{data.integration.slackChannelName}.
     </p>
     <Card.Root class="gap-2 p-5">
       <Card.Title class="text-sm">Slack Events API request URL</Card.Title>
       <Card.Description>
         Configure this URL under your Slack app's Event Subscriptions and
-        subscribe to <code>app_mention</code>.
+        subscribe to <code>app_mention</code>, <code>message.channels</code>,
+        <code>message.groups</code>, and <code>message.im</code>. Enable the
+        Agent experience and Messages tab under App Home for native sessions and
+        DMs.
       </Card.Description>
       <code
         class="mt-2 overflow-x-auto rounded-md border bg-muted px-3 py-2 text-xs"
@@ -135,8 +142,8 @@
         </Card.Title>
         <Card.Description>
           {data.integration
-            ? "Reconnect to grant the bot permissions Scout needs for mentions, streaming responses, and approvals."
-            : "Choose the workspace and channel where Scout should answer questions and Orvo should post notifications."}
+            ? "Reconnect to grant the bot permissions Scout needs for DMs, thread replies, streaming responses, and approvals."
+            : "Install Scout in your workspace and choose the default channel for incident notifications. You can then message it directly or invite it to other channels."}
         </Card.Description>
       </div>
       <Button

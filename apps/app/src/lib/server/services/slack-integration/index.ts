@@ -88,6 +88,7 @@ class SlackIntegrationService {
         chatService,
         origin: config.origin,
         createLinkUrl: this.createLinkUrlMethod,
+        logger: childLogger,
       }),
       childLogger,
     );

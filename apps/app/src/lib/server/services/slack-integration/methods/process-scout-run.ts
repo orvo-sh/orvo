@@ -19,8 +19,9 @@ import { and, asc, desc, eq, gt } from "drizzle-orm";
 import { slackEventCallbackSchema } from "../schema";
 import {
   appendSlackStream,
-  postSlackEphemeral,
   postSlackMessage,
+  setSlackAgentStatus,
+  setSlackAssistantStatus,
   startSlackStream,
   stopSlackStream,
   toSlackMarkdown,
@@ -61,6 +62,7 @@ const createProcessScoutRun = ({
   chatService,
   origin,
   createLinkUrl,
+  logger,
 }: {
   db: DB;
   encryption: Encryption;
@@ -75,7 +77,40 @@ const createProcessScoutRun = ({
   }) => Promise<
     { success: true; data: { url: string } } | { success: false; error: string }
   >;
+  logger: Logger;
 }) => {
+  const updateAgentStatus = async (
+    token: string,
+    input: {
+      channelId: string;
+      threadTs: string;
+      status: "processing" | "active" | "suspended" | "closed";
+      title?: string;
+    },
+  ) => {
+    try {
+      await setSlackAgentStatus(token, input);
+      return;
+    } catch {
+      try {
+        await setSlackAssistantStatus(token, {
+          channelId: input.channelId,
+          threadTs: input.threadTs,
+          status:
+            input.status === "processing"
+              ? "is working on your request..."
+              : "",
+        });
+        return;
+      } catch (error) {
+        logger.warn("processScoutRun: Slack agent status unavailable", {
+          status: input.status,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  };
+
   const streamToSlack = async (input: {
     response: Response;
     token: string;
@@ -271,44 +306,58 @@ const createProcessScoutRun = ({
       if (!currentMember || !destination.slackBotTokenEncrypted) {
         throw new Error("Slack user is no longer authorized.");
       }
-      const response = await chatService.streamChat(
-        {
-          id: currentChat.id,
-          message: {
-            id: storedMessage.id,
-            role: "assistant",
-            parts: storedMessage.parts.map((part) =>
-              "toolCallId" in part && part.toolCallId === action.toolCallId
-                ? {
-                    ...part,
-                    state: "approval-responded",
-                    approval: {
-                      id: action.approvalId,
-                      signature: action.signature,
-                      approved: job.approved === true,
-                    },
-                  }
-                : part,
-            ),
-          },
-        },
-        {
-          organizationId: currentChat.organizationId,
-          appId: currentChat.appId,
-          userId: link.userId,
-          surface: "slack",
-        },
-      );
-      await streamToSlack({
-        response,
-        token: encryption.decrypt(destination.slackBotTokenEncrypted),
-        teamId: job.teamId,
-        slackUserId: job.slackUserId,
+      const token = encryption.decrypt(destination.slackBotTokenEncrypted);
+      await updateAgentStatus(token, {
         channelId: action.channelId,
         threadTs: action.threadTs,
-        chatId: currentChat.id,
-        appId: currentChat.appId,
+        status: "processing",
       });
+      try {
+        const response = await chatService.streamChat(
+          {
+            id: currentChat.id,
+            message: {
+              id: storedMessage.id,
+              role: "assistant",
+              parts: storedMessage.parts.map((part) =>
+                "toolCallId" in part && part.toolCallId === action.toolCallId
+                  ? {
+                      ...part,
+                      state: "approval-responded",
+                      approval: {
+                        id: action.approvalId,
+                        signature: action.signature,
+                        approved: job.approved === true,
+                      },
+                    }
+                  : part,
+              ),
+            },
+          },
+          {
+            organizationId: currentChat.organizationId,
+            appId: currentChat.appId,
+            userId: link.userId,
+            surface: "slack",
+          },
+        );
+        await streamToSlack({
+          response,
+          token,
+          teamId: job.teamId,
+          slackUserId: job.slackUserId,
+          channelId: action.channelId,
+          threadTs: action.threadTs,
+          chatId: currentChat.id,
+          appId: currentChat.appId,
+        });
+      } finally {
+        await updateAgentStatus(token, {
+          channelId: action.channelId,
+          threadTs: action.threadTs,
+          status: "active",
+        });
+      }
       return;
     }
 
@@ -332,7 +381,6 @@ const createProcessScoutRun = ({
           eq(notificationDestination.kind, "slack"),
           eq(notificationDestination.isEnabled, true),
           eq(notificationDestination.slackTeamId, parsed.data.team_id),
-          eq(notificationDestination.slackChannelId, event.channel),
         ),
       );
     const available = destinations.filter(
@@ -387,11 +435,8 @@ const createProcessScoutRun = ({
         eventId: storedEvent.id,
       });
       if (!linkResult.success) throw new Error(linkResult.error);
-      await postSlackEphemeral(token, {
-        channel: event.channel,
-        user: event.user,
-        threadTs,
-        text: "Connect your Orvo account before using Scout.",
+      const linkMessage = {
+        text: `Connect your Orvo account before using Scout: ${linkResult.data.url}`,
         blocks: [
           {
             type: "section",
@@ -413,7 +458,18 @@ const createProcessScoutRun = ({
             ],
           },
         ],
+      };
+      await postSlackMessage(token, {
+        channel: event.channel.startsWith("D") ? event.channel : event.user,
+        ...linkMessage,
       });
+      if (!event.channel.startsWith("D")) {
+        await postSlackMessage(token, {
+          channel: event.channel,
+          threadTs,
+          text: `<@${event.user}> I sent you a private message to connect your Orvo account.`,
+        });
+      }
       await db
         .update(slackEvent)
         .set({ processedAt: new Date() })
@@ -510,32 +566,46 @@ const createProcessScoutRun = ({
           ),
         );
     }
-    const response = await chatService.streamChat(
-      {
-        id: thread.chatId,
-        message: {
-          id: messageId,
-          role: "user",
-          parts: [{ type: "text", text: prompt }],
-        },
-      },
-      {
-        organizationId: primary.organizationId,
-        appId: primary.destination.appId,
-        userId: link.userId,
-        surface: "slack",
-      },
-    );
-    await streamToSlack({
-      response,
-      token,
-      teamId: parsed.data.team_id,
-      slackUserId: event.user,
+    await updateAgentStatus(token, {
       channelId: event.channel,
       threadTs,
-      chatId: thread.chatId,
-      appId: primary.destination.appId,
+      status: "processing",
+      title: "Scout investigation",
     });
+    try {
+      const response = await chatService.streamChat(
+        {
+          id: thread.chatId,
+          message: {
+            id: messageId,
+            role: "user",
+            parts: [{ type: "text", text: prompt }],
+          },
+        },
+        {
+          organizationId: primary.organizationId,
+          appId: primary.destination.appId,
+          userId: link.userId,
+          surface: "slack",
+        },
+      );
+      await streamToSlack({
+        response,
+        token,
+        teamId: parsed.data.team_id,
+        slackUserId: event.user,
+        channelId: event.channel,
+        threadTs,
+        chatId: thread.chatId,
+        appId: primary.destination.appId,
+      });
+    } finally {
+      await updateAgentStatus(token, {
+        channelId: event.channel,
+        threadTs,
+        status: "active",
+      });
+    }
     await db
       .update(slackEvent)
       .set({ processedAt: new Date() })

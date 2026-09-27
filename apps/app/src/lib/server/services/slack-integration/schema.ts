@@ -42,20 +42,26 @@ const slackOauthResponseSchema = z.object({
   }),
 });
 
+const slackMessageEventSchema = z.object({
+  type: z.literal("message"),
+  user: z.string().trim().min(1),
+  text: z.string().default(""),
+  channel: z.string().trim().min(1),
+  channel_type: z.string().optional(),
+  ts: z.string().trim().min(1),
+  thread_ts: z.string().trim().min(1).optional(),
+  bot_id: z.string().optional(),
+  subtype: z.string().optional(),
+});
+
 const slackEventCallbackSchema = z.object({
   type: z.literal("event_callback"),
   event_id: z.string().trim().min(1),
   team_id: z.string().trim().min(1),
-  event: z.object({
-    type: z.literal("app_mention"),
-    user: z.string().trim().min(1),
-    text: z.string().default(""),
-    channel: z.string().trim().min(1),
-    ts: z.string().trim().min(1),
-    thread_ts: z.string().trim().min(1).optional(),
-    bot_id: z.string().optional(),
-    subtype: z.string().optional(),
-  }),
+  event: z.union([
+    slackMessageEventSchema.extend({ type: z.literal("app_mention") }),
+    slackMessageEventSchema,
+  ]),
 });
 
 const slackScoutActionValueSchema = z.object({

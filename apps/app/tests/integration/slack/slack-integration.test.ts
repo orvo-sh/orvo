@@ -10,11 +10,13 @@ import {
 import { hashSlackOauthState } from "$lib/server/services/slack-integration/shared";
 import { type DB } from "@repo/db";
 import {
+  chat,
   member,
   notificationDestination,
   slackOauthState,
   slackEvent,
   slackLinkState,
+  slackScoutThread,
   slackUserLink,
   user,
 } from "@repo/db/schema";
@@ -56,8 +58,10 @@ describe("Slack integration", () => {
       "slack_oauth_state",
       "slack_event",
       "slack_link_state",
+      "slack_scout_thread",
       "slack_user_link",
       "notification_destination",
+      "chat",
       "app",
       "member",
       '"user"',
@@ -209,6 +213,87 @@ describe("Slack integration", () => {
       data: { queued: true, eventId: "Ev123" },
     });
     expect(await db.select().from(slackEvent)).toHaveLength(1);
+  });
+
+  test("queues direct messages and replies in an existing Scout thread", async () => {
+    const ingestEvent = createIngestEvent({
+      db,
+      logger: createTestLogger() as never,
+    });
+
+    expect(
+      await ingestEvent({
+        type: "event_callback",
+        event_id: "EvDm",
+        team_id: "T123",
+        event: {
+          type: "message",
+          user: "U123",
+          text: "What happened to checkout?",
+          channel: "D123",
+          channel_type: "im",
+          ts: "124.001",
+        },
+      }),
+    ).toMatchObject({
+      success: true,
+      data: { queued: true, eventId: "EvDm" },
+    });
+
+    await db.insert(chat).values({
+      id: "chat_slack",
+      organizationId: "org_slack",
+      appId: "app_slack",
+      createdBy: "user_slack",
+    });
+    await db.insert(slackScoutThread).values({
+      id: "slst_1",
+      teamId: "T123",
+      channelId: "C123",
+      threadTs: "123.456",
+      chatId: "chat_slack",
+      appId: "app_slack",
+    });
+
+    expect(
+      await ingestEvent({
+        type: "event_callback",
+        event_id: "EvReply",
+        team_id: "T123",
+        event: {
+          type: "message",
+          user: "U123",
+          text: "Can you check the database too?",
+          channel: "C123",
+          channel_type: "channel",
+          ts: "124.002",
+          thread_ts: "123.456",
+        },
+      }),
+    ).toMatchObject({
+      success: true,
+      data: { queued: true, eventId: "EvReply" },
+    });
+
+    expect(
+      await ingestEvent({
+        type: "event_callback",
+        event_id: "EvUnrelated",
+        team_id: "T123",
+        event: {
+          type: "message",
+          user: "U123",
+          text: "Unrelated channel conversation",
+          channel: "C_OTHER",
+          channel_type: "channel",
+          ts: "124.003",
+        },
+      }),
+    ).toMatchObject({
+      success: true,
+      data: { queued: false, eventId: "EvUnrelated" },
+    });
+    expect(await db.select().from(slackEvent)).toHaveLength(2);
   });
 
   test("links a Slack identity only to an organization member", async () => {

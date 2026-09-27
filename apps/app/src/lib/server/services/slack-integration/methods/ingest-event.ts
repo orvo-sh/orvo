@@ -1,8 +1,13 @@
 import { recordError } from "$lib/instrumentation";
 import type { DB } from "@repo/db";
-import { slackEvent } from "@repo/db/schema";
+import {
+  notificationDestination,
+  slackEvent,
+  slackScoutThread,
+} from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
+import { and, eq } from "drizzle-orm";
 
 import { slackEventCallbackSchema } from "../schema";
 
@@ -16,6 +21,47 @@ const createIngestEvent =
     }
 
     try {
+      if (parsed.data.event.type === "message") {
+        const isDirectMessage =
+          parsed.data.event.channel_type === "im" ||
+          parsed.data.event.channel.startsWith("D");
+
+        if (!isDirectMessage) {
+          if (!parsed.data.event.thread_ts) {
+            return ok({ queued: false, eventId: parsed.data.event_id });
+          }
+
+          const [thread, destinations] = await Promise.all([
+            db.query.slackScoutThread.findFirst({
+              columns: { id: true },
+              where: and(
+                eq(slackScoutThread.teamId, parsed.data.team_id),
+                eq(slackScoutThread.channelId, parsed.data.event.channel),
+                eq(slackScoutThread.threadTs, parsed.data.event.thread_ts),
+              ),
+            }),
+            db.query.notificationDestination.findMany({
+              columns: { slackBotUserId: true },
+              where: and(
+                eq(notificationDestination.kind, "slack"),
+                eq(notificationDestination.slackTeamId, parsed.data.team_id),
+              ),
+            }),
+          ]);
+
+          if (
+            !thread ||
+            destinations.some(
+              ({ slackBotUserId }) =>
+                slackBotUserId &&
+                parsed.data.event.text.includes(`<@${slackBotUserId}>`),
+            )
+          ) {
+            return ok({ queued: false, eventId: parsed.data.event_id });
+          }
+        }
+      }
+
       const inserted = await db
         .insert(slackEvent)
         .values({

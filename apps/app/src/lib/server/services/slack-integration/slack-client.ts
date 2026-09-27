@@ -93,6 +93,32 @@ const stopSlackStream = (
   input: { channel: string; ts: string },
 ) => callSlack(token, "chat.stopStream", input);
 
+const setSlackAgentStatus = (
+  token: string,
+  input: {
+    channelId: string;
+    threadTs: string;
+    status: "processing" | "active" | "suspended" | "closed";
+    title?: string;
+  },
+) =>
+  callSlack(token, "agents.sessions.setStatus", {
+    channel_id: input.channelId,
+    thread_ts: input.threadTs,
+    status: input.status,
+    ...(input.title ? { title: input.title } : {}),
+  });
+
+const setSlackAssistantStatus = (
+  token: string,
+  input: { channelId: string; threadTs: string; status: string },
+) =>
+  callSlack(token, "assistant.threads.setStatus", {
+    channel_id: input.channelId,
+    thread_ts: input.threadTs,
+    status: input.status,
+  });
+
 const toSlackMarkdown = (value: string, traceBaseUrl?: string) =>
   value
     .replace(/^#{1,6}\s+(.+)$/gm, "*$1*")
@@ -106,6 +132,8 @@ export {
   appendSlackStream,
   postSlackEphemeral,
   postSlackMessage,
+  setSlackAgentStatus,
+  setSlackAssistantStatus,
   startSlackStream,
   stopSlackStream,
   toSlackMarkdown,
