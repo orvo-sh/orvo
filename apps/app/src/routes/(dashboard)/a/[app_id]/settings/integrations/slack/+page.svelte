@@ -51,10 +51,11 @@
   <section class="space-y-1">
     <div class="flex items-center gap-2">
       <SlackIcon class="size-5" />
-      <h2 class="text-base font-medium">Slack</h2>
+      <h2 class="text-base font-medium">Scout for Slack</h2>
     </div>
     <p class="max-w-xl text-sm text-muted-foreground">
-      Send alert and heartbeat incident notifications to a Slack channel.
+      Investigate telemetry, continue Scout conversations, approve actions, and
+      receive incident notifications in Slack.
     </p>
   </section>
 
@@ -64,15 +65,15 @@
     </p>
   {/if}
 
-  {#if data.integration}
+  {#if data.integration?.slackBotUserId}
     <Card.Root class="gap-0 overflow-hidden p-0">
       <Card.Header
         class="flex-row items-center justify-between border-b px-5 py-4"
       >
         <div>
-          <Card.Title class="text-sm">Slack connection</Card.Title>
+          <Card.Title class="text-sm">Scout for Slack</Card.Title>
           <Card.Description
-            >Notifications are ready for this app.</Card.Description
+            >Scout and notifications are ready for this app.</Card.Description
           >
         </div>
         <Badge
@@ -107,9 +108,20 @@
     </Card.Root>
 
     <p class="text-sm text-muted-foreground">
-      Select this Slack destination when configuring an alert rule or heartbeat
-      monitor.
+      Mention <strong>@Orvo</strong> in #{data.integration.slackChannelName} to start
+      a Scout conversation. Each Slack thread becomes a persistent Scout chat.
     </p>
+    <Card.Root class="gap-2 p-5">
+      <Card.Title class="text-sm">Slack Events API request URL</Card.Title>
+      <Card.Description>
+        Configure this URL under your Slack app's Event Subscriptions and
+        subscribe to <code>app_mention</code>.
+      </Card.Description>
+      <code
+        class="mt-2 overflow-x-auto rounded-md border bg-muted px-3 py-2 text-xs"
+        >{data.requestUrl}</code
+      >
+    </Card.Root>
   {:else}
     <Card.Root class="items-start gap-5 p-5">
       <div
@@ -118,17 +130,20 @@
         <SlackIcon class="size-5" />
       </div>
       <div class="space-y-1">
-        <Card.Title class="text-sm">Connect Slack</Card.Title>
+        <Card.Title class="text-sm">
+          {data.integration ? "Reconnect Slack" : "Connect Scout to Slack"}
+        </Card.Title>
         <Card.Description>
-          Slack will ask you to choose the workspace and channel where Orvo
-          should post.
+          {data.integration
+            ? "Reconnect to grant the bot permissions Scout needs for mentions, streaming responses, and approvals."
+            : "Choose the workspace and channel where Scout should answer questions and Orvo should post notifications."}
         </Card.Description>
       </div>
       <Button
         href={`/api/integrations/slack/connect?app_id=${encodeURIComponent(page.params.app_id!)}`}
       >
         <IconExternalLink data-slot="button-icon" />
-        Connect Slack
+        {data.integration ? "Reconnect Slack" : "Connect Slack"}
       </Button>
     </Card.Root>
   {/if}

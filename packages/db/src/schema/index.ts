@@ -31,6 +31,7 @@ export * from './oauth-refresh-token.schema.js';
 export * from './oauth-resource.schema.js';
 export * from './session.schema.js';
 export * from './slack-oauth-state.schema.js';
+export * from './slack-scout.schema.js';
 export * from './subscription.schema.js';
 export * from './user.schema.js';
 export * from './verification.schema.js';

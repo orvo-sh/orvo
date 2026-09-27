@@ -101,6 +101,7 @@ class ChatService {
       appId: string;
       userId: string;
       abortSignal?: AbortSignal;
+      surface?: "web" | "slack";
     },
   ) {
     return this.streamChatMethod(input, context);

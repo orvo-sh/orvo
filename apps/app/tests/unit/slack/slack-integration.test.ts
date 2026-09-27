@@ -64,6 +64,7 @@ describe("Slack integration helpers", () => {
 
     expect(message.text).toBe("Incident: High error rate");
     expect(JSON.stringify(message)).toContain("incident_resolve");
+    expect(JSON.stringify(message)).toContain("scout_investigate");
     expect(JSON.stringify(message)).toContain("View in Orvo");
     expect(JSON.stringify(message)).not.toContain("must not appear");
   });

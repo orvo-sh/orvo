@@ -51,6 +51,7 @@ const createStreamChat =
       appId: string;
       userId: string;
       abortSignal?: AbortSignal;
+      surface?: "web" | "slack";
     },
   ) => {
     const validated = streamChatInputSchema.safeParse(input);
@@ -63,7 +64,12 @@ const createStreamChat =
     }
 
     try {
-      const ownedChat = await findOwnedChat(db, validated.data.id, context);
+      const ownedChat = await findOwnedChat(
+        db,
+        validated.data.id,
+        context,
+        context.surface === "slack",
+      );
       if (!ownedChat) return new Response("Chat not found.", { status: 404 });
 
       const chatUsage = await chatUsageService.canStart({
@@ -192,7 +198,7 @@ const createStreamChat =
 
       const result = streamText({
         model,
-        system: `You are Orvo's observability assistant. Help engineers investigate telemetry, explain failures, and manage the current app. Be concise, precise, and evidence-led. Use the available tools whenever the answer depends on live app data or the user asks you to take action. Give every tool call a short, sentence-case intent describing what you are looking for or trying to achieve. Never invent telemetry. Clearly distinguish evidence from inference. Write actions require the user's approval; explain the proposed change clearly before requesting it. When referring to a trace returned by a tool, link it as [trace name](orvo://trace/TRACE_ID) so the app can preserve this chat while opening it. Use GitHub-flavored markdown, short headings only when useful, and compact tables for genuine comparisons.${pageContext}`,
+        system: `You are Orvo's observability assistant. Help engineers investigate telemetry, explain failures, and manage the current app. Be concise, precise, and evidence-led. Use the available tools whenever the answer depends on live app data or the user asks you to take action. Give every tool call a short, sentence-case intent describing what you are looking for or trying to achieve. Never invent telemetry. Clearly distinguish evidence from inference. Write actions require the user's approval; explain the proposed change clearly before requesting it. When referring to a trace returned by a tool, link it as [trace name](orvo://trace/TRACE_ID) so the app can preserve this chat while opening it. Use GitHub-flavored markdown, short headings only when useful, and compact tables for genuine comparisons.${context.surface === "slack" ? " You are replying in Slack. Lead with the answer, keep it compact and easy to scan on the go, usually within 3 to 8 short lines. Avoid tables, long preambles, and repeated context. Show at most three primary findings, then link to Orvo for deeper detail when useful." : ""}${pageContext}`,
         messages: await convertToModelMessages(
           compactMessagesForModel(messages),
           { tools },

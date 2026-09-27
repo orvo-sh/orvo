@@ -43,7 +43,10 @@ const createCreateConnectUrl =
 
       const url = new URL("https://slack.com/oauth/v2/authorize");
       url.searchParams.set("client_id", config.clientId);
-      url.searchParams.set("scope", "incoming-webhook");
+      url.searchParams.set(
+        "scope",
+        "incoming-webhook,app_mentions:read,chat:write",
+      );
       url.searchParams.set("redirect_uri", config.redirectUri);
       url.searchParams.set("state", state);
 

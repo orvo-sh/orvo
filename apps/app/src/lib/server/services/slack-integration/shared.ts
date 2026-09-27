@@ -122,6 +122,12 @@ const buildSlackMessage = (
   if (!isResolved && incident?.id) {
     elements.push({
       type: "button",
+      text: { type: "plain_text", text: "Ask Scout" },
+      action_id: "scout_investigate",
+      value: JSON.stringify({ destinationId, incidentId: incident.id }),
+    });
+    elements.push({
+      type: "button",
       text: { type: "plain_text", text: "Resolve" },
       style: "primary",
       action_id: "incident_resolve",

@@ -1,12 +1,21 @@
 import { createUpdateNotificationDestination } from "$lib/server/services/notification-destination/methods/update-notification-destination";
 import { createCompleteOauth } from "$lib/server/services/slack-integration/methods/complete-oauth";
 import { createProcessAction } from "$lib/server/services/slack-integration/methods/process-action";
+import { createIngestEvent } from "$lib/server/services/slack-integration/methods/ingest-event";
+import {
+  createCompleteLink,
+  createCreateLinkUrl,
+  hashLinkState,
+} from "$lib/server/services/slack-integration/methods/link-user";
 import { hashSlackOauthState } from "$lib/server/services/slack-integration/shared";
 import { type DB } from "@repo/db";
 import {
   member,
   notificationDestination,
   slackOauthState,
+  slackEvent,
+  slackLinkState,
+  slackUserLink,
   user,
 } from "@repo/db/schema";
 import { Encryption } from "@repo/encryption";
@@ -45,6 +54,9 @@ describe("Slack integration", () => {
   beforeEach(async () => {
     await truncatePostgresTables(db, [
       "slack_oauth_state",
+      "slack_event",
+      "slack_link_state",
+      "slack_user_link",
       "notification_destination",
       "app",
       "member",
@@ -89,6 +101,9 @@ describe("Slack integration", () => {
       vi.fn().mockResolvedValue(
         Response.json({
           ok: true,
+          access_token: "xoxb-test-token",
+          bot_user_id: "U_BOT",
+          scope: "incoming-webhook,app_mentions:read,chat:write",
           team: { id: "T123", name: "Orvo" },
           incoming_webhook: {
             channel: "#alerts",
@@ -120,6 +135,8 @@ describe("Slack integration", () => {
       appId: "app_slack",
       slackTeamId: "T123",
       slackChannelName: "alerts",
+      slackBotUserId: "U_BOT",
+      slackScopes: ["incoming-webhook", "app_mentions:read", "chat:write"],
     });
     expect(destination?.slackWebhookUrlEncrypted).not.toContain(
       "hooks.slack.com",
@@ -163,6 +180,71 @@ describe("Slack integration", () => {
     expect(
       (await completeOauth({ code: "code", state: "expired-state" })).success,
     ).toBe(false);
+  });
+
+  test("deduplicates Slack mention events before they are queued", async () => {
+    const ingestEvent = createIngestEvent({
+      db,
+      logger: createTestLogger() as never,
+    });
+    const payload = {
+      type: "event_callback",
+      event_id: "Ev123",
+      team_id: "T123",
+      event: {
+        type: "app_mention",
+        user: "U123",
+        text: "<@UBOT> investigate checkout",
+        channel: "C123",
+        ts: "123.456",
+      },
+    };
+
+    expect(await ingestEvent(payload)).toMatchObject({
+      success: true,
+      data: { queued: true, eventId: "Ev123" },
+    });
+    expect(await ingestEvent(payload)).toMatchObject({
+      success: true,
+      data: { queued: true, eventId: "Ev123" },
+    });
+    expect(await db.select().from(slackEvent)).toHaveLength(1);
+  });
+
+  test("links a Slack identity only to an organization member", async () => {
+    const createLinkUrl = createCreateLinkUrl({
+      db,
+      logger: createTestLogger() as never,
+      origin: "https://app.orvo.sh",
+    });
+    const link = await createLinkUrl({
+      teamId: "T123",
+      slackUserId: "U123",
+      organizationId: "org_slack",
+      appId: "app_slack",
+      eventId: "Ev123",
+    });
+    expect(link.success).toBe(true);
+    if (!link.success) return;
+    const token = new URL(link.data.url).searchParams.get("token")!;
+    expect(
+      await db.query.slackLinkState.findFirst({
+        where: ({ stateHash }, { eq }) => eq(stateHash, hashLinkState(token)),
+      }),
+    ).toBeDefined();
+
+    const result = await createCompleteLink({
+      db,
+      logger: createTestLogger() as never,
+    })({ token }, { userId: "user_slack" });
+    expect(result).toMatchObject({
+      success: true,
+      data: { eventId: "Ev123", appId: "app_slack" },
+    });
+    expect(await db.select().from(slackUserLink)).toMatchObject([
+      { teamId: "T123", slackUserId: "U123", userId: "user_slack" },
+    ]);
+    expect(await db.select().from(slackLinkState)).toHaveLength(0);
   });
 
   test("handles a Slack OAuth error without storing a destination", async () => {
@@ -287,5 +369,43 @@ describe("Slack integration", () => {
       await processAction({ ...payload, team: { id: "T_OTHER" } }),
     ).toMatchObject({ success: false });
     expect(resolveIncident).not.toHaveBeenCalled();
+  });
+
+  test("queues an incident investigation in the notification thread", async () => {
+    await db.insert(notificationDestination).values({
+      id: "ntds_slack",
+      appId: "app_slack",
+      name: "Slack · alerts",
+      kind: "slack",
+      slackTeamId: "T123",
+      slackBotUserId: "U_BOT",
+      isEnabled: true,
+    });
+    const result = await createProcessAction({
+      db,
+      logger: createTestLogger() as never,
+      incidentService: { resolveIncident: vi.fn() } as never,
+    })({
+      type: "block_actions",
+      team: { id: "T123" },
+      user: { id: "U123" },
+      channel: { id: "C123" },
+      message: { ts: "123.456" },
+      actions: [
+        {
+          action_id: "scout_investigate",
+          value: JSON.stringify({
+            destinationId: "ntds_slack",
+            incidentId: "inc_1",
+          }),
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      success: true,
+      data: { scoutJob: { kind: "message" } },
+    });
+    expect(await db.select().from(slackEvent)).toHaveLength(1);
   });
 });

@@ -18,6 +18,8 @@ const createGetIntegration =
           slackTeamName: true,
           slackChannelId: true,
           slackChannelName: true,
+          slackBotUserId: true,
+          slackScopes: true,
           createdAt: true,
           updatedAt: true,
         },

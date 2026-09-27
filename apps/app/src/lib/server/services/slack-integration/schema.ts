@@ -14,6 +14,8 @@ const slackInteractionPayloadSchema = z.object({
     name: z.string().optional(),
   }),
   response_url: z.url().optional(),
+  channel: z.object({ id: z.string().trim().min(1) }).optional(),
+  message: z.object({ ts: z.string().trim().min(1) }).optional(),
   actions: z
     .array(
       z.object({
@@ -26,6 +28,9 @@ const slackInteractionPayloadSchema = z.object({
 
 const slackOauthResponseSchema = z.object({
   ok: z.literal(true),
+  access_token: z.string().trim().min(1),
+  scope: z.string().default(""),
+  bot_user_id: z.string().trim().min(1),
   team: z.object({
     id: z.string().trim().min(1),
     name: z.string().trim().min(1),
@@ -37,8 +42,37 @@ const slackOauthResponseSchema = z.object({
   }),
 });
 
+const slackEventCallbackSchema = z.object({
+  type: z.literal("event_callback"),
+  event_id: z.string().trim().min(1),
+  team_id: z.string().trim().min(1),
+  event: z.object({
+    type: z.literal("app_mention"),
+    user: z.string().trim().min(1),
+    text: z.string().default(""),
+    channel: z.string().trim().min(1),
+    ts: z.string().trim().min(1),
+    thread_ts: z.string().trim().min(1).optional(),
+    bot_id: z.string().optional(),
+    subtype: z.string().optional(),
+  }),
+});
+
+const slackScoutActionValueSchema = z.object({
+  chatId: z.string().trim().min(1),
+  messageId: z.string().trim().min(1),
+  toolCallId: z.string().trim().min(1),
+  approvalId: z.string().trim().min(1),
+  signature: z.string().optional(),
+  appId: z.string().trim().min(1),
+  channelId: z.string().trim().min(1),
+  threadTs: z.string().trim().min(1),
+});
+
 export {
   slackActionValueSchema,
   slackInteractionPayloadSchema,
   slackOauthResponseSchema,
+  slackEventCallbackSchema,
+  slackScoutActionValueSchema,
 };

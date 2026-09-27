@@ -32,6 +32,12 @@ const notificationDestination = pgTable(
     slackChannelId: text('slack_channel_id'),
     slackChannelName: text('slack_channel_name'),
     slackWebhookUrlEncrypted: text('slack_webhook_url_encrypted'),
+    slackBotTokenEncrypted: text('slack_bot_token_encrypted'),
+    slackBotUserId: text('slack_bot_user_id'),
+    slackScopes: text('slack_scopes')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
     updatedBy: text('updated_by').references(() => user.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),

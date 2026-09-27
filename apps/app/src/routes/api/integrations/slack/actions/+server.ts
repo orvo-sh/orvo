@@ -1,5 +1,6 @@
 import { env } from "$env/dynamic/private";
 import { verifySlackSignature } from "$lib/server/services/slack-integration/shared";
+import { enqueueSlackScoutRun } from "$lib/server/workers";
 import type { RequestHandler } from "./$types";
 
 export const POST = (async (event) => {
@@ -32,6 +33,30 @@ export const POST = (async (event) => {
       replace_original: false,
       text: result.error,
     });
+  }
+
+  if (result.data.scoutJob) {
+    await enqueueSlackScoutRun(result.data.scoutJob);
+    if (
+      result.data.responseUrl &&
+      result.data.responseUrl.startsWith("https://hooks.slack.com/actions/")
+    ) {
+      await fetch(result.data.responseUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        signal: AbortSignal.timeout(2_000),
+        body: JSON.stringify({
+          replace_original: true,
+          text:
+            result.data.scoutJob.kind === "message"
+              ? ":mag: Scout is investigating in this thread."
+              : result.data.scoutJob.approved
+                ? ":white_check_mark: Approved. Scout is continuing."
+                : "Action cancelled.",
+        }),
+      }).catch(() => undefined);
+    }
+    return new Response(null, { status: 200 });
   }
 
   if (

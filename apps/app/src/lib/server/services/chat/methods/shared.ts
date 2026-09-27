@@ -7,13 +7,14 @@ const findOwnedChat = async (
   db: DB,
   id: string,
   context: { organizationId: string; appId: string; userId: string },
+  allowShared = false,
 ) =>
   db.query.chat.findFirst({
     where: and(
       eq(chat.id, id),
       eq(chat.organizationId, context.organizationId),
       eq(chat.appId, context.appId),
-      eq(chat.createdBy, context.userId),
+      ...(allowShared ? [] : [eq(chat.createdBy, context.userId)]),
     ),
   });
 

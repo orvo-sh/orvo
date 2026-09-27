@@ -1,5 +1,6 @@
 import { Instrument } from "$lib/instrumentation";
 import type { IncidentService } from "$lib/server/services/incident";
+import type { ChatService } from "$lib/server/services/chat";
 import type { NotificationDeliveryService } from "$lib/server/services/notification-delivery";
 import type { DB } from "@repo/db";
 import { notificationDestination } from "@repo/db/schema";
@@ -13,6 +14,12 @@ import { createCreateConnectUrl } from "./methods/create-connect-url";
 import { createDisconnectIntegration } from "./methods/disconnect-integration";
 import { createGetIntegration } from "./methods/get-integration";
 import { createProcessAction } from "./methods/process-action";
+import { createIngestEvent } from "./methods/ingest-event";
+import { createCompleteLink, createCreateLinkUrl } from "./methods/link-user";
+import {
+  createProcessScoutRun,
+  wrapProcessScoutRun,
+} from "./methods/process-scout-run";
 
 @Instrument({ prefix: "slackIntegration" })
 class SlackIntegrationService {
@@ -23,6 +30,10 @@ class SlackIntegrationService {
     typeof createDisconnectIntegration
   >;
   private processActionMethod: ReturnType<typeof createProcessAction>;
+  private ingestEventMethod: ReturnType<typeof createIngestEvent>;
+  private createLinkUrlMethod: ReturnType<typeof createCreateLinkUrl>;
+  private completeLinkMethod: ReturnType<typeof createCompleteLink>;
+  private processScoutRunMethod: ReturnType<typeof createProcessScoutRun>;
 
   constructor(
     private db: DB,
@@ -30,10 +41,12 @@ class SlackIntegrationService {
     encryption: Encryption,
     private notificationDeliveryService: NotificationDeliveryService,
     incidentService: IncidentService,
+    chatService: ChatService,
     config: {
       clientId: string;
       clientSecret: string;
       redirectUri: string;
+      origin: string;
     },
   ) {
     const childLogger = logger.child("SlackIntegrationService");
@@ -61,6 +74,23 @@ class SlackIntegrationService {
       incidentService,
       logger: childLogger,
     });
+    this.ingestEventMethod = createIngestEvent({ db, logger: childLogger });
+    this.createLinkUrlMethod = createCreateLinkUrl({
+      db,
+      logger: childLogger,
+      origin: config.origin,
+    });
+    this.completeLinkMethod = createCompleteLink({ db, logger: childLogger });
+    this.processScoutRunMethod = wrapProcessScoutRun(
+      createProcessScoutRun({
+        db,
+        encryption,
+        chatService,
+        origin: config.origin,
+        createLinkUrl: this.createLinkUrlMethod,
+      }),
+      childLogger,
+    );
   }
 
   async createConnectUrl(context: {
@@ -106,6 +136,18 @@ class SlackIntegrationService {
 
   async processAction(input: unknown) {
     return this.processActionMethod(input);
+  }
+
+  async ingestEvent(input: unknown) {
+    return this.ingestEventMethod(input);
+  }
+
+  async completeLink(input: { token: string }, context: { userId: string }) {
+    return this.completeLinkMethod(input, context);
+  }
+
+  async processScoutRun(job: Parameters<typeof this.processScoutRunMethod>[0]) {
+    return this.processScoutRunMethod(job);
   }
 }
 

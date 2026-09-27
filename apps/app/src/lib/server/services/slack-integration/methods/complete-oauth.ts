@@ -83,11 +83,11 @@ const createCompleteOauth =
         };
       }
 
-    const response = await fetch("https://slack.com/api/oauth.v2.access", {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      signal: AbortSignal.timeout(10_000),
-      body: new URLSearchParams({
+      const response = await fetch("https://slack.com/api/oauth.v2.access", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        signal: AbortSignal.timeout(10_000),
+        body: new URLSearchParams({
           client_id: config.clientId,
           client_secret: config.clientSecret,
           code: input.code,
@@ -136,6 +136,12 @@ const createCompleteOauth =
         slackWebhookUrlEncrypted: encryption.encrypt(
           parsed.data.incoming_webhook.url,
         ),
+        slackBotTokenEncrypted: encryption.encrypt(parsed.data.access_token),
+        slackBotUserId: parsed.data.bot_user_id,
+        slackScopes: parsed.data.scope
+          .split(",")
+          .map((scope) => scope.trim())
+          .filter(Boolean),
         updatedBy: oauthState.userId,
       };
 

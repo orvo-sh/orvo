@@ -14,6 +14,15 @@ declare module "pg-boss" {
       name: string,
       handler: (jobs: Array<{ id: string; data: unknown }>) => Promise<void>,
     ): Promise<string>;
+    send(
+      name: string,
+      data?: object | null,
+      options?: {
+        singletonKey?: string;
+        retryLimit?: number;
+        retryDelay?: number;
+      },
+    ): Promise<string | null>;
   }
 
   export { PgBoss };

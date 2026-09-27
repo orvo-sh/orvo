@@ -22,7 +22,10 @@ const oauthFormEndpoints = new Set([
   "/api/auth/oauth2/revoke",
   "/api/auth/oauth2/token",
 ]);
-const signedFormEndpoints = new Set(["/api/integrations/slack/actions"]);
+const signedFormEndpoints = new Set([
+  "/api/integrations/slack/actions",
+  "/api/integrations/slack/events",
+]);
 const formContentTypes = new Set([
   "application/x-www-form-urlencoded",
   "multipart/form-data",

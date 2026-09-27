@@ -113,21 +113,6 @@ const createServerContainer = (logger: Logger) => {
   const logsService = new LogsService(clickhouse, logger);
   const tracesService = new TracesService(clickhouse, logger);
   const incidentService = new IncidentService(db, logger);
-  const slackIntegrationService = new SlackIntegrationService(
-    db,
-    logger,
-    encryption,
-    notificationDeliveryService,
-    incidentService,
-    {
-      clientId: env.SLACK_CLIENT_ID ?? "",
-      clientSecret: env.SLACK_CLIENT_SECRET ?? "",
-      redirectUri: new URL(
-        "/api/integrations/slack/callback",
-        env.ORIGIN,
-      ).toString(),
-    },
-  );
   const metricsService = new MetricsService(clickhouse, logger);
   const heartbeatService = new HeartbeatService(
     db,
@@ -212,6 +197,23 @@ const createServerContainer = (logger: Logger) => {
     env.ENCRYPTION_SECRET,
     env.CDN_BASE_URL,
   );
+  const slackIntegrationService = new SlackIntegrationService(
+    db,
+    logger,
+    encryption,
+    notificationDeliveryService,
+    incidentService,
+    chatService,
+    {
+      clientId: env.SLACK_CLIENT_ID ?? "",
+      clientSecret: env.SLACK_CLIENT_SECRET ?? "",
+      redirectUri: new URL(
+        "/api/integrations/slack/callback",
+        env.ORIGIN,
+      ).toString(),
+      origin: env.ORIGIN,
+    },
+  );
 
   return {
     authService,
@@ -246,6 +248,11 @@ const createWorkerContainer = (logger: Logger) => {
     email,
   );
   const incidentService = new IncidentService(db, logger);
+  const ingestionKeyService = new IngestionKeyService(db, logger);
+  const alertRuleService = new AlertRuleService(db, logger);
+  const logsService = new LogsService(clickhouse, logger);
+  const tracesService = new TracesService(clickhouse, logger);
+  const metricsService = new MetricsService(clickhouse, logger);
   const heartbeatService = new HeartbeatService(
     db,
     clickhouse,
@@ -256,6 +263,53 @@ const createWorkerContainer = (logger: Logger) => {
       ingestBaseUrl: env.INGEST_BASE_URL,
     },
   );
+  const appService = new AppService(
+    db,
+    logger,
+    ingestionKeyService,
+    alertRuleService,
+  );
+  const chatUsageService = new ChatUsageService(db, logger, {
+    allowUnmetered: mode === "local",
+  });
+  const chatService = new ChatService(
+    db,
+    logger,
+    mode === "cloud" && env.OPENAI_API_KEY
+      ? createOpenAI({ apiKey: env.OPENAI_API_KEY })(
+          env.OPENAI_MODEL || "gpt-5.6-luna",
+        )
+      : null,
+    chatUsageService,
+    {
+      alertRuleService,
+      appService,
+      logsService,
+      tracesService,
+      metricsService,
+      incidentService,
+      heartbeatService,
+    },
+    env.ENCRYPTION_SECRET,
+    env.CDN_BASE_URL,
+  );
+  const slackIntegrationService = new SlackIntegrationService(
+    db,
+    logger,
+    encryption,
+    notificationDeliveryService,
+    incidentService,
+    chatService,
+    {
+      clientId: env.SLACK_CLIENT_ID ?? "",
+      clientSecret: env.SLACK_CLIENT_SECRET ?? "",
+      redirectUri: new URL(
+        "/api/integrations/slack/callback",
+        env.ORIGIN,
+      ).toString(),
+      origin: env.ORIGIN,
+    },
+  );
 
   return {
     billingService,
@@ -264,6 +318,7 @@ const createWorkerContainer = (logger: Logger) => {
     heartbeatService,
     incidentService,
     notificationDeliveryService,
+    slackIntegrationService,
   };
 };
 

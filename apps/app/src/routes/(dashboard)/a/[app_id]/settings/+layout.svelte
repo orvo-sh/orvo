@@ -7,6 +7,7 @@
     IconSettings as GearSixIcon,
     IconBellPin,
     IconPlugConnected,
+    IconBrandSlack,
     IconUserCircle,
     IconKey as KeyIcon,
     IconPlus as PlusIcon,
@@ -93,6 +94,13 @@
                 icon: IconPlugConnected,
                 isActive: (pathname: string) =>
                   pathname.startsWith(`${settingsBasePath}/integrations/mcp`),
+              },
+              {
+                href: `${settingsBasePath}/integrations/slack`,
+                label: "Scout for Slack",
+                icon: IconBrandSlack,
+                isActive: (pathname: string) =>
+                  pathname.startsWith(`${settingsBasePath}/integrations/slack`),
               },
             ],
           },
