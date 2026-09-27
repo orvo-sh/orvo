@@ -255,6 +255,11 @@ const compactHeartbeat = (value: unknown, detailed = false) => {
     expectedEverySeconds: monitor.expectedEverySeconds,
     graceSeconds: monitor.graceSeconds,
     lastCheckInAt: monitor.lastCheckInAt || undefined,
+    checkInUrl: monitor.secretUrl ?? monitor.url,
+    destinationIds: compactValue(monitor.destinationIds, {
+      maxDepth: 2,
+      maxEntries: 20,
+    }),
     ...(detailed
       ? {
           destinations: compactValue(monitor.destinations, {
@@ -434,6 +439,14 @@ const compactToolOutput = (toolName: string, value: unknown) => {
         data: monitors.slice(0, 25).map((item) => compactHeartbeat(item)),
       };
     }
+    case "create_heartbeat_monitor":
+      return {
+        data: {
+          monitors: Array.isArray(data?.monitors)
+            ? data.monitors.slice(0, 20).map((item) => compactHeartbeat(item))
+            : [],
+        },
+      };
     case "get_heartbeat_monitor":
       return {
         data: compactHeartbeat(data?.monitor ?? output.data, true),

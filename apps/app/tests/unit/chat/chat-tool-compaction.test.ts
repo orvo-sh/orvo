@@ -312,4 +312,59 @@ describe("chat tool result compaction", () => {
     expect(JSON.stringify(alerts)).toContain("dst_1");
     expect(JSON.stringify({ apps, alerts })).not.toContain("[omitted]");
   });
+
+  it("preserves heartbeat check-in URLs and destination IDs", () => {
+    const created = compactToolOutput("create_heartbeat_monitor", {
+      data: {
+        monitors: [
+          {
+            id: "hbmt_1",
+            name: "PostgreSQL daily full backup",
+            secretUrl: "https://ingest.orvo.sh/v1/heartbeats/secret-1",
+          },
+        ],
+      },
+    });
+    const listed = compactToolOutput("list_heartbeat_monitors", {
+      data: {
+        monitors: [
+          {
+            id: "hbmt_1",
+            name: "PostgreSQL daily full backup",
+            url: "https://ingest.orvo.sh/v1/heartbeats/secret-1",
+            destinationIds: ["dst_1"],
+          },
+        ],
+      },
+    });
+    const loaded = compactToolOutput("get_heartbeat_monitor", {
+      data: {
+        monitor: {
+          id: "hbmt_1",
+          name: "PostgreSQL daily full backup",
+          secretUrl: "https://ingest.orvo.sh/v1/heartbeats/secret-1",
+          destinationIds: ["dst_1"],
+        },
+      },
+    });
+
+    expect(created).toEqual({
+      data: {
+        monitors: [
+          {
+            id: "hbmt_1",
+            name: "PostgreSQL daily full backup",
+            checkInUrl: "https://ingest.orvo.sh/v1/heartbeats/secret-1",
+          },
+        ],
+      },
+    });
+    expect(JSON.stringify({ listed, loaded })).toContain(
+      "https://ingest.orvo.sh/v1/heartbeats/secret-1",
+    );
+    expect(JSON.stringify({ listed, loaded })).toContain("dst_1");
+    expect(JSON.stringify({ created, listed, loaded })).not.toContain(
+      "[omitted]",
+    );
+  });
 });
