@@ -21,6 +21,7 @@ export const load = (async (event) => {
   if (!accessState.success) error(500, accessState.error);
 
   if (
+    billingState.data.billingPlan ||
     accessState.data.hasAccess ||
     accessState.data.billingStatus === "past_due"
   ) {

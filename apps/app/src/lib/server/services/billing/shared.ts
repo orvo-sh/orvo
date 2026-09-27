@@ -7,7 +7,7 @@ import {
   subscription,
 } from "@repo/db/schema";
 import { genId } from "@repo/utils";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import Stripe from "stripe";
 
 const billingStatusesWithAccess = ["active", "trialing"] as const;
@@ -166,21 +166,51 @@ const createSyncStripeSubscriptionState =
     };
 
     await db.transaction(async (tx) => {
-      await tx
-        .insert(subscription)
-        .values({
-          id: genId("sub"),
-          ...stripeSubscriptionValues,
-        })
-        .onConflictDoUpdate({
-          target: subscription.stripeSubscriptionId,
-          set: stripeSubscriptionValues,
-        });
+      const matchingSubscription = await tx.query.subscription.findFirst({
+        where: and(
+          eq(subscription.referenceId, context.organizationId),
+          eq(subscription.stripeSubscriptionId, context.stripeSubscription.id),
+        ),
+      });
+      const currentSubscription =
+        matchingSubscription ??
+        (await tx.query.subscription.findFirst({
+          where: and(
+            eq(subscription.referenceId, context.organizationId),
+            inArray(subscription.status, [
+              "active",
+              "trialing",
+              "paused",
+              "past_due",
+              "unpaid",
+              "incomplete",
+            ]),
+          ),
+        }));
+
+      if (currentSubscription) {
+        await tx
+          .update(subscription)
+          .set(stripeSubscriptionValues)
+          .where(eq(subscription.id, currentSubscription.id));
+      } else {
+        await tx
+          .insert(subscription)
+          .values({
+            id: genId("sub"),
+            ...stripeSubscriptionValues,
+          })
+          .onConflictDoUpdate({
+            target: subscription.stripeSubscriptionId,
+            set: stripeSubscriptionValues,
+          });
+      }
 
       await tx
         .update(organization)
         .set({
           billingPlan: context.plan,
+          stripeCustomerId: stripeSubscriptionValues.stripeCustomerId,
           billingStatus:
             context.stripeSubscription.status === "active"
               ? "active"

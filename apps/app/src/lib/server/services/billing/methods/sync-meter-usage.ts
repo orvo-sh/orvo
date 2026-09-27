@@ -48,8 +48,8 @@ const createSyncMeterUsage =
         );
 
       for (const row of rows) {
-      const stripeCustomerId =
-        row.subscriptionCustomerId ?? row.organizationCustomerId;
+        const stripeCustomerId =
+          row.organizationCustomerId ?? row.subscriptionCustomerId;
         if (!stripeCustomerId) continue;
 
         const ingestBytes =

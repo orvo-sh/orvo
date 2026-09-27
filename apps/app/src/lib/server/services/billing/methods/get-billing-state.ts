@@ -55,8 +55,8 @@ const createGetBillingState =
         currentSubscription?.status ?? currentOrganization.billingStatus;
       let hasPaymentMethod: boolean | null = null;
       const stripeCustomerId =
-        currentSubscription?.stripeCustomerId ??
-        currentOrganization.stripeCustomerId;
+        currentOrganization.stripeCustomerId ??
+        currentSubscription?.stripeCustomerId;
 
       if (billingStatus === "trialing") {
         if (!stripeCustomerId) {
