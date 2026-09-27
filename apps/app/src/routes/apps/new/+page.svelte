@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { replaceState } from "$app/navigation";
+  import { resolve } from "$app/paths";
   import { createAppCommand } from "$lib/api/apps.remote";
   import { OrvoLogo } from "@repo/components/icons/orvo-logo";
   import { Button } from "@repo/components/ui/button";
@@ -9,12 +11,21 @@
     FieldLabel,
   } from "@repo/components/ui/field";
   import { Input } from "@repo/components/ui/input";
+  import { toast } from "@repo/components/ui/sonner";
+  import { onMount } from "svelte";
 
-  let { data }: { data: { hasApps: boolean } } = $props();
+  let { data } = $props();
 
   let name = $state("");
   let loading = $state(false);
   let error = $state("");
+
+  onMount(() => {
+    if (!data.trialStarted) return;
+
+    toast.success("We've started your 14-day Orvo Pro trial.");
+    replaceState(resolve("/apps/new"), {});
+  });
 
   const submit = async () => {
     if (name.trim().length < 2) {

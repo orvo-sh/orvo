@@ -1,5 +1,6 @@
 <script lang="ts">
   import { authClient } from "$lib/auth-client";
+  import { startFreeTrialCommand } from "$lib/api/billing.remote";
   import { MAX_UPLOAD_FILE_SIZE_BYTES } from "$lib/constants";
   import { uploadFile } from "$lib/upload-file";
   import { OrvoLogo } from "@repo/components/icons/orvo-logo";
@@ -25,6 +26,7 @@
   let uploadingLogo = $state(false);
   let error = $state("");
   let logoError = $state("");
+  let createdOrganizationId = $state<string | null>(null);
 
   const revokeLogoPreviewUrl = () => {
     if (logoPreviewUrl) {
@@ -110,30 +112,50 @@
     loading = true;
     error = "";
 
-    const result = await authClient.organization.create({
-      name: name.trim(),
-      slug: `${slugify(name.trim())}-${generateRandomString(6)}`,
-      logo: logo ?? undefined,
-    });
+    try {
+      if (!createdOrganizationId) {
+        const result = await authClient.organization.create({
+          name: name.trim(),
+          slug: `${slugify(name.trim())}-${generateRandomString(6)}`,
+          logo: logo ?? undefined,
+        });
 
-    if (result.error) {
-      error = result.error.message || "Failed to create organization";
-      loading = false;
-      return;
-    }
-
-    await authClient.organization.setActive(
-      { organizationId: result.data.id },
-      {
-        onSuccess: () => {
-          window.location.href = "/organizations/plan";
-        },
-        onError: (ctx) => {
-          error = ctx.error.message;
+        if (result.error) {
+          error = result.error.message || "Failed to create organization";
           loading = false;
-        },
-      },
-    );
+          return;
+        }
+
+        createdOrganizationId = result.data.id;
+      }
+
+      const activeOrganizationResult =
+        await authClient.organization.setActive({
+          organizationId: createdOrganizationId,
+        });
+
+      if (activeOrganizationResult.error) {
+        error = activeOrganizationResult.error.message;
+        loading = false;
+        return;
+      }
+
+      const trialResult = await startFreeTrialCommand({ plan: "pro" });
+      if (!trialResult.success) {
+        error =
+          trialResult.error ||
+          "Your organization was created, but we couldn't start the trial.";
+        loading = false;
+        return;
+      }
+
+      window.location.href = "/apps/new?trial=started";
+    } catch {
+      error = createdOrganizationId
+        ? "Your organization was created, but we couldn't start the trial."
+        : "Failed to create organization";
+      loading = false;
+    }
   };
 
   onDestroy(() => {
@@ -246,7 +268,7 @@
               disabled={loading || uploadingLogo || name.trim().length < 2}
               class="w-full"
             >
-              Create organization
+              {createdOrganizationId ? "Retry trial" : "Create organization"}
             </Button>
           </Field>
         </FieldGroup>

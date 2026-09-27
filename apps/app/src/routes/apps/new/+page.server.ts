@@ -22,5 +22,6 @@ export const load = (async (event) => {
 
   return {
     hasApps: appsResult.success ? appsResult.data.apps.length > 0 : false,
+    trialStarted: event.url.searchParams.get("trial") === "started",
   };
 }) satisfies PageServerLoad;
