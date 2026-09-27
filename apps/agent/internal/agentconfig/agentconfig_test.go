@@ -49,6 +49,38 @@ func TestWriteAndReadEnvironment(t *testing.T) {
 	}
 }
 
+func TestUpdateVersion(t *testing.T) {
+	configDir := t.TempDir()
+	if err := Write(configDir, Values{
+		AgentID:      "agent_test",
+		HostID:       "host_test",
+		HostName:     "test-host",
+		OS:           "linux",
+		Architecture: "amd64",
+		Version:      "0.1.2",
+		Environment:  "production",
+		Endpoint:     "https://ingest.orvo.sh",
+		Key:          "ing_test",
+		StateDir:     "/var/lib/orvo-agent",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := UpdateVersion(configDir, "0.1.3"); err != nil {
+		t.Fatal(err)
+	}
+	values, err := ReadEnvironment(configDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if values["ORVO_AGENT_VERSION"] != "0.1.3" {
+		t.Fatalf("ORVO_AGENT_VERSION = %q", values["ORVO_AGENT_VERSION"])
+	}
+	if values["ORVO_INGESTION_KEY"] != "ing_test" {
+		t.Fatalf("ORVO_INGESTION_KEY = %q", values["ORVO_INGESTION_KEY"])
+	}
+}
+
 func TestWriteRejectsNewlines(t *testing.T) {
 	t.Parallel()
 

@@ -7,6 +7,7 @@ import { err, ok } from "@repo/utils";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { quote } from "../../shared/query-builders";
+import { agentVersion, compareAgentVersions } from "../version";
 
 const createGetHosts =
   ({
@@ -39,6 +40,7 @@ const createGetHosts =
             argMax(host_arch, time) AS host_arch,
             argMax(os_type, time) AS os_type,
             argMax(deployment_environment, time) AS environment,
+            argMax(resource_attributes['orvo.agent.version'], time) AS agent_version,
             max(time) AS last_seen,
             greatest(0, least(1, 1 - avgIf(
               coalesce(value_double, toFloat64(value_int)),
@@ -79,6 +81,7 @@ const createGetHosts =
         host_arch: string;
         os_type: string;
         environment: string;
+        agent_version: string;
         last_seen: string;
         cpu_utilization: number | string | null;
         memory_utilization: number | string | null;
@@ -96,6 +99,7 @@ const createGetHosts =
             : null;
           const reporting =
             lastSeen !== null && now - new Date(lastSeen).getTime() <= 120_000;
+          const reportedAgentVersion = metrics?.agent_version || null;
           const toMetricNumber = (
             value: number | string | null | undefined,
             multiplier = 1,
@@ -115,7 +119,11 @@ const createGetHosts =
             architecture: metrics?.host_arch || installation.architecture,
             environment:
               installation.environment || metrics?.environment || "production",
-            agentVersion: installation.agentVersion,
+            agentVersion: reportedAgentVersion || installation.agentVersion,
+            latestAgentVersion: agentVersion,
+            updateAvailable:
+              reportedAgentVersion !== null &&
+              compareAgentVersions(reportedAgentVersion, agentVersion) < 0,
             lastSeen,
             reporting,
             cpuUtilization: toMetricNumber(metrics?.cpu_utilization, 100),

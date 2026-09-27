@@ -72,6 +72,11 @@
                   <p class="truncate text-xs text-muted-foreground">
                     {host.hostName} · {host.environment} · {host.operatingSystem}/{host.architecture}
                   </p>
+                  {#if host.updateAvailable}
+                    <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                      Agent {host.agentVersion} · {host.latestAgentVersion} available
+                    </p>
+                  {/if}
                 </div>
               </Table.Cell>
               <Table.Cell>

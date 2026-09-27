@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -18,6 +19,7 @@ import (
 	"github.com/orvo-sh/orvo/apps/agent/internal/agentconfig"
 	"github.com/orvo-sh/orvo/apps/agent/internal/enrollment"
 	"github.com/orvo-sh/orvo/apps/agent/internal/hostidentity"
+	agentupdate "github.com/orvo-sh/orvo/apps/agent/internal/update"
 )
 
 var version = "dev"
@@ -38,6 +40,8 @@ func main() {
 		err = status(os.Args[2:])
 	case "doctor":
 		err = doctor(os.Args[2:])
+	case "upgrade":
+		err = upgrade(os.Args[2:])
 	case "uninstall":
 		err = uninstall(os.Args[2:])
 	case "version", "--version", "-v":
@@ -62,6 +66,7 @@ Usage:
   orvo-agentctl dev [options]
   orvo-agentctl status
   orvo-agentctl doctor
+  orvo-agentctl upgrade [--version X.Y.Z]
   orvo-agentctl uninstall [--purge]
   orvo-agentctl version`)
 }
@@ -245,6 +250,150 @@ func doctor(args []string) error {
 	}
 	fmt.Println("✓ local agent is healthy")
 	return nil
+}
+
+func upgrade(args []string) error {
+	flags := flag.NewFlagSet("upgrade", flag.ContinueOnError)
+	targetVersion := flags.String("version", "", "specific agent version to install")
+	configDir := flags.String("config-dir", "/etc/orvo-agent", "configuration directory")
+	installRoot := flags.String("install-root", "/usr/bin", "binary installation directory")
+	servicePath := flags.String("service-path", "/etc/systemd/system/orvo-agent.service", "systemd service path")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if runtime.GOOS != "linux" {
+		return errors.New("upgrade is currently supported on Linux only")
+	}
+	if os.Geteuid() != 0 {
+		return errors.New("run upgrade with sudo or as root")
+	}
+
+	values, err := agentconfig.ReadEnvironment(*configDir)
+	if err != nil {
+		return err
+	}
+	currentVersion := values["ORVO_AGENT_VERSION"]
+	if currentVersion == "" {
+		return errors.New("installed agent version is unavailable")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	release, err := agentupdate.Resolve(ctx, *targetVersion)
+	if err != nil {
+		return err
+	}
+	if release.Version == currentVersion {
+		fmt.Printf("Orvo Agent %s is already installed.\n", currentVersion)
+		return nil
+	}
+	if !agentupdate.IsNewer(release.Version, currentVersion) {
+		return fmt.Errorf("refusing to downgrade Orvo Agent from %s to %s", currentVersion, release.Version)
+	}
+
+	temporaryRoot, err := os.MkdirTemp("", "orvo-agent-upgrade-")
+	if err != nil {
+		return fmt.Errorf("create upgrade directory: %w", err)
+	}
+	defer os.RemoveAll(temporaryRoot)
+
+	fmt.Printf("Upgrading Orvo Agent from %s to %s...\n", currentVersion, release.Version)
+	bundle, err := agentupdate.Download(ctx, release, runtime.GOARCH, temporaryRoot)
+	if err != nil {
+		return err
+	}
+	if output, err := exec.Command(bundle.CLIPath, "version").CombinedOutput(); err != nil || !strings.Contains(string(output), release.Version) {
+		return errors.New("downloaded management CLI has an unexpected version")
+	}
+
+	targets := []struct {
+		source string
+		target string
+		mode   os.FileMode
+	}{
+		{source: bundle.AgentPath, target: filepath.Join(*installRoot, "orvo-agent"), mode: 0o755},
+		{source: bundle.CLIPath, target: filepath.Join(*installRoot, "orvo-agentctl"), mode: 0o755},
+		{source: bundle.ServicePath, target: *servicePath, mode: 0o644},
+	}
+	backupRoot := filepath.Join(temporaryRoot, "backup")
+	if err := os.MkdirAll(backupRoot, 0o700); err != nil {
+		return fmt.Errorf("create backup directory: %w", err)
+	}
+	for _, target := range targets {
+		if err := copyFile(target.target, filepath.Join(backupRoot, filepath.Base(target.target)), target.mode); err != nil {
+			return fmt.Errorf("back up %s: %w", filepath.Base(target.target), err)
+		}
+	}
+
+	rollback := func() error {
+		var rollbackErr error
+		for _, target := range targets {
+			rollbackErr = errors.Join(rollbackErr, copyFile(
+				filepath.Join(backupRoot, filepath.Base(target.target)),
+				target.target,
+				target.mode,
+			))
+		}
+		rollbackErr = errors.Join(rollbackErr, agentconfig.UpdateVersion(*configDir, currentVersion))
+		rollbackErr = errors.Join(rollbackErr, exec.Command("systemctl", "daemon-reload").Run())
+		rollbackErr = errors.Join(rollbackErr, exec.Command("systemctl", "restart", "orvo-agent.service").Run())
+		return rollbackErr
+	}
+
+	for _, target := range targets {
+		if err := copyFile(target.source, target.target, target.mode); err != nil {
+			return errors.Join(fmt.Errorf("install %s: %w", filepath.Base(target.target), err), rollback())
+		}
+	}
+	if err := agentconfig.UpdateVersion(*configDir, release.Version); err != nil {
+		return errors.Join(err, rollback())
+	}
+	if err := exec.Command("systemctl", "daemon-reload").Run(); err != nil {
+		return errors.Join(fmt.Errorf("reload systemd: %w", err), rollback())
+	}
+	if err := exec.Command("systemctl", "restart", "orvo-agent.service").Run(); err != nil {
+		return errors.Join(fmt.Errorf("restart agent: %w", err), rollback())
+	}
+
+	for range 20 {
+		response, healthErr := (&http.Client{Timeout: time.Second}).Get("http://127.0.0.1:13133/")
+		if healthErr == nil {
+			response.Body.Close()
+			if response.StatusCode == http.StatusOK {
+				fmt.Printf("Orvo Agent %s is installed and running.\n", release.Version)
+				return nil
+			}
+		}
+		time.Sleep(time.Second)
+	}
+	return errors.Join(errors.New("upgraded agent did not become healthy; restored the previous version"), rollback())
+}
+
+func copyFile(source string, destination string, mode os.FileMode) error {
+	input, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+
+	temporary, err := os.CreateTemp(filepath.Dir(destination), ".orvo-agent-*")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	defer os.Remove(temporaryPath)
+	if err := temporary.Chmod(mode); err != nil {
+		temporary.Close()
+		return err
+	}
+	if _, err := io.Copy(temporary, input); err != nil {
+		temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	return os.Rename(temporaryPath, destination)
 }
 
 func uninstall(args []string) error {

@@ -1,6 +1,7 @@
 package agentconfig
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -95,6 +96,53 @@ func ReadEnvironment(configDir string) (map[string]string, error) {
 	}
 
 	return values, nil
+}
+
+func UpdateVersion(configDir string, version string) error {
+	if strings.ContainsAny(version, "\r\n\x00") {
+		return errors.New("version contains unsupported characters")
+	}
+
+	credentialsPath := filepath.Join(configDir, "credentials.env")
+	content, err := os.ReadFile(credentialsPath)
+	if err != nil {
+		return fmt.Errorf("read credentials: %w", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	updated := false
+	for index, line := range lines {
+		if strings.HasPrefix(line, "ORVO_AGENT_VERSION=") {
+			lines[index] = "ORVO_AGENT_VERSION=" + quoteEnv(version)
+			updated = true
+			break
+		}
+	}
+	if !updated {
+		return errors.New("credentials do not contain ORVO_AGENT_VERSION")
+	}
+
+	temporary, err := os.CreateTemp(configDir, ".credentials-*")
+	if err != nil {
+		return fmt.Errorf("create temporary credentials: %w", err)
+	}
+	temporaryPath := temporary.Name()
+	defer os.Remove(temporaryPath)
+	if err := temporary.Chmod(0o600); err != nil {
+		temporary.Close()
+		return fmt.Errorf("secure temporary credentials: %w", err)
+	}
+	if _, err := temporary.WriteString(strings.Join(lines, "\n")); err != nil {
+		temporary.Close()
+		return fmt.Errorf("write temporary credentials: %w", err)
+	}
+	if err := temporary.Close(); err != nil {
+		return fmt.Errorf("close temporary credentials: %w", err)
+	}
+	if err := os.Rename(temporaryPath, credentialsPath); err != nil {
+		return fmt.Errorf("replace credentials: %w", err)
+	}
+	return nil
 }
 
 func quoteEnv(value string) string {

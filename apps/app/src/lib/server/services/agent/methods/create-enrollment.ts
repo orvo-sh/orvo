@@ -7,8 +7,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 
 import { createAgentEnrollmentInputSchema } from "../schema";
-
-const agentVersion = "0.1.2";
+import { agentVersion } from "../version";
 
 const createCreateEnrollment =
   ({ db, logger }: { db: DB; logger: Logger }) =>

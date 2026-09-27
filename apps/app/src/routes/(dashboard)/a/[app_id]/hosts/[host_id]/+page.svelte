@@ -241,6 +241,14 @@
                   : "Connecting"}
             </Badge>
             <Badge variant="secondary">{data.host.environment}</Badge>
+            {#if data.host.updateAvailable}
+              <Badge
+                variant="outline"
+                class="border-amber-600/20 bg-amber-600/7 text-amber-800 dark:text-amber-300"
+              >
+                Update available
+              </Badge>
+            {/if}
           </div>
           <p class="mt-1 truncate text-xs text-muted-foreground">
             {data.host.hostName} · {data.host.operatingSystem}/{data.host
@@ -328,7 +336,7 @@
       </div>
       <Card.Root class="z-1 gap-0 p-0">
         <Card.Content class="grid gap-0 p-0 sm:grid-cols-2 lg:grid-cols-3">
-          {#each [["Display name", data.host.displayName], ["Environment", data.host.environment], ["System hostname", data.host.hostName], ["Host ID", data.host.hostId], ["Operating system", data.host.operatingSystem], ["Architecture", data.host.architecture], ["Agent version", data.host.agentVersion], ["Installed", new Date(data.host.installedAt).toLocaleString()], ["Reported environment", data.host.reportedEnvironment ?? "—"]] as detail (detail[0])}
+          {#each [["Display name", data.host.displayName], ["Environment", data.host.environment], ["System hostname", data.host.hostName], ["Host ID", data.host.hostId], ["Operating system", data.host.operatingSystem], ["Architecture", data.host.architecture], ["Agent version", data.host.agentVersion], ["Latest agent version", data.host.latestAgentVersion], ["Installed", new Date(data.host.installedAt).toLocaleString()], ["Reported environment", data.host.reportedEnvironment ?? "—"]] as detail (detail[0])}
             <div class="min-w-0 border-b p-4 sm:border-r">
               <p class="text-xs text-muted-foreground">{detail[0]}</p>
               <p class="mt-1 truncate font-mono text-xs" title={detail[1]}>

@@ -60,7 +60,7 @@ jobs:
           fi
 
           APP_VERSION="$(sed -n 's/^const agentVersion = "\([^"]*\)";$/\1/p' \
-            apps/app/src/lib/server/services/agent/methods/create-enrollment.ts)"
+            apps/app/src/lib/server/services/agent/version.ts)"
           if [[ "${APP_VERSION}" != "${VERSION}" ]]; then
             echo "The generated install command uses ${APP_VERSION:-no version}, expected ${VERSION}." >&2
             exit 1

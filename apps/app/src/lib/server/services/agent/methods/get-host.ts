@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { quote } from "../../shared/query-builders";
 import { getHostInputSchema } from "../schema";
+import { agentVersion, compareAgentVersions } from "../version";
 
 const createGetHost =
   ({
@@ -62,6 +63,7 @@ const createGetHost =
               argMax(host_arch, time) AS host_arch,
               argMax(os_type, time) AS os_type,
               argMax(deployment_environment, time) AS reported_environment,
+              argMax(resource_attributes['orvo.agent.version'], time) AS agent_version,
               max(time) AS last_seen,
               greatest(0, least(1, 1 - avgIf(
                 coalesce(value_double, toFloat64(value_int)),
@@ -131,6 +133,7 @@ const createGetHost =
         host_arch: string;
         os_type: string;
         reported_environment: string;
+        agent_version: string;
         last_seen: string | null;
         cpu_utilization: number | string | null;
         memory_utilization: number | string | null;
@@ -150,6 +153,7 @@ const createGetHost =
       const reporting =
         lastSeen !== null &&
         Date.now() - new Date(lastSeen).getTime() <= 120_000;
+      const reportedAgentVersion = latest?.agent_version || null;
       const toNumber = (
         value: number | string | null | undefined,
         multiplier = 1,
@@ -176,7 +180,11 @@ const createGetHost =
           reportedEnvironment: latest?.reported_environment || null,
           operatingSystem: latest?.os_type || installation.operatingSystem,
           architecture: latest?.host_arch || installation.architecture,
-          agentVersion: installation.agentVersion,
+          agentVersion: reportedAgentVersion || installation.agentVersion,
+          latestAgentVersion: agentVersion,
+          updateAvailable:
+            reportedAgentVersion !== null &&
+            compareAgentVersions(reportedAgentVersion, agentVersion) < 0,
           installedAt: installation.createdAt,
           lastSeen,
           reporting,

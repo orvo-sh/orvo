@@ -5,6 +5,15 @@ versioning while the project is pre-1.0.
 
 ## Unreleased
 
+## 0.1.3 - 2026-09-27
+
+### Added
+
+- Add `orvo-agentctl upgrade` for checksummed in-place upgrades that preserve
+  the host identity and ingestion credentials.
+- Report the running agent version through host telemetry so Orvo can identify
+  installations with an available update.
+
 ## 0.1.2 - 2026-09-27
 
 ### Fixed

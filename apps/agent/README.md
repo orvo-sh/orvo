@@ -23,6 +23,7 @@ Useful commands after installation:
 ```bash
 sudo orvo-agentctl status
 sudo orvo-agentctl doctor
+sudo orvo-agentctl upgrade
 sudo orvo-agentctl uninstall
 ```
 
@@ -55,8 +56,7 @@ from a tested commit on `main` and include curated notes at
 `releases/v0.1.1.md`.
 
 1. Update `CHANGELOG.md`, add `releases/vX.Y.Z.md`, and update the version in
-   the generated command in
-   `../app/src/lib/server/services/agent/methods/create-enrollment.ts`.
+   `../app/src/lib/server/services/agent/version.ts`.
 2. Merge the PR and confirm CI passes on `main`.
 3. Run the **Agent Release** workflow from `main` with the version in `X.Y.Z`
    format:
