@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { convertToModelMessages } from "ai";
 
 import {
   compactMessagesForModel,
@@ -149,7 +150,7 @@ describe("chat tool result compaction", () => {
     expect(serialized.length).toBeLessThan(2_000);
   });
 
-  it("bounds conversation history and omits prior reasoning", () => {
+  it("bounds history while preserving required OpenAI reasoning references", async () => {
     const messages = compactMessagesForModel([
       ...Array.from({ length: 45 }, (_, index) => ({
         id: `message-${index}`,
@@ -164,8 +165,18 @@ describe("chat tool result compaction", () => {
             type: "reasoning",
             text: "private reasoning that should not be replayed",
             state: "done",
+            providerMetadata: {
+              openai: { itemId: "rs_reasoning" },
+            },
           },
-          { type: "text", text: "x".repeat(20_000), state: "done" },
+          {
+            type: "text",
+            text: "x".repeat(20_000),
+            state: "done",
+            providerMetadata: {
+              openai: { itemId: "msg_response" },
+            },
+          },
         ],
       },
     ]);
@@ -174,8 +185,30 @@ describe("chat tool result compaction", () => {
     expect(messages).toHaveLength(40);
     expect(messages[0]?.id).toBe("message-6");
     expect(serialized).not.toContain("private reasoning");
+    expect(messages.at(-1)?.parts[0]).toEqual({
+      type: "reasoning",
+      text: "",
+      state: "done",
+      providerMetadata: {
+        openai: { itemId: "rs_reasoning" },
+      },
+    });
+    expect(serialized).toContain("rs_reasoning");
+    expect(serialized).toContain("msg_response");
     expect(serialized).not.toContain("question 5");
     expect(serialized.length).toBeLessThan(16_000);
+    expect(await convertToModelMessages(messages)).toContainEqual({
+      role: "assistant",
+      content: expect.arrayContaining([
+        {
+          type: "reasoning",
+          text: "",
+          providerOptions: {
+            openai: { itemId: "rs_reasoning" },
+          },
+        },
+      ]),
+    });
   });
 
   it("keeps the replayed model context inside a fixed character budget", () => {

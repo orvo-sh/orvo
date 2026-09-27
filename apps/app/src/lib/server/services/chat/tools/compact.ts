@@ -470,7 +470,12 @@ const compactMessagesForModel = (messages: UIMessage[]) => {
     .map((message) => {
       const parts: UIMessage["parts"] = [];
       for (const part of message.parts) {
-        if (part.type === "reasoning") continue;
+        if (part.type === "reasoning") {
+          if (typeof part.providerMetadata?.openai?.itemId === "string") {
+            parts.push({ ...part, text: "" });
+          }
+          continue;
+        }
         if (part.type === "text") {
           parts.push({
             ...part,
