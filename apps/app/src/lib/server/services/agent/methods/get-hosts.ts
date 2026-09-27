@@ -21,7 +21,7 @@ const createGetHosts =
   }) =>
   async (context: { appId: string }) => {
     try {
-      const [installations, metricsResult] = await Promise.all([
+      const [installations, metricsResult, diskResult] = await Promise.all([
         db
           .select()
           .from(agentInstallation)
@@ -54,11 +54,6 @@ const createGetHosts =
                 AND (attributes['state'] = '' OR attributes['state'] = 'used')
                 AND time >= now() - INTERVAL 90 SECOND
             ) AS memory_utilization,
-            maxIf(
-              coalesce(value_double, toFloat64(value_int)),
-              metric_name = 'system.filesystem.utilization'
-                AND time >= now() - INTERVAL 90 SECOND
-            ) AS filesystem_utilization,
             avgIf(
               coalesce(value_double, toFloat64(value_int)),
               metric_name = 'system.cpu.load_average.1m'
@@ -73,6 +68,45 @@ const createGetHosts =
           ORDER BY last_seen DESC
         `,
         }),
+        clickhouse.query({
+          format: "JSONEachRow",
+          query: `
+            SELECT
+              host_id,
+              sum(used_bytes) AS disk_used_bytes,
+              sum(used_bytes + free_bytes + reserved_bytes) AS disk_total_bytes
+            FROM (
+              SELECT
+                host_id,
+                attributes['device'] AS device,
+                argMaxIf(
+                  coalesce(value_double, toFloat64(value_int)),
+                  time,
+                  attributes['state'] = 'used'
+                ) AS used_bytes,
+                argMaxIf(
+                  coalesce(value_double, toFloat64(value_int)),
+                  time,
+                  attributes['state'] = 'free'
+                ) AS free_bytes,
+                argMaxIf(
+                  coalesce(value_double, toFloat64(value_int)),
+                  time,
+                  attributes['state'] = 'reserved'
+                ) AS reserved_bytes
+              FROM metrics_raw
+              WHERE app_id = ${quote(context.appId)}
+                AND entity_kind = 'host'
+                AND host_id != ''
+                AND metric_name = 'system.filesystem.usage'
+                AND attributes['mode'] = 'rw'
+                AND attributes['device'] != ''
+                AND time >= now() - INTERVAL 90 SECOND
+              GROUP BY host_id, device
+            )
+            GROUP BY host_id
+          `,
+        }),
       ]);
 
       const rows = (await metricsResult.json()) as unknown as Array<{
@@ -85,15 +119,23 @@ const createGetHosts =
         last_seen: string;
         cpu_utilization: number | string | null;
         memory_utilization: number | string | null;
-        filesystem_utilization: number | string | null;
         load_1m: number | string | null;
       }>;
+      const diskRows = (await diskResult.json()) as unknown as Array<{
+        host_id: string;
+        disk_used_bytes: number | string;
+        disk_total_bytes: number | string;
+      }>;
       const metricsByHost = new Map(rows.map((row) => [row.host_id, row]));
+      const diskByHost = new Map(
+        diskRows.map((row) => [row.host_id, row] as const),
+      );
       const now = Date.now();
 
       return ok({
         hosts: installations.map((installation) => {
           const metrics = metricsByHost.get(installation.hostId);
+          const disk = diskByHost.get(installation.hostId);
           const lastSeen = metrics?.last_seen
             ? new Date(metrics.last_seen.replace(" ", "T") + "Z").toISOString()
             : null;
@@ -128,10 +170,8 @@ const createGetHosts =
             reporting,
             cpuUtilization: toMetricNumber(metrics?.cpu_utilization, 100),
             memoryUtilization: toMetricNumber(metrics?.memory_utilization, 100),
-            filesystemUtilization: toMetricNumber(
-              metrics?.filesystem_utilization,
-              100,
-            ),
+            diskUsedBytes: toMetricNumber(disk?.disk_used_bytes),
+            diskTotalBytes: toMetricNumber(disk?.disk_total_bytes),
             load1m: toMetricNumber(metrics?.load_1m),
           };
         }),

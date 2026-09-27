@@ -54,10 +54,11 @@ const createGetHost =
         "7d": { interval: "7 DAY", bucket: "2 HOUR" },
       }[validated.data.time];
 
-      const [latestResult, seriesResult] = await Promise.all([
-        clickhouse.query({
-          format: "JSONEachRow",
-          query: `
+      const [latestResult, seriesResult, diskSeriesResult, filesystemsResult] =
+        await Promise.all([
+          clickhouse.query({
+            format: "JSONEachRow",
+            query: `
             SELECT
               argMax(host_name, time) AS host_name,
               argMax(host_arch, time) AS host_arch,
@@ -77,11 +78,6 @@ const createGetHost =
                   AND (attributes['state'] = '' OR attributes['state'] = 'used')
                   AND time >= now() - INTERVAL 90 SECOND
               ) AS memory_utilization,
-              maxIf(
-                coalesce(value_double, toFloat64(value_int)),
-                metric_name = 'system.filesystem.utilization'
-                  AND time >= now() - INTERVAL 90 SECOND
-              ) AS filesystem_utilization,
               avgIf(
                 coalesce(value_double, toFloat64(value_int)),
                 metric_name = 'system.cpu.load_average.1m'
@@ -93,10 +89,10 @@ const createGetHost =
               AND entity_kind = 'host'
               AND time >= now() - INTERVAL 7 DAY
           `,
-        }),
-        clickhouse.query({
-          format: "JSONEachRow",
-          query: `
+          }),
+          clickhouse.query({
+            format: "JSONEachRow",
+            query: `
             SELECT
               toStartOfInterval(time, INTERVAL ${range.bucket}) AS bucket,
               greatest(0, least(1, 1 - avgIf(
@@ -109,10 +105,6 @@ const createGetHost =
                 metric_name = 'system.memory.utilization'
                   AND (attributes['state'] = '' OR attributes['state'] = 'used')
               ) AS memory_utilization,
-              maxIf(
-                coalesce(value_double, toFloat64(value_int)),
-                metric_name = 'system.filesystem.utilization'
-              ) AS filesystem_utilization,
               avgIf(
                 coalesce(value_double, toFloat64(value_int)),
                 metric_name = 'system.cpu.load_average.1m'
@@ -125,8 +117,82 @@ const createGetHost =
             GROUP BY bucket
             ORDER BY bucket ASC
           `,
-        }),
-      ]);
+          }),
+          clickhouse.query({
+            format: "JSONEachRow",
+            query: `
+            SELECT
+              bucket,
+              sum(used_bytes) AS disk_used_bytes,
+              sum(used_bytes + free_bytes + reserved_bytes) AS disk_total_bytes
+            FROM (
+              SELECT
+                toStartOfInterval(time, INTERVAL ${range.bucket}) AS bucket,
+                attributes['device'] AS device,
+                argMaxIf(
+                  coalesce(value_double, toFloat64(value_int)),
+                  time,
+                  attributes['state'] = 'used'
+                ) AS used_bytes,
+                argMaxIf(
+                  coalesce(value_double, toFloat64(value_int)),
+                  time,
+                  attributes['state'] = 'free'
+                ) AS free_bytes,
+                argMaxIf(
+                  coalesce(value_double, toFloat64(value_int)),
+                  time,
+                  attributes['state'] = 'reserved'
+                ) AS reserved_bytes
+              FROM metrics_raw
+              WHERE app_id = ${quote(context.appId)}
+                AND host_id = ${quote(installation.hostId)}
+                AND entity_kind = 'host'
+                AND metric_name = 'system.filesystem.usage'
+                AND attributes['mode'] = 'rw'
+                AND attributes['device'] != ''
+                AND time >= now() - INTERVAL ${range.interval}
+              GROUP BY bucket, device
+            )
+            GROUP BY bucket
+            ORDER BY bucket ASC
+          `,
+          }),
+          clickhouse.query({
+            format: "JSONEachRow",
+            query: `
+            SELECT
+              attributes['device'] AS device,
+              argMin(attributes['mountpoint'], length(attributes['mountpoint'])) AS mountpoint,
+              argMax(attributes['type'], time) AS type,
+              argMaxIf(
+                coalesce(value_double, toFloat64(value_int)),
+                time,
+                attributes['state'] = 'used'
+              ) AS used_bytes,
+              argMaxIf(
+                coalesce(value_double, toFloat64(value_int)),
+                time,
+                attributes['state'] = 'free'
+              ) AS free_bytes,
+              argMaxIf(
+                coalesce(value_double, toFloat64(value_int)),
+                time,
+                attributes['state'] = 'reserved'
+              ) AS reserved_bytes
+            FROM metrics_raw
+            WHERE app_id = ${quote(context.appId)}
+              AND host_id = ${quote(installation.hostId)}
+              AND entity_kind = 'host'
+              AND metric_name = 'system.filesystem.usage'
+              AND attributes['mode'] = 'rw'
+              AND attributes['device'] != ''
+              AND time >= now() - INTERVAL 90 SECOND
+            GROUP BY device
+            ORDER BY mountpoint ASC
+          `,
+          }),
+        ]);
 
       const [latest] = (await latestResult.json()) as unknown as Array<{
         host_name: string;
@@ -137,15 +203,26 @@ const createGetHost =
         last_seen: string | null;
         cpu_utilization: number | string | null;
         memory_utilization: number | string | null;
-        filesystem_utilization: number | string | null;
         load_1m: number | string | null;
       }>;
       const series = (await seriesResult.json()) as unknown as Array<{
         bucket: string;
         cpu_utilization: number | string | null;
         memory_utilization: number | string | null;
-        filesystem_utilization: number | string | null;
         load_1m: number | string | null;
+      }>;
+      const diskSeries = (await diskSeriesResult.json()) as unknown as Array<{
+        bucket: string;
+        disk_used_bytes: number | string;
+        disk_total_bytes: number | string;
+      }>;
+      const filesystems = (await filesystemsResult.json()) as unknown as Array<{
+        device: string;
+        mountpoint: string;
+        type: string;
+        used_bytes: number | string;
+        free_bytes: number | string;
+        reserved_bytes: number | string;
       }>;
       const lastSeen = latest?.last_seen
         ? new Date(latest.last_seen.replace(" ", "T") + "Z").toISOString()
@@ -166,6 +243,34 @@ const createGetHost =
           ? number * multiplier
           : null;
       };
+      const currentFilesystems = reporting
+        ? filesystems.map((filesystem) => {
+            const usedBytes = Number(filesystem.used_bytes);
+            const freeBytes = Number(filesystem.free_bytes);
+            const reservedBytes = Number(filesystem.reserved_bytes);
+            const totalBytes = usedBytes + freeBytes + reservedBytes;
+
+            return {
+              device: filesystem.device,
+              mountpoint: filesystem.mountpoint,
+              type: filesystem.type,
+              usedBytes,
+              freeBytes,
+              reservedBytes,
+              totalBytes,
+              utilization:
+                totalBytes > 0 ? (usedBytes / totalBytes) * 100 : null,
+            };
+          })
+        : [];
+      const diskUsedBytes = currentFilesystems.reduce(
+        (total, filesystem) => total + filesystem.usedBytes,
+        0,
+      );
+      const diskTotalBytes = currentFilesystems.reduce(
+        (total, filesystem) => total + filesystem.totalBytes,
+        0,
+      );
 
       return ok({
         host: {
@@ -190,22 +295,27 @@ const createGetHost =
           reporting,
           cpuUtilization: toNumber(latest?.cpu_utilization, 100, true),
           memoryUtilization: toNumber(latest?.memory_utilization, 100, true),
-          filesystemUtilization: toNumber(
-            latest?.filesystem_utilization,
-            100,
-            true,
-          ),
+          diskUsedBytes: reporting ? diskUsedBytes : null,
+          diskTotalBytes: reporting ? diskTotalBytes : null,
           load1m: toNumber(latest?.load_1m, 1, true),
         },
-        series: series.map((point) => ({
-          timestamp: new Date(
-            point.bucket.replace(" ", "T") + "Z",
-          ).toISOString(),
-          cpuUtilization: toNumber(point.cpu_utilization, 100),
-          memoryUtilization: toNumber(point.memory_utilization, 100),
-          filesystemUtilization: toNumber(point.filesystem_utilization, 100),
-          load1m: toNumber(point.load_1m),
-        })),
+        series: series.map((point) => {
+          const disk = diskSeries.find(
+            (diskPoint) => diskPoint.bucket === point.bucket,
+          );
+
+          return {
+            timestamp: new Date(
+              point.bucket.replace(" ", "T") + "Z",
+            ).toISOString(),
+            cpuUtilization: toNumber(point.cpu_utilization, 100),
+            memoryUtilization: toNumber(point.memory_utilization, 100),
+            diskUsedBytes: toNumber(disk?.disk_used_bytes),
+            diskTotalBytes: toNumber(disk?.disk_total_bytes),
+            load1m: toNumber(point.load_1m),
+          };
+        }),
+        filesystems: currentFilesystems,
         time: validated.data.time,
       });
     } catch (error) {

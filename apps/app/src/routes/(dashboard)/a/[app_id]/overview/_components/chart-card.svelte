@@ -12,6 +12,7 @@
     data,
     color = "var(--color-primary)",
     valueFormatter = (v: number) => `${v}`,
+    summaryFormatter = valueFormatter,
     yDomain,
     yFormat,
     loading,
@@ -22,6 +23,7 @@
     data: { timestamp: Date; value: number }[];
     color?: string;
     valueFormatter?: (value: number) => string;
+    summaryFormatter?: (value: number) => string;
     yDomain?: [number | null, number | null];
     yFormat?: (value: number) => string;
     loading: boolean;
@@ -46,7 +48,7 @@
       <p
         class="text-right text-base leading-none font-semibold tracking-normal tabular-nums"
       >
-        {summaryValue === null ? "—" : valueFormatter(summaryValue)}
+        {summaryValue === null ? "—" : summaryFormatter(summaryValue)}
       </p>
       {#if trend}
         <div class="flex items-end gap-0.5">

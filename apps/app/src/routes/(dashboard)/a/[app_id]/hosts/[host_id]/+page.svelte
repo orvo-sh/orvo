@@ -12,8 +12,10 @@
   import * as DropdownMenu from "@repo/components/ui/dropdown-menu";
   import { Input } from "@repo/components/ui/input";
   import { Label } from "@repo/components/ui/label";
+  import { Progress } from "@repo/components/ui/progress";
   import * as Select from "@repo/components/ui/select";
   import { toast } from "@repo/components/ui/sonner";
+  import * as Table from "@repo/components/ui/table";
   import {
     IconActivityHeartbeat,
     IconCpu,
@@ -107,6 +109,17 @@
   const formatPercent = (value: number | null) =>
     value === null ? "—" : `${value.toFixed(0)}%`;
 
+  const formatStorage = (value: number | null) => {
+    if (value === null || !Number.isFinite(value)) return "—";
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    const exponent = Math.min(
+      Math.floor(Math.log(Math.max(value, 1)) / Math.log(1024)),
+      units.length - 1,
+    );
+
+    return `${(value / 1024 ** exponent).toFixed(exponent < 3 ? 0 : 1)} ${units[exponent]}`;
+  };
+
   const cpuData = $derived(
     data.series
       .filter((point) => point.cpuUtilization !== null)
@@ -123,12 +136,12 @@
         value: point.memoryUtilization ?? 0,
       })),
   );
-  const filesystemData = $derived(
+  const diskData = $derived(
     data.series
-      .filter((point) => point.filesystemUtilization !== null)
+      .filter((point) => point.diskUsedBytes !== null)
       .map((point) => ({
         timestamp: new Date(point.timestamp),
-        value: point.filesystemUtilization ?? 0,
+        value: point.diskUsedBytes ?? 0,
       })),
   );
   const loadData = $derived(
@@ -267,7 +280,7 @@
     </section>
 
     <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {#each [{ label: "CPU", value: formatPercent(data.host.cpuUtilization), icon: IconCpu }, { label: "Memory", value: formatPercent(data.host.memoryUtilization), icon: IconActivityHeartbeat }, { label: "Filesystem", value: formatPercent(data.host.filesystemUtilization), icon: IconDatabase }, { label: "Load average", value: data.host.load1m === null ? "—" : data.host.load1m.toFixed(2), icon: IconGauge }] as metric (metric.label)}
+      {#each [{ label: "CPU", value: formatPercent(data.host.cpuUtilization), icon: IconCpu }, { label: "Memory", value: formatPercent(data.host.memoryUtilization), icon: IconActivityHeartbeat }, { label: "Disk space", value: data.host.diskUsedBytes === null || data.host.diskTotalBytes === null ? "—" : `${formatStorage(data.host.diskUsedBytes)} / ${formatStorage(data.host.diskTotalBytes)}`, icon: IconDatabase }, { label: "Load average", value: data.host.load1m === null ? "—" : data.host.load1m.toFixed(2), icon: IconGauge }] as metric (metric.label)}
         <Card.Root>
           <Card.Content class="flex items-center justify-between gap-3">
             <div>
@@ -307,13 +320,15 @@
         {loading}
       />
       <ChartCard
-        title="Filesystem utilization"
-        data={filesystemData}
+        title="Disk space used"
+        data={diskData}
         color="var(--color-chart-3)"
-        summaryValue={data.host.filesystemUtilization}
-        valueFormatter={(value) => `${value.toFixed(0)}%`}
-        yFormat={(value) => `${value.toFixed(0)}%`}
-        yDomain={[0, 100]}
+        summaryValue={data.host.diskUsedBytes}
+        summaryFormatter={(value) =>
+          `${formatStorage(value)} / ${formatStorage(data.host.diskTotalBytes)}`}
+        valueFormatter={formatStorage}
+        yFormat={formatStorage}
+        yDomain={[0, data.host.diskTotalBytes]}
         {loading}
       />
       <ChartCard
@@ -326,6 +341,66 @@
         yDomain={[0, null]}
         {loading}
       />
+    </section>
+
+    <section class="flex flex-col">
+      <div
+        class="flex translate-y-2 items-center rounded-t-xl border border-foreground/10 bg-secondary px-3.5 pt-1 pb-3 inset-shadow-[0px_1px_--theme(--color-white)]"
+      >
+        <h2 class="text-sm text-secondary-foreground">Filesystems</h2>
+      </div>
+      <Card.Root class="z-1 gap-0 overflow-hidden p-0">
+        {#if data.filesystems.length === 0}
+          <Card.Content class="p-4 text-sm text-muted-foreground">
+            No writable filesystems are currently reporting.
+          </Card.Content>
+        {:else}
+          <Table.Root>
+            <Table.Header>
+              <Table.Row class="hover:bg-transparent">
+                <Table.Head>Mount point</Table.Head>
+                <Table.Head>Device</Table.Head>
+                <Table.Head>Type</Table.Head>
+                <Table.Head>Usage</Table.Head>
+                <Table.Head class="text-right">Used</Table.Head>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {#each data.filesystems as filesystem (filesystem.device)}
+                <Table.Row>
+                  <Table.Cell class="font-mono text-xs">
+                    {filesystem.mountpoint}
+                  </Table.Cell>
+                  <Table.Cell class="font-mono text-xs text-muted-foreground">
+                    {filesystem.device}
+                  </Table.Cell>
+                  <Table.Cell class="text-xs text-muted-foreground">
+                    {filesystem.type}
+                  </Table.Cell>
+                  <Table.Cell>
+                    <div class="flex min-w-32 items-center gap-2">
+                      <Progress
+                        value={filesystem.utilization ?? 0}
+                        class="max-w-28"
+                      />
+                      <span
+                        class="w-9 text-right font-mono text-xs tabular-nums"
+                      >
+                        {formatPercent(filesystem.utilization)}
+                      </span>
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell class="text-right font-mono text-xs tabular-nums">
+                    {formatStorage(filesystem.usedBytes)} / {formatStorage(
+                      filesystem.totalBytes,
+                    )}
+                  </Table.Cell>
+                </Table.Row>
+              {/each}
+            </Table.Body>
+          </Table.Root>
+        {/if}
+      </Card.Root>
     </section>
 
     <section class="flex flex-col">
