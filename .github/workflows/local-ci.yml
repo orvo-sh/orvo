@@ -3,21 +3,21 @@ name: Local CI
 on:
   pull_request:
     paths:
-      - "apps/local/**"
-      - "apps/ingest/**"
-      - "apps/app/**"
-      - "packages/clickhouse/**"
-      - "packages/db/**"
-      - ".github/workflows/local-ci.yml"
+      - 'apps/local/**'
+      - 'apps/ingest/**'
+      - 'apps/app/**'
+      - 'packages/clickhouse/**'
+      - 'packages/db/**'
+      - '.github/workflows/local-ci.yml'
   push:
     branches: [main]
     paths:
-      - "apps/local/**"
-      - "apps/ingest/**"
-      - "apps/app/**"
-      - "packages/clickhouse/**"
-      - "packages/db/**"
-      - ".github/workflows/local-ci.yml"
+      - 'apps/local/**'
+      - 'apps/ingest/**'
+      - 'apps/app/**'
+      - 'packages/clickhouse/**'
+      - 'packages/db/**'
+      - '.github/workflows/local-ci.yml'
 
 permissions:
   contents: read
@@ -61,8 +61,15 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Test Go runtimes
+        if: runner.os == 'Linux'
         run: |
           (cd apps/ingest && go test ./...)
+          (cd apps/local && go test ./...)
+
+      - name: Test Go runtimes without containers
+        if: runner.os == 'macOS'
+        run: |
+          (cd apps/ingest && go list ./... | grep -v '/test/ingest$' | xargs go test)
           (cd apps/local && go test ./...)
 
       - name: Build local dashboard

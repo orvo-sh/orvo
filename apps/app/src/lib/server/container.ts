@@ -34,36 +34,51 @@ import Stripe from "stripe";
 import { Email } from "./email";
 import { mode } from "./mode";
 
-const db = getDb(env.POSTGRES_URL);
-const clickhouse = getClickHouseClient({ url: env.CLICKHOUSE_URL });
-const storage =
-  mode === "cloud" &&
-  env.S3_ACCESS_KEY_ID &&
-  env.S3_SECRET_ACCESS_KEY &&
-  env.S3_ENDPOINT
-    ? new Storage({
-        accessKeyId: env.S3_ACCESS_KEY_ID,
-        secretAccessKey: env.S3_SECRET_ACCESS_KEY,
-        endpoint: env.S3_ENDPOINT,
-        region: env.S3_REGION,
-        bucket: env.S3_BUCKET_NAME,
-      })
-    : null;
+const createInfrastructure = () => {
+  const db = getDb(env.POSTGRES_URL);
+  const clickhouse = getClickHouseClient({ url: env.CLICKHOUSE_URL });
+  const storage =
+    mode === "cloud" &&
+    env.S3_ACCESS_KEY_ID &&
+    env.S3_SECRET_ACCESS_KEY &&
+    env.S3_ENDPOINT
+      ? new Storage({
+          accessKeyId: env.S3_ACCESS_KEY_ID,
+          secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+          endpoint: env.S3_ENDPOINT,
+          region: env.S3_REGION,
+          bucket: env.S3_BUCKET_NAME,
+        })
+      : null;
+  const stripe =
+    mode === "cloud" && env.STRIPE_SECRET_KEY
+      ? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: "2026-05-27.dahlia" })
+      : null;
+  const email =
+    mode === "cloud"
+      ? new Email({
+          resendApiKey: env.RESEND_API_KEY,
+          transport: dev ? "console" : "resend",
+        })
+      : null;
 
-const stripe =
-  mode === "cloud" && env.STRIPE_SECRET_KEY
-    ? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: "2026-05-27.dahlia" })
-    : null;
-const email =
-  mode === "cloud"
-    ? new Email({
-        resendApiKey: env.RESEND_API_KEY,
-        transport: dev ? "console" : "resend",
-      })
-    : null;
-const encryption = new Encryption({ secret: env.ENCRYPTION_SECRET });
+  return {
+    db,
+    clickhouse,
+    storage,
+    stripe,
+    email,
+    encryption: new Encryption({ secret: env.ENCRYPTION_SECRET }),
+  };
+};
 
-const createBillingService = (logger: Logger) =>
+let infrastructure: ReturnType<typeof createInfrastructure> | undefined;
+const getInfrastructure = () => (infrastructure ??= createInfrastructure());
+
+const createBillingService = (
+  logger: Logger,
+  { db, email, stripe }: ReturnType<typeof createInfrastructure>,
+) =>
   stripe
     ? new BillingService(db, logger, email!, stripe, {
         proPriceId: env.STRIPE_PRO_PRICE_ID,
@@ -76,6 +91,8 @@ const createBillingService = (logger: Logger) =>
     : null;
 
 const createServerContainer = (logger: Logger) => {
+  const { db, clickhouse, storage, stripe, email, encryption } =
+    getInfrastructure();
   const ingestionKeyService = new IngestionKeyService(db, logger);
   const agentService = new AgentService(
     db,
@@ -138,7 +155,7 @@ const createServerContainer = (logger: Logger) => {
   const chatUsageService = new ChatUsageService(db, logger, {
     allowUnmetered: mode === "local",
   });
-  const billingService = createBillingService(logger);
+  const billingService = createBillingService(logger, getInfrastructure());
   const uploadService = new UploadService(logger, storage, {
     cdnBaseUrl: env.CDN_BASE_URL,
     maxUploadSizeBytes: MAX_UPLOAD_FILE_SIZE_BYTES,
@@ -240,7 +257,8 @@ const createServerContainer = (logger: Logger) => {
 };
 
 const createWorkerContainer = (logger: Logger) => {
-  const billingService = createBillingService(logger);
+  const { db, clickhouse, email, encryption } = getInfrastructure();
+  const billingService = createBillingService(logger, getInfrastructure());
   const notificationDeliveryService = new NotificationDeliveryService(
     db,
     logger,

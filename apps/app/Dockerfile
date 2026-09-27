@@ -9,7 +9,7 @@ WORKDIR /repo
 
 FROM base AS deps
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/app/package.json apps/app/package.json
 COPY packages/components/package.json packages/components/package.json
 COPY packages/clickhouse/package.json packages/clickhouse/package.json
@@ -21,7 +21,7 @@ COPY packages/storage/package.json packages/storage/package.json
 COPY packages/typescript-config/package.json packages/typescript-config/package.json
 COPY packages/utils/package.json packages/utils/package.json
 
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 FROM deps AS build
 
@@ -29,6 +29,10 @@ COPY . .
 
 RUN pnpm --filter @repo/components exec svelte-kit sync
 RUN pnpm --filter app build
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+  pnpm --ignore-scripts --filter app deploy --prod /out/app \
+  && cp apps/app/package.json /out/app/package.json \
+  && cp -R apps/app/build /out/app/build
 
 FROM base AS runner
 
@@ -36,9 +40,9 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-COPY --from=build /repo /repo
+COPY --from=build /out/app /app
 
-WORKDIR /repo/apps/app
+WORKDIR /app
 
 EXPOSE 3000
 

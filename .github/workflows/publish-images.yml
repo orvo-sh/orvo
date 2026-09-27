@@ -5,14 +5,14 @@ on:
     branches:
       - main
     paths:
-      - ".github/workflows/publish-images.yml"
-      - "apps/app/**"
-      - "apps/ingest/**"
-      - "packages/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "turbo.json"
+      - '.github/workflows/publish-images.yml'
+      - 'apps/app/**'
+      - 'apps/ingest/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
   workflow_dispatch:
 
 concurrency:
@@ -25,7 +25,19 @@ permissions:
 
 jobs:
   publish:
-    name: Publish linux/arm64 images
+    name: Publish ${{ matrix.service }} linux/arm64 image
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: app
+            context: .
+            file: apps/app/Dockerfile
+            image: orvo-app
+          - service: ingest
+            context: apps/ingest
+            file: apps/ingest/Dockerfile
+            image: orvo-ingest
     runs-on: blacksmith-4vcpu-ubuntu-2404-arm
     steps:
       - name: Check out repository
@@ -41,26 +53,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
-      - name: Build and publish app
+      - name: Build and publish ${{ matrix.service }}
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: apps/app/Dockerfile
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
           platforms: linux/arm64
           push: true
-          tags: ghcr.io/orvo-sh/orvo-app:${{ github.sha }}
+          tags: ghcr.io/orvo-sh/${{ matrix.image }}:${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            service=orvo-app
-
-      - name: Build and publish ingest
-        uses: docker/build-push-action@v6
-        with:
-          context: apps/ingest
-          file: apps/ingest/Dockerfile
-          platforms: linux/arm64
-          push: true
-          tags: ghcr.io/orvo-sh/orvo-ingest:${{ github.sha }}
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            service=orvo-ingest
+            service=${{ matrix.image }}
