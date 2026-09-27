@@ -58,19 +58,19 @@ from a tested commit on `main` and include curated notes at
    the generated command in
    `../app/src/lib/server/services/agent/methods/create-enrollment.ts`.
 2. Merge the PR and confirm CI passes on `main`.
-3. Test the exact commit locally with `make test build`.
-4. Create and push an annotated agent tag:
+3. Run the **Agent Release** workflow from `main` with the version in `X.Y.Z`
+   format:
 
    ```bash
-   git switch main
-   git pull --ff-only
-   git tag -a agent-v0.1.1 -m "Orvo Agent 0.1.1"
-   git push origin agent-v0.1.1
+   gh workflow run agent-release.yml --ref main -f version=0.1.2
    ```
 
-The release workflow validates the tag and notes, tests and cross-compiles Linux
-amd64 and arm64 bundles, generates checksums and public build-provenance
-attestations, and publishes the installer and artifacts in a GitHub Release.
+The release workflow validates the version, release notes, changelog, and
+generated install command before testing and cross-compiling Linux amd64 and
+arm64 bundles. After the builds pass, it creates the annotated tag, generates
+checksums and public build-provenance attestations, publishes the installer and
+artifacts in a GitHub Release, and downloads the published assets to verify
+their checksums.
 
 Verify a completed release with:
 

@@ -1,12 +1,15 @@
 name: Agent Release
 
 on:
-  push:
-    tags:
-      - 'agent-v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version in X.Y.Z format
+        required: true
+        type: string
 
 concurrency:
-  group: agent-release-${{ github.ref }}
+  group: agent-release
   cancel-in-progress: false
 
 jobs:
@@ -16,29 +19,65 @@ jobs:
     permissions:
       contents: read
     outputs:
+      commit: ${{ steps.release.outputs.commit }}
+      tag: ${{ steps.release.outputs.tag }}
       version: ${{ steps.release.outputs.version }}
     steps:
-      - name: Check out repository
+      - name: Check out main
         uses: actions/checkout@v7
         with:
+          ref: main
           fetch-depth: 0
 
-      - name: Validate tag and release notes
+      - name: Validate release inputs
         id: release
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
         run: |
-          if [[ ! "$GITHUB_REF_NAME" =~ ^agent-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Agent release tags must match agent-vX.Y.Z." >&2
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Agent version must match X.Y.Z." >&2
             exit 1
           fi
-          TAG_COMMIT="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
-          if ! git merge-base --is-ancestor "$TAG_COMMIT" origin/main; then
-            echo "Release tags must point to a commit on main." >&2
+
+          TAG="agent-v${VERSION}"
+          RELEASE_NOTES="apps/agent/releases/v${VERSION}.md"
+          COMMIT="$(git rev-parse HEAD)"
+
+          if [[ ! -s "${RELEASE_NOTES}" ]]; then
+            echo "Missing release notes: ${RELEASE_NOTES}" >&2
             exit 1
           fi
-          VERSION="${GITHUB_REF_NAME#agent-v}"
-          test -s "apps/agent/releases/v${VERSION}.md"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          IFS= read -r RELEASE_TITLE < "${RELEASE_NOTES}"
+          if [[ "${RELEASE_TITLE}" != "# Orvo Agent ${VERSION}" ]]; then
+            echo "Release notes must start with '# Orvo Agent ${VERSION}'." >&2
+            exit 1
+          fi
+          if ! grep -Fq "## ${VERSION} -" apps/agent/CHANGELOG.md; then
+            echo "CHANGELOG.md has no ${VERSION} release entry." >&2
+            exit 1
+          fi
+
+          APP_VERSION="$(sed -n 's/^const agentVersion = "\([^"]*\)";$/\1/p' \
+            apps/app/src/lib/server/services/agent/methods/create-enrollment.ts)"
+          if [[ "${APP_VERSION}" != "${VERSION}" ]]; then
+            echo "The generated install command uses ${APP_VERSION:-no version}, expected ${VERSION}." >&2
+            exit 1
+          fi
+
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "GitHub Release ${TAG} already exists." >&2
+            exit 1
+          fi
+          if git rev-parse --verify --quiet "refs/tags/${TAG}" >/dev/null; then
+            echo "Tag ${TAG} already exists without a GitHub Release." >&2
+            exit 1
+          fi
+
+          echo "commit=${COMMIT}" >> "${GITHUB_OUTPUT}"
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
 
   build:
     name: Build linux/${{ matrix.arch }}
@@ -53,8 +92,10 @@ jobs:
       matrix:
         arch: [amd64, arm64]
     steps:
-      - name: Check out repository
+      - name: Check out release commit
         uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
 
       - name: Set up Go
         uses: actions/setup-go@v7
@@ -89,7 +130,7 @@ jobs:
           go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" \
             -o "dist/${PACKAGE}/orvo-agentctl" ./cmd/orvo-agentctl
           cp packaging/orvo-agent.service "dist/${PACKAGE}/"
-          printf '%s\n' "$VERSION" > "dist/${PACKAGE}/VERSION"
+          printf '%s\n' "${VERSION}" > "dist/${PACKAGE}/VERSION"
           tar -C "dist/${PACKAGE}" -czf "dist/${PACKAGE}.tar.gz" .
 
       - name: Attest release archive
@@ -105,16 +146,21 @@ jobs:
           if-no-files-found: error
 
   publish:
-    name: Publish release
+    name: Tag and publish release
     needs: [prepare, build]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     env:
+      COMMIT: ${{ needs.prepare.outputs.commit }}
+      TAG: ${{ needs.prepare.outputs.tag }}
       VERSION: ${{ needs.prepare.outputs.version }}
     steps:
-      - name: Check out repository
+      - name: Check out release commit
         uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+          fetch-depth: 0
 
       - name: Download release archives
         uses: actions/download-artifact@v8
@@ -132,24 +178,42 @@ jobs:
             sha256sum *.tar.gz > checksums.txt
           )
 
+      - name: Create annotated tag
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "${TAG}" "${COMMIT}" -m "Orvo Agent ${VERSION}"
+          git push origin "refs/tags/${TAG}"
+
       - name: Publish GitHub Release
         working-directory: apps/agent
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release edit "$GITHUB_REF_NAME" \
-              --draft=false \
-              --latest=false \
-              --title "Orvo Agent ${VERSION}" \
-              --notes-file "releases/v${VERSION}.md"
-            gh release upload "$GITHUB_REF_NAME" \
-              dist/*.tar.gz dist/checksums.txt packaging/install.sh --clobber
-          else
-            gh release create "$GITHUB_REF_NAME" \
-              dist/*.tar.gz dist/checksums.txt packaging/install.sh \
-              --latest=false \
-              --verify-tag \
-              --title "Orvo Agent ${VERSION}" \
-              --notes-file "releases/v${VERSION}.md"
-          fi
+          gh release create "${TAG}" \
+            dist/*.tar.gz dist/checksums.txt packaging/install.sh \
+            --latest=false \
+            --verify-tag \
+            --title "Orvo Agent ${VERSION}" \
+            --notes-file "releases/v${VERSION}.md"
+
+      - name: Verify published release
+        working-directory: apps/agent
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERIFY_DIR="$(mktemp -d)"
+          RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
+
+          curl --proto '=https' --tlsv1.2 --fail --location --silent --show-error \
+            "${RELEASE_URL}/install.sh" -o "${VERIFY_DIR}/install.sh"
+          sh -n "${VERIFY_DIR}/install.sh"
+
+          gh release download "${TAG}" \
+            --dir "${VERIFY_DIR}" \
+            --pattern '*.tar.gz' \
+            --pattern 'checksums.txt'
+          (
+            cd "${VERIFY_DIR}"
+            sha256sum --check checksums.txt
+          )
