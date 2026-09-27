@@ -8,17 +8,18 @@ next: integrations/email
 
 # Slack
 
-Connect a Slack channel to investigate telemetry with Scout and receive notifications when alerts open, repeat, or resolve and when heartbeat monitors miss a check-in or recover.
+Install Scout in a Slack workspace to investigate telemetry and receive notifications when alerts open, repeat, or resolve and when heartbeat monitors miss a check-in or recover.
 
 ## Connect Slack
 
 1. Open your app in Orvo.
-2. Go to **Settings → Notification destinations**.
-3. Select **Add notification destination**.
-4. Choose **Slack**, then select **Connect to Slack**.
-5. In Slack, choose the workspace and channel where Orvo should post.
+2. Go to **Settings → Integrations → Scout for Slack**.
+3. Select **Connect Slack**.
+4. In Slack, choose the workspace where Scout should be installed.
+5. Invite Orvo to the channel where notifications should be sent.
+6. Return to Orvo, refresh the channel list, and select that notification channel.
 
-Orvo adds the selected channel as a notification destination for the current app. An app can have one connected Slack channel; connecting another channel replaces the existing Slack destination.
+The installation belongs to the workspace. The channel selected in Orvo is only the default notification destination; Scout can also be used in direct messages and in other channels where Orvo has been invited.
 
 ## Configure Scout events
 
@@ -28,15 +29,17 @@ In your Slack app settings, open **Event Subscriptions**, enable events, and set
 https://YOUR_ORVO_ORIGIN/api/integrations/slack/events
 ```
 
-Under **Subscribe to bot events**, add `app_mention`. Orvo handles Slack's URL verification challenge at this endpoint. The OAuth installation requests `incoming-webhook`, `app_mentions:read`, and `chat:write`.
+Under **Subscribe to bot events**, add `app_mention`, `message.channels`, `message.groups`, and `message.im`. Orvo handles Slack's URL verification challenge at this endpoint.
+
+The OAuth installation requests `app_mentions:read`, `chat:write`, `channels:history`, `channels:read`, `groups:history`, `groups:read`, and `im:history`. Enable the Messages tab and Agent experience in the Slack app settings for direct messages and native agent sessions.
 
 If Slack was connected before Scout for Slack was enabled, reconnect it from **Settings → Integrations → Scout for Slack** to grant the additional bot permissions.
 
 ## Ask Scout
 
-Mention `@Orvo` in the connected channel. The first time each Slack user asks a question, Orvo sends that user a private account-link button. After they sign in to Orvo and confirm the link, the original question resumes automatically.
+Message Orvo directly, or invite it to a channel and mention `@Orvo` to start a conversation. The first time each Slack user asks a question, Orvo sends that user a private account-link button. After they sign in to Orvo and confirm the link, the original question resumes automatically.
 
-Each Slack thread is stored as a regular Scout conversation. Continue mentioning `@Orvo` in that thread to investigate further. Scout keeps Slack responses compact and streams them into the thread.
+Each Slack thread is stored as a regular Scout conversation. Replies in an established Scout thread continue the conversation without another mention. Scout keeps Slack responses compact and streams them into the thread.
 
 Scout can request changes such as resolving incidents or updating alert rules. Approve or cancel the requested action in Slack. Orvo checks the approving Slack user's linked Orvo account and current organization membership before continuing.
 
@@ -51,15 +54,15 @@ Only enabled destinations receive notifications.
 
 ## Test the connection
 
-Open **Settings → Notification destinations**, open the Slack destination's action menu, and select **Test destination**. Orvo posts a test message to the connected channel.
+Open **Settings → Integrations → Scout for Slack** and select **Test notification**. Orvo posts a test message to the notification channel selected in Orvo.
 
 ## Work with incidents from Slack
 
 Slack notifications include the app name and details about the alert rule or heartbeat monitor. Use **Ask Scout** to start an investigation in the notification thread, **View in Orvo** to open the incident, or **Resolve** to resolve it in Orvo.
 
-## Change or disconnect the channel
+## Change the notification channel or disconnect
 
-Delete the Slack destination to disconnect it. This removes it from alert rules and heartbeat monitors and deletes its recorded deliveries. Connect Slack again to choose another workspace or channel.
+Invite Orvo to another channel, refresh the channel list in the integration settings, and select it to change the notification destination. Disconnect Slack from the same page to remove the workspace installation from the current Orvo app.
 
 ## Related pages
 

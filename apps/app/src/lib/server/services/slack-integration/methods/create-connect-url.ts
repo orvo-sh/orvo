@@ -45,7 +45,7 @@ const createCreateConnectUrl =
       url.searchParams.set("client_id", config.clientId);
       url.searchParams.set(
         "scope",
-        "incoming-webhook,app_mentions:read,chat:write,channels:history,groups:history,im:history",
+        "app_mentions:read,chat:write,channels:history,channels:read,groups:history,groups:read,im:history",
       );
       url.searchParams.set("redirect_uri", config.redirectUri);
       url.searchParams.set("state", state);

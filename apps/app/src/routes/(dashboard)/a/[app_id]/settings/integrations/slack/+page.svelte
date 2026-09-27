@@ -3,22 +3,69 @@
   import { page } from "$app/state";
   import {
     disconnectSlackIntegrationCommand,
+    getSlackChannelsQuery,
     testSlackIntegrationCommand,
+    updateSlackChannelCommand,
   } from "$lib/api/slack-integrations.remote";
   import { SlackIcon } from "@repo/components/icons/slack";
   import * as AlertDialog from "@repo/components/ui/alert-dialog";
   import { Badge } from "@repo/components/ui/badge";
   import { Button } from "@repo/components/ui/button";
   import * as Card from "@repo/components/ui/card";
+  import * as Select from "@repo/components/ui/select";
   import { toast } from "@repo/components/ui/sonner";
-  import { IconExternalLink, IconSend, IconTrash } from "@tabler/icons-svelte";
+  import {
+    IconExternalLink,
+    IconRefresh,
+    IconSend,
+    IconTrash,
+  } from "@tabler/icons-svelte";
+  import { onMount } from "svelte";
 
   let { data } = $props();
   let testing = $state(false);
   let disconnecting = $state(false);
   let disconnectOpen = $state(false);
+  let channels = $state<Array<{ id: string; name: string }>>([]);
+  let loadingChannels = $state(false);
+  let updatingChannel = $state(false);
+  let selectedChannelId = $derived(data.integration?.slackChannelId ?? "");
+
+  const loadChannels = async () => {
+    loadingChannels = true;
+    const result = await getSlackChannelsQuery({});
+    loadingChannels = false;
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+    channels = result.data.channels;
+  };
+
+  const updateChannel = async (channelId: string) => {
+    if (!channelId || channelId === data.integration?.slackChannelId) return;
+    selectedChannelId = channelId;
+    updatingChannel = true;
+    const result = await updateSlackChannelCommand({ channelId });
+    updatingChannel = false;
+    if (!result.success) {
+      selectedChannelId = data.integration?.slackChannelId ?? "";
+      toast.error(result.error);
+      return;
+    }
+    await invalidateAll();
+    toast.success("Slack notification channel updated.");
+  };
+
+  onMount(() => {
+    if (data.integration?.slackBotUserId) void loadChannels();
+  });
 
   const testConnection = async () => {
+    if (!data.integration?.slackChannelId) {
+      toast.error("Choose a notification channel first.");
+      return;
+    }
     testing = true;
     const result = await testSlackIntegrationCommand({});
     testing = false;
@@ -92,13 +139,48 @@
           <p class="text-xs font-medium text-muted-foreground">
             Notification channel
           </p>
-          <p class="text-sm font-medium">
-            #{data.integration.slackChannelName}
-          </p>
+          <div class="flex items-center gap-2">
+            <Select.Root
+              type="single"
+              value={selectedChannelId}
+              disabled={loadingChannels || updatingChannel}
+              onValueChange={(value) => {
+                if (value) void updateChannel(value);
+              }}
+            >
+              <Select.Trigger class="min-w-48 bg-background">
+                {data.integration.slackChannelName
+                  ? `#${data.integration.slackChannelName}`
+                  : loadingChannels
+                    ? "Loading channels…"
+                    : "Choose a channel"}
+              </Select.Trigger>
+              <Select.Content>
+                {#each channels as channel (channel.id)}
+                  <Select.Item value={channel.id} label={`#${channel.name}`} />
+                {/each}
+              </Select.Content>
+            </Select.Root>
+            <Button
+              variant="outline"
+              size="icon"
+              loading={loadingChannels}
+              onclick={loadChannels}
+              title="Refresh channels"
+              aria-label="Refresh Slack channels"
+            >
+              <IconRefresh data-slot="button-icon" />
+            </Button>
+          </div>
         </div>
       </Card.Content>
       <Card.Footer class="justify-between gap-2 border-t px-5 py-4">
-        <Button variant="outline" loading={testing} onclick={testConnection}>
+        <Button
+          variant="outline"
+          loading={testing}
+          disabled={!data.integration.slackChannelId}
+          onclick={testConnection}
+        >
           <IconSend data-slot="button-icon" />
           Test notification
         </Button>
@@ -113,7 +195,11 @@
       Message Orvo directly, or invite it to a channel and mention
       <strong>@Orvo</strong> once to start a Scout conversation. Replies in that
       thread continue the same chat without another mention. Incident
-      notifications are sent to #{data.integration.slackChannelName}.
+      notifications are sent to
+      {data.integration.slackChannelName
+        ? `#${data.integration.slackChannelName}`
+        : "the channel selected above"}. If a channel is missing, invite Orvo
+      there and refresh the list.
     </p>
     <Card.Root class="gap-2 p-5">
       <Card.Title class="text-sm">Slack Events API request URL</Card.Title>
@@ -143,7 +229,7 @@
         <Card.Description>
           {data.integration
             ? "Reconnect to grant the bot permissions Scout needs for DMs, thread replies, streaming responses, and approvals."
-            : "Install Scout in your workspace and choose the default channel for incident notifications. You can then message it directly or invite it to other channels."}
+            : "Install Scout in your workspace. After connecting, choose the default notification channel in Orvo and invite Scout wherever you want to use it."}
         </Card.Description>
       </div>
       <Button

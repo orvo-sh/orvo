@@ -31,7 +31,6 @@ const notificationDestination = pgTable(
     slackTeamName: text('slack_team_name'),
     slackChannelId: text('slack_channel_id'),
     slackChannelName: text('slack_channel_name'),
-    slackWebhookUrlEncrypted: text('slack_webhook_url_encrypted'),
     slackBotTokenEncrypted: text('slack_bot_token_encrypted'),
     slackBotUserId: text('slack_bot_user_id'),
     slackScopes: text('slack_scopes')

@@ -69,13 +69,15 @@ describe("Slack integration helpers", () => {
     expect(JSON.stringify(message)).not.toContain("must not appear");
   });
 
-  test("reports Slack webhook failures to the delivery retry pipeline", async () => {
+  test("reports Slack bot message failures to the delivery retry pipeline", async () => {
     const encryption = new Encryption({ secret: "test-secret" });
     vi.stubGlobal(
       "fetch",
       vi
         .fn()
-        .mockResolvedValue(new Response("channel_not_found", { status: 404 })),
+        .mockResolvedValue(
+          Response.json({ ok: false, error: "channel_not_found" }),
+        ),
     );
 
     const result = await createSendToDestination({
@@ -85,9 +87,8 @@ describe("Slack integration helpers", () => {
       {
         id: "ntds_1",
         kind: "slack",
-        slackWebhookUrlEncrypted: encryption.encrypt(
-          "https://hooks.slack.com/services/T/B/secret",
-        ),
+        slackChannelId: "C123",
+        slackBotTokenEncrypted: encryption.encrypt("xoxb-test-token"),
       } as never,
       { app: { name: "Production" } },
       "destination.test",
@@ -95,8 +96,14 @@ describe("Slack integration helpers", () => {
 
     expect(result).toMatchObject({
       success: false,
-      httpStatus: 404,
-      errorMessage: "channel_not_found",
+      httpStatus: null,
+      errorMessage: "Slack chat.postMessage failed: channel_not_found",
     });
+    expect(fetch).toHaveBeenCalledWith(
+      "https://slack.com/api/chat.postMessage",
+      expect.objectContaining({
+        body: expect.stringContaining('"channel":"C123"'),
+      }),
+    );
   });
 });

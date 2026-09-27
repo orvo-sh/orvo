@@ -8,24 +8,30 @@ import type { Encryption } from "@repo/encryption";
 import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
 import { and, eq } from "drizzle-orm";
+import { z } from "zod";
 
 import { createCompleteOauth } from "./methods/complete-oauth";
 import { createCreateConnectUrl } from "./methods/create-connect-url";
 import { createDisconnectIntegration } from "./methods/disconnect-integration";
 import { createGetIntegration } from "./methods/get-integration";
-import { createProcessAction } from "./methods/process-action";
 import { createIngestEvent } from "./methods/ingest-event";
 import { createCompleteLink, createCreateLinkUrl } from "./methods/link-user";
+import { createListChannels } from "./methods/list-channels";
+import { createProcessAction } from "./methods/process-action";
 import {
   createProcessScoutRun,
   wrapProcessScoutRun,
 } from "./methods/process-scout-run";
+import { createUpdateChannel } from "./methods/update-channel";
+import { updateSlackChannelInputSchema } from "./schema";
 
 @Instrument({ prefix: "slackIntegration" })
 class SlackIntegrationService {
   private createConnectUrlMethod: ReturnType<typeof createCreateConnectUrl>;
   private completeOauthMethod: ReturnType<typeof createCompleteOauth>;
   private getIntegrationMethod: ReturnType<typeof createGetIntegration>;
+  private listChannelsMethod: ReturnType<typeof createListChannels>;
+  private updateChannelMethod: ReturnType<typeof createUpdateChannel>;
   private disconnectIntegrationMethod: ReturnType<
     typeof createDisconnectIntegration
   >;
@@ -63,6 +69,16 @@ class SlackIntegrationService {
     });
     this.getIntegrationMethod = createGetIntegration({
       db,
+      logger: childLogger,
+    });
+    this.listChannelsMethod = createListChannels({
+      db,
+      encryption,
+      logger: childLogger,
+    });
+    this.updateChannelMethod = createUpdateChannel({
+      db,
+      encryption,
       logger: childLogger,
     });
     this.disconnectIntegrationMethod = createDisconnectIntegration({
@@ -114,6 +130,17 @@ class SlackIntegrationService {
     return this.getIntegrationMethod(context);
   }
 
+  async listChannels(context: { appId: string }) {
+    return this.listChannelsMethod(context);
+  }
+
+  async updateChannel(
+    input: z.input<typeof updateSlackChannelInputSchema>,
+    context: { appId: string; userId: string },
+  ) {
+    return this.updateChannelMethod(input, context);
+  }
+
   async testIntegration(context: { appId: string }) {
     const destination = await this.db.query.notificationDestination.findFirst({
       where: and(
@@ -152,4 +179,5 @@ class SlackIntegrationService {
   }
 }
 
+export * from "./schema";
 export { SlackIntegrationService };

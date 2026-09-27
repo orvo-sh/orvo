@@ -35,11 +35,10 @@ const slackOauthResponseSchema = z.object({
     id: z.string().trim().min(1),
     name: z.string().trim().min(1),
   }),
-  incoming_webhook: z.object({
-    channel: z.string().trim().min(1),
-    channel_id: z.string().trim().min(1),
-    url: z.url(),
-  }),
+});
+
+const updateSlackChannelInputSchema = z.object({
+  channelId: z.string().trim().min(1),
 });
 
 const slackMessageEventSchema = z.object({
@@ -81,4 +80,5 @@ export {
   slackOauthResponseSchema,
   slackEventCallbackSchema,
   slackScoutActionValueSchema,
+  updateSlackChannelInputSchema,
 };

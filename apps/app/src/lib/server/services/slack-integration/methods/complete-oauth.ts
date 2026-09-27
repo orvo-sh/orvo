@@ -120,7 +120,7 @@ const createCompleteOauth =
       });
       const destinationId = existing?.id ?? genId("ntds");
       const values = {
-        name: `Slack · ${parsed.data.incoming_webhook.channel}`,
+        name: existing?.name ?? `Slack · ${parsed.data.team.name}`,
         kind: "slack" as const,
         isEnabled: true,
         webhookUrl: null,
@@ -128,14 +128,8 @@ const createCompleteOauth =
         emailRecipients: [],
         slackTeamId: parsed.data.team.id,
         slackTeamName: parsed.data.team.name,
-        slackChannelId: parsed.data.incoming_webhook.channel_id,
-        slackChannelName: parsed.data.incoming_webhook.channel.replace(
-          /^#/,
-          "",
-        ),
-        slackWebhookUrlEncrypted: encryption.encrypt(
-          parsed.data.incoming_webhook.url,
-        ),
+        slackChannelId: existing?.slackChannelId ?? null,
+        slackChannelName: existing?.slackChannelName ?? null,
         slackBotTokenEncrypted: encryption.encrypt(parsed.data.access_token),
         slackBotUserId: parsed.data.bot_user_id,
         slackScopes: parsed.data.scope

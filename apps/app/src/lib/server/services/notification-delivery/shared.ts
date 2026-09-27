@@ -8,6 +8,7 @@ import type { Encryption } from "@repo/encryption";
 import { formatDuration } from "@repo/utils";
 
 import { buildSlackMessage } from "../slack-integration/shared";
+import { postSlackMessage } from "../slack-integration/slack-client";
 
 const deliveryRetryMinutes = [1, 5, 15];
 
@@ -237,39 +238,30 @@ const createSendToDestination =
   ) => {
     if (destination.kind === "slack") {
       try {
-        if (!destination.slackWebhookUrlEncrypted) {
+        if (
+          !destination.slackBotTokenEncrypted ||
+          !destination.slackChannelId
+        ) {
           return {
             success: false as const,
             httpStatus: null,
-            errorMessage: "Slack destination is missing its webhook URL.",
+            errorMessage:
+              "Choose a Slack notification channel before sending notifications.",
           };
         }
 
-        const response = await fetch(
-          encryption.decrypt(destination.slackWebhookUrlEncrypted),
+        await postSlackMessage(
+          encryption.decrypt(destination.slackBotTokenEncrypted),
           {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            signal: AbortSignal.timeout(10_000),
-            body: JSON.stringify(
-              buildSlackMessage(payload, eventType, destination.id),
-            ),
+            channel: destination.slackChannelId,
+            ...buildSlackMessage(payload, eventType, destination.id),
           },
         );
-        const body = await response.text().catch(() => "");
-
-        return response.ok
-          ? {
-              success: true as const,
-              httpStatus: response.status,
-              errorMessage: null,
-            }
-          : {
-              success: false as const,
-              httpStatus: response.status,
-              errorMessage:
-                body.slice(0, 2000) || "Slack webhook request failed.",
-            };
+        return {
+          success: true as const,
+          httpStatus: 200,
+          errorMessage: null,
+        };
       } catch (error) {
         recordError(error);
         return {
@@ -278,7 +270,7 @@ const createSendToDestination =
           errorMessage:
             error instanceof Error
               ? error.message
-              : "Slack webhook request failed.",
+              : "Slack message request failed.",
         };
       }
     }

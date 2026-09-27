@@ -1,13 +1,16 @@
 import { createUpdateNotificationDestination } from "$lib/server/services/notification-destination/methods/update-notification-destination";
 import { createCompleteOauth } from "$lib/server/services/slack-integration/methods/complete-oauth";
+import { createCreateConnectUrl } from "$lib/server/services/slack-integration/methods/create-connect-url";
 import { createProcessAction } from "$lib/server/services/slack-integration/methods/process-action";
 import { createIngestEvent } from "$lib/server/services/slack-integration/methods/ingest-event";
+import { createListChannels } from "$lib/server/services/slack-integration/methods/list-channels";
 import {
   createCompleteLink,
   createCreateLinkUrl,
   hashLinkState,
 } from "$lib/server/services/slack-integration/methods/link-user";
 import { hashSlackOauthState } from "$lib/server/services/slack-integration/shared";
+import { createUpdateChannel } from "$lib/server/services/slack-integration/methods/update-channel";
 import { type DB } from "@repo/db";
 import {
   chat,
@@ -92,7 +95,7 @@ describe("Slack integration", () => {
     if (container) await stopPostgresContainer(container);
   });
 
-  test("completes OAuth once and encrypts the incoming webhook", async () => {
+  test("completes workspace OAuth once and encrypts the bot token", async () => {
     await db.insert(slackOauthState).values({
       stateHash: hashSlackOauthState("valid-state"),
       appId: "app_slack",
@@ -102,18 +105,14 @@ describe("Slack integration", () => {
     });
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
+      vi.fn().mockImplementation(() =>
         Response.json({
           ok: true,
           access_token: "xoxb-test-token",
           bot_user_id: "U_BOT",
-          scope: "incoming-webhook,app_mentions:read,chat:write",
+          scope:
+            "app_mentions:read,chat:write,channels:history,channels:read,groups:history,groups:read,im:history",
           team: { id: "T123", name: "Orvo" },
-          incoming_webhook: {
-            channel: "#alerts",
-            channel_id: "C123",
-            url: "https://hooks.slack.com/services/T/B/secret",
-          },
         }),
       ),
     );
@@ -138,12 +137,21 @@ describe("Slack integration", () => {
       kind: "slack",
       appId: "app_slack",
       slackTeamId: "T123",
-      slackChannelName: "alerts",
+      slackChannelId: null,
+      slackChannelName: null,
       slackBotUserId: "U_BOT",
-      slackScopes: ["incoming-webhook", "app_mentions:read", "chat:write"],
+      slackScopes: [
+        "app_mentions:read",
+        "chat:write",
+        "channels:history",
+        "channels:read",
+        "groups:history",
+        "groups:read",
+        "im:history",
+      ],
     });
-    expect(destination?.slackWebhookUrlEncrypted).not.toContain(
-      "hooks.slack.com",
+    expect(destination?.slackBotTokenEncrypted).not.toContain(
+      "xoxb-test-token",
     );
 
     const replay = await createCompleteOauth({
@@ -157,6 +165,37 @@ describe("Slack integration", () => {
       },
     })({ code: "code", state: "valid-state" });
     expect(replay.success).toBe(false);
+  });
+
+  test("requests workspace bot scopes without incoming webhooks", async () => {
+    const result = await createCreateConnectUrl({
+      db,
+      logger: createTestLogger() as never,
+      config: {
+        clientId: "client-id",
+        redirectUri: "https://app.orvo.sh/api/integrations/slack/callback",
+      },
+    })({
+      appId: "app_slack",
+      organizationId: "org_slack",
+      userId: "user_slack",
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    const scopes = new URL(result.data.url).searchParams
+      .get("scope")
+      ?.split(",");
+    expect(scopes).toEqual(
+      expect.arrayContaining([
+        "app_mentions:read",
+        "chat:write",
+        "channels:read",
+        "groups:read",
+        "im:history",
+      ]),
+    );
+    expect(scopes).not.toContain("incoming-webhook");
   });
 
   test("rejects invalid and expired OAuth state", async () => {
@@ -184,6 +223,63 @@ describe("Slack integration", () => {
     expect(
       (await completeOauth({ code: "code", state: "expired-state" })).success,
     ).toBe(false);
+  });
+
+  test("lists joined Slack channels and selects one for notifications", async () => {
+    const encryption = new Encryption({ secret: "test-secret" });
+    await db.insert(notificationDestination).values({
+      id: "ntds_slack",
+      appId: "app_slack",
+      name: "Slack · Orvo",
+      kind: "slack",
+      slackTeamId: "T123",
+      slackTeamName: "Orvo",
+      slackBotTokenEncrypted: encryption.encrypt("xoxb-test-token"),
+      slackBotUserId: "U_BOT",
+      isEnabled: true,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() =>
+        Response.json({
+          ok: true,
+          channels: [
+            { id: "C_GENERAL", name: "general", is_member: true },
+            { id: "C_PRIVATE", name: "private", is_member: false },
+            {
+              id: "C_ARCHIVED",
+              name: "archived",
+              is_member: true,
+              is_archived: true,
+            },
+          ],
+          response_metadata: { next_cursor: "" },
+        }),
+      ),
+    );
+
+    const dependencies = {
+      db,
+      encryption,
+      logger: createTestLogger() as never,
+    };
+    expect(
+      await createListChannels(dependencies)({ appId: "app_slack" }),
+    ).toMatchObject({
+      success: true,
+      data: { channels: [{ id: "C_GENERAL", name: "general" }] },
+    });
+    expect(
+      await createUpdateChannel(dependencies)(
+        { channelId: "C_GENERAL" },
+        { appId: "app_slack", userId: "user_slack" },
+      ),
+    ).toMatchObject({ success: true });
+    expect(await db.query.notificationDestination.findFirst()).toMatchObject({
+      name: "Slack · #general",
+      slackChannelId: "C_GENERAL",
+      slackChannelName: "general",
+    });
   });
 
   test("deduplicates Slack mention events before they are queued", async () => {
@@ -370,7 +466,6 @@ describe("Slack integration", () => {
       slackTeamName: "Orvo",
       slackChannelId: "C123",
       slackChannelName: "alerts",
-      slackWebhookUrlEncrypted: "encrypted-webhook",
       isEnabled: true,
     });
     const prepareDestinationInput = vi.fn();
@@ -404,7 +499,6 @@ describe("Slack integration", () => {
       isEnabled: false,
       slackTeamId: "T123",
       slackChannelId: "C123",
-      slackWebhookUrlEncrypted: "encrypted-webhook",
     });
   });
 

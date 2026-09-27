@@ -42,24 +42,6 @@ const postSlackMessage = (
     ...(input.blocks ? { blocks: input.blocks } : {}),
   });
 
-const postSlackEphemeral = (
-  token: string,
-  input: {
-    channel: string;
-    user: string;
-    text: string;
-    threadTs?: string;
-    blocks?: Array<Record<string, unknown>>;
-  },
-) =>
-  callSlack(token, "chat.postEphemeral", {
-    channel: input.channel,
-    user: input.user,
-    text: input.text,
-    ...(input.threadTs ? { thread_ts: input.threadTs } : {}),
-    ...(input.blocks ? { blocks: input.blocks } : {}),
-  });
-
 const startSlackStream = (
   token: string,
   input: {
@@ -119,6 +101,43 @@ const setSlackAssistantStatus = (
     status: input.status,
   });
 
+const listSlackChannels = async (token: string) => {
+  const channels: Array<{ id: string; name: string }> = [];
+  let cursor: string | undefined;
+
+  do {
+    const result = await callSlack<{
+      channels?: Array<{
+        id?: string;
+        name?: string;
+        is_archived?: boolean;
+        is_member?: boolean;
+      }>;
+      response_metadata?: { next_cursor?: string };
+    }>(token, "conversations.list", {
+      exclude_archived: true,
+      limit: 200,
+      types: "public_channel,private_channel",
+      ...(cursor ? { cursor } : {}),
+    });
+
+    channels.push(
+      ...(result.channels ?? [])
+        .filter(
+          (channel) =>
+            channel.id &&
+            channel.name &&
+            channel.is_member &&
+            !channel.is_archived,
+        )
+        .map((channel) => ({ id: channel.id!, name: channel.name! })),
+    );
+    cursor = result.response_metadata?.next_cursor || undefined;
+  } while (cursor);
+
+  return channels.sort((a, b) => a.name.localeCompare(b.name));
+};
+
 const toSlackMarkdown = (value: string, traceBaseUrl?: string) =>
   value
     .replace(/^#{1,6}\s+(.+)$/gm, "*$1*")
@@ -130,7 +149,7 @@ const toSlackMarkdown = (value: string, traceBaseUrl?: string) =>
 
 export {
   appendSlackStream,
-  postSlackEphemeral,
+  listSlackChannels,
   postSlackMessage,
   setSlackAgentStatus,
   setSlackAssistantStatus,

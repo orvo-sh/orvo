@@ -1,0 +1,1 @@
+ALTER TABLE "notification_destination" DROP COLUMN "slack_webhook_url_encrypted";
