@@ -58,9 +58,9 @@ pnpm install
 ```
 
 Copy the local database settings and authenticate the Infisical CLI. This
-repository is connected to the `Orvo` project; application and ingest
-configuration is injected from its `dev` environment, while local `.env` files
-contain database URLs only.
+repository is connected to the `Orvo` project; application and ingest secrets
+are injected from its `dev` environment. Non-secret development configuration
+lives in `config/dev.env`, while local `.env` files contain database URLs only.
 
 ```sh
 cp apps/app/.env.example apps/app/.env

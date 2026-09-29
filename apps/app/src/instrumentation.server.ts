@@ -20,10 +20,9 @@ import { createAddHookMessageChannel } from "import-in-the-middle";
 import { register } from "node:module";
 
 let loggerProvider: LoggerProvider | null = null;
-const orvoOtlpBaseUrl =
-  process.env.PROD_OTEL_BASE_URL ?? env.PROD_OTEL_BASE_URL;
+const orvoOtlpBaseUrl = process.env.OTEL_ENDPOINT ?? env.OTEL_ENDPOINT;
 const orvoIngestKey =
-  process.env.PROD_OTEL_INGEST_KEY ?? env.PROD_OTEL_INGEST_KEY;
+  process.env.OTEL_INGESTION_KEY ?? env.OTEL_INGESTION_KEY;
 
 if (orvoOtlpBaseUrl && orvoIngestKey) {
   const { registerOptions } = createAddHookMessageChannel();
