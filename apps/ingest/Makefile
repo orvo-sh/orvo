@@ -10,7 +10,7 @@ test:
 	$(GO) test ./...
 
 run:
-	set -a; [ -f .env ] && . ./.env; set +a; $(GO) run ./cmd/ingest
+	set -a; [ -f .env ] && . ./.env; set +a; infisical run --project-config-dir=../.. --env=dev -- $(GO) run ./cmd/ingest
 
 tidy:
 	$(GO) mod tidy

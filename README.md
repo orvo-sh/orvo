@@ -44,6 +44,7 @@ An observability platform built as a Turborepo monorepo. Orvo ingests logs, trac
 - Node.js >= 18
 - pnpm 10.x
 - Go 1.24 or newer for `ingest`; Go 1.25 or newer for `agent`
+- [Infisical CLI](https://infisical.com/docs/cli/overview), authenticated with access to the `Orvo` project
 - PostgreSQL
 - ClickHouse
 - (Optional) S3-compatible storage, Stripe, Resend
@@ -54,6 +55,16 @@ Install dependencies:
 
 ```sh
 pnpm install
+```
+
+Copy the local database settings and authenticate the Infisical CLI. This
+repository is connected to the `Orvo` project; application and ingest
+configuration is injected from its `dev` environment, while local `.env` files
+contain database URLs only.
+
+```sh
+cp apps/app/.env.example apps/app/.env
+infisical login
 ```
 
 Run the development servers:
