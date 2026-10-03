@@ -178,6 +178,9 @@ const createGetTraces = ({
         ${outerWhere}
         ORDER BY ${sortColumn} ${sortDirection}, trace_id ${traceIdDirection}
         LIMIT ${pageSize}
+        SETTINGS
+          preferred_optimize_projection_name = 'traces_by_app_trace',
+          optimize_aggregation_in_order = 1
       `,
       });
 
