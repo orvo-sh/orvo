@@ -124,7 +124,7 @@
         {#if actions}
           {@render actions()}
         {/if}
-        {#if scout && page.data.mode === "cloud"}
+        {#if scout}
           <Button
             variant="ghost"
             size="icon"

@@ -13,7 +13,6 @@ import { HeartbeatService } from "$lib/server/services/heartbeat";
 import { IncidentService } from "$lib/server/services/incident";
 import { IngestionKeyService } from "$lib/server/services/ingestion-key";
 import { LogsService } from "$lib/server/services/logs";
-import { LocalService } from "$lib/server/services/local";
 import { MetricsService } from "$lib/server/services/metrics";
 import { McpOauthGrantService } from "$lib/server/services/mcp-oauth-grant";
 import { McpService } from "$lib/server/services/mcp";
@@ -32,13 +31,11 @@ import { createOpenAI } from "@ai-sdk/openai";
 import Stripe from "stripe";
 
 import { Email } from "./email";
-import { mode } from "./mode";
 
 const createInfrastructure = () => {
   const db = getDb(env.POSTGRES_URL);
   const clickhouse = getClickHouseClient({ url: env.CLICKHOUSE_URL });
   const storage =
-    mode === "cloud" &&
     env.S3_ACCESS_KEY_ID &&
     env.S3_SECRET_ACCESS_KEY &&
     env.S3_ENDPOINT
@@ -51,16 +48,13 @@ const createInfrastructure = () => {
         })
       : null;
   const stripe =
-    mode === "cloud" && env.STRIPE_SECRET_KEY
+    env.STRIPE_SECRET_KEY
       ? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: "2026-05-27.dahlia" })
       : null;
-  const email =
-    mode === "cloud"
-      ? new Email({
-          resendApiKey: env.RESEND_API_KEY,
-          transport: dev ? "console" : "resend",
-        })
-      : null;
+  const email = new Email({
+    resendApiKey: env.RESEND_API_KEY,
+    transport: dev ? "console" : "resend",
+  });
 
   return {
     db,
@@ -116,11 +110,6 @@ const createServerContainer = (logger: Logger) => {
     notificationDeliveryService,
   );
   const alertRuleService = new AlertRuleService(db, logger);
-  const localService = new LocalService(
-    db,
-    alertRuleService,
-    env.ORVO_SETUP_TOKEN ?? "",
-  );
   const alertWebhookDestinationService = new AlertWebhookDestinationService(
     db,
     logger,
@@ -152,9 +141,7 @@ const createServerContainer = (logger: Logger) => {
     { otlpBaseUrl: env.INGEST_BASE_URL },
     logger,
   );
-  const chatUsageService = new ChatUsageService(db, logger, {
-    allowUnmetered: mode === "local",
-  });
+  const chatUsageService = new ChatUsageService(db, logger);
   const billingService = createBillingService(logger, getInfrastructure());
   const uploadService = new UploadService(logger, storage, {
     cdnBaseUrl: env.CDN_BASE_URL,
@@ -162,11 +149,10 @@ const createServerContainer = (logger: Logger) => {
   });
 
   const authService = createAuth(db, logger, email, billingService, {
-    mode,
     secret: env.BETTER_AUTH_SECRET || env.ENCRYPTION_SECRET,
     baseUrl: env.ORIGIN,
     github:
-      mode === "cloud" && env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
+      env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
         ? {
             clientId: env.GITHUB_CLIENT_ID,
             clientSecret: env.GITHUB_CLIENT_SECRET,
@@ -196,7 +182,7 @@ const createServerContainer = (logger: Logger) => {
   const chatService = new ChatService(
     db,
     logger,
-    mode === "cloud" && env.OPENAI_API_KEY
+    env.OPENAI_API_KEY
       ? createOpenAI({ apiKey: env.OPENAI_API_KEY })(
           env.OPENAI_MODEL || "gpt-5.6-luna",
         )
@@ -236,7 +222,6 @@ const createServerContainer = (logger: Logger) => {
     authService,
     mcpOauthGrantService,
     mcpService,
-    localService,
     agentService,
     uploadService,
     billingService,
@@ -287,13 +272,11 @@ const createWorkerContainer = (logger: Logger) => {
     ingestionKeyService,
     alertRuleService,
   );
-  const chatUsageService = new ChatUsageService(db, logger, {
-    allowUnmetered: mode === "local",
-  });
+  const chatUsageService = new ChatUsageService(db, logger);
   const chatService = new ChatService(
     db,
     logger,
-    mode === "cloud" && env.OPENAI_API_KEY
+    env.OPENAI_API_KEY
       ? createOpenAI({ apiKey: env.OPENAI_API_KEY })(
           env.OPENAI_MODEL || "gpt-5.6-luna",
         )

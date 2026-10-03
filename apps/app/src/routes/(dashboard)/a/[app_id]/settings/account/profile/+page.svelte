@@ -249,7 +249,7 @@
 </script>
 
 <div class="flex w-full max-w-2xl flex-col gap-12">
-  {#if data.mode === "cloud"}
+
     <section class="space-y-4">
       <div class="space-y-1">
         <Label class="text-base font-medium">Profile image</Label>
@@ -317,7 +317,7 @@
         }}
       />
     </section>
-  {/if}
+
 
   <section class="space-y-4">
     <Label for="profile-name" class="text-base font-medium">Your name</Label>
@@ -430,7 +430,7 @@
     {/if}
   </section>
 
-  {#if data.mode === "cloud"}
+
     <section class="space-y-4">
       <h2 class="text-base font-medium">Linked accounts</h2>
 
@@ -478,10 +478,10 @@
         Delete account
       </Button>
     </section>
-  {/if}
+
 </div>
 
-{#if data.mode === "cloud"}
+
   <Dialog.Root bind:open={deleteDialogOpen}>
     <Dialog.Content class="sm:max-w-lg">
       <Dialog.Header>
@@ -533,4 +533,3 @@
       </Dialog.Footer>
     </Dialog.Content>
   </Dialog.Root>
-{/if}

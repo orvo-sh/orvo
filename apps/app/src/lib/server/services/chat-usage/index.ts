@@ -11,9 +11,9 @@ class ChatUsageService {
   private getUsageMethod: ReturnType<typeof createGetUsage>;
   private recordUsageMethod: ReturnType<typeof createRecordUsage>;
 
-  constructor(db: DB, logger: Logger, config: { allowUnmetered: boolean }) {
+  constructor(db: DB, logger: Logger) {
     const childLogger = logger.child("ChatUsageService");
-    this.getUsageMethod = createGetUsage({ db, logger: childLogger, config });
+    this.getUsageMethod = createGetUsage({ db, logger: childLogger });
     this.recordUsageMethod = createRecordUsage({ db, logger: childLogger });
   }
 

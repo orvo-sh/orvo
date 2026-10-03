@@ -96,38 +96,30 @@
         <OrvoLogo class="size-14" />
         <div class="space-y-1">
           <h1 class="text-xl font-semibold">Welcome back</h1>
-          {#if data.mode === "cloud"}
-            <FieldDescription
-              >Don't have an account? <a
-                href={`/sign-up?callback=${encodeURIComponent(data.callback)}`}
-                class="text-primary">Get started</a
-              ></FieldDescription
-            >
-          {:else}
-            <FieldDescription>
-              Local accounts are created through an invitation link.
-            </FieldDescription>
-          {/if}
+          <FieldDescription
+            >Don't have an account? <a
+              href={`/sign-up?callback=${encodeURIComponent(data.callback)}`}
+              class="text-primary">Get started</a
+            ></FieldDescription
+          >
         </div>
       </div>
 
-      {#if data.mode === "cloud"}
-        <Field>
-          <Button
-            id="sign-in-github-button"
-            type="button"
-            variant="outline"
-            class="w-full"
-            loading={githubLoading}
-            onclick={handleGithubSignIn}
-          >
-            <GitHubIcon data-slot="button-icon" class="size-4" />
-            Continue with GitHub
-          </Button>
-        </Field>
+      <Field>
+        <Button
+          id="sign-in-github-button"
+          type="button"
+          variant="outline"
+          class="w-full"
+          loading={githubLoading}
+          onclick={handleGithubSignIn}
+        >
+          <GitHubIcon data-slot="button-icon" class="size-4" />
+          Continue with GitHub
+        </Button>
+      </Field>
 
-        <FieldSeparator>OR</FieldSeparator>
-      {/if}
+      <FieldSeparator>OR</FieldSeparator>
 
       <div class="grid gap-3">
         <Field>

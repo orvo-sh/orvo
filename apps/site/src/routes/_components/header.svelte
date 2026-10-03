@@ -75,7 +75,7 @@
         <NavigationMenu.Item>
           <NavigationMenu.Link>
             {#snippet child()}
-              <Button href="/docs/getting-started/local-mode" variant="ghost">Local</Button>
+              <Button href="/pricing" variant="ghost">Pricing</Button>
             {/snippet}
           </NavigationMenu.Link>
         </NavigationMenu.Item>
@@ -83,7 +83,7 @@
         <NavigationMenu.Item>
           <NavigationMenu.Link>
             {#snippet child()}
-              <Button href="/pricing" variant="ghost">Pricing</Button>
+              <Button href="/docs" variant="ghost">Docs</Button>
             {/snippet}
           </NavigationMenu.Link>
         </NavigationMenu.Item>
@@ -92,14 +92,6 @@
 
     <NavigationMenu.Root class="ml-auto hidden justify-end lg:flex">
       <NavigationMenu.List class="gap-2">
-        <NavigationMenu.Item>
-          <NavigationMenu.Link>
-            {#snippet child()}
-              <Button href="/docs" variant="ghost">Docs</Button>
-            {/snippet}
-          </NavigationMenu.Link>
-        </NavigationMenu.Item>
-
         <NavigationMenu.Item>
           <NavigationMenu.Link>
             {#snippet child()}
@@ -155,19 +147,6 @@
         </Sheet.Header>
         <div class="flex flex-1 flex-col overflow-y-auto p-1 pt-2">
           <div class="space-y-1">
-            <Button
-              href="/docs/getting-started/local-mode"
-              variant="ghost"
-              class="w-full justify-start"
-              onclick={() => {
-                queueMicrotask(() => {
-                  mobileSheetOpen = false;
-                });
-              }}
-            >
-              Local
-            </Button>
-
             <Button
               href="/pricing"
               variant="ghost"

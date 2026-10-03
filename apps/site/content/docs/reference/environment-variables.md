@@ -8,7 +8,7 @@ next: reference/limits
 
 # Environment variables
 
-Use environment variables to configure a self-hosted Orvo deployment and its optional cloud integrations. Start with the repository's `.env.example` files, then provide secrets through your deployment platform rather than committing them.
+Use environment variables to configure Orvo services and optional integrations. Start with the repository's `.env.example` files, then provide secrets through your deployment platform rather than committing them.
 
 ## App service variables
 

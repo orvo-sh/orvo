@@ -31,9 +31,7 @@ describe("ChatUsageService", () => {
     container = await startPostgresContainer();
     db = getTestDb(container.getConnectionUri());
     await applyPostgresMigrations(db);
-    service = new ChatUsageService(db, createTestLogger() as never, {
-      allowUnmetered: false,
-    });
+    service = new ChatUsageService(db, createTestLogger() as never);
   });
 
   beforeEach(async () => {

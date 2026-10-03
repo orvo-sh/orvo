@@ -9,7 +9,6 @@ An observability platform built as a Turborepo monorepo. Orvo ingests logs, trac
 | `app`    | Main dashboard — organizations, apps, logs, traces, metrics, alerts, and incidents | SvelteKit + Node.js |
 | `ingest` | OTLP HTTP ingestion service for logs, traces, metrics, and heartbeat check-ins     | Go                  |
 | `agent`  | Curated OpenTelemetry Collector distribution for host monitoring                   | Go                  |
-| `local`  | Local-first Orvo runtime and CLI                                                    | Go + Node.js        |
 | `site`   | Marketing and product documentation site                                           | SvelteKit           |
 
 ## Packages
@@ -108,7 +107,8 @@ pnpm test
 
 Commits to `main` publish immutable application and ingest images to GitHub
 Container Registry. Orvo Cloud promotes a selected image version independently.
-Self-hosted deployment assets will live under `deploy/self-hosted`.
+Self hosting is not currently documented. Comprehensive self hosting
+documentation is in the pipeline.
 
 ## Database
 

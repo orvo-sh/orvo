@@ -9,12 +9,7 @@ const createGetUsage =
   ({
     db,
     logger,
-    config,
-  }: {
-    db: DB;
-    logger: Logger;
-    config: { allowUnmetered: boolean };
-  }) =>
+  }: { db: DB; logger: Logger }) =>
   async (context: { organizationId: string }) => {
     try {
       const usage = await db.query.organizationUsage.findFirst({
@@ -59,12 +54,11 @@ const createGetUsage =
         overageEnabled: usage.scoutOverageEnabled,
         overageBudgetCents: usage.scoutOverageBudgetCents,
         canUseOverage:
-          config.allowUnmetered ||
-          (usage.organization.billingPlan === "pro" &&
-            usage.organization.billingStatus === "active" &&
-            usage.scoutOverageEnabled &&
-            (usage.scoutOverageBudgetCents === null ||
-              overageCostCents < usage.scoutOverageBudgetCents)),
+          usage.organization.billingPlan === "pro" &&
+          usage.organization.billingStatus === "active" &&
+          usage.scoutOverageEnabled &&
+          (usage.scoutOverageBudgetCents === null ||
+            overageCostCents < usage.scoutOverageBudgetCents),
         periodEnd: usage.currentPeriodEnd,
       });
     } catch (error) {

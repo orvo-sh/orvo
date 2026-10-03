@@ -1,7 +1,6 @@
 import { building } from "$app/environment";
 import { env } from "$env/dynamic/private";
 import { createWorkerContainer } from "$lib/server/container";
-import { mode } from "$lib/server/mode";
 import { context } from "@opentelemetry/api";
 import { suppressTracing } from "@opentelemetry/core";
 import { Logger } from "@repo/logger";
@@ -27,7 +26,7 @@ const ensureWorkersStarted = (logger: Logger) => {
 
   if (!globalWorkers.__orvoWorkerManagerStartPromise) {
     globalWorkers.__orvoWorkerManagerStartPromise =
-      mode === "cloud" ? startCloudWorkers(logger) : startLocalWorkers(logger);
+      startCloudWorkers(logger);
   }
 
   return globalWorkers.__orvoWorkerManagerStartPromise;
@@ -81,73 +80,7 @@ const startCloudWorkers = async (logger: Logger) => {
   }
 };
 
-const startLocalWorkers = async (logger: Logger) => {
-  const workerLogger = logger.child("LocalWorkerRuntime");
-  const container = createWorkerContainer(workerLogger);
-  if (container.billingService) {
-    const reconciliation = new BillingReconciliationWorker(
-      workerLogger,
-      container.billingService,
-    );
-    let reconciling = false;
-    const reconcile = async () => {
-      if (reconciling) return;
-      reconciling = true;
-      try {
-        await reconciliation.execute();
-      } catch (error) {
-        workerLogger.error(
-          "LocalWorkerRuntime: billing reconciliation failed",
-          error as Error,
-        );
-      } finally {
-        reconciling = false;
-      }
-    };
-    void reconcile();
-    setInterval(() => void reconcile(), 6 * 60 * 60_000).unref();
-  }
-  const workers = [
-    new HeartbeatWorker(workerLogger, container.heartbeatService),
-    new ThresholdAlertWorker(
-      workerLogger,
-      container.db,
-      container.clickhouse,
-      container.incidentService,
-      { appBaseUrl: env.ORIGIN },
-    ),
-    new NotificationDeliveryWorker(
-      workerLogger,
-      container.notificationDeliveryService,
-    ),
-  ];
-  let running = false;
-  const run = async () => {
-    if (running) return;
-    running = true;
-    try {
-      for (const worker of workers) await worker.execute();
-    } catch (error) {
-      workerLogger.error(
-        "LocalWorkerRuntime: worker cycle failed",
-        error as Error,
-      );
-    } finally {
-      running = false;
-    }
-  };
-
-  await run();
-  setInterval(() => void run(), 60_000).unref();
-  workerLogger.info("LocalWorkerRuntime: workers started", {
-    workers: workers.map((worker) => worker.name),
-  });
-};
-
 const enqueueSlackScoutRun = async (job: SlackScoutJob) => {
-  if (mode !== "cloud") {
-    throw new Error("Slack Scout jobs are only available in cloud mode.");
-  }
   await globalWorkers.__orvoWorkerManagerStartPromise;
   const boss = globalWorkers.__orvoBoss;
   if (!boss) throw new Error("Slack Scout worker is not ready.");

@@ -1,28 +1,15 @@
 import { getActiveOrganizationId } from "$lib/server/request-context";
-import { mode } from "$lib/server/mode";
 import { redirect } from "@sveltejs/kit";
 import type { LayoutServerLoad } from "./$types";
 
 export const load = (async (event) => {
-  if (mode === "local" && event.url.pathname.includes("/chat")) {
-    throw redirect(302, `/a/${event.params.app_id}/overview`);
-  }
-  if (
-    mode === "local" &&
-    ["/settings/billing", "/settings/notification-destinations"].some((path) =>
-      event.url.pathname.includes(path),
-    )
-  ) {
-    throw redirect(302, `/a/${event.params.app_id}/settings`);
-  }
-
   const auth = event.locals.auth;
 
   if (!auth) {
     throw redirect(302, "/sign-in");
   }
 
-  if (mode === "cloud" && !auth.user.emailVerified) {
+  if (!auth.user.emailVerified) {
     throw redirect(
       302,
       `/verify-email?email=${encodeURIComponent(auth.user.email)}`,
@@ -134,6 +121,5 @@ export const load = (async (event) => {
                 : 0,
           }
         : null,
-    mode,
   };
 }) satisfies LayoutServerLoad;

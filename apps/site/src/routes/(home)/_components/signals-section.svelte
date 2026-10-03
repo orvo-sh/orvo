@@ -6,19 +6,8 @@
     IconArrowUpRight,
     IconBrandGithub,
     IconCheck,
-    IconCloud,
-    IconCode,
-    IconDatabase,
-    IconDeviceDesktop,
-    IconLockOpen,
     IconTerminal2
   } from '@tabler/icons-svelte';
-
-  const localDetails = [
-    { icon: IconDeviceDesktop, label: 'Dashboard on localhost' },
-    { icon: IconDatabase, label: 'Data stays on your machine' },
-    { icon: IconCloud, label: 'OTLP HTTP ingest included' }
-  ];
 </script>
 
 <section id="open-source" class="border-foreground/10 bg-background border-b py-16 md:py-24">
@@ -26,11 +15,11 @@
     <div class="max-w-2xl space-y-3">
       <p class="text-primary text-xs font-medium tracking-[0.16em] uppercase">Own the stack</p>
       <h2 class="text-3xl font-medium tracking-tight text-balance lg:text-5xl">
-        Open by default. Local when you want it.
+        Open by default.
       </h2>
       <p class="text-secondary-foreground text-base leading-loose text-balance">
         Orvo is built in public and speaks OpenTelemetry, so your instrumentation and your data do
-        not have to become someone else’s lock-in.
+        not have to become someone else’s lock-in. Self hosting documentation is in progress.
       </p>
     </div>
 
@@ -59,7 +48,7 @@
             <IconCheck class="text-primary size-4" /> OpenTelemetry-native ingestion
           </p>
           <p class="flex items-center gap-2">
-            <IconCheck class="text-primary size-4" /> Self-hostable under AGPL-3.0
+            <IconCheck class="text-primary size-4" /> Self hosting documentation in progress
           </p>
         </Card.Content>
         <Card.Footer class="border-border/70 bg-background/70 border-t px-6 py-4">
@@ -84,43 +73,18 @@
             >
               <IconTerminal2 class="size-5" />
             </span>
-            <Badge variant="outline" class="rounded-full">In development</Badge>
+            <Badge variant="outline" class="rounded-full">In progress</Badge>
           </div>
-          <Card.Title class="mt-7 text-2xl">Orvo Local</Card.Title>
+          <Card.Title class="mt-7 text-2xl">Self hosting</Card.Title>
           <Card.Description class="mt-2 text-base leading-relaxed">
-            A local-first runtime for the full Orvo experience: the dashboard, control data, and
-            ingestion together, without creating a cloud account.
+            Self hosting is not currently documented. Comprehensive deployment and operations
+            documentation is in the pipeline.
           </Card.Description>
         </Card.Header>
-        <Card.Content class="px-6 pb-6">
-          <div
-            class="bg-foreground text-background overflow-hidden rounded-lg font-mono text-sm shadow-sm"
-          >
-            <div
-              class="border-background/10 text-background/55 flex items-center gap-2 border-b px-4 py-2.5 text-xs"
-            >
-              <IconCode class="size-3.5" />
-              terminal
-            </div>
-            <div class="space-y-2 px-4 py-4">
-              <p><span class="text-background/45">$</span> orvo start</p>
-              <p class="text-background/55">Orvo Local is ready</p>
-              <p class="text-background/75">Dashboard&nbsp; http://127.0.0.1:4173</p>
-              <p class="text-background/75">OTLP HTTP&nbsp; http://127.0.0.1:4318</p>
-            </div>
-          </div>
-          <div class="mt-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-            {#each localDetails as detail (detail.label)}
-              {@const Icon = detail.icon}
-              <div class="bg-muted/45 flex items-center gap-2 rounded-md p-2.5 text-xs">
-                <Icon class="text-muted-foreground size-3.5 shrink-0" />
-                <span>{detail.label}</span>
-              </div>
-            {/each}
-          </div>
+        <Card.Content class="px-6 pb-6 text-sm text-muted-foreground">
+          We are preparing practical setup, upgrade, backup, and maintenance guidance.
         </Card.Content>
         <Card.Footer class="border-border/70 bg-muted/20 mt-auto border-t px-6 py-4 text-sm">
-          <IconLockOpen class="text-primary mr-2 size-4" />
           Follow the work in the public repository.
         </Card.Footer>
       </Card.Root>

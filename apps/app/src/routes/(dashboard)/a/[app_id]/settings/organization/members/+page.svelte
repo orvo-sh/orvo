@@ -12,7 +12,6 @@
     IconTrash,
     IconUserPlus,
     IconX,
-    IconCopy,
   } from "@tabler/icons-svelte";
   import { onMount } from "svelte";
   import type { PageData } from "./$types";
@@ -26,7 +25,6 @@
   let cancelingInvitationId = $state("");
   let inviteEmail = $state("");
   let inviteRole = $state<"member" | "admin" | "owner">("member");
-  let inviteLink = $state("");
   let error = $state("");
   let members = $state<any[]>([]);
   let invitations = $state<any[]>([]);
@@ -115,27 +113,14 @@
       return;
     }
 
-    if (data.mode === "local") {
-      inviteLink = `${page.url.origin}/invite/${result.data.id}`;
-    } else {
-      inviteDialogOpen = false;
-    }
+    inviteDialogOpen = false;
     inviteEmail = "";
     inviteRole = "member";
     inviting = false;
     await invalidateAll();
     await load();
     await clearInviteQuery();
-    toast.success(
-      data.mode === "local" ? "Invitation link created." : "Invitation sent.",
-    );
-  };
-
-  const copyInvitation = async (invitationId: string) => {
-    await navigator.clipboard.writeText(
-      `${page.url.origin}/invite/${invitationId}`,
-    );
-    toast.success("Invitation link copied.");
+    toast.success("Invitation sent.");
   };
 
   const removeMember = async (memberId: string) => {
@@ -187,7 +172,6 @@
 
   $effect(() => {
     if (!inviteDialogOpen) {
-      inviteLink = "";
       void clearInviteQuery();
     }
   });
@@ -290,16 +274,6 @@
           </div>
 
           <div class="flex items-center gap-2">
-            {#if data.mode === "local"}
-              <Button
-                type="button"
-                variant="outline"
-                onclick={() => copyInvitation(invitation.id)}
-              >
-                <IconCopy data-slot="button-icon" />
-                Copy link
-              </Button>
-            {/if}
             <Button
               type="button"
               variant="outline"
@@ -322,9 +296,7 @@
     <Dialog.Header>
       <Dialog.Title>Invite member</Dialog.Title>
       <Dialog.Description>
-        {data.mode === "local"
-          ? "Create a private invitation link to share with this person."
-          : "Send an organization invitation by email."}
+        Send an organization invitation by email.
       </Dialog.Description>
     </Dialog.Header>
 
@@ -356,29 +328,6 @@
         <p class="text-sm text-destructive">{error}</p>
       {/if}
 
-      {#if inviteLink}
-        <div class="space-y-2">
-          <Label for="invite-link">Invitation link</Label>
-          <div class="flex gap-2">
-            <Input id="invite-link" value={inviteLink} readonly />
-            <Button
-              type="button"
-              variant="outline"
-              onclick={() =>
-                navigator.clipboard
-                  .writeText(inviteLink)
-                  .then(() => toast.success("Invitation link copied."))}
-            >
-              <IconCopy data-slot="button-icon" />
-              Copy
-            </Button>
-          </div>
-          <p class="text-xs text-muted-foreground">
-            Anyone with this link can create the invited account until it
-            expires.
-          </p>
-        </div>
-      {/if}
     </div>
 
     <Dialog.Footer>
@@ -389,12 +338,10 @@
       >
         Cancel
       </Button>
-      {#if !inviteLink}
-        <Button type="button" loading={inviting} onclick={invite}>
-          <IconUserPlus data-slot="button-icon" />
-          {data.mode === "local" ? "Create invite" : "Send invite"}
-        </Button>
-      {/if}
+      <Button type="button" loading={inviting} onclick={invite}>
+        <IconUserPlus data-slot="button-icon" />
+        Send invite
+      </Button>
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>

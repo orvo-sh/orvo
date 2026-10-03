@@ -38,19 +38,15 @@
           isActive: (pathname: string) =>
             pathname.startsWith(`${settingsBasePath}/ingest-keys`),
         },
-        ...(page.data.mode === "cloud"
-          ? [
-              {
-                href: `${settingsBasePath}/notification-destinations`,
-                label: "Notification destinations",
-                icon: IconBellPin,
-                isActive: (pathname: string) =>
-                  pathname.startsWith(
-                    `${settingsBasePath}/notification-destinations`,
-                  ),
-              },
-            ]
-          : []),
+        {
+          href: `${settingsBasePath}/notification-destinations`,
+          label: "Notification destinations",
+          icon: IconBellPin,
+          isActive: (pathname: string) =>
+            pathname.startsWith(
+              `${settingsBasePath}/notification-destinations`,
+            ),
+        },
       ],
     },
     {
@@ -70,42 +66,34 @@
           isActive: (pathname: string) =>
             pathname.startsWith(`${settingsBasePath}/organization/members`),
         },
-        ...(page.data.mode === "cloud"
-          ? [
-              {
-                href: `${settingsBasePath}/billing`,
-                label: "Billing & usage",
-                icon: CreditCardIcon,
-                isActive: (pathname: string) =>
-                  pathname.startsWith(`${settingsBasePath}/billing`),
-              },
-            ]
-          : []),
+        {
+          href: `${settingsBasePath}/billing`,
+          label: "Billing & usage",
+          icon: CreditCardIcon,
+          isActive: (pathname: string) =>
+            pathname.startsWith(`${settingsBasePath}/billing`),
+        },
       ],
     },
-    ...(page.data.mode === "cloud"
-      ? [
-          {
-            label: "Integrations",
-            items: [
-              {
-                href: `${settingsBasePath}/integrations/mcp`,
-                label: "MCP",
-                icon: IconPlugConnected,
-                isActive: (pathname: string) =>
-                  pathname.startsWith(`${settingsBasePath}/integrations/mcp`),
-              },
-              {
-                href: `${settingsBasePath}/integrations/slack`,
-                label: "Scout for Slack",
-                icon: IconBrandSlack,
-                isActive: (pathname: string) =>
-                  pathname.startsWith(`${settingsBasePath}/integrations/slack`),
-              },
-            ],
-          },
-        ]
-      : []),
+    {
+      label: "Integrations",
+      items: [
+        {
+          href: `${settingsBasePath}/integrations/mcp`,
+          label: "MCP",
+          icon: IconPlugConnected,
+          isActive: (pathname: string) =>
+            pathname.startsWith(`${settingsBasePath}/integrations/mcp`),
+        },
+        {
+          href: `${settingsBasePath}/integrations/slack`,
+          label: "Scout for Slack",
+          icon: IconBrandSlack,
+          isActive: (pathname: string) =>
+            pathname.startsWith(`${settingsBasePath}/integrations/slack`),
+        },
+      ],
+    },
     {
       label: "Account",
       items: [

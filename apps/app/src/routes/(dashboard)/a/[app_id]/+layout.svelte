@@ -20,22 +20,19 @@
 <Chat.Provider appId={data.currentApp.id}>
   <RightRail.Provider>
     <div class="flex h-dvh max-h-dvh w-full flex-col overflow-hidden">
-      {#if data.mode === "cloud"}
-        <TrialStatus
-          bind:bannerVisible={trialBannerVisible}
-          billingStatus={data.billingSummary?.billingStatus ?? null}
-          hasPaymentMethod={data.billingSummary?.hasPaymentMethod ?? null}
-          trialEnd={data.billingSummary?.trialEnd ?? null}
-          billingHref={`/a/${data.currentApp.id}/settings/billing`}
-        />
-      {/if}
+      <TrialStatus
+        bind:bannerVisible={trialBannerVisible}
+        billingStatus={data.billingSummary?.billingStatus ?? null}
+        hasPaymentMethod={data.billingSummary?.hasPaymentMethod ?? null}
+        trialEnd={data.billingSummary?.trialEnd ?? null}
+        billingHref={`/a/${data.currentApp.id}/settings/billing`}
+      />
       <Sidebar.Provider class="h-full min-h-0 overflow-hidden">
         <AppSidebar
           activeOrganizationId={data.activeOrganizationId}
           billingSummary={data.billingSummary}
           organizations={data.organizations}
           user={data.user}
-          mode={data.mode === "local" ? "local" : "cloud"}
           {trialBannerVisible}
         />
         <Sidebar.Inset class="flex h-full min-h-0 flex-col overflow-hidden">
@@ -43,9 +40,7 @@
             <div class="flex min-h-0 min-w-0 flex-1 flex-col">
               {@render children()}
             </div>
-            {#if data.mode === "cloud"}
-              <Chat.Rail />
-            {/if}
+            <Chat.Rail />
           </div>
         </Sidebar.Inset>
         <RightRail.Host />

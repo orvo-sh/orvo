@@ -19,7 +19,6 @@
     activeOrganizationId,
     user,
     billingSummary,
-    mode,
     trialBannerVisible = false,
   }: {
     organizations: {
@@ -50,7 +49,6 @@
       } | null;
       usagePercent: number;
     } | null;
-    mode: "cloud" | "local";
     trialBannerVisible?: boolean;
   } = $props();
 
@@ -67,7 +65,7 @@
   );
 
   const navigationGroups = $derived(
-    currentAppId ? generateAppNavigationGroups(currentAppId, mode) : [],
+    currentAppId ? generateAppNavigationGroups(currentAppId) : [],
   );
   const settingsHref = $derived(
     currentAppId ? `/a/${currentAppId}/settings` : "/settings",
@@ -93,11 +91,7 @@
   <Sidebar.Header
     class="h-14 justify-center gap-0 border-b border-sidebar-border/80 px-1.5 py-3"
   >
-    {#if mode === "cloud"}
-      <AppSidebarOrganizationSwitcher {organizations} {activeOrganizationId} />
-    {:else}
-      <div class="px-3 text-sm font-semibold">Orvo Local</div>
-    {/if}
+    <AppSidebarOrganizationSwitcher {organizations} {activeOrganizationId} />
   </Sidebar.Header>
 
   <Sidebar.Content class="gap-1 py-2">
@@ -187,23 +181,21 @@
   </Sidebar.Content>
 
   <Sidebar.Footer class="gap-0 p-0">
-    {#if mode === "cloud" && billingSummary?.billingStatus === "trialing" && billingSummary.trialEnd}
+    {#if billingSummary?.billingStatus === "trialing" && billingSummary.trialEnd}
       <AppSidebarTrialCard
         href={`${settingsHref}/billing`}
         trialStart={billingSummary.trialStart}
         trialEnd={billingSummary.trialEnd}
       />
     {/if}
-    {#if mode === "cloud"}
-      <AppSidebarUsageCard
-        includedBytes={billingSummary?.includedBytes ?? 0}
-        logsIngestedBytes={billingSummary?.logsIngestedBytes ?? 0}
-        tracesIngestedBytes={billingSummary?.tracesIngestedBytes ?? 0}
-        metricsIngestedBytes={billingSummary?.metricsIngestedBytes ?? 0}
-        chatCreditsUsed={billingSummary?.chatUsage?.usedCredits ?? 0}
-        chatCreditsIncluded={billingSummary?.chatUsage?.includedCredits ?? 0}
-      />
-    {/if}
+    <AppSidebarUsageCard
+      includedBytes={billingSummary?.includedBytes ?? 0}
+      logsIngestedBytes={billingSummary?.logsIngestedBytes ?? 0}
+      tracesIngestedBytes={billingSummary?.tracesIngestedBytes ?? 0}
+      metricsIngestedBytes={billingSummary?.metricsIngestedBytes ?? 0}
+      chatCreditsUsed={billingSummary?.chatUsage?.usedCredits ?? 0}
+      chatCreditsIncluded={billingSummary?.chatUsage?.includedCredits ?? 0}
+    />
     <Sidebar.Group>
       <Sidebar.GroupContent>
         <Sidebar.Menu class="gap-0.5">

@@ -14,7 +14,6 @@ Orvo Cloud supports GitHub as a sign-in provider. This connects your GitHub iden
 
 Select **Continue with GitHub** on the Orvo sign-in page and authorize the requested account access. Your organization membership and app access are still managed in Orvo.
 
-GitHub sign-in is not available in Orvo Local. Local installations use email and password authentication.
 
 ## Correlate releases with telemetry
 

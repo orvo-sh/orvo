@@ -366,10 +366,11 @@
             can be customized.
           </Accordion.Content>
         </Accordion.Item>
-        <Accordion.Item value="local">
-          <Accordion.Trigger>Can I run Orvo myself?</Accordion.Trigger>
+        <Accordion.Item value="self-hosting">
+          <Accordion.Trigger>Is self hosting documented?</Accordion.Trigger>
           <Accordion.Content>
-            Yes. Orvo Local is open source under AGPL-3.0 and can run without an Orvo cloud account.
+            Self hosting is not currently documented. Comprehensive deployment documentation is in
+            the pipeline.
           </Accordion.Content>
         </Accordion.Item>
       </Accordion.Root>

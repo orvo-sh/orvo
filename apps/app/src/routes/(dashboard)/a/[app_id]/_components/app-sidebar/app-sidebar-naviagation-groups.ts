@@ -25,10 +25,7 @@ type NavigationGroup = {
   }[];
 };
 
-const generateAppNavigationGroups = (
-  appId: string,
-  mode: "cloud" | "local",
-): NavigationGroup[] => {
+const generateAppNavigationGroups = (appId: string): NavigationGroup[] => {
   return [
     {
       label: "",
@@ -43,15 +40,11 @@ const generateAppNavigationGroups = (
           label: "Incidents",
           icon: IconFlame,
         },
-        ...(mode === "cloud"
-          ? [
-            {
-              href: `/a/${appId}/chat`,
-              label: "Scout",
-              icon: IconSparkle,
-            },
-          ]
-          : []),
+        {
+          href: `/a/${appId}/chat`,
+          label: "Scout",
+          icon: IconSparkle,
+        },
       ],
     },
     {
