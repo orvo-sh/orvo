@@ -60,34 +60,50 @@ const createGetHost =
             format: "JSONEachRow",
             query: `
             SELECT
-              argMax(host_name, time) AS host_name,
-              argMax(host_arch, time) AS host_arch,
-              argMax(os_type, time) AS os_type,
-              argMax(deployment_environment, time) AS reported_environment,
-              argMax(resource_attributes['orvo.agent.version'], time) AS agent_version,
-              max(time) AS last_seen,
-              greatest(0, least(1, 1 - avgIf(
-                coalesce(value_double, toFloat64(value_int)),
-                metric_name = 'system.cpu.utilization'
-                  AND attributes['state'] = 'idle'
-                  AND time >= now() - INTERVAL 90 SECOND
-              ))) AS cpu_utilization,
-              maxIf(
-                coalesce(value_double, toFloat64(value_int)),
-                metric_name = 'system.memory.utilization'
-                  AND (attributes['state'] = '' OR attributes['state'] = 'used')
-                  AND time >= now() - INTERVAL 90 SECOND
-              ) AS memory_utilization,
-              avgIf(
-                coalesce(value_double, toFloat64(value_int)),
-                metric_name = 'system.cpu.load_average.1m'
-                  AND time >= now() - INTERVAL 90 SECOND
-              ) AS load_1m
-            FROM metrics_raw
-            WHERE app_id = ${quote(context.appId)}
-              AND host_id = ${quote(installation.hostId)}
-              AND entity_kind = 'host'
-              AND time >= now() - INTERVAL 7 DAY
+              latest.host_name AS host_name,
+              latest.host_arch AS host_arch,
+              latest.os_type AS os_type,
+              latest.reported_environment AS reported_environment,
+              latest.agent_version AS agent_version,
+              latest.last_seen AS last_seen,
+              current.cpu_utilization AS cpu_utilization,
+              current.memory_utilization AS memory_utilization,
+              current.load_1m AS load_1m
+            FROM (
+              SELECT
+                argMaxMerge(host_name) AS host_name,
+                argMaxMerge(host_arch) AS host_arch,
+                argMaxMerge(os_type) AS os_type,
+                argMaxMerge(deployment_environment) AS reported_environment,
+                argMaxMerge(agent_version) AS agent_version,
+                max(last_seen) AS last_seen
+              FROM host_metrics_latest
+              WHERE app_id = ${quote(context.appId)}
+                AND host_id = ${quote(installation.hostId)}
+              HAVING last_seen >= now() - INTERVAL 7 DAY
+            ) AS latest
+            LEFT JOIN (
+              SELECT
+                greatest(0, least(1, 1 - avgIf(
+                  coalesce(value_double, toFloat64(value_int)),
+                  metric_name = 'system.cpu.utilization'
+                    AND attributes['state'] = 'idle'
+                ))) AS cpu_utilization,
+                maxIf(
+                  coalesce(value_double, toFloat64(value_int)),
+                  metric_name = 'system.memory.utilization'
+                    AND (attributes['state'] = '' OR attributes['state'] = 'used')
+                ) AS memory_utilization,
+                avgIf(
+                  coalesce(value_double, toFloat64(value_int)),
+                  metric_name = 'system.cpu.load_average.1m'
+                ) AS load_1m
+              FROM metrics_raw
+              WHERE app_id = ${quote(context.appId)}
+                AND host_id = ${quote(installation.hostId)}
+                AND entity_kind = 'host'
+                AND time >= now() - INTERVAL 90 SECOND
+            ) AS current ON 1
           `,
           }),
           clickhouse.query({
