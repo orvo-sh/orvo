@@ -31,7 +31,7 @@ const createRedeemEnrollment =
     }
 
     try {
-      return await db.transaction(async (tx) => {
+      const result = await db.transaction(async (tx) => {
         const [enrollment] = await tx
           .update(agentEnrollment)
           .set({ redeemedAt: new Date() })
@@ -120,6 +120,18 @@ const createRedeemEnrollment =
           environment: enrollment.environment,
         });
       });
+
+      if (result.success) {
+        logger.info("redeemEnrollment: agent enrollment redeemed", {
+          agentId: result.data.agentId,
+          hostId: validated.data.hostId,
+          hostName: validated.data.hostName,
+          agentVersion: validated.data.agentVersion,
+          environment: result.data.environment,
+        });
+      }
+
+      return result;
     } catch (error) {
       recordError(error);
       logger.error(

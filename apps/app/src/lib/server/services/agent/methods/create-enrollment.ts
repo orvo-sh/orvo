@@ -34,6 +34,13 @@ const createCreateEnrollment =
         expiresAt,
       });
 
+      logger.info("createEnrollment: agent enrollment created", {
+        appId: context.appId,
+        userId: context.userId,
+        environment: validated.data.environment,
+        expiresAt: expiresAt.toISOString(),
+      });
+
       return ok({
         expiresAt: expiresAt.toISOString(),
         command: `curl --proto '=https' --tlsv1.2 -fsSL https://github.com/orvo-sh/orvo/releases/download/agent-v${agentVersion}/install.sh | sudo sh -s -- --version ${agentVersion} --enrollment-token '${token}'`,

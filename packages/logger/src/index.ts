@@ -24,6 +24,7 @@ class Logger {
   private logger: pino.Logger;
   private loggerProvider: LoggerProvider | null;
   private otelLogger: ReturnType<typeof otelLogs.getLogger> | null;
+  private meta: Record<string, unknown>;
 
   constructor(
     private context: string,
@@ -42,6 +43,7 @@ class Logger {
         timestamp: pino.stdTimeFunctions.isoTime,
         transport: options?.pretty ? getPrettyTransport() : undefined
       });
+    this.meta = options?.meta ?? {};
     this.loggerProvider = options?.loggerProvider ?? null;
     this.otelLogger = this.loggerProvider?.getLogger('orvo-server-logger') ?? null;
   }
@@ -66,7 +68,8 @@ class Logger {
     new Logger(
       context,
       {
-        loggerProvider: this.loggerProvider
+        loggerProvider: this.loggerProvider,
+        meta: { ...this.meta, ...meta }
       },
       this.logger.child({ context, ...meta })
     );
@@ -100,6 +103,7 @@ class Logger {
       body: message,
       attributes: {
         context: this.context,
+        ...serializeAttributes(this.meta),
         ...(data instanceof Error
           ? {
               'error.message': data.message,
@@ -107,24 +111,25 @@ class Logger {
               'error.stack': data.stack ?? ''
             }
           : data && typeof data === 'object' && !Array.isArray(data)
-            ? Object.fromEntries(
-                Object.entries(data).map(([key, value]) => [
-                  key,
-                  typeof value === 'string' ||
-                  typeof value === 'number' ||
-                  typeof value === 'boolean'
-                    ? value
-                    : value instanceof Error
-                      ? value.message
-                      : value === null || value === undefined
-                        ? ''
-                        : JSON.stringify(value)
-                ])
-              )
+            ? serializeAttributes(data as Record<string, unknown>)
             : {})
       }
     });
   };
 }
+
+const serializeAttributes = (values: Record<string, unknown>) =>
+  Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [
+      key,
+      typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+        ? value
+        : value instanceof Error
+          ? value.message
+          : value === null || value === undefined
+            ? ''
+            : JSON.stringify(value)
+    ])
+  );
 
 export { Logger };

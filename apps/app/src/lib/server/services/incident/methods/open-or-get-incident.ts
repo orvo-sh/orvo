@@ -103,6 +103,18 @@ const createOpenOrGetIncident = ({
       throw new Error("Failed to load created incident.");
     }
 
+    if (!tx) {
+      logger.info("openOrGetIncident: incident opened", {
+        appId: input.appId,
+        incidentId,
+        sourceType: input.sourceType,
+        type: input.type,
+        severity: input.severity,
+        entityType: input.entityType,
+        entityId: input.entityId,
+      });
+    }
+
     return {
       opened: true,
       suppressed: false,

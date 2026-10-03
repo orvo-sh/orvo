@@ -3,6 +3,7 @@ package localruntime
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/url"
 	"os"
@@ -25,11 +26,16 @@ type Options struct {
 func Run(ctx context.Context, paths localpaths.Paths, config localconfig.Config, options Options) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	runtimeRoot, embedded, err := assets.Prepare(paths.Cache, options.Version)
 	if err != nil {
 		return err
 	}
+	logger.Info("Run: local runtime assets prepared",
+		slog.String("version", options.Version),
+		slog.Bool("embedded", embedded),
+	)
 	if !embedded {
 		workingDir, err := os.Getwd()
 		if err != nil {
@@ -83,17 +89,22 @@ func Run(ctx context.Context, paths localpaths.Paths, config localconfig.Config,
 		"HOST="+config.Host,
 		"PORT="+strconv.Itoa(config.Port),
 	)
+	logger.Info("Run: starting application runtime",
+		slog.String("node", node),
+		slog.String("bootstrap", bootstrap),
+	)
 	if err := command.Start(); err != nil {
 		return fmt.Errorf("start local application runtime: %w", err)
 	}
+	logger.Info("Run: application runtime started", slog.Int("pid", command.Process.Pid))
 
 	exit := make(chan error, 1)
 	go func() { exit <- command.Wait() }()
 
-	if err := waitForPort(ctx, fmt.Sprintf("127.0.0.1:%d", config.PostgresPort), exit); err != nil {
+	if err := waitForDependency(ctx, logger, "postgres", fmt.Sprintf("127.0.0.1:%d", config.PostgresPort), exit); err != nil {
 		return err
 	}
-	if err := waitForPort(ctx, fmt.Sprintf("127.0.0.1:%d", config.ClickHousePort), exit); err != nil {
+	if err := waitForDependency(ctx, logger, "clickhouse", fmt.Sprintf("127.0.0.1:%d", config.ClickHousePort), exit); err != nil {
 		return err
 	}
 
@@ -114,24 +125,31 @@ func Run(ctx context.Context, paths localpaths.Paths, config localconfig.Config,
 			ClickHouseHTTPBridge: true,
 		})
 	}()
+	logger.Info("Run: ingest runtime started", slog.String("address", ingestURL))
 
-	if err := waitForPort(ctx, fmt.Sprintf("%s:%d", config.Host, config.Port), exit); err != nil {
+	if err := waitForDependency(ctx, logger, "dashboard", fmt.Sprintf("%s:%d", config.Host, config.Port), exit); err != nil {
 		return err
 	}
+	logger.Info("Run: local runtime ready")
 	fmt.Printf("Orvo Local is ready\n\nDashboard: %s\nSetup:     %s/setup?token=%s\nOTLP HTTP: %s\nData:      %s\n", appURL, appURL, config.SetupToken, ingestURL, paths.Data)
 	if parsed, _ := url.Parse(appURL); !isLoopbackHost(parsed.Hostname()) && parsed.Scheme != "https" {
 		fmt.Println("\nWarning: accounts and session cookies are exposed over plain HTTP. Put Orvo behind HTTPS before sharing it.")
 	}
 	if !options.NoOpen {
-		_ = Open(appURL)
+		if err := Open(appURL); err != nil {
+			logger.Warn("Run: failed to open dashboard", slog.Any("error", err))
+		}
 	}
 
 	select {
 	case <-ctx.Done():
+		logger.Info("Run: local runtime stopping", slog.String("reason", ctx.Err().Error()))
 		return nil
 	case err := <-exit:
+		logger.Error("Run: application runtime stopped unexpectedly", slog.Any("error", err))
 		return fmt.Errorf("local application runtime stopped: %w", err)
 	case err := <-ingestDone:
+		logger.Error("Run: ingestion runtime stopped unexpectedly", slog.Any("error", err))
 		return fmt.Errorf("ingestion runtime stopped: %w", err)
 	}
 }
@@ -187,6 +205,25 @@ func waitForPort(ctx context.Context, address string, exited <-chan error) error
 			}
 		}
 	}
+}
+
+func waitForDependency(ctx context.Context, logger *slog.Logger, dependency string, address string, exited <-chan error) error {
+	startedAt := time.Now()
+	if err := waitForPort(ctx, address, exited); err != nil {
+		logger.Error("waitForDependency: dependency did not become ready",
+			slog.String("dependency", dependency),
+			slog.String("address", address),
+			slog.Duration("wait", time.Since(startedAt)),
+			slog.Any("error", err),
+		)
+		return err
+	}
+	logger.Info("Run: dependency ready",
+		slog.String("dependency", dependency),
+		slog.String("address", address),
+		slog.Duration("wait", time.Since(startedAt)),
+	)
+	return nil
 }
 
 func valueOrDefault(name string, fallback string) string {

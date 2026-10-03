@@ -65,6 +65,13 @@ const createDismissIncident = ({
       });
     });
 
+    logger.info("dismissIncident: incident dismissed", {
+      appId: context.appId,
+      incidentId: existing.id,
+      userId: context.userId,
+      reason: validated.data.reason,
+    });
+
     return ok(undefined);
   } catch (error) {
     recordError(error);

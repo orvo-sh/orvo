@@ -71,6 +71,14 @@ const createRecoverSourceIncident = ({
         },
       ]);
 
+      if (!tx) {
+        logger.info("recoverSourceIncident: incident recovered", {
+          appId: latest.appId,
+          incidentId: latest.id,
+          eventType: input.eventType,
+        });
+      }
+
       return {
         mode: "resolved_open" as const,
         incident: {

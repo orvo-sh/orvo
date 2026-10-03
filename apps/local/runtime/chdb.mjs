@@ -4,6 +4,9 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
+const log = (level, event, attributes = {}) =>
+  console[level](JSON.stringify({ timestamp: new Date().toISOString(), event, ...attributes }));
+
 const readBody = async (request) => {
   const chunks = [];
   for await (const chunk of request) chunks.push(chunk);
@@ -32,6 +35,8 @@ const applyChDBCompatibility = (sql) => sql.replaceAll('lowerUTF8(', 'lower(');
 
 const startChDB = async ({ dataDir, migrationsDir, port }) => {
   const session = new Session(dataDir);
+  const migrationStartedAt = Date.now();
+  let migrationsApplied = 0;
   session.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version String,
@@ -54,7 +59,12 @@ const startChDB = async ({ dataDir, migrationsDir, port }) => {
     session.query(
       `INSERT INTO schema_migrations (version, name) VALUES (${sqlString(version)}, ${sqlString(name)})`
     );
+    migrationsApplied += 1;
   }
+  log('info', 'local.clickhouse.migrations.ready', {
+    migrationsApplied,
+    durationMs: Date.now() - migrationStartedAt
+  });
 
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', 'http://127.0.0.1');
@@ -76,10 +86,15 @@ const startChDB = async ({ dataDir, migrationsDir, port }) => {
 
     try {
       const result = await session.queryAsync(sql);
+      const queryId = url.searchParams.get('query_id') ?? randomUUID();
       response.setHeader('content-type', 'application/octet-stream');
-      response.setHeader('x-clickhouse-query-id', url.searchParams.get('query_id') ?? randomUUID());
+      response.setHeader('x-clickhouse-query-id', queryId);
       response.writeHead(200).end(Buffer.from(result.bytes()));
     } catch (error) {
+      log('error', 'local.clickhouse.query.failed', {
+        queryId: url.searchParams.get('query_id') ?? undefined,
+        error: error instanceof Error ? error.message : String(error)
+      });
       response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
       response.end(error instanceof Error ? error.message : String(error));
     }

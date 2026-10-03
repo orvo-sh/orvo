@@ -90,6 +90,9 @@ func Run(ctx context.Context, config Config) error {
 		return fmt.Errorf("ingest runtime: initialize clickhouse: %w", err)
 	}
 	defer clickhouseClient.Close()
+	appLogger.Info("Run: ingest dependencies ready",
+		slog.Bool("clickhouse_http_bridge", config.ClickHouseHTTPBridge),
+	)
 
 	backgroundManager := background.New(appLogger)
 	authService := authservice.New(postgresClient, appLogger, backgroundManager)
@@ -125,6 +128,7 @@ func Run(ctx context.Context, config Config) error {
 	)
 
 	<-ctx.Done()
+	appLogger.Info("Run: stopping ingest service", slog.String("reason", ctx.Err().Error()))
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
@@ -133,5 +137,6 @@ func Run(ctx context.Context, config Config) error {
 	}
 
 	backgroundManager.Wait()
+	appLogger.Info("Run: ingest service stopped")
 	return nil
 }

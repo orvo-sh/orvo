@@ -54,6 +54,7 @@ func New(
 		_, _ = writer.Write([]byte(`{"ok":true}`))
 	})
 
+	serverLogger := logger.With("component", "http")
 	handler := chain(
 		otelhttp.NewHandler(mux, "ingest.http", otelhttp.WithFilter(func(request *http.Request) bool {
 			return request.Header.Get("X-Orvo-Self-Telemetry") != "true"
@@ -80,6 +81,27 @@ func New(
 		},
 		func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				startedAt := time.Now()
+				recorder := &responseRecorder{ResponseWriter: writer}
+				next.ServeHTTP(recorder, request)
+				if recorder.status == 0 {
+					recorder.status = http.StatusOK
+				}
+
+				if recorder.status >= http.StatusBadRequest {
+					serverLogger.WarnContext(request.Context(), "Request: request failed",
+						slog.String("method", request.Method),
+						slog.String("path", request.URL.Path),
+						slog.Int("status", recorder.status),
+						slog.Int("response_bytes", recorder.bytes),
+						slog.Duration("duration", time.Since(startedAt)),
+						slog.String("request_id", requestIDFromContext(request.Context())),
+					)
+				}
+			})
+		},
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 				writer.Header().Set("Access-Control-Allow-Origin", "*")
 				writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Content-Encoding, Traceparent, Tracestate, Baggage, "+"X-Orvo-Self-Telemetry")
 				writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS")
@@ -100,7 +122,7 @@ func New(
 	}
 
 	return &Server{
-		logger: logger.With("component", "http"),
+		logger: serverLogger,
 		httpServer: &http.Server{
 			Addr:         addr,
 			Handler:      handler,
@@ -110,6 +132,34 @@ func New(
 		},
 		listener: listener,
 	}, nil
+}
+
+type responseRecorder struct {
+	http.ResponseWriter
+	status int
+	bytes  int
+}
+
+func (recorder *responseRecorder) WriteHeader(status int) {
+	if recorder.status != 0 {
+		return
+	}
+	recorder.status = status
+	recorder.ResponseWriter.WriteHeader(status)
+}
+
+func (recorder *responseRecorder) Write(bytes []byte) (int, error) {
+	if recorder.status == 0 {
+		recorder.WriteHeader(http.StatusOK)
+	}
+	count, err := recorder.ResponseWriter.Write(bytes)
+	recorder.bytes += count
+	return count, err
+}
+
+func requestIDFromContext(ctx context.Context) string {
+	requestID, _ := ctx.Value(requestIDContextKey{}).(string)
+	return requestID
 }
 
 func (server *Server) Start() {

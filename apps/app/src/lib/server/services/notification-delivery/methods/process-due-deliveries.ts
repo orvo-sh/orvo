@@ -35,6 +35,10 @@ const createProcessDueDeliveries = ({
       limit,
     });
 
+    let succeeded = 0;
+    let retried = 0;
+    let failed = 0;
+
     for (const delivery of dueDeliveries) {
       const destination = await db.query.notificationDestination.findFirst({
         where: eq(notificationDestination.id, delivery.destinationId),
@@ -55,6 +59,7 @@ const createProcessDueDeliveries = ({
               : "Destination not found.",
           })
           .where(eq(notificationDelivery.id, delivery.id));
+        failed += 1;
         continue;
       }
 
@@ -76,6 +81,7 @@ const createProcessDueDeliveries = ({
             errorMessage: null,
           })
           .where(eq(notificationDelivery.id, delivery.id));
+        succeeded += 1;
         continue;
       }
 
@@ -95,6 +101,20 @@ const createProcessDueDeliveries = ({
           errorMessage: result.errorMessage,
         })
         .where(eq(notificationDelivery.id, delivery.id));
+      if (retryMinutes === null) {
+        failed += 1;
+      } else {
+        retried += 1;
+      }
+    }
+
+    if (dueDeliveries.length > 0) {
+      logger.info("processDueDeliveries: notification deliveries processed", {
+        processed: dueDeliveries.length,
+        succeeded,
+        retried,
+        failed,
+      });
     }
 
     return { processed: dueDeliveries.length };

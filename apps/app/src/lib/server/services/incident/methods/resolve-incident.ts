@@ -58,6 +58,12 @@ const createResolveIncident =
         });
       });
 
+      logger.info("resolveIncident: incident resolved", {
+        appId: context.appId,
+        incidentId: existing.id,
+        userId: context.userId,
+      });
+
       return ok(undefined);
     } catch (error) {
       recordError(error);

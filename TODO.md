@@ -14,3 +14,5 @@
 [] Create service map that has icons for different types of things
 [] Simplify pricing, change retention for metrics to be more
 [] Create derived metrics. There is already a codex plan for it
+
+[] Make sure slack apps and chatgpt app for MCP are in shape
