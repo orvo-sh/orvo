@@ -179,8 +179,10 @@ const createGetTraces = ({
         ORDER BY ${sortColumn} ${sortDirection}, trace_id ${traceIdDirection}
         LIMIT ${pageSize}
         SETTINGS
-          preferred_optimize_projection_name = 'traces_by_app_trace',
-          optimize_aggregation_in_order = 1
+          preferred_optimize_projection_name = 'traces_by_app_time',
+          max_bytes_before_external_group_by = 268435456,
+          max_bytes_before_external_sort = 134217728,
+          max_threads = 2
       `,
       });
 
