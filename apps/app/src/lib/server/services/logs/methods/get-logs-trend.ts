@@ -28,43 +28,32 @@ const createGetLogsTrend = ({
       const rangeMs = endAtUtc.getTime() - startAtUtc.getTime();
       const baselineStart = new Date(startAtUtc.getTime() - rangeMs);
       const baselineEnd = startAtUtc;
-      const currentBindings = createQueryBindings();
-      const baselineBindings = createQueryBindings();
-
-      const [currentResult, baselineResult] = await Promise.all([
-        clickhouse.query({
-          format: "JSONEachRow",
-          query: `
-          SELECT count() AS total
+      const bindings = createQueryBindings();
+      const result = await clickhouse.query({
+        format: "JSONEachRow",
+        query: `
+          SELECT
+            countIf(
+              timestamp >= ${bindings.bindDateTime64("start_at", startAtUtc)}
+              AND timestamp <= ${bindings.bindDateTime64("end_at", endAtUtc)}
+            ) AS current,
+            countIf(
+              timestamp >= ${bindings.bindDateTime64("baseline_start", baselineStart)}
+              AND timestamp <= ${bindings.bindDateTime64("baseline_end", baselineEnd)}
+            ) AS baseline
           FROM logs_raw
-          WHERE app_id = ${currentBindings.bindString("app_id", context.appId)}
-            AND timestamp >= ${currentBindings.bindDateTime64("start_at", startAtUtc)}
-            AND timestamp <= ${currentBindings.bindDateTime64("end_at", endAtUtc)}
+          WHERE app_id = ${bindings.bindString("app_id", context.appId)}
+            AND timestamp >= ${bindings.bindDateTime64("scan_start", baselineStart)}
+            AND timestamp <= ${bindings.bindDateTime64("scan_end", endAtUtc)}
         `,
-          query_params: currentBindings.query_params,
-        }),
-        clickhouse.query({
-          format: "JSONEachRow",
-          query: `
-          SELECT count() AS total
-          FROM logs_raw
-          WHERE app_id = ${baselineBindings.bindString("app_id", context.appId)}
-            AND timestamp >= ${baselineBindings.bindDateTime64("start_at", baselineStart)}
-            AND timestamp <= ${baselineBindings.bindDateTime64("end_at", baselineEnd)}
-        `,
-          query_params: baselineBindings.query_params,
-        }),
-      ]);
-
-      const currentRows = (await currentResult.json()) as unknown as Array<{
-        total: number | string;
+        query_params: bindings.query_params,
+      });
+      const [row] = (await result.json()) as unknown as Array<{
+        current: number | string;
+        baseline: number | string;
       }>;
-      const baselineRows = (await baselineResult.json()) as unknown as Array<{
-        total: number | string;
-      }>;
-
-      const current = Number(currentRows[0]?.total ?? 0);
-      const baseline = Number(baselineRows[0]?.total ?? 0);
+      const current = Number(row?.current ?? 0);
+      const baseline = Number(row?.baseline ?? 0);
       const trend =
         baseline > 0
           ? ((current - baseline) / baseline) * 100

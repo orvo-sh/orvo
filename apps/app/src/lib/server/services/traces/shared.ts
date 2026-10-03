@@ -406,7 +406,7 @@ const buildStringOperatorClause = (
 };
 
 const buildAnySearchClause = (value: string) =>
-  `(positionCaseInsensitiveUTF8(name, ${quote(value)}) > 0 OR positionCaseInsensitiveUTF8(trace_id, ${quote(value)}) > 0 OR positionCaseInsensitiveUTF8(status_message, ${quote(value)}) > 0 OR positionCaseInsensitiveUTF8(service_name, ${quote(value)}) > 0 OR positionCaseInsensitiveUTF8(deployment_environment, ${quote(value)}) > 0)`;
+  `(positionCaseInsensitiveUTF8(traces_raw.name, ${quote(value)}) > 0 OR positionCaseInsensitiveUTF8(traces_raw.trace_id, ${quote(value)}) > 0 OR positionCaseInsensitiveUTF8(traces_raw.status_message, ${quote(value)}) > 0 OR positionCaseInsensitiveUTF8(traces_raw.service_name, ${quote(value)}) > 0 OR positionCaseInsensitiveUTF8(traces_raw.deployment_environment, ${quote(value)}) > 0)`;
 
 const buildInnerConditionClause = (
   condition: z.infer<typeof traceFilterConditionSchema>,

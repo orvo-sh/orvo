@@ -118,7 +118,7 @@ const buildMetricsWhereClause = (
 
   if (input.search) {
     whereClauses.push(
-      `(positionCaseInsensitiveUTF8(metric_name, ${quote(input.search)}) > 0 OR positionCaseInsensitiveUTF8(description, ${quote(input.search)}) > 0)`,
+      `(positionCaseInsensitiveUTF8(metrics_raw.metric_name, ${quote(input.search)}) > 0 OR positionCaseInsensitiveUTF8(metrics_raw.description, ${quote(input.search)}) > 0)`,
     );
   }
 
@@ -161,7 +161,7 @@ const buildMetricCatalogWhereClause = (
 
   if (input.search) {
     whereClauses.push(
-      `(positionCaseInsensitiveUTF8(metric_name, ${quote(input.search)}) > 0 OR positionCaseInsensitiveUTF8(description, ${quote(input.search)}) > 0)`,
+      `(positionCaseInsensitiveUTF8(metrics_raw.metric_name, ${quote(input.search)}) > 0 OR positionCaseInsensitiveUTF8(metrics_raw.description, ${quote(input.search)}) > 0)`,
     );
   }
 

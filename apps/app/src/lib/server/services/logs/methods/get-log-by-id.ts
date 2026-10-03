@@ -30,7 +30,15 @@ const createGetLogById = ({
     const result = await clickhouse.query({
       format: "JSONEachRow",
       query: `
-        WITH trace_objects AS (
+        WITH selected_log AS (
+          SELECT *
+          FROM logs_raw
+          WHERE app_id = ${bindings.bindString("app_id", context.appId)}
+            AND id = ${bindings.bindString("log_id", validated.data.id)}
+          ORDER BY timestamp DESC
+          LIMIT 1
+        ),
+        trace_objects AS (
           SELECT
             app_id,
             trace_id,
@@ -47,6 +55,11 @@ const createGetLogById = ({
             ) AS trace_object_id
           FROM traces_raw
           WHERE app_id = ${bindings.bindString("trace_object_app_id", context.appId)}
+            AND trace_id IN (
+              SELECT trace_id
+              FROM selected_log
+              WHERE trace_id != ''
+            )
           GROUP BY app_id, trace_id
         )
         SELECT
@@ -72,12 +85,10 @@ const createGetLogById = ({
           logs.log_attributes,
           logs.service_name,
           logs.deployment_environment
-        FROM logs_raw AS logs
+        FROM selected_log AS logs
         LEFT JOIN trace_objects AS traces
           ON traces.app_id = logs.app_id
          AND traces.trace_id = logs.trace_id
-        WHERE logs.app_id = ${bindings.bindString("app_id", context.appId)}
-          AND logs.id = ${bindings.bindString("log_id", validated.data.id)}
         ORDER BY logs.timestamp DESC
         LIMIT 1
       `,

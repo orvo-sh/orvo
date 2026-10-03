@@ -67,38 +67,30 @@ const createGetMetricsTrend = ({
     const baselineStart = new Date(startAtUtc.getTime() - rangeMs);
     const baselineEnd = startAtUtc;
 
-    const [currentResult, baselineResult] = await Promise.all([
-      clickhouse.query({
-        format: "JSONEachRow",
-        query: `
-          SELECT count() AS total
-          FROM metrics_raw
-          WHERE app_id = ${quote(context.appId)}
-            AND time >= ${toDateTime64(startAtUtc)}
-            AND time <= ${toDateTime64(endAtUtc)}
-        `,
-      }),
-      clickhouse.query({
-        format: "JSONEachRow",
-        query: `
-          SELECT count() AS total
-          FROM metrics_raw
-          WHERE app_id = ${quote(context.appId)}
-            AND time >= ${toDateTime64(baselineStart)}
-            AND time <= ${toDateTime64(baselineEnd)}
-        `,
-      }),
-    ]);
-
-    const currentRows = (await currentResult.json()) as unknown as Array<{
-      total: number | string;
+    const result = await clickhouse.query({
+      format: "JSONEachRow",
+      query: `
+        SELECT
+          countIf(
+            time >= ${toDateTime64(startAtUtc)}
+              AND time <= ${toDateTime64(endAtUtc)}
+          ) AS current,
+          countIf(
+            time >= ${toDateTime64(baselineStart)}
+              AND time <= ${toDateTime64(baselineEnd)}
+          ) AS baseline
+        FROM metrics_raw
+        WHERE app_id = ${quote(context.appId)}
+          AND time >= ${toDateTime64(baselineStart)}
+          AND time <= ${toDateTime64(endAtUtc)}
+      `,
+    });
+    const [row] = (await result.json()) as unknown as Array<{
+      current: number | string;
+      baseline: number | string;
     }>;
-    const baselineRows = (await baselineResult.json()) as unknown as Array<{
-      total: number | string;
-    }>;
-
-    const current = Number(currentRows[0]?.total ?? 0);
-    const baseline = Number(baselineRows[0]?.total ?? 0);
+    const current = Number(row?.current ?? 0);
+    const baseline = Number(row?.baseline ?? 0);
     const trend =
       baseline > 0
         ? ((current - baseline) / baseline) * 100

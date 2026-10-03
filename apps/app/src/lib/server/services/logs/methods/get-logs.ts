@@ -116,7 +116,37 @@ const createGetLogs =
       const result = await clickhouse.query({
         format: "JSONEachRow",
         query: `
-        WITH trace_objects AS (
+        WITH selected_logs AS (
+          SELECT
+            logs.id,
+            logs.app_id,
+            logs.ingestion_key_id,
+            logs.received_at,
+            logs.expires_at,
+            logs.timestamp,
+            logs.observed_timestamp,
+            logs.severity_number,
+            logs.severity_text,
+            logs.body,
+            logs.trace_id,
+            logs.span_id,
+            logs.trace_flags,
+            logs.resource_attributes,
+            logs.resource_schema_url,
+            logs.scope_name,
+            logs.scope_version,
+            logs.scope_attributes,
+            logs.scope_schema_url,
+            logs.log_attributes,
+            logs.service_name,
+            logs.deployment_environment
+          FROM logs_raw AS logs
+          WHERE ${baseWhereClause}
+          ${cursorCondition}
+          ORDER BY ${orderByClause}
+          LIMIT ${bindings.bindUInt32("limit", pageSize)}
+        ),
+        trace_objects AS (
           SELECT
             app_id,
             trace_id,
@@ -133,6 +163,11 @@ const createGetLogs =
             ) AS trace_object_id
           FROM traces_raw
           WHERE app_id = ${bindings.bindString("trace_object_app_id", context.appId)}
+            AND trace_id IN (
+              SELECT trace_id
+              FROM selected_logs
+              WHERE trace_id != ''
+            )
           GROUP BY app_id, trace_id
         )
         SELECT
@@ -158,14 +193,11 @@ const createGetLogs =
           logs.log_attributes,
           logs.service_name,
           logs.deployment_environment
-        FROM logs_raw AS logs
+        FROM selected_logs AS logs
         LEFT JOIN trace_objects AS traces
           ON traces.app_id = logs.app_id
          AND traces.trace_id = logs.trace_id
-        WHERE ${baseWhereClause}
-        ${cursorCondition}
         ORDER BY ${orderByClause}
-        LIMIT ${bindings.bindUInt32("limit", pageSize)}
       `,
         query_params: bindings.query_params,
       });
