@@ -1,7 +1,11 @@
 import type { PageServerLoad } from "./$types";
 
 export const load = (async (event) => {
-  const fallbackCallback = "/";
+  const fallbackCallback =
+    event.url.searchParams.has("client_id") &&
+    event.url.searchParams.has("response_type")
+      ? `/api/auth/oauth2/authorize?${event.url.searchParams.toString()}`
+      : "/";
   const rawCallback = event.url.searchParams.get("callback");
 
   let callback = fallbackCallback;
