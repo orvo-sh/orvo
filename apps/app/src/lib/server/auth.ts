@@ -10,6 +10,7 @@ import { and, eq, inArray, sql, type DB } from "@repo/db";
 import * as dbSchema from "@repo/db/schema";
 import { genId } from "@repo/utils";
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import Stripe from "stripe";
@@ -157,6 +158,121 @@ const createAuth = (
           })
         : undefined,
       organization({
+        sendInvitationEmail: async ({
+          id,
+          email: inviteeEmail,
+          organization,
+          inviter,
+        }) => {
+          if (!email) return;
+          await email.sendEmail({
+            to: inviteeEmail,
+            subject: `You're invited to ${organization.name} on Orvo`,
+            template: "invitation",
+            props: {
+              inviterName: inviter.user.name,
+              organizationName: organization.name,
+              invitationUrl: new URL(
+                `/invite/${id}`,
+                config.baseUrl,
+              ).toString(),
+            },
+          });
+        },
+        organizationHooks: {
+          beforeCreateInvitation: async ({ invitation }) => {
+            const appAccessMode =
+              invitation.appAccessMode === "selected" ? "selected" : "all";
+            let appIds: string[] = [];
+            try {
+              const parsed = JSON.parse(invitation.appIds ?? "[]");
+              if (
+                Array.isArray(parsed) &&
+                parsed.every((id) => typeof id === "string")
+              ) {
+                appIds = [...new Set(parsed)];
+              }
+            } catch {
+              throw new APIError("BAD_REQUEST", {
+                message: "Invalid app access selection.",
+              });
+            }
+
+            if (appAccessMode === "selected") {
+              const matchingApps = appIds.length
+                ? await db
+                    .select({ id: dbSchema.app.id })
+                    .from(dbSchema.app)
+                    .where(
+                      and(
+                        eq(
+                          dbSchema.app.organizationId,
+                          invitation.organizationId,
+                        ),
+                        inArray(dbSchema.app.id, appIds),
+                      ),
+                    )
+                : [];
+              if (
+                matchingApps.length !== appIds.length ||
+                appIds.length === 0
+              ) {
+                throw new APIError("BAD_REQUEST", {
+                  message: "Choose one or more apps from this organization.",
+                });
+              }
+            } else {
+              appIds = [];
+            }
+
+            return { data: { appAccessMode, appIds: JSON.stringify(appIds) } };
+          },
+          afterAcceptInvitation: async ({
+            invitation,
+            member: acceptedMember,
+          }) => {
+            const mode =
+              invitation.appAccessMode === "selected" ? "selected" : "all";
+            let appIds: string[] = [];
+            try {
+              const parsed = JSON.parse(invitation.appIds ?? "[]");
+              if (
+                Array.isArray(parsed) &&
+                parsed.every((id) => typeof id === "string")
+              ) {
+                appIds = [...new Set(parsed)];
+              }
+            } catch {
+              throw new Error(
+                "The invitation contains invalid app access data.",
+              );
+            }
+            await db
+              .update(dbSchema.member)
+              .set({ appAccessMode: mode })
+              .where(eq(dbSchema.member.id, acceptedMember.id));
+            if (mode === "selected" && appIds.length > 0) {
+              const validApps = await db
+                .select({ id: dbSchema.app.id })
+                .from(dbSchema.app)
+                .where(
+                  and(
+                    eq(dbSchema.app.organizationId, invitation.organizationId),
+                    inArray(dbSchema.app.id, appIds),
+                  ),
+                );
+              await db
+                .insert(dbSchema.memberAppAccess)
+                .values(
+                  validApps.map(({ id }) => ({
+                    memberId: acceptedMember.id,
+                    appId: id,
+                  })),
+                )
+                .onConflictDoNothing();
+            }
+          },
+        },
         schema: {
           organization: {
             additionalFields: {
@@ -171,6 +287,35 @@ const createAuth = (
                 required: false,
                 input: false,
                 fieldName: "billing_status",
+              },
+            },
+          },
+          member: {
+            additionalFields: {
+              appAccessMode: {
+                type: "string",
+                required: false,
+                input: false,
+                defaultValue: "all",
+                fieldName: "app_access_mode",
+              },
+            },
+          },
+          invitation: {
+            additionalFields: {
+              appAccessMode: {
+                type: "string",
+                required: false,
+                input: true,
+                defaultValue: "all",
+                fieldName: "app_access_mode",
+              },
+              appIds: {
+                type: "string",
+                required: false,
+                input: true,
+                defaultValue: "[]",
+                fieldName: "app_ids",
               },
             },
           },

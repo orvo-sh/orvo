@@ -7,12 +7,9 @@
   import * as Dialog from "@repo/components/ui/dialog";
   import { Input } from "@repo/components/ui/input";
   import { Label } from "@repo/components/ui/label";
+  import { Checkbox } from "@repo/components/ui/checkbox";
   import { toast } from "@repo/components/ui/sonner";
-  import {
-    IconTrash,
-    IconUserPlus,
-    IconX,
-  } from "@tabler/icons-svelte";
+  import { IconTrash, IconUserPlus, IconX } from "@tabler/icons-svelte";
   import { onMount } from "svelte";
   import type { PageData } from "./$types";
 
@@ -25,6 +22,8 @@
   let cancelingInvitationId = $state("");
   let inviteEmail = $state("");
   let inviteRole = $state<"member" | "admin" | "owner">("member");
+  let inviteAppAccessMode = $state<"all" | "selected">("all");
+  let inviteAppIds = $state<string[]>([]);
   let error = $state("");
   let members = $state<any[]>([]);
   let invitations = $state<any[]>([]);
@@ -98,6 +97,10 @@
       error = "Email is required.";
       return;
     }
+    if (inviteAppAccessMode === "selected" && inviteAppIds.length === 0) {
+      error = "Choose at least one app for this member.";
+      return;
+    }
 
     inviting = true;
 
@@ -105,6 +108,10 @@
       email: inviteEmail.trim(),
       role: inviteRole,
       organizationId: data.currentOrganization.id,
+      appAccessMode: inviteAppAccessMode,
+      appIds: JSON.stringify(
+        inviteAppAccessMode === "selected" ? inviteAppIds : [],
+      ),
     });
 
     if (result.error) {
@@ -116,6 +123,8 @@
     inviteDialogOpen = false;
     inviteEmail = "";
     inviteRole = "member";
+    inviteAppAccessMode = "all";
+    inviteAppIds = [];
     inviting = false;
     await invalidateAll();
     await load();
@@ -267,7 +276,9 @@
           <div class="space-y-1">
             <p class="text-sm font-medium">{invitation.email}</p>
             <p class="text-xs text-muted-foreground">
-              {invitation.role} · Sent {new Date(
+              {invitation.role} · {invitation.appAccessMode === "selected"
+                ? "Selected apps"
+                : "All apps"} · Sent {new Date(
                 invitation.createdAt,
               ).toLocaleString()}
             </p>
@@ -312,6 +323,36 @@
       </div>
 
       <div class="space-y-2">
+        <Label for="invite-app-access">App access</Label>
+        <select
+          id="invite-app-access"
+          bind:value={inviteAppAccessMode}
+          class="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="all">All apps</option>
+          <option value="selected">Selected apps</option>
+        </select>
+      </div>
+
+      {#if inviteAppAccessMode === "selected"}
+        <div class="space-y-2 rounded-lg border p-3">
+          {#each data.apps as app (app.id)}
+            <label class="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={inviteAppIds.includes(app.id)}
+                onCheckedChange={(checked) => {
+                  inviteAppIds = Boolean(checked)
+                    ? [...inviteAppIds, app.id]
+                    : inviteAppIds.filter((id) => id !== app.id);
+                }}
+              />
+              {app.name}
+            </label>
+          {/each}
+        </div>
+      {/if}
+
+      <div class="space-y-2">
         <Label for="invite-role">Role</Label>
         <select
           id="invite-role"
@@ -327,7 +368,6 @@
       {#if error}
         <p class="text-sm text-destructive">{error}</p>
       {/if}
-
     </div>
 
     <Dialog.Footer>

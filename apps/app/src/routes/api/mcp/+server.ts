@@ -105,6 +105,7 @@ export const POST: RequestHandler = async (event) => {
       organizationId,
       server: event.locals.container.mcpService.createServer({
         organizationId,
+        userId,
       }),
     },
   };

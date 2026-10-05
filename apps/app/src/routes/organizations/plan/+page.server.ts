@@ -27,6 +27,7 @@ export const load = (async (event) => {
   ) {
     const appsResult = await event.locals.container.appService.listApps({
       organizationId,
+      userId: event.locals.auth!.user.id,
     });
 
     if (!appsResult.success || appsResult.data.apps.length === 0) {

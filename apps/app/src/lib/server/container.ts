@@ -11,6 +11,7 @@ import { ChatService } from "$lib/server/services/chat";
 import { ChatUsageService } from "$lib/server/services/chat-usage";
 import { HeartbeatService } from "$lib/server/services/heartbeat";
 import { IncidentService } from "$lib/server/services/incident";
+import { InvitationService } from "$lib/server/services/invitation";
 import { IngestionKeyService } from "$lib/server/services/ingestion-key";
 import { LogsService } from "$lib/server/services/logs";
 import { MetricsService } from "$lib/server/services/metrics";
@@ -36,9 +37,7 @@ const createInfrastructure = () => {
   const db = getDb(env.POSTGRES_URL);
   const clickhouse = getClickHouseClient({ url: env.CLICKHOUSE_URL });
   const storage =
-    env.S3_ACCESS_KEY_ID &&
-    env.S3_SECRET_ACCESS_KEY &&
-    env.S3_ENDPOINT
+    env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY && env.S3_ENDPOINT
       ? new Storage({
           accessKeyId: env.S3_ACCESS_KEY_ID,
           secretAccessKey: env.S3_SECRET_ACCESS_KEY,
@@ -47,10 +46,9 @@ const createInfrastructure = () => {
           bucket: env.S3_BUCKET_NAME,
         })
       : null;
-  const stripe =
-    env.STRIPE_SECRET_KEY
-      ? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: "2026-05-27.dahlia" })
-      : null;
+  const stripe = env.STRIPE_SECRET_KEY
+    ? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: "2026-05-27.dahlia" })
+    : null;
   const email = new Email({
     resendApiKey: env.RESEND_API_KEY,
     transport: dev ? "console" : "resend",
@@ -136,6 +134,7 @@ const createServerContainer = (logger: Logger) => {
     ingestionKeyService,
     alertRuleService,
   );
+  const invitationService = new InvitationService(db);
   const onboardingService = new OnboardingService(
     ingestionKeyService,
     { otlpBaseUrl: env.INGEST_BASE_URL },
@@ -227,6 +226,7 @@ const createServerContainer = (logger: Logger) => {
     billingService,
     chatService,
     appService,
+    invitationService,
     alertRuleService,
     alertWebhookDestinationService,
     heartbeatService,

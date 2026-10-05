@@ -15,6 +15,7 @@ const member = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     role: text('role').default('member').notNull(),
+    appAccessMode: text('app_access_mode').default('all').notNull(),
     createdAt: timestamp('created_at').notNull()
   },
   (table) => [

@@ -13,6 +13,8 @@ const invitation = pgTable(
       .references(() => organization.id, { onDelete: 'cascade' }),
     email: text('email').notNull(),
     role: text('role'),
+    appAccessMode: text('app_access_mode').default('all').notNull(),
+    appIds: text('app_ids').default('[]').notNull(),
     status: text('status').default('pending').notNull(),
     expiresAt: timestamp('expires_at').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),

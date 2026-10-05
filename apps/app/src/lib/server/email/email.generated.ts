@@ -176,6 +176,24 @@ function renderHeartbeatRecoveredEmail(input: RenderHeartbeatRecoveredInput): st
 `;
 }
 
+type RenderInvitationInput = {
+	invitationUrl: string;
+	inviterName: string;
+	organizationName: string;
+};
+
+function renderInvitationEmail(input: RenderInvitationInput): string {
+	return `<!doctype html>
+<html>
+  <body>
+    <p>${input.inviterName} invited you to join ${input.organizationName} on Orvo.</p>
+    <p><a href="${input.invitationUrl}">Accept invitation</a></p>
+    <p>If you weren’t expecting this invitation, you can ignore this email.</p>
+  </body>
+</html>
+`;
+}
+
 type RenderOtpInput = {
 	code: string;
 	purpose: string;
@@ -292,6 +310,7 @@ const templates = {
 	"destination-test": renderDestinationTestEmail,
 	"heartbeat-missed": renderHeartbeatMissedEmail,
 	"heartbeat-recovered": renderHeartbeatRecoveredEmail,
+	"invitation": renderInvitationEmail,
 	"otp": renderOtpEmail,
 	"threshold-alert-opened": renderThresholdAlertOpenedEmail,
 	"threshold-alert-renotified": renderThresholdAlertRenotifiedEmail,
@@ -306,6 +325,7 @@ type TemplateMap = {
 	"destination-test": RenderDestinationTestInput;
 	"heartbeat-missed": RenderHeartbeatMissedInput;
 	"heartbeat-recovered": RenderHeartbeatRecoveredInput;
+	"invitation": RenderInvitationInput;
 	"otp": RenderOtpInput;
 	"threshold-alert-opened": RenderThresholdAlertOpenedInput;
 	"threshold-alert-renotified": RenderThresholdAlertRenotifiedInput;
@@ -335,6 +355,8 @@ const renderTemplate = (input: Template): string => {
 			return renderHeartbeatMissedEmail(input.props);
 		case "heartbeat-recovered":
 			return renderHeartbeatRecoveredEmail(input.props);
+		case "invitation":
+			return renderInvitationEmail(input.props);
 		case "otp":
 			return renderOtpEmail(input.props);
 		case "threshold-alert-opened":
@@ -354,6 +376,7 @@ export {
 	renderDestinationTestEmail,
 	renderHeartbeatMissedEmail,
 	renderHeartbeatRecoveredEmail,
+	renderInvitationEmail,
 	renderOtpEmail,
 	renderThresholdAlertOpenedEmail,
 	renderThresholdAlertRenotifiedEmail,
@@ -370,6 +393,7 @@ export type {
 	RenderDestinationTestInput,
 	RenderHeartbeatMissedInput,
 	RenderHeartbeatRecoveredInput,
+	RenderInvitationInput,
 	RenderOtpInput,
 	RenderThresholdAlertOpenedInput,
 	RenderThresholdAlertRenotifiedInput,

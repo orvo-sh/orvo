@@ -26,6 +26,7 @@ export const load = (async (event) => {
 
   return {
     callback,
+    invitationEmail: event.url.searchParams.get("email") ?? "",
     error: code
       ? (getFriendlyAuthErrorMessage(code) ??
         description ??

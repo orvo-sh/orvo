@@ -21,7 +21,7 @@ class McpService {
     },
   ) {}
 
-  createServer(context: { organizationId: string }) {
+  createServer(context: { organizationId: string; userId: string }) {
     return createMcpServer(this.dependencies, context);
   }
 }

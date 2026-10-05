@@ -6,6 +6,7 @@ import { z } from "zod";
 import { AlertRuleService } from "../alert-rule";
 import { IngestionKeyService } from "../ingestion-key";
 import { createCreateApp } from "./methods/create-app";
+import { createCanAccessApp } from "./methods/can-access-app";
 import { createGetApp } from "./methods/get-app";
 import { createListApps } from "./methods/list-apps";
 import { createUpdateApp } from "./methods/update-app";
@@ -18,6 +19,7 @@ import {
 @Instrument({ prefix: "app" })
 class AppService {
   private logger: Logger;
+  private canAccessAppMethod: ReturnType<typeof createCanAccessApp>;
   private listAppsMethod: ReturnType<typeof createListApps>;
   private getAppMethod: ReturnType<typeof createGetApp>;
   private createAppMethod: ReturnType<typeof createCreateApp>;
@@ -30,6 +32,7 @@ class AppService {
     private alertRuleService: AlertRuleService,
   ) {
     this.logger = logger.child("AppService");
+    this.canAccessAppMethod = createCanAccessApp(this.db);
     this.listAppsMethod = createListApps({
       db: this.db,
       logger: this.logger,
@@ -50,8 +53,16 @@ class AppService {
     });
   }
 
-  async listApps(context: { organizationId: string }) {
+  async listApps(context: { organizationId: string; userId: string }) {
     return this.listAppsMethod(context);
+  }
+
+  async canAccessApp(input: {
+    appId: string;
+    organizationId: string;
+    userId: string;
+  }) {
+    return this.canAccessAppMethod(input);
   }
 
   async getApp(

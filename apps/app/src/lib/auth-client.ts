@@ -5,7 +5,16 @@ import { getFriendlyAuthErrorMessage } from "./auth-errors";
 
 export const authClient = createAuthClient({
   plugins: [
-    organizationClient(),
+    organizationClient({
+      schema: {
+        invitation: {
+          additionalFields: {
+            appAccessMode: { type: "string", required: false, input: true },
+            appIds: { type: "string", required: false, input: true },
+          },
+        },
+      },
+    }),
     emailOTPClient(),
     stripeClient({ subscription: true }),
   ],

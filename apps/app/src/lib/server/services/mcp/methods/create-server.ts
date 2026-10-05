@@ -90,7 +90,7 @@ const createMcpServer = (
     metricsService: MetricsService;
     tracesService: TracesService;
   },
-  context: { organizationId: string },
+  context: { organizationId: string; userId: string },
 ) => {
   const server = new McpServer(
     { name: "orvo", version: "1.0.0" },
@@ -102,6 +102,17 @@ const createMcpServer = (
 
   const resolveApp = async (appId?: string) => {
     if (appId) {
+      const hasAccess = await dependencies.appService.canAccessApp({
+        appId,
+        organizationId: context.organizationId,
+        userId: context.userId,
+      });
+      if (!hasAccess) {
+        return {
+          success: false as const,
+          error: "You do not have access to this app.",
+        };
+      }
       const result = await dependencies.appService.getApp(
         { id: appId },
         { organizationId: context.organizationId },

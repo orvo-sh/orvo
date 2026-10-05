@@ -34,6 +34,20 @@ const resolveRequestAppContext = async (event: RequestEvent) => {
     return appResult;
   }
 
+  if (
+    !event.locals.auth ||
+    !(await event.locals.container.appService.canAccessApp({
+      appId,
+      organizationId,
+      userId: event.locals.auth.user.id,
+    }))
+  ) {
+    return {
+      success: false as const,
+      error: "You do not have access to this app.",
+    };
+  }
+
   return {
     success: true as const,
     data: {

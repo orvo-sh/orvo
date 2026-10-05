@@ -18,6 +18,7 @@ export const load = (async (event) => {
 
   const appsResult = await event.locals.container.appService.listApps({
     organizationId: g.activeOrganizationId,
+    userId: g.auth.user.id,
   });
 
   return {

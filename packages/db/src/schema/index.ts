@@ -17,6 +17,7 @@ export * from './ingestion-key.schema.js';
 export * from './invitation.schema.js';
 export * from './jwks.schema.js';
 export * from './member.schema.js';
+export * from './member-app-access.schema.js';
 export * from './mcp-oauth-grant.schema.js';
 export * from './notification-delivery.schema.js';
 export * from './notification-destination.schema.js';

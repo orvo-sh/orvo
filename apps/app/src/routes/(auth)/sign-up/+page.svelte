@@ -19,7 +19,7 @@
   let { data }: { data: PageData } = $props();
 
   let name = $state("");
-  let email = $state("");
+  let email = $state((() => data.invitationEmail)());
   let password = $state("");
   let error = $state((() => data.error)());
   let loading = $state(false);
@@ -125,6 +125,7 @@
             type="email"
             bind:value={email}
             placeholder="you@example.com"
+            readonly={data.invitationEmail.length > 0}
             required
           />
         </Field>
