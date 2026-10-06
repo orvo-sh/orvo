@@ -84,7 +84,11 @@ const createAuth = (
         },
       },
     },
-    database: drizzleAdapter(db, { provider: "pg", schema: dbSchema }),
+    database: drizzleAdapter(db, {
+      provider: "pg",
+      schema: dbSchema,
+      camelCase: true,
+    }),
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
