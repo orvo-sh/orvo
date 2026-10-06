@@ -5,7 +5,7 @@ import {
 
 const TEST_BUCKET = "orvo-test";
 
-const startMinioContainer = (image = "minio/minio:latest") =>
+const startMinioContainer = (image = "quay.io/minio/minio:latest") =>
   new MinioContainer(image)
     .withUsername("minioadmin")
     .withPassword("minioadmin")
