@@ -1,14 +1,14 @@
-import type { DB } from "@repo/db";
-import { organization } from "@repo/db/schema";
-import { eq } from "drizzle-orm";
-
 const createOnSubscriptionDeleted =
-  ({ db }: { db: DB }) =>
+  ({
+    reconcileSubscriptions,
+  }: {
+    reconcileSubscriptions: (context: {
+      organizationId: string;
+    }) => Promise<void>;
+  }) =>
   async (context: { organizationId: string }) => {
-    await db
-      .update(organization)
-      .set({ billingStatus: "past_due" })
-      .where(eq(organization.id, context.organizationId));
+    // An old cancellation must not overwrite a new active subscription.
+    await reconcileSubscriptions(context);
   };
 
 export { createOnSubscriptionDeleted };

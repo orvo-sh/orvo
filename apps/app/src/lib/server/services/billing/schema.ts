@@ -3,10 +3,18 @@ import { z } from "zod";
 const getBillingStateInputSchema = z.object({});
 const createBillingPortalInputSchema = z.object({
   appId: z.string().trim().startsWith("app_").max(64),
+  flow: z.enum(["payment_method_update", "manage"]).default("manage"),
+  returnPath: z.string().startsWith("/").max(8192).optional(),
 });
 const startFreeTrialInputSchema = z.object({
   plan: z.literal("pro"),
 });
+const completeBillingFlowInputSchema = createBillingPortalInputSchema
+  .pick({
+    appId: true,
+    returnPath: true,
+  })
+  .extend({ paymentMethodUpdated: z.boolean().default(false) });
 const updateBillingEmailInputSchema = z.object({
   billingEmail: z.string().trim().email().max(255),
 });
@@ -22,6 +30,7 @@ const queueBillingNotificationInputSchema = z.object({
 });
 
 export {
+  completeBillingFlowInputSchema,
   createBillingPortalInputSchema,
   getBillingStateInputSchema,
   queueBillingNotificationInputSchema,

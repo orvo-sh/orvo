@@ -336,10 +336,6 @@ const createAuth = (
                 {
                   name: "pro",
                   priceId: config.stripe.proPriceId,
-                  lineItems: [
-                    { price: config.stripe.ingestOveragePriceId },
-                    { price: config.stripe.scoutOveragePriceId },
-                  ],
                   freeTrial: { days: config.stripe.trialDays },
                 },
               ],
@@ -357,11 +353,12 @@ const createAuth = (
               },
               getCheckoutSessionParams: async ({ user, subscription }) => ({
                 params: {
+                  managed_payments: { enabled: true },
                   payment_method_collection: "if_required",
                   customer_email: user.email,
                 },
                 options: {
-                  idempotencyKey: `orvo-subscription-checkout-${subscription.id}`,
+                  idempotencyKey: `orvo-subscription-checkout-managed-${subscription.id}`,
                 },
               }),
               onSubscriptionCreated: async ({ subscription }) =>
@@ -378,7 +375,8 @@ const createAuth = (
             onEvent: async (event) => {
               if (
                 event.type !== "customer.subscription.created" &&
-                event.type !== "customer.subscription.updated"
+                event.type !== "customer.subscription.updated" &&
+                event.type !== "checkout.session.completed"
               ) {
                 return;
               }

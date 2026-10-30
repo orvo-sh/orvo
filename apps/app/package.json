@@ -27,7 +27,7 @@
     "db:generate": "pnpm --filter @repo/db run db:generate",
     "db:migrate": "pnpm --filter @repo/db run db:migrate",
     "db:studio": "pnpm --filter @repo/db run db:studio",
-    "stripe:listen": "stripe listen --forward-to localhost:5173/api/auth/stripe/webhook",
+    "stripe:listen": "stripe listen --forward-to localhost:5173/api/auth/stripe/webhook --events checkout.session.completed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted",
     "auth:schema": "better-auth generate --config src/lib/server/auth.ts --output ../../packages/db/src/schema/auth.schema.ts --yes"
   },
   "dependencies": {

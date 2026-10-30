@@ -13,9 +13,8 @@
         Observability for the rest of us.
       </h1>
       <p class="text-secondary-foreground mt-3 mb-7 max-w-4xl text-lg leading-relaxed text-balance">
-        Observability got too complicated. Orvo makes it simple again — bringing logs, traces,
-        metrics, and more together with AI to make sense of it. Open source by design, and without
-        the operational baggage.
+        Observability got complicated. Orvo makes it simple again. Bring your logs, traces, metrics,
+        and more together in one place. Understand what's happening without the operational baggage.
       </p>
 
       <div class="flex flex-col items-center gap-3 *:w-full sm:flex-row sm:*:w-fit">

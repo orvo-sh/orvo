@@ -9,15 +9,19 @@ import { z } from "zod";
 
 import { createBillingPortalInputSchema } from "../schema";
 import { readRedirectUrl } from "../shared";
+import type { createOpenBillingFlow } from "./open-billing-flow";
+import { readBillingReturnUrl } from "./shared";
 
 const createCreateBillingPortalSession =
   ({
     db,
     logger,
+    openBillingFlow,
     isOrganizationOwner,
   }: {
     db: DB;
     logger: Logger;
+    openBillingFlow: ReturnType<typeof createOpenBillingFlow>;
     isOrganizationOwner: (
       organizationId: string,
       userId: string,
@@ -56,15 +60,26 @@ const createCreateBillingPortalSession =
         return err("App not found.");
       }
 
-      const returnUrl = new URL(
-        `/a/${currentApp.id}/settings/billing`,
-        context.origin,
-      ).toString();
+      const returnUrl = readBillingReturnUrl({
+        appId: currentApp.id,
+        returnPath: validated.data.returnPath,
+        origin: context.origin,
+      });
+      if (!returnUrl) {
+        return err("Invalid billing return path.");
+      }
+      if (validated.data.flow === "payment_method_update") {
+        return await openBillingFlow(
+          { appId: currentApp.id, returnUrl },
+          context,
+        );
+      }
+
       const result = await context.authService.api.createBillingPortal({
         body: {
           customerType: "organization",
           referenceId: context.organizationId,
-          returnUrl,
+          returnUrl: returnUrl.toString(),
           disableRedirect: true,
         },
         headers: context.headers,
@@ -78,7 +93,10 @@ const createCreateBillingPortalSession =
       return ok({ url: portalUrl });
     } catch (error) {
       recordError(error);
-      logger.error("Failed to create billing portal session", error as Error);
+      logger.error(
+        "createBillingPortalSession: failed to open billing flow",
+        error as Error,
+      );
       return err("Failed to open billing management.");
     }
   };

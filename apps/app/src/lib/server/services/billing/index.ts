@@ -8,6 +8,10 @@ import { z } from "zod";
 import Stripe from "stripe";
 
 import { createCreateBillingPortalSession } from "./methods/create-billing-portal-session";
+import { createOpenBillingFlow } from "./methods/open-billing-flow";
+import { createSyncOverageItems } from "./methods/sync-overage-items";
+import { createReportMeterUsage } from "./methods/report-meter-usage";
+import { createCompleteBillingFlow } from "./methods/complete-billing-flow";
 import { createGetBillingState } from "./methods/get-billing-state";
 import { createGetOrganizationAccessState } from "./methods/get-organization-access-state";
 import { createOnSubscriptionCreated } from "./methods/on-subscription-created";
@@ -19,6 +23,7 @@ import { createUpdateBillingEmail } from "./methods/update-billing-email";
 import { createUpdateOverageSettings } from "./methods/update-overage-settings";
 import {
   createBillingPortalInputSchema,
+  completeBillingFlowInputSchema,
   startFreeTrialInputSchema,
   updateBillingEmailInputSchema,
   updateOverageSettingsInputSchema,
@@ -32,6 +37,9 @@ import {
 @Instrument({ prefix: "billing" })
 class BillingService {
   private logger: Logger;
+  private completeBillingFlowMethod: ReturnType<
+    typeof createCompleteBillingFlow
+  >;
   private reconcileSubscriptionsMethod: ReturnType<
     typeof createReconcileSubscriptions
   >;
@@ -79,6 +87,8 @@ class BillingService {
     const getCurrentSubscription = createGetCurrentSubscription({
       db,
     });
+    const syncOverageItems = createSyncOverageItems({ stripe, config });
+    const reportMeterUsage = createReportMeterUsage({ stripe, config });
     const syncStripeSubscriptionState = createSyncStripeSubscriptionState({
       db,
       config,
@@ -109,7 +119,16 @@ class BillingService {
     this.createBillingPortalSessionMethod = createCreateBillingPortalSession({
       db,
       logger: this.logger,
+      openBillingFlow: createOpenBillingFlow({ db, stripe, config }),
       isOrganizationOwner,
+    });
+    this.completeBillingFlowMethod = createCompleteBillingFlow({
+      db,
+      stripe,
+      logger: this.logger,
+      isOrganizationOwner,
+      getCurrentSubscription,
+      reconcileSubscriptions: this.reconcileSubscriptionsMethod,
     });
     this.updateBillingEmailMethod = createUpdateBillingEmail({
       logger: this.logger,
@@ -119,6 +138,11 @@ class BillingService {
       db,
       logger: this.logger,
       isOrganizationOwner,
+      stripe,
+      config,
+      syncOverageItems,
+      reportMeterUsage,
+      reconcileSubscriptions: this.reconcileSubscriptionsMethod,
     });
     this.startFreeTrialMethod = createStartFreeTrial({
       db,
@@ -137,13 +161,24 @@ class BillingService {
       db,
       logger: this.logger,
       stripe,
-      config,
+      syncOverageItems,
+      reportMeterUsage,
+      reconcileSubscriptions: this.reconcileSubscriptionsMethod,
     });
-    this.onSubscriptionDeletedMethod = createOnSubscriptionDeleted({ db });
+    this.onSubscriptionDeletedMethod = createOnSubscriptionDeleted({
+      reconcileSubscriptions: this.reconcileSubscriptionsMethod,
+    });
   }
 
   async getBillingState(context: { organizationId: string; userId?: string }) {
     return this.getBillingStateMethod(context);
+  }
+
+  async completeBillingFlow(
+    input: z.input<typeof completeBillingFlowInputSchema>,
+    context: { organizationId: string; userId: string; origin: string },
+  ) {
+    return this.completeBillingFlowMethod(input, context);
   }
 
   async getOrganizationAccessState(context: { organizationId: string }) {

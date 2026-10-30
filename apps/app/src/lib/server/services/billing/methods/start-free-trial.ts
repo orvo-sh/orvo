@@ -3,7 +3,7 @@ import type { DB } from "@repo/db";
 import { organization, subscription } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNotNull, or, sql } from "drizzle-orm";
 import Stripe from "stripe";
 import { z } from "zod";
 
@@ -68,6 +68,20 @@ const createStartFreeTrial =
         if (!currentOrganization) {
           return err("Organization not found.");
         }
+        const previousTrial = await tx.query.subscription.findFirst({
+          where: and(
+            eq(subscription.referenceId, context.organizationId),
+            or(
+              isNotNull(subscription.trialStart),
+              isNotNull(subscription.trialEnd),
+            ),
+          ),
+        });
+        if (previousTrial) {
+          return err(
+            "This organization has already used its free trial. Subscribe to Pro to continue.",
+          );
+        }
 
         let stripeCustomerId = currentOrganization.stripeCustomerId;
         if (stripeCustomerId) {
@@ -110,6 +124,15 @@ const createStartFreeTrial =
           ) {
             return err("This organization already has a subscription.");
           }
+          if (
+            stripeSubscriptions?.data.some(
+              (candidate) => candidate.trial_start || candidate.trial_end,
+            )
+          ) {
+            return err(
+              "This organization has already used its free trial. Subscribe to Pro to continue.",
+            );
+          }
         }
 
         await tx
@@ -146,11 +169,7 @@ const createStartFreeTrial =
         const stripeSubscription = await stripe.subscriptions.create(
           {
             customer: stripeCustomerId,
-            items: [
-              { price: config.proPriceId },
-              { price: config.ingestOveragePriceId },
-              { price: config.scoutOveragePriceId },
-            ],
+            items: [{ price: config.proPriceId }],
             trial_period_days: config.trialDays,
             metadata: {
               userId: context.userId,

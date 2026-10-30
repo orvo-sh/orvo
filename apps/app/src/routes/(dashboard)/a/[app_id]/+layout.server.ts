@@ -72,7 +72,14 @@ export const load = (async (event) => {
     (!accessResult.success ||
       (!accessResult.data.hasAccess &&
         !accessResult.data.trialExpired &&
-        accessResult.data.billingStatus !== "past_due"))
+        ![
+          "past_due",
+          "unpaid",
+          "incomplete",
+          "incomplete_expired",
+          "canceled",
+          "paused",
+        ].includes(accessResult.data.billingStatus ?? "")))
   ) {
     throw redirect(302, "/organizations/plan");
   }
@@ -95,6 +102,9 @@ export const load = (async (event) => {
         ? {
             billingPlan: billingStateResult.data.billingPlan,
             billingStatus: billingStateResult.data.billingStatus,
+            billingActionLabel: billingStateResult.data.billingActionLabel,
+            canManageBilling: billingStateResult.data.canManageBilling,
+            trialEnded: billingStateResult.data.trialEnded,
             hasPaymentMethod: billingStateResult.data.hasPaymentMethod,
             trialStart: billingStateResult.data.trialStart,
             trialEnd: billingStateResult.data.trialEnd,

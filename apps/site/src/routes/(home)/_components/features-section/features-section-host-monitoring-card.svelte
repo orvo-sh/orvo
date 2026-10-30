@@ -1,7 +1,6 @@
 <script lang="ts">
   import { cn } from '@repo/components';
   import * as Card from '@repo/components/ui/card';
-  import { IconArrowUpRight } from '@tabler/icons-svelte';
 
   const hosts = [
     {
@@ -46,10 +45,9 @@
       Keep an eye on CPU, memory, disk, and load without adding another monitoring stack.
       <a
         href="/docs/product/hosts"
-        class="text-primary inline-flex text-base underline-offset-4 hover:underline"
+        class="text-primary bg-primary/5 hover:bg-primary/10 inline-flex rounded-md px-2 text-base underline-offset-4 transition-colors"
       >
         Learn more about hosts
-        <IconArrowUpRight class="mb-2 ml-1 inline-flex size-3.5" />
       </a>
     </p>
   </div>

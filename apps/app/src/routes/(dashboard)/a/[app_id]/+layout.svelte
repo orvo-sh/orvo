@@ -23,6 +23,10 @@
       <TrialStatus
         bind:bannerVisible={trialBannerVisible}
         billingStatus={data.billingSummary?.billingStatus ?? null}
+        billingActionLabel={data.billingSummary?.billingActionLabel ??
+          "Add billing details"}
+        canManageBilling={data.billingSummary?.canManageBilling ?? false}
+        trialEnded={data.billingSummary?.trialEnded ?? false}
         hasPaymentMethod={data.billingSummary?.hasPaymentMethod ?? null}
         trialEnd={data.billingSummary?.trialEnd ?? null}
         billingHref={`/a/${data.currentApp.id}/settings/billing`}

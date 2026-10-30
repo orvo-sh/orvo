@@ -8,7 +8,7 @@
   import { Label } from '@repo/components/ui/label';
   import {
     IconChevronDown as ChevronDownIcon,
-    IconArrowUpRight,
+    IconArrowRight,
     IconWorldWww
   } from '@tabler/icons-svelte';
 
@@ -108,19 +108,16 @@
   const WATERFALL_LANE_INSET = 10;
 </script>
 
-<Card.Root
-  class="border-foreground/10 justify-between gap-0 p-0 shadow md:col-span-8"
->
+<Card.Root class="border-foreground/10 justify-between gap-0 p-0 shadow md:col-span-8">
   <div class="p-5 pb-0">
     <h2 class="text-secondary-foreground flex items-center gap-1.5 text-lg font-medium">Traces</h2>
     <p class="text-muted-foreground mt-1.5 max-w-[84%] text-base leading-relaxed">
       Follow a request across services, spot slow spans, and see exactly where time went.
       <a
         href="/docs/product/traces"
-        class="text-primary inline-flex text-base underline-offset-4 hover:underline"
+        class="text-primary bg-primary/5 hover:bg-primary/10 inline-flex rounded-md px-2 text-base underline-offset-4 transition-colors"
       >
-        Learn more about traces
-        <IconArrowUpRight class="mb-2 ml-1 inline-flex size-3.5" />
+        Explore traces <IconArrowRight class="mt-1 ml-1 size-4" />
       </a>
     </p>
   </div>
@@ -186,7 +183,7 @@
                   {/if}
 
                   <span
-                    class="text-muted-foreground mr-1.5 hidden size-4 shrink-0 items-center justify-center"
+                    class="text-muted-foreground mr-1.5 flex size-4 shrink-0 items-center justify-center"
                   >
                     {#if span.icon === 'golang'}
                       <GolangIcon class="size-3.5" />

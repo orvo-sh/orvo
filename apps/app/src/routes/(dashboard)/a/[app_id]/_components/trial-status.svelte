@@ -1,7 +1,10 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import { createBillingPortalCommand } from "$lib/api/billing.remote";
+  import { PLANS } from "$lib/constants";
   import * as AlertDialog from "@repo/components/ui/alert-dialog";
   import { Button } from "@repo/components/ui/button";
+  import { toast } from "@repo/components/ui/sonner";
   import {
     IconCreditCard as CreditCardIcon,
     IconInfoCircle as InfoCircleIcon,
@@ -10,12 +13,18 @@
 
   let {
     billingStatus,
+    billingActionLabel,
+    canManageBilling,
+    trialEnded,
     hasPaymentMethod,
     trialEnd,
     billingHref,
     bannerVisible = $bindable(false),
   }: {
     billingStatus: string | null;
+    billingActionLabel: string;
+    canManageBilling: boolean;
+    trialEnded: boolean;
     hasPaymentMethod: boolean | null;
     trialEnd: Date | string | null;
     billingHref: string;
@@ -23,6 +32,30 @@
   } = $props();
 
   let now = $state(Date.now());
+  let billingLoading = $state(false);
+
+  const openBilling = async () => {
+    if (billingLoading) return;
+    billingLoading = true;
+
+    try {
+      const result = await createBillingPortalCommand({
+        appId: page.params.app_id!,
+        flow: "payment_method_update",
+        returnPath: page.url.pathname + page.url.search + page.url.hash,
+      });
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+
+      window.location.href = result.data.url;
+    } catch {
+      toast.error("Failed to open billing details. Please try again.");
+    } finally {
+      billingLoading = false;
+    }
+  };
 
   const trialEndTime = $derived(trialEnd ? new Date(trialEnd).getTime() : null);
   const daysRemaining = $derived(
@@ -69,7 +102,9 @@
       without interruption.
     </p>
     <Button
-      href={billingHref}
+      onclick={openBilling}
+      loading={billingLoading}
+      disabled={billingLoading || !canManageBilling}
       variant="link"
       size="sm"
       class="h-auto px-1 text-amber-950 underline decoration-1 underline-offset-2 dark:text-amber-50"
@@ -79,41 +114,59 @@
   </div>
 {/if}
 
-{#if billingStatus === "past_due" && !isBillingPage}
+{#if ["past_due", "unpaid", "incomplete", "paused"].includes(billingStatus ?? "") && !isBillingPage}
   <AlertDialog.Root open={true} onOpenChange={() => {}}>
     <AlertDialog.Content data-testid="past-due-billing-dialog">
       <AlertDialog.Header>
         <AlertDialog.Title>Payment needs attention</AlertDialog.Title>
         <AlertDialog.Description>
-          This organization’s payment is overdue. You can still access the
-          dashboard, but update your billing details to restore uninterrupted
-          service.
+          Update your billing details and complete any outstanding payment to
+          restore service for this organization.
+          {#if !canManageBilling}Ask an organization owner to update billing.{/if}
         </AlertDialog.Description>
       </AlertDialog.Header>
       <AlertDialog.Footer>
-        <Button href={billingHref} class="w-full sm:w-auto">
+        <Button
+          onclick={openBilling}
+          loading={billingLoading}
+          disabled={billingLoading || !canManageBilling}
+          class="w-full sm:w-auto"
+        >
           <CreditCardIcon data-slot="button-icon" />
-          Manage billing
+          {billingActionLabel}
         </Button>
       </AlertDialog.Footer>
     </AlertDialog.Content>
   </AlertDialog.Root>
 {/if}
 
-{#if trialExpired && !isBillingPage}
+{#if (billingStatus === "canceled" || billingStatus === "incomplete_expired" || (trialExpired && billingStatus === "trialing")) && !isBillingPage}
   <AlertDialog.Root open={true} onOpenChange={() => {}}>
     <AlertDialog.Content data-testid="trial-expired-dialog">
       <AlertDialog.Header>
-        <AlertDialog.Title>Your trial has expired</AlertDialog.Title>
+        <AlertDialog.Title
+          >{trialEnded || billingStatus === "trialing"
+            ? "Your trial has ended"
+            : "Subscription required"}</AlertDialog.Title
+        >
         <AlertDialog.Description>
-          Your trial has ended. Choose a plan to restore access and resume
-          telemetry ingestion.
+          Subscribe to Pro for ${PLANS.pro.priceUsd} per month, plus usage overages,
+          to restore access and resume telemetry ingestion. Billing starts when you
+          subscribe, with no additional trial.
+          {#if !canManageBilling}Ask an organization owner to subscribe.{/if}
         </AlertDialog.Description>
       </AlertDialog.Header>
       <AlertDialog.Footer>
-        <Button href={billingHref} class="w-full sm:w-auto">
+        <Button
+          onclick={openBilling}
+          loading={billingLoading}
+          disabled={billingLoading || !canManageBilling}
+          class="w-full sm:w-auto"
+        >
           <CreditCardIcon data-slot="button-icon" />
-          Add billing details
+          {trialExpired && billingStatus === "trialing"
+            ? "Subscribe to Pro"
+            : billingActionLabel}
         </Button>
       </AlertDialog.Footer>
     </AlertDialog.Content>

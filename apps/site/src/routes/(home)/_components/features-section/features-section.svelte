@@ -1,10 +1,6 @@
 <script>
-  import FeaturesSectionAlertsIncidentsCard from './features-section-alerts-incidents-card.svelte';
-  import FeaturesSectionHeartbeatsCard from './features-section-heartbeats-card.svelte';
-  import FeaturesSectionHostMonitoringCard from './features-section-host-monitoring-card.svelte';
   import FeaturesSectionLogsCard from './features-section-logs-card.svelte';
   import FeaturesSectionMetricsCard from './features-section-metrics-card.svelte';
-  import FeaturesSectionScoutCard from './features-section-scout-card.svelte';
   import FeaturesSectionTracesCard from './features-section-traces-card.svelte';
 </script>
 
@@ -19,8 +15,8 @@
       </h2>
 
       <p class="text-secondary-foreground max-w-150 text-lg leading-relaxed">
-        Logs, traces, metrics, and everything in between. See what changed, follow where it spread,
-        and understand what needs your attention.
+        Logs, traces, metrics, and everything in between. See what happened, follow where it
+        started, and understand what needs your attention.
       </p>
     </div>
 
@@ -30,12 +26,7 @@
       <FeaturesSectionMetricsCard />
 
       <FeaturesSectionTracesCard />
-
-      <FeaturesSectionHeartbeatsCard />
-
-      <FeaturesSectionAlertsIncidentsCard />
-      <FeaturesSectionHostMonitoringCard />
-      <FeaturesSectionScoutCard />
+      <div class="hidden md:col-span-4 md:block" aria-hidden="true"></div>
     </div>
   </div>
 </section>

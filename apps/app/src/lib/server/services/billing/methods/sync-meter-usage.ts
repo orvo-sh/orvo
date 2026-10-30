@@ -1,92 +1,83 @@
 import { recordError } from "$lib/instrumentation";
 import type { DB } from "@repo/db";
-import { organization, organizationUsage, subscription } from "@repo/db/schema";
+import { organizationUsage, subscription } from "@repo/db/schema";
 import type { Logger } from "@repo/logger";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type Stripe from "stripe";
+import type { createSyncOverageItems } from "./sync-overage-items";
+import type { createReportMeterUsage } from "./report-meter-usage";
 
 const createSyncMeterUsage =
   ({
     db,
     logger,
     stripe,
-    config,
+    syncOverageItems,
+    reportMeterUsage,
+    reconcileSubscriptions,
   }: {
     db: DB;
     logger: Logger;
     stripe: Stripe;
-    config: { ingestEventName: string; scoutEventName: string };
+    reportMeterUsage: ReturnType<typeof createReportMeterUsage>;
+    syncOverageItems: ReturnType<typeof createSyncOverageItems>;
+    reconcileSubscriptions: (context: {
+      organizationId: string;
+    }) => Promise<void>;
   }) =>
   async () => {
     try {
-      const rows = await db
-        .select({
-          usageId: organizationUsage.id,
-          organizationId: organizationUsage.organizationId,
-          periodStart: organizationUsage.currentPeriodStart,
-          logsIngestedBytes: organizationUsage.logsIngestedBytes,
-          tracesIngestedBytes: organizationUsage.tracesIngestedBytes,
-          metricsIngestedBytes: organizationUsage.metricsIngestedBytes,
-          chatCredits: organizationUsage.chatCreditsUsed,
-          ingestBytesReported: organizationUsage.stripeIngestBytesReported,
-          chatCreditsReported: organizationUsage.stripeChatCreditsReported,
-          organizationCustomerId: organization.stripeCustomerId,
-          subscriptionCustomerId: subscription.stripeCustomerId,
-        })
-        .from(organizationUsage)
-        .innerJoin(
-          organization,
-          eq(organization.id, organizationUsage.organizationId),
-        )
-        .leftJoin(
-          subscription,
-          and(
-            eq(subscription.referenceId, organizationUsage.organizationId),
-            eq(subscription.plan, "pro"),
-            inArray(subscription.status, ["active", "trialing"]),
-          ),
-        );
-
-      for (const row of rows) {
-        const stripeCustomerId =
-          row.organizationCustomerId ?? row.subscriptionCustomerId;
-        if (!stripeCustomerId) continue;
-
-        const ingestBytes =
-          row.logsIngestedBytes +
-          row.tracesIngestedBytes +
-          row.metricsIngestedBytes;
-        const periodStart = Math.floor(row.periodStart.getTime() / 1_000);
-
-        if (ingestBytes !== row.ingestBytesReported) {
-          await stripe.billing.meterEvents.create({
-            event_name: config.ingestEventName,
-            identifier: `orvo_ingest_${row.organizationId}_${periodStart}_${ingestBytes}`,
-            payload: {
-              stripe_customer_id: stripeCustomerId,
-              value: String(ingestBytes),
-            },
+      const organizations = await db.query.organizationUsage.findMany({
+        columns: { organizationId: true },
+      });
+      for (const row of organizations) {
+        // Refresh periods before removing settled disabled items or reporting
+        // cumulative usage. Never report the previous period into a new one.
+        await reconcileSubscriptions({ organizationId: row.organizationId });
+        await db.transaction(async (tx) => {
+          await tx.execute(
+            sql`select pg_advisory_xact_lock(hashtext(${row.organizationId}))`,
+          );
+          await tx.execute(
+            sql`select id from organization_usage where organization_id = ${row.organizationId} for update`,
+          );
+          const [usage, currentSubscription] = await Promise.all([
+            tx.query.organizationUsage.findFirst({
+              where: eq(organizationUsage.organizationId, row.organizationId),
+            }),
+            tx.query.subscription.findFirst({
+              where: and(
+                eq(subscription.referenceId, row.organizationId),
+                eq(subscription.status, "active"),
+              ),
+            }),
+          ]);
+          if (
+            !usage ||
+            !currentSubscription?.stripeSubscriptionId ||
+            !currentSubscription.stripeCustomerId
+          )
+            return;
+          const current = await stripe.subscriptions.retrieve(
+            currentSubscription.stripeSubscriptionId,
+          );
+          if (current.status !== "active") return;
+          const updated = await syncOverageItems({
+            organizationId: row.organizationId,
+            stripeSubscription: current,
+            usage,
           });
-          await db
-            .update(organizationUsage)
-            .set({ stripeIngestBytesReported: ingestBytes })
-            .where(eq(organizationUsage.id, row.usageId));
-        }
-
-        if (row.chatCredits !== row.chatCreditsReported) {
-          await stripe.billing.meterEvents.create({
-            event_name: config.scoutEventName,
-            identifier: `orvo_scout_${row.organizationId}_${periodStart}_${row.chatCredits}`,
-            payload: {
-              stripe_customer_id: stripeCustomerId,
-              value: String(row.chatCredits),
+          await reportMeterUsage(
+            {
+              organizationId: row.organizationId,
+              customerId: currentSubscription.stripeCustomerId,
+              usage,
+              stripeSubscription: updated,
+              previousItemIds: current.items.data.map((item) => item.id),
             },
-          });
-          await db
-            .update(organizationUsage)
-            .set({ stripeChatCreditsReported: row.chatCredits })
-            .where(eq(organizationUsage.id, row.usageId));
-        }
+            tx,
+          );
+        });
       }
     } catch (error) {
       recordError(error);

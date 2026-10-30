@@ -35,7 +35,7 @@
   type BillingState = Extract<BillingStateResult, { success: true }>["data"];
 
   let loading = $state(true);
-  let portalLoading = $state(false);
+  let portalLoading = $state<"payment_method_update" | "manage" | null>(null);
   let overageSettingsLoading = $state(false);
   let error = $state("");
   let success = $state("");
@@ -185,17 +185,18 @@
     overageSettingsLoading = false;
   };
 
-  const openPortal = async () => {
-    portalLoading = true;
+  const openPortal = async (flow: "payment_method_update" | "manage") => {
+    portalLoading = flow;
     error = "";
     success = "";
 
     const result = await createBillingPortalCommand({
       appId: page.params.app_id!,
+      flow,
     });
     if (result.success === false) {
       error = result.error;
-      portalLoading = false;
+      portalLoading = null;
       return;
     }
 
@@ -251,12 +252,19 @@
             <Badge
               variant={billingState.billingStatus === "active"
                 ? "secondary"
-                : billingState.billingStatus === "trialing"
+                : billingState.billingStatus === "trialing" ||
+                    billingState.trialEnded
                   ? "outline"
                   : "destructive"}
-              class="capitalize"
+              class={cn(
+                "capitalize",
+                billingState.trialEnded &&
+                  "border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-300",
+              )}
             >
-              {billingState.billingStatus.replace("_", " ")}
+              {billingState.trialEnded
+                ? "Trial ended"
+                : billingState.billingStatus.replace("_", " ")}
             </Badge>
           {/if}
         </div>
@@ -269,14 +277,27 @@
         </CardDescription>
       {/if}
 
-      <CardAction>
+      <CardAction class="flex flex-wrap gap-2">
         <Button
-          disabled={loading || portalLoading}
-          loading={portalLoading}
-          onclick={openPortal}
+          variant="outline"
+          disabled={loading ||
+            portalLoading !== null ||
+            !billingState?.canManageBilling}
+          loading={portalLoading === "manage"}
+          onclick={() => openPortal("manage")}
         >
           <IconExternalLink data-slot="button-icon" />
           Manage billing
+        </Button>
+        <Button
+          disabled={loading ||
+            portalLoading !== null ||
+            !billingState?.canManageBilling}
+          loading={portalLoading === "payment_method_update"}
+          onclick={() => openPortal("payment_method_update")}
+        >
+          <IconExternalLink data-slot="button-icon" />
+          {billingState?.billingActionLabel ?? "Add billing details"}
         </Button>
       </CardAction>
     </CardHeader>

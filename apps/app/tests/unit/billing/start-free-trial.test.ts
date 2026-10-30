@@ -15,6 +15,7 @@ describe("createStartFreeTrial", () => {
       organization: {
         findFirst: vi.fn(),
       },
+      subscription: { findFirst: vi.fn() },
     },
     delete: vi.fn(() => ({ where: deleteWhere })),
     update: vi.fn(() => ({ set: updateSet })),
@@ -48,6 +49,7 @@ describe("createStartFreeTrial", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    tx.query.subscription.findFirst.mockResolvedValue(undefined);
     tx.query.organization.findFirst.mockResolvedValue({
       id: "org_billing",
       name: "Billing organization",
@@ -75,11 +77,7 @@ describe("createStartFreeTrial", () => {
     expect(createStripeSubscription).toHaveBeenCalledWith(
       {
         customer: "cus_billing",
-        items: [
-          { price: "price_pro" },
-          { price: "price_ingest" },
-          { price: "price_scout" },
-        ],
+        items: [{ price: "price_pro" }],
         trial_period_days: 14,
         metadata: {
           userId: "usr_owner",
@@ -127,6 +125,27 @@ describe("createStartFreeTrial", () => {
       expect.objectContaining({ customer: "cus_new" }),
       expect.anything(),
     );
+  });
+
+  test("does not grant another trial after cancellation", async () => {
+    tx.query.subscription.findFirst.mockResolvedValue({
+      status: "canceled",
+      trialStart: new Date(0),
+    });
+    expect((await startFreeTrial({ plan: "pro" }, context)).success).toBe(
+      false,
+    );
+    expect(createStripeSubscription).not.toHaveBeenCalled();
+  });
+
+  test("checks Stripe trial history even when the local trial is missing", async () => {
+    listStripeSubscriptions.mockResolvedValue({
+      data: [{ status: "canceled", trial_start: 1, trial_end: 2 }],
+    });
+    expect((await startFreeTrial({ plan: "pro" }, context)).success).toBe(
+      false,
+    );
+    expect(createStripeSubscription).not.toHaveBeenCalled();
   });
 
   test.each(["active", "trialing", "incomplete", "past_due"])(

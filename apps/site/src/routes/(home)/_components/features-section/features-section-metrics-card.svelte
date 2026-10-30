@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as Card from '@repo/components/ui/card';
-  import { IconArrowUpRight } from '@tabler/icons-svelte';
+  import { IconArrowRight } from '@tabler/icons-svelte';
   import FeaturesSectionMetricsChartCard from './features-section-metrics-chart-card.svelte';
 
   const latencyData = [
@@ -32,10 +32,9 @@
       <a
         href="/docs/product/metrics"
         target="_blank"
-        class="text-primary inline-flex text-base underline-offset-4 hover:underline"
+        class="text-primary bg-primary/5 hover:bg-primary/10 inline-flex rounded-md px-2 text-base underline-offset-4 transition-colors"
       >
-        Learn more about metrics
-        <IconArrowUpRight class="mb-2 ml-1 inline-flex size-3.5" />
+        Explore metrics <IconArrowRight class="mt-1 ml-1 size-4" />
       </a>
     </p>
   </div>

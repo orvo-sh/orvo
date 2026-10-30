@@ -16,7 +16,11 @@
     CardTitle,
   } from "@repo/components/ui/card";
   import { Checkbox } from "@repo/components/ui/checkbox";
+  import * as Collapsible from "@repo/components/ui/collapsible";
+  import { FieldDescription } from "@repo/components/ui/field";
   import { Input } from "@repo/components/ui/input";
+  import * as Select from "@repo/components/ui/select";
+  import { IconChevronDown, IconInfoCircleFilled } from "@tabler/icons-svelte";
 
   let {
     form = $bindable(),
@@ -38,6 +42,9 @@
     submitLabel: string;
     onSubmit: () => void | Promise<void>;
   } = $props();
+
+  let scopeOpen = $state(false);
+  let advancedOpen = $state(false);
 
   const setScopeValues = (
     group: keyof typeof form.scope,
@@ -140,12 +147,40 @@
     return groups;
   });
 
+  const scopeFilterCount = $derived(
+    Object.values(form.scope).reduce(
+      (count, values) => count + values.include.length + values.exclude.length,
+      0,
+    ),
+  );
+
+  const signalUnits: Record<AlertRuleFormValue["signalType"], string> = {
+    error_rate: "%",
+    latency_p95_ms: "ms",
+    latency_p99_ms: "ms",
+    apdex: "score",
+    throughput_per_min: "/min",
+    availability_percent: "%",
+    container_cpu_utilization: "%",
+    container_memory_utilization: "%",
+    container_reporting_stale: "min",
+  };
+
+  const comparatorPhrases: Record<AlertRuleFormValue["comparator"], string> = {
+    gt: "is greater than",
+    gte: "is at least",
+    lt: "is less than",
+    lte: "is at most",
+  };
+
   const submit = async () => {
     await onSubmit();
   };
 </script>
 
-<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+<div
+  class="mx-auto flex w-full max-w-4xl flex-col gap-3 px-3 py-3 sm:px-5 sm:py-5"
+>
   {#if error}
     <div
       class="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
@@ -155,10 +190,10 @@
   {/if}
 
   <Card>
-    <CardHeader class="gap-1">
-      <CardTitle>Basics</CardTitle>
+    <CardHeader class="gap-1 pb-2">
+      <CardTitle>Alert condition</CardTitle>
       <CardDescription
-        >Name the rule and choose the signal it evaluates.</CardDescription
+        >Choose what to monitor and when it should fire.</CardDescription
       >
     </CardHeader>
     <CardContent class="grid gap-4">
@@ -174,104 +209,121 @@
       </div>
 
       <div class="grid gap-2">
-        <span class="text-sm font-medium text-foreground">Signal</span>
-        <div class="flex flex-wrap gap-2">
-          {#each alertSignalOptions as option}
-            <Button
-              variant={form.signalType === option.value ? "default" : "outline"}
-              type="button"
-              onclick={() => {
+        <p class="text-sm font-medium text-foreground">Alert when</p>
+        <div
+          class="grid gap-3 md:grid-cols-[minmax(0,1.25fr)_minmax(12rem,1fr)_minmax(8rem,0.65fr)]"
+        >
+          <div class="grid content-start gap-2">
+            <label class="text-sm text-muted-foreground" for="alert-signal"
+              >Signal</label
+            >
+            <Select.Root
+              type="single"
+              value={form.signalType}
+              onValueChange={(value) => {
+                const option = alertSignalOptions.find(
+                  (candidate) => candidate.value === value,
+                );
+                if (!option) return;
                 form.signalType = option.value;
-                if (option.value !== "apdex") {
-                  form.apdexTargetMs = null;
-                }
+                if (option.value !== "apdex") form.apdexTargetMs = null;
               }}
             >
-              {option.label}
-            </Button>
-          {/each}
-        </div>
-        <p class="text-sm text-muted-foreground">
-          {alertSignalDescriptions[form.signalType]}
-        </p>
-      </div>
-    </CardContent>
-  </Card>
+              <Select.Trigger id="alert-signal" class="w-full bg-background">
+                {alertSignalOptions.find(
+                  (option) => option.value === form.signalType,
+                )?.label ?? "Select a signal"}
+              </Select.Trigger>
+              <Select.Content>
+                {#each alertSignalOptions as option}
+                  <Select.Item value={option.value} label={option.label} />
+                {/each}
+              </Select.Content>
+            </Select.Root>
+            <FieldDescription class="flex items-start gap-1.5 text-sm">
+              <IconInfoCircleFilled class="mt-0.5 size-4 shrink-0" />
+              {alertSignalDescriptions[form.signalType]}
+            </FieldDescription>
+          </div>
 
-  <Card>
-    <CardHeader class="gap-1">
-      <CardTitle>Threshold</CardTitle>
-      <CardDescription
-        >Set the condition, rule window, and renotification cadence.</CardDescription
-      >
-    </CardHeader>
-    <CardContent class="grid gap-4 md:grid-cols-2">
-      <div class="grid gap-2">
-        <span class="text-sm font-medium text-foreground">Comparator</span>
-        <div class="flex flex-wrap gap-2">
-          {#each alertComparatorOptions as option}
-            <Button
-              variant={form.comparator === option.value ? "default" : "outline"}
-              type="button"
-              size="sm"
-              onclick={() => {
-                form.comparator = option.value;
+          <div class="grid content-start gap-2">
+            <label class="text-sm text-muted-foreground" for="alert-comparator"
+              >Condition</label
+            >
+            <Select.Root
+              type="single"
+              value={form.comparator}
+              onValueChange={(value) => {
+                const option = alertComparatorOptions.find(
+                  (candidate) => candidate.value === value,
+                );
+                if (option) form.comparator = option.value;
               }}
             >
-              {option.label}
-            </Button>
-          {/each}
+              <Select.Trigger
+                id="alert-comparator"
+                class="w-full bg-background"
+              >
+                {alertComparatorOptions.find(
+                  (option) => option.value === form.comparator,
+                )?.label ?? "Choose a condition"}
+              </Select.Trigger>
+              <Select.Content>
+                {#each alertComparatorOptions as option}
+                  <Select.Item value={option.value} label={option.label} />
+                {/each}
+              </Select.Content>
+            </Select.Root>
+          </div>
+
+          <div class="grid content-start gap-2">
+            <label class="text-sm text-muted-foreground" for="alert-threshold">
+              Threshold ({signalUnits[form.signalType]})
+            </label>
+            <Input
+              id="alert-threshold"
+              type="number"
+              bind:value={form.threshold}
+            />
+          </div>
         </div>
       </div>
 
-      <div class="grid gap-2">
-        <label class="text-sm font-medium text-foreground" for="alert-threshold"
-          >Threshold</label
-        >
-        <Input id="alert-threshold" type="number" bind:value={form.threshold} />
-      </div>
-
-      <div class="grid gap-2">
+      <div class="grid gap-2 sm:max-w-xs">
         <label class="text-sm font-medium text-foreground" for="alert-window"
-          >Window in minutes</label
+          >Over</label
         >
-        <Input
-          id="alert-window"
-          type="number"
-          bind:value={form.windowMinutes}
-          min={1}
-          max={1440}
-        />
+        <div class="flex items-center gap-2">
+          <Input
+            id="alert-window"
+            type="number"
+            bind:value={form.windowMinutes}
+            min={1}
+            max={1440}
+            class="w-24"
+          />
+          <span class="text-sm text-muted-foreground">minutes</span>
+        </div>
       </div>
 
-      <div class="grid gap-2">
-        <label class="text-sm font-medium text-foreground" for="alert-renotify">
-          Renotify every minutes
-        </label>
-        <Input
-          id="alert-renotify"
-          type="number"
-          value={form.renotifyMinutes ?? ""}
-          oninput={(event) => {
-            const nextValue = Number(
-              (event.currentTarget as HTMLInputElement).value,
-            );
-            form.renotifyMinutes =
-              Number.isFinite(nextValue) && nextValue > 0 ? nextValue : null;
-          }}
-          min={1}
-          placeholder="Leave empty to disable"
-        />
+      <div class="rounded-lg bg-muted/40 px-3 py-2.5 text-sm">
+        <span class="font-medium">Rule preview</span>
+        <span class="text-muted-foreground">
+          Open an incident when {alertSignalOptions
+            .find((option) => option.value === form.signalType)
+            ?.label.toLowerCase() ?? "signal"}
+          {comparatorPhrases[form.comparator]}
+          {form.threshold}{signalUnits[form.signalType]}, measured over
+          {form.windowMinutes} minutes.
+        </span>
       </div>
 
       {#if form.signalType === "apdex"}
-        <div class="grid gap-2 md:col-span-2">
+        <div class="grid gap-2 sm:max-w-xs">
           <label
             class="text-sm font-medium text-foreground"
-            for="alert-apdex-target"
+            for="alert-apdex-target">Apdex target (milliseconds)</label
           >
-            Apdex target in milliseconds
-          </label>
           <Input
             id="alert-apdex-target"
             type="number"
@@ -287,80 +339,146 @@
           />
         </div>
       {/if}
-    </CardContent>
-  </Card>
 
-  <Card>
-    <CardHeader class="gap-1">
-      <CardTitle>Scope</CardTitle>
-      <CardDescription
-        >Use comma-separated exact matches. Empty include means all values.</CardDescription
-      >
-    </CardHeader>
-    <CardContent class="grid gap-4 md:grid-cols-2">
-      {#if scopeGroups.length === 0}
-        <div
-          class="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground md:col-span-2"
+      <Collapsible.Root bind:open={advancedOpen}>
+        <Collapsible.Trigger
+          class="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm font-medium hover:bg-muted/50"
         >
-          This signal does not have additional scope filters.
-        </div>
-      {/if}
-
-      {#each scopeGroups as group}
-        <div class="grid gap-3 rounded-xl border p-4">
-          <div class="space-y-1">
-            <h3 class="text-sm font-medium text-foreground">{group.label}</h3>
-            <p class="text-sm text-muted-foreground">{group.description}</p>
-          </div>
-          <div class="grid gap-2">
-            <span class="text-sm font-medium text-foreground">Include</span>
+          Advanced settings
+          <IconChevronDown
+            class={advancedOpen
+              ? "size-4 rotate-180 text-muted-foreground transition-transform"
+              : "size-4 text-muted-foreground transition-transform"}
+          />
+        </Collapsible.Trigger>
+        <Collapsible.Content class="pt-3">
+          <div class="grid gap-2 sm:max-w-xs">
+            <label
+              class="text-sm font-medium text-foreground"
+              for="alert-renotify">Renotify (minutes)</label
+            >
             <Input
-              value={getScopeValue(
-                group.key as keyof typeof form.scope,
-                "include",
-              )}
-              oninput={(event) =>
-                setScopeValues(
-                  group.key as keyof typeof form.scope,
-                  "include",
+              id="alert-renotify"
+              type="number"
+              value={form.renotifyMinutes ?? ""}
+              oninput={(event) => {
+                const nextValue = Number(
                   (event.currentTarget as HTMLInputElement).value,
-                )}
-              placeholder={group.includePlaceholder}
+                );
+                form.renotifyMinutes =
+                  Number.isFinite(nextValue) && nextValue > 0
+                    ? nextValue
+                    : null;
+              }}
+              min={1}
+              placeholder="Leave empty to disable"
             />
           </div>
-          <div class="grid gap-2">
-            <span class="text-sm font-medium text-foreground">Exclude</span>
-            <Input
-              value={getScopeValue(
-                group.key as keyof typeof form.scope,
-                "exclude",
-              )}
-              oninput={(event) =>
-                setScopeValues(
-                  group.key as keyof typeof form.scope,
-                  "exclude",
-                  (event.currentTarget as HTMLInputElement).value,
-                )}
-              placeholder={group.excludePlaceholder}
-            />
-          </div>
-        </div>
-      {/each}
+        </Collapsible.Content>
+      </Collapsible.Root>
     </CardContent>
   </Card>
 
   <Card>
-    <CardHeader class="gap-1">
-      <CardTitle>Destinations</CardTitle>
+    <CardHeader class="gap-1 pb-2">
+      <CardTitle>Scope</CardTitle>
+      <CardDescription>
+        Limit which services, spans, environments, or containers this rule
+        applies to.
+      </CardDescription>
+    </CardHeader>
+    <CardContent>
+      <Collapsible.Root bind:open={scopeOpen}>
+        <div class="flex items-center justify-between gap-3">
+          <p class="text-sm text-muted-foreground">
+            {scopeFilterCount > 0
+              ? `${scopeFilterCount} filters configured.`
+              : "No filters applied; this rule covers all matching data."}
+          </p>
+          {#if scopeGroups.length > 0}
+            <Collapsible.Trigger
+              class="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-muted"
+            >
+              {scopeOpen ? "Hide filters" : "Configure filters"}
+              <IconChevronDown
+                class={scopeOpen
+                  ? "size-4 rotate-180 text-muted-foreground transition-transform"
+                  : "size-4 text-muted-foreground transition-transform"}
+              />
+            </Collapsible.Trigger>
+          {/if}
+        </div>
+        {#if scopeGroups.length > 0}
+          <Collapsible.Content class="pt-3">
+            <div class="grid gap-3 md:grid-cols-2">
+              {#each scopeGroups as group}
+                <div class="grid gap-3 rounded-lg border bg-muted/20 p-3">
+                  <div class="space-y-1">
+                    <h3 class="text-sm font-medium text-foreground">
+                      {group.label}
+                    </h3>
+                    <p class="text-sm text-muted-foreground">
+                      {group.description}
+                    </p>
+                  </div>
+                  <div class="grid gap-3 sm:grid-cols-2">
+                    <label class="grid gap-2">
+                      <span class="text-sm font-medium text-foreground"
+                        >Include</span
+                      >
+                      <Input
+                        value={getScopeValue(
+                          group.key as keyof typeof form.scope,
+                          "include",
+                        )}
+                        oninput={(event) =>
+                          setScopeValues(
+                            group.key as keyof typeof form.scope,
+                            "include",
+                            (event.currentTarget as HTMLInputElement).value,
+                          )}
+                        placeholder={group.includePlaceholder}
+                      />
+                    </label>
+                    <label class="grid gap-2">
+                      <span class="text-sm font-medium text-foreground"
+                        >Exclude</span
+                      >
+                      <Input
+                        value={getScopeValue(
+                          group.key as keyof typeof form.scope,
+                          "exclude",
+                        )}
+                        oninput={(event) =>
+                          setScopeValues(
+                            group.key as keyof typeof form.scope,
+                            "exclude",
+                            (event.currentTarget as HTMLInputElement).value,
+                          )}
+                        placeholder={group.excludePlaceholder}
+                      />
+                    </label>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </Collapsible.Content>
+        {/if}
+      </Collapsible.Root>
+    </CardContent>
+  </Card>
+
+  <Card>
+    <CardHeader class="gap-1 pb-2">
+      <CardTitle>Notifications</CardTitle>
       <CardDescription
-        >Attach shared webhook or email destinations to notify when the rule
-        fires.</CardDescription
+        >Choose where to send a notification when this rule fires.</CardDescription
       >
     </CardHeader>
-    <CardContent class="grid gap-3">
+    <CardContent class="grid gap-2">
       {#if destinations.length === 0}
         <div
-          class="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground"
+          class="rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground"
         >
           No notification destinations yet. Add one in settings before attaching
           it to a rule.
@@ -368,7 +486,7 @@
       {:else}
         {#each destinations as destination}
           <label
-            class="flex items-center justify-between gap-3 rounded-xl border px-4 py-3"
+            class="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5"
           >
             <div class="flex items-center gap-3">
               <Checkbox

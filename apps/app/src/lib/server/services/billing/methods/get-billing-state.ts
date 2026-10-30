@@ -53,6 +53,12 @@ const createGetBillingState =
 
       const billingStatus =
         currentSubscription?.status ?? currentOrganization.billingStatus;
+      const trialEnded =
+        billingStatus === "canceled" &&
+        currentSubscription?.trialEnd != null &&
+        currentSubscription.trialEnd.getTime() <= Date.now() &&
+        currentSubscription.endedAt?.getTime() ===
+          currentSubscription.trialEnd.getTime();
       let hasPaymentMethod: boolean | null = null;
       const stripeCustomerId =
         currentOrganization.stripeCustomerId ??
@@ -84,6 +90,17 @@ const createGetBillingState =
           : false,
         billingPlan: currentOrganization.billingPlan,
         billingStatus,
+        trialEnded,
+        billingActionLabel:
+          billingStatus === "canceled" || billingStatus === "incomplete_expired"
+            ? trialEnded || billingStatus === "incomplete_expired"
+              ? "Subscribe to Pro"
+              : "Resubscribe"
+            : billingStatus === "trialing"
+              ? hasPaymentMethod
+                ? "Update billing details"
+                : "Add billing details"
+              : "Update billing details",
         hasPaymentMethod,
         trialStart: currentSubscription?.trialStart ?? null,
         trialEnd: currentSubscription?.trialEnd ?? null,

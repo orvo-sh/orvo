@@ -3,7 +3,12 @@
   import { Badge } from '@repo/components/ui/badge';
   import * as Card from '@repo/components/ui/card';
   import { Label } from '@repo/components/ui/label';
-  import { IconArrowUpRight, IconCircleFilled, IconFilter2 } from '@tabler/icons-svelte';
+  import {
+    IconArrowRight,
+    IconArrowUpRight,
+    IconCircleFilled,
+    IconFilter2
+  } from '@tabler/icons-svelte';
 
   const logs = [
     {
@@ -74,17 +79,15 @@
       Search, filter, and explore structured logs with context that stays attached.
       <a
         href="/docs/product/logs"
-        class="text-primary inline-flex text-base underline-offset-4 hover:underline"
-        >Learn more about logs
-
-        <IconArrowUpRight class="mb-2 ml-1 inline-flex size-3.5" />
+        class="text-primary bg-primary/5 hover:bg-primary/10 inline-flex rounded-md px-2 text-base underline-offset-4 transition-colors"
+        >Explore logs <IconArrowRight class="mt-1 ml-1 size-4" />
       </a>
     </p>
   </div>
   <div class="logs-surface relative mt-4 overflow-hidden">
     <div class="bg-card px-4">
       <div
-        class="filter-bar border-border/80 bg-card relative rounded-md border p-0 transition-colors"
+        class="filter-bar border-border/80 bg-card relative rounded-lg border p-0 transition-colors"
         role="search"
         aria-label="Example log filters"
       >
@@ -101,7 +104,7 @@
                 >Service</span
               >
               <span
-                class="filter-value-primary text-primary flex h-full items-center px-1.5 text-[12px] font-medium"
+                class="filter-value-primary text-muted-foreground flex h-full items-center px-1.5 text-[12px] font-semibold"
               >
                 CoreService
               </span>
@@ -114,7 +117,7 @@
                 >Environment</span
               >
               <span
-                class="filter-value-good flex h-full items-center px-1.5 text-[12px] font-medium text-green-600"
+                class="filter-value-good text-muted-foreground flex h-full items-center px-1.5 text-[12px] font-semibold"
               >
                 Prod
               </span>
@@ -160,14 +163,14 @@
 
             <div class="w-22 shrink-0 pr-2">
               <span
-                class={`inline-flex items-center gap-1.5 uppercase ${
+                class={`inline-flex items-center gap-1.5 rounded-md uppercase ${
                   {
-                    error: 'text-destructive/80',
-                    warn: 'text-amber-600/80',
-                    info: 'text-primary/80',
-                    debug: 'text-muted-foreground/85',
-                    trace: 'text-muted-foreground/65'
-                  }[log.severity] ?? 'text-muted-foreground/80'
+                    error: 'text-destructive/80 bg-destructive/7',
+                    warn: 'bg-amber-600/7 text-amber-600/80',
+                    info: 'text-primary/80 bg-primary/7',
+                    debug: 'text-muted-foreground/85 bg-muted-foreground/7',
+                    trace: 'text-muted-foreground/65 bg-muted-foreground/5'
+                  }[log.severity] ?? 'text-muted-foreground/80 bg-muted-foreground/5'
                 }`}
               >
                 <span
@@ -222,26 +225,3 @@
     </div>
   </div>
 </Card.Root>
-
-<style>
-  .logs-stream {
-    animation: logs-stream 50s linear infinite;
-    will-change: transform;
-  }
-
-  @keyframes logs-stream {
-    from {
-      transform: translateY(0);
-    }
-
-    to {
-      transform: translateY(-50%);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .logs-stream {
-      animation: none;
-    }
-  }
-</style>

@@ -95,4 +95,37 @@ describe("createGetBillingState", () => {
       "usr_owner",
     );
   });
+
+  test("identifies a subscription canceled at trial expiry without changing its status", async () => {
+    getCurrentSubscription.mockResolvedValue({
+      status: "canceled",
+      trialEnd: new Date("2020-08-15T00:00:00Z"),
+      endedAt: new Date("2020-08-15T00:00:00Z"),
+    });
+
+    const result = await getBillingState({ organizationId: "org_billing" });
+
+    expect(result).toMatchObject({
+      success: true,
+      data: { billingStatus: "canceled", trialEnded: true },
+    });
+  });
+
+  test.each(["2020-08-10T00:00:00Z", "2020-09-15T00:00:00Z"])(
+    "preserves the canceled label for a subscription ended outside trial expiry (%s)",
+    async (endedAt) => {
+      getCurrentSubscription.mockResolvedValue({
+        status: "canceled",
+        trialEnd: new Date("2020-08-15T00:00:00Z"),
+        endedAt: new Date(endedAt),
+      });
+
+      const result = await getBillingState({ organizationId: "org_billing" });
+
+      expect(result).toMatchObject({
+        success: true,
+        data: { billingStatus: "canceled", trialEnded: false },
+      });
+    },
+  );
 });
