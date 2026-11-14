@@ -1,32 +1,33 @@
 <script lang="ts">
   import { OrvoLogo } from '@repo/components/icons/orvo-logo';
   import { SlackIcon } from '@repo/components/icons/slack';
-  import { Avatar, AvatarFallback } from '@repo/components/ui/avatar';
+  import DecieAvatar from '$lib/assets/decie-avatar.jpg';
+  import { Avatar, AvatarFallback, AvatarImage } from '@repo/components/ui/avatar';
   import { Badge } from '@repo/components/ui/badge';
-  import { Card, CardContent } from '@repo/components/ui/card';
   import { IconHash } from '@tabler/icons-svelte';
 </script>
 
-<Card class="aspect-9/16 gap-0 overflow-hidden rounded-2xl p-0 shadow-lg">
-  <div class="flex items-center justify-between gap-3 border-b px-5 py-4">
+<div>
+  <div class="flex items-center justify-between gap-3 px-0 py-4">
     <span class="flex items-center gap-2 text-sm font-medium">
       <IconHash class="text-muted-foreground size-4" aria-hidden="true" />
       engineering
     </span>
     <SlackIcon class="size-5" alt="Slack" />
   </div>
-  <CardContent class="space-y-6 p-5">
+  <div class="space-y-5 pt-4">
     <div class="flex gap-3">
       <Avatar class="size-8 shrink-0 rounded-lg">
-        <AvatarFallback class="bg-muted rounded-lg text-xs">JD</AvatarFallback>
+        <AvatarImage src={DecieAvatar} alt="decie femayi" class="rounded-lg object-cover" />
+        <AvatarFallback class="bg-muted rounded-lg text-xs">DF</AvatarFallback>
       </Avatar>
       <div class="min-w-0 space-y-1 text-sm leading-relaxed">
         <p class="font-medium">
-          Jamie <span class="text-muted-foreground ml-1 text-xs font-normal">10:42</span>
+          Decie <span class="text-muted-foreground ml-1 text-xs font-normal">10:42</span>
         </p>
         <p>
-          <span class="text-primary bg-primary/10 rounded px-1">@Orvo</span> Why are checkout requests
-          failing?
+          <span class="text-primary bg-primary/10 rounded px-1">@Orvo</span> Is it affecting catalog or
+          inventory too?
         </p>
       </div>
     </div>
@@ -41,30 +42,17 @@
           <span class="text-muted-foreground text-xs font-normal">10:42</span>
         </p>
         <p>
-          The failed requests share a timeout in the payments service. The related traces show
-          checkout waiting on the same dependency.
+          The failures converge on <strong class="font-medium">payments</strong>. Catalog and
+          inventory show no matching error spike. Start with the payments rollback.
         </p>
         <div class="border-primary/30 space-y-2 border-l-2 pl-3">
-          <p class="text-muted-foreground text-xs">Evidence from this investigation</p>
+          <p class="text-muted-foreground text-xs">Impact checked</p>
           <div class="flex flex-wrap gap-2">
-            <Badge variant="outline">Error logs</Badge>
-            <Badge variant="outline">Failed traces</Badge>
-            <Badge variant="outline">Service graph</Badge>
+            <Badge variant="outline">Payments → postgres</Badge>
+            <Badge variant="outline">3 services checked</Badge>
           </div>
         </div>
       </div>
     </div>
-
-    <div class="flex gap-3">
-      <Avatar class="size-8 shrink-0 rounded-lg">
-        <AvatarFallback class="bg-muted rounded-lg text-xs">JD</AvatarFallback>
-      </Avatar>
-      <div class="min-w-0 space-y-1 text-sm leading-relaxed">
-        <p class="font-medium">
-          Jamie <span class="text-muted-foreground ml-1 text-xs font-normal">10:43</span>
-        </p>
-        <p>Is it affecting any other services?</p>
-      </div>
-    </div>
-  </CardContent>
-</Card>
+  </div>
+</div>

@@ -23,7 +23,7 @@
     <div class="grid grid-cols-1 gap-6 md:grid-cols-12">
       <HostMonitoringCard />
       <HeartbeatsCard />
-      <div class="grid items-start gap-6 md:col-span-12 md:grid-cols-2">
+      <div class="grid gap-6 md:col-span-12 md:grid-cols-2">
         <AlertsIncidentsCard />
         <NotificationsCard />
       </div>

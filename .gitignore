@@ -36,3 +36,5 @@ dist
 *.tsbuildinfo
 .claude
 .kamal
+
+.playwright-mcp

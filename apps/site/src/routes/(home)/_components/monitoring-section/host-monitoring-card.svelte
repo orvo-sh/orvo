@@ -1,44 +1,16 @@
 <script lang="ts">
-  import { cn } from '@repo/components';
-  import * as Card from '@repo/components/ui/card';
+  import { Card } from '@repo/components/ui/card';
+  import { IconArrowRight, IconServer } from '@tabler/icons-svelte';
 
-  const hosts = [
-    {
-      name: 'prod-api-01',
-      detail: 'iad1 · 4 vCPU',
-      status: 'healthy',
-      statusLabel: 'Healthy',
-      memory: 61,
-      cpuHistory: [28, 32, 24, 37, 42, 35, 31, 46, 38, 34, 29, 34]
-    },
-    {
-      name: 'prod-worker-02',
-      detail: 'iad1 · 8 vCPU',
-      status: 'warning',
-      statusLabel: 'High CPU',
-      memory: 68,
-      cpuHistory: [46, 52, 61, 70, 84, 92, 96, 93, 91, 95, 92, 94]
-    },
-    {
-      name: 'prod-db-01',
-      detail: 'fra1 · 4 vCPU',
-      status: 'healthy',
-      statusLabel: 'Healthy',
-      memory: 74,
-      cpuHistory: [18, 24, 29, 20, 25, 31, 26, 19, 23, 27, 20, 22]
-    },
-    {
-      name: 'prod-cache-01',
-      detail: 'iad1 · 2 vCPU',
-      status: 'healthy',
-      statusLabel: 'Healthy',
-      memory: 47,
-      cpuHistory: [16, 20, 18, 27, 24, 31, 22, 29, 25, 19, 23, 21]
-    }
-  ] as const;
+  const chartId = $props.id();
+  const cpuHistory = [
+    32, 36, 31, 38, 35, 42, 40, 48, 55, 51, 62, 72, 68, 82, 89, 85, 94, 91, 96, 92, 95, 94
+  ];
 </script>
 
-<Card.Root class="justify-between gap-0 overflow-hidden p-0 shadow md:col-span-6">
+<Card
+  class="from-card to-background justify-between gap-0 overflow-hidden bg-linear-to-b p-0 shadow md:col-span-6"
+>
   <div class="p-5 pb-0">
     <h2 class="text-secondary-foreground text-lg font-medium">Host monitoring</h2>
     <p class="text-muted-foreground mt-1.5 max-w-[92%] text-base leading-relaxed">
@@ -47,79 +19,71 @@
         href="/docs/product/hosts"
         class="text-primary bg-primary/5 hover:bg-primary/10 inline-flex rounded-md px-2 text-base underline-offset-4 transition-colors"
       >
-        Learn more about hosts
+        Explore hosts <IconArrowRight class="mt-1 ml-1 size-4" aria-hidden="true" />
       </a>
     </p>
   </div>
 
-  <div class="px-5 pt-4 pb-0">
-    <div
-      class="bg-background border-foreground/10 overflow-hidden rounded-xl rounded-b-none border border-b-0 font-mono text-xs select-none"
-    >
-      <div
-        class="text-muted-foreground border-border/70 grid grid-cols-[minmax(0,1fr)_7rem_4rem] items-center gap-3 border-b px-3.5 py-2.5 font-normal tracking-wide uppercase sm:grid-cols-[minmax(0,1fr)_8rem_4rem_4.5rem]"
-      >
-        <span class="leading-none">Host</span>
-        <span class="justify-self-center leading-none whitespace-nowrap">CPU · 30 min</span>
-        <span class="hidden justify-self-center leading-none sm:block">MEM</span>
-        <span class="leading-none">Status</span>
+  <div class="mt-8 shrink-0 px-5 pb-5">
+    <div class="bg-muted/30 overflow-hidden rounded-xl text-sm select-none">
+      <div class="flex items-center gap-3 px-4 pt-4 pb-2">
+        <div class="flex min-w-0 items-center gap-2">
+          <IconServer class="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+          <span class="truncate font-medium">prod-worker-02</span>
+        </div>
       </div>
 
-      <div class="divide-border/70 divide-y">
-        {#each hosts as host (host.name)}
-          <div
-            class={cn(
-              'grid min-h-14 grid-cols-[minmax(0,1fr)_7rem_4rem] items-center gap-3 px-3.5 py-3 sm:grid-cols-[minmax(0,1fr)_8rem_4rem_4.5rem]',
-              host.status === 'warning' && 'bg-amber-500/5'
-            )}
-          >
-            <div class="min-w-0">
-              <p class="text-secondary-foreground truncate text-xs leading-none">{host.name}</p>
-              <p class="text-muted-foreground mt-1.5 truncate text-[11px] leading-none">
-                {host.detail}
-              </p>
-            </div>
+      <div class="grid grid-cols-3 gap-4 px-4 pt-4">
+        {#each [{ label: 'CPU', value: '94%' }, { label: 'Memory', value: '68%' }, { label: 'Disk', value: '42%' }] as metric (metric.label)}
+          <div>
+            <p class="text-muted-foreground text-sm">{metric.label}</p>
+            <p class="mt-1 text-2xl font-medium tabular-nums">{metric.value}</p>
+          </div>
+        {/each}
+      </div>
 
-            <div
-              class="flex h-7 w-full max-w-28 min-w-0 items-end gap-px justify-self-center"
-              aria-hidden="true"
-            >
-              {#each host.cpuHistory as value, index (index)}
-                <span
-                  class={cn(
-                    'min-w-px flex-1 rounded-xs',
-                    host.status === 'warning' && index > 4
-                      ? 'bg-linear-to-t from-amber-500 to-amber-500/65'
-                      : 'from-primary to-primary/65 bg-linear-to-t'
-                  )}
-                  style={`height: max(${value}%, 3px)`}
-                ></span>
-              {/each}
-            </div>
+      <div class="px-4 pt-4 pb-3">
+        <svg
+          viewBox="0 0 420 112"
+          class="h-28 w-full overflow-visible"
+          preserveAspectRatio="none"
+          role="img"
+          aria-label="CPU usage rising from 32 percent to 94 percent over the last 30 minutes"
+        >
+          <defs>
+            <linearGradient id={chartId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--primary)" stop-opacity="0.18" />
+              <stop offset="100%" stop-color="var(--primary)" stop-opacity="0.01" />
+            </linearGradient>
+          </defs>
+          <polygon
+            points={`0,112 ${cpuHistory.map((value, index) => `${index * 20},${112 - value}`).join(' ')} 420,112`}
+            fill={`url(#${chartId})`}
+          />
+          <polyline
+            points={cpuHistory.map((value, index) => `${index * 20},${112 - value}`).join(' ')}
+            fill="none"
+            class="stroke-primary"
+            stroke-width="2"
+            stroke-linejoin="round"
+            stroke-linecap="round"
+            vector-effect="non-scaling-stroke"
+          />
+          <circle cx="420" cy="18" r="3" class="fill-primary" />
+        </svg>
+        <div class="text-muted-foreground mt-2 flex justify-between text-xs tabular-nums">
+          <span>30 minutes ago</span><span>Now</span>
+        </div>
+      </div>
 
-            <span
-              class="text-secondary-foreground hidden justify-self-center leading-none tabular-nums sm:block"
-            >
-              {host.memory}%
-            </span>
-
-            <span
-              class={cn(
-                'flex items-center gap-1.5 justify-self-center leading-none whitespace-nowrap',
-                host.status === 'warning' ? 'text-amber-700' : 'text-emerald-700'
-              )}
-            >
-              <span
-                class={cn(
-                  'size-1.5 shrink-0 rounded-full',
-                  host.status === 'warning' ? 'bg-amber-500' : 'bg-emerald-500'
-                )}
-              ></span>
-              {host.statusLabel}
-            </span>
+      <div class="space-y-3 px-4 pt-3 pb-4">
+        {#each [{ name: 'prod-api-01', cpu: '34%' }, { name: 'prod-db-01', cpu: '22%' }] as host (host.name)}
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-muted-foreground min-w-0 flex-1 truncate text-sm">{host.name}</span>
+            <span class="text-sm tabular-nums">{host.cpu}</span>
           </div>
         {/each}
       </div>
     </div>
   </div>
-</Card.Root>
+</Card>

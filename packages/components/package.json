@@ -31,6 +31,11 @@
       "svelte": "./src/lib/components/icons/chatgpt/index.ts",
       "default": "./src/lib/components/icons/chatgpt/index.ts"
     },
+    "./icons/claude": {
+      "types": "./src/lib/components/icons/claude/index.ts",
+      "svelte": "./src/lib/components/icons/claude/index.ts",
+      "default": "./src/lib/components/icons/claude/index.ts"
+    },
     "./icons/claude-code": {
       "types": "./src/lib/components/icons/claude-code/index.ts",
       "svelte": "./src/lib/components/icons/claude-code/index.ts",
@@ -40,6 +45,11 @@
       "types": "./src/lib/components/icons/codex/index.ts",
       "svelte": "./src/lib/components/icons/codex/index.ts",
       "default": "./src/lib/components/icons/codex/index.ts"
+    },
+    "./icons/cursor": {
+      "types": "./src/lib/components/icons/cursor/index.ts",
+      "svelte": "./src/lib/components/icons/cursor/index.ts",
+      "default": "./src/lib/components/icons/cursor/index.ts"
     },
     "./icons/docker": {
       "types": "./src/lib/components/icons/docker/index.ts",
@@ -60,6 +70,11 @@
       "types": "./src/lib/components/icons/java/index.ts",
       "svelte": "./src/lib/components/icons/java/index.ts",
       "default": "./src/lib/components/icons/java/index.ts"
+    },
+    "./icons/mcp": {
+      "types": "./src/lib/components/icons/mcp/index.ts",
+      "svelte": "./src/lib/components/icons/mcp/index.ts",
+      "default": "./src/lib/components/icons/mcp/index.ts"
     },
     "./icons/nodejs": {
       "types": "./src/lib/components/icons/nodejs/index.ts",
