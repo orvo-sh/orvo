@@ -1,13 +1,8 @@
 <script lang="ts">
+  import { IconChevronRight, IconPlus } from "@tabler/icons-svelte";
+  import { OrvoLogo } from "@repo/components/icons/orvo-logo";
   import { Avatar, AvatarFallback } from "@repo/components/ui/avatar";
   import { Button } from "@repo/components/ui/button";
-  import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-  } from "@repo/components/ui/card";
 
   import { authClient } from "$lib/auth-client";
 
@@ -28,81 +23,98 @@
     loading = organizationId;
     error = "";
 
-    await authClient.organization.setActive(
-      { organizationId },
-      {
-        onSuccess: () => {
-          location.href = "/";
+    await authClient.organization
+      .setActive(
+        { organizationId },
+        {
+          onSuccess: () => {
+            location.href = "/";
+          },
+          onError: (ctx) => {
+            error = ctx.error.message;
+            loading = null;
+          },
         },
-        onError: (ctx) => {
-          error = ctx.error.message;
-          loading = null;
-        },
-      },
-    );
+      )
+      .catch(() => {
+        error = "Unable to select organization. Please try again.";
+        loading = null;
+      });
   };
 </script>
 
-<div
-  class="flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10"
->
-  <div class="w-full max-w-md">
-    <div class="flex flex-col gap-6">
-      <div class="flex flex-col items-center gap-3 text-center">
-        <div
-          class="flex size-12 items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground"
-        >
-          O
-        </div>
-        <div class="space-y-1">
-          <h1 class="text-xl font-semibold">Select an organization</h1>
-          <p class="text-sm text-muted-foreground">
-            Choose a workspace for {data.user.email}, or create a new one.
-          </p>
-        </div>
-      </div>
+<svelte:head>
+  <title>Select an organization · Orvo</title>
+</svelte:head>
 
-      <Card class="py-0">
-        <CardHeader class="border-b">
-          <CardTitle>Your workspaces</CardTitle>
-          <CardDescription>Pick one to continue into Orvo.</CardDescription>
-        </CardHeader>
-        <CardContent class="max-h-80 space-y-3 overflow-y-auto p-3">
-          {#each data.organizations as organization (organization.id)}
+<main
+  class="flex min-h-svh flex-col items-center p-6 not-sm:pt-20 sm:justify-center md:p-10"
+>
+  <div class="flex w-full max-w-md flex-col gap-6">
+    <div class="flex flex-col items-center gap-3 text-center">
+      <OrvoLogo class="size-14" />
+      <div class="space-y-1">
+        <h1 class="text-xl font-semibold">Select an organization</h1>
+        <p class="text-sm break-all text-muted-foreground">{data.user.email}</p>
+      </div>
+    </div>
+
+    <div class="overflow-hidden rounded-xl border bg-card">
+      <ul
+        aria-label="Organizations"
+        class="max-h-80 space-y-1 overflow-y-auto p-1"
+      >
+        {#each data.organizations as organization (organization.id)}
+          <li>
             <Button
               id={`organization-option-${organization.id}`}
               type="button"
-              variant="outline"
-              class="h-auto w-full justify-start px-3 py-3 text-left"
+              variant="ghost"
+              class="h-14 w-full justify-start gap-3 px-3 text-left"
               disabled={loading !== null}
+              loading={loading === organization.id}
+              loaderPosition="right"
               onclick={() => handleSelectOrganization(organization.id)}
             >
-              <Avatar class="size-10 rounded-lg">
+              <Avatar class="rounded-lg after:rounded-lg" aria-hidden="true">
                 <AvatarFallback class="rounded-lg">
                   {getInitials(organization.name)}
                 </AvatarFallback>
               </Avatar>
-              <div class="min-w-0 flex-1">
-                <p class="truncate font-medium">{organization.name}</p>
-              </div>
-              {#if loading === organization.id}
-                <span class="text-xs text-muted-foreground">Switching...</span>
-              {/if}
+              <span class="min-w-0 flex-1 truncate">{organization.name}</span>
+              <IconChevronRight
+                data-slot="button-icon"
+                class="size-4 text-muted-foreground"
+                aria-hidden="true"
+              />
             </Button>
-          {/each}
-        </CardContent>
-      </Card>
-
-      {#if error}
-        <p class="text-sm text-destructive">{error}</p>
-      {/if}
-
-      <Button
-        id="new-organization-button"
-        href="/organizations/new"
-        variant="outline"
-        class="w-full">New organization</Button
-      >
+          </li>
+        {/each}
+      </ul>
+      <div class="border-t p-1">
+        <Button
+          id="new-organization-button"
+          href="/organizations/new"
+          variant="ghost"
+          class="h-11 w-full justify-start gap-3 px-3"
+          disabled={loading !== null}
+        >
+          <span
+            class="flex size-8 items-center justify-center"
+            aria-hidden="true"
+          >
+            <IconPlus
+              data-slot="button-icon"
+              class="size-4 text-muted-foreground"
+            />
+          </span>
+          Create organization
+        </Button>
+      </div>
     </div>
+
+    {#if error}
+      <p role="alert" class="text-sm text-destructive">{error}</p>
+    {/if}
   </div>
-</div>
+</main>

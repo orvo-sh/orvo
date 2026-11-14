@@ -1,8 +1,8 @@
 <script>
-  import FeaturesSectionAlertsIncidentsCard from './features-section/features-section-alerts-incidents-card.svelte';
-  import FeaturesSectionHeartbeatsCard from './features-section/features-section-heartbeats-card.svelte';
-  import FeaturesSectionHostMonitoringCard from './features-section/features-section-host-monitoring-card.svelte';
-  import FeaturesSectionNotificationsCard from './features-section/features-section-notifications-card.svelte';
+  import AlertsIncidentsCard from './alerts-incidents-card.svelte';
+  import HeartbeatsCard from './heartbeats-card.svelte';
+  import HostMonitoringCard from './host-monitoring-card.svelte';
+  import NotificationsCard from './notifications-card.svelte';
 </script>
 
 <section
@@ -21,11 +21,11 @@
     </div>
 
     <div class="grid grid-cols-1 gap-6 md:grid-cols-12">
-      <FeaturesSectionHostMonitoringCard />
-      <FeaturesSectionHeartbeatsCard />
+      <HostMonitoringCard />
+      <HeartbeatsCard />
       <div class="grid items-start gap-6 md:col-span-12 md:grid-cols-2">
-        <FeaturesSectionAlertsIncidentsCard />
-        <FeaturesSectionNotificationsCard />
+        <AlertsIncidentsCard />
+        <NotificationsCard />
       </div>
     </div>
   </div>

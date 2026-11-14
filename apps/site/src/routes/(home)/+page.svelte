@@ -2,8 +2,8 @@
   import CtaSection from './_components/cta-section.svelte';
   import FeaturesSection from './_components/features-section/features-section.svelte';
   import HeroSection from './_components/hero-section.svelte';
-  import ScoutSection from './_components/scout-section.svelte';
-  import MonitoringSection from './_components/monitoring-section.svelte';
+  import ScoutSection from './_components/scout-section/scout-section.svelte';
+  import MonitoringSection from './_components/monitoring-section/monitoring-section.svelte';
   import SetupSection from './_components/setup-section.svelte';
   import PlansSection from './_components/plans-section.svelte';
 </script>

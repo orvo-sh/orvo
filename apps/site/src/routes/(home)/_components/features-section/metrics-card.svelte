@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as Card from '@repo/components/ui/card';
   import { IconArrowRight } from '@tabler/icons-svelte';
-  import FeaturesSectionMetricsChartCard from './features-section-metrics-chart-card.svelte';
+  import MetricsChartCard from './metrics-chart-card.svelte';
 
   const latencyData = [
     { timestamp: new Date('2026-07-01T12:00:00Z'), value: 198 },
@@ -42,7 +42,7 @@
   <div class="relative px-5 pt-4 pb-5">
     <div class="relative min-h-[21rem]">
       <div class="absolute top-0 right-2 z-20 w-[90%]">
-        <FeaturesSectionMetricsChartCard
+        <MetricsChartCard
           title="Latency"
           data={latencyData}
           summaryValue={184}
@@ -54,7 +54,7 @@
       </div>
 
       <div class="absolute bottom-0 left-2 z-10 w-[90%] translate-y-[6%] -rotate-6">
-        <FeaturesSectionMetricsChartCard
+        <MetricsChartCard
           title="Error rate"
           data={errorRateData}
           summaryValue={0.82}
