@@ -3,6 +3,10 @@ import { redirect } from "@sveltejs/kit";
 import type { LayoutServerLoad } from "./$types";
 
 export const load = (async (event) => {
+  if (["/forgot-password", "/reset-password"].includes(event.url.pathname)) {
+    return;
+  }
+
   const auth = event.locals.auth;
   const email = event.url.searchParams.get("email");
 

@@ -8,6 +8,7 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   FAILED_TO_CREATE_SESSION: "Unable to sign you in right now.",
   SESSION_EXPIRED: "Your session has expired. Please sign in again.",
   EMAIL_NOT_VERIFIED: "Please verify your email address first.",
+  INVALID_TOKEN: "This password reset link is invalid or has expired. Request a new link.",
   PASSWORD_TOO_SHORT: "Password is too short.",
   PASSWORD_TOO_LONG: "Password is too long.",
   ACCOUNT_NOT_FOUND: "Account not found.",

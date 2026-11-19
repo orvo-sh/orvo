@@ -10,7 +10,7 @@
 
   import { Button } from "@repo/components/ui/button";
   import { IconChevronLeft, IconSparkle, IconX } from "@tabler/icons-svelte";
-  import PageContainerAppSwitcher from "./page-container-app-switcher.svelte";
+  import AppSwitcher from "$lib/components/app-switcher.svelte";
 
   let {
     title,
@@ -79,6 +79,7 @@
           size="icon-sm"
           class="md:hidden"
           href={back.href}
+          aria-label={`Back to ${back.title.toLowerCase()}`}
         >
           <IconChevronLeft />
         </Button>
@@ -92,7 +93,7 @@
         class={cn("flex min-w-0 items-center gap-0.5", back && "not-md:hidden")}
       >
         <div class="min-w-0 flex-1">
-          <PageContainerAppSwitcher
+          <AppSwitcher
             apps={page.data.apps}
             currentAppId={page.data.currentApp.id}
           />
@@ -102,7 +103,7 @@
     </div>
 
     <div
-      class="absolute left-1/2 flex max-w-[40%] -translate-x-1/2 items-center gap-2"
+      class="flex min-w-0 flex-1 items-center gap-2 md:absolute md:left-1/2 md:max-w-[40%] md:-translate-x-1/2"
     >
       {#if back}
         <a
@@ -165,6 +166,7 @@
           <Button
             variant="ghost"
             size="icon-sm"
+            aria-label={`Close ${asideTitle?.toLowerCase() ?? "panel"}`}
             onclick={() => (asideOpen = false)}
           >
             <IconX />
@@ -201,6 +203,7 @@
         <Button
           variant="ghost"
           size="icon-sm"
+          aria-label={`Close ${asideTitle?.toLowerCase() ?? "panel"}`}
           onclick={() => (asideOpen = false)}
         >
           <IconX />

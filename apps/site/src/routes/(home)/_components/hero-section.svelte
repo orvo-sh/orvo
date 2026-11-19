@@ -1,7 +1,11 @@
-<script>
+<script lang="ts">
   import DashboardTraceScreenshot from '$lib/assets/dashboard-trace-screenshot.png';
+  import AgentSetupButton from '@repo/components/ui/agent-setup-button';
   import { Button } from '@repo/components/ui/button';
   import { IconChevronRight } from '@tabler/icons-svelte';
+
+  const setupPrompt =
+    'Set up Orvo observability in this project. Read https://orvo.sh/SKILL.md and follow its instructions.';
 </script>
 
 <section
@@ -23,15 +27,7 @@
           >Start free trial
           <IconChevronRight data-slot="button-icon" />
         </Button>
-        <Button
-          href="https://github.com/orvo-sh/orvo"
-          target="_blank"
-          rel="noreferrer"
-          size="lg"
-          variant="outline"
-        >
-          View on GitHub
-        </Button>
+        <AgentSetupButton prompt={setupPrompt} />
       </div>
 
       <img

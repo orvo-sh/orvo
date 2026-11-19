@@ -33,6 +33,7 @@
     series,
     aggregation,
     unit = "",
+    metricName = "",
     loading = false,
   }: {
     title?: string;
@@ -40,6 +41,7 @@
     series: MetricSeries[];
     aggregation: MetricAggregation;
     unit?: string;
+    metricName?: string;
     loading?: boolean;
   } = $props();
 
@@ -87,7 +89,7 @@
       return "n/a";
     }
 
-    return formatMetricValue(value, unit, aggregation);
+    return formatMetricValue(value, unit, aggregation, metricName);
   };
 
   const latestValue = $derived.by(() => {

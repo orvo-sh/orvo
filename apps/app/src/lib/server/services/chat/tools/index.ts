@@ -1,3 +1,8 @@
+import type { DashboardService } from "$lib/server/services/dashboard";
+import {
+  dashboardIdInputSchema,
+  dashboardPanelDataInputSchema,
+} from "$lib/server/services/dashboard";
 import type { AlertRuleService } from "$lib/server/services/alert-rule";
 import {
   createAlertRuleInputSchema,
@@ -6,6 +11,7 @@ import {
 } from "$lib/server/services/alert-rule";
 import type { AppService } from "$lib/server/services/app";
 import { updateAppInputSchema } from "$lib/server/services/app";
+import type { NotificationDestinationService } from "$lib/server/services/notification-destination";
 import type { HeartbeatService } from "$lib/server/services/heartbeat";
 import {
   createHeartbeatMonitorsInputSchema,
@@ -20,7 +26,10 @@ import {
 import type { LogsService } from "$lib/server/services/logs";
 import { getLogsInputSchema } from "$lib/server/services/logs";
 import type { MetricsService } from "$lib/server/services/metrics";
-import { getMetricsExplorerInputSchema } from "$lib/server/services/metrics";
+import {
+  getAlertMetricOptionsInputSchema,
+  getMetricsExplorerInputSchema,
+} from "$lib/server/services/metrics";
 import { timeFilterSchema } from "$lib/server/services/shared/time-filter";
 import type { TracesService } from "$lib/server/services/traces";
 import { getTracesInputSchema } from "$lib/server/services/traces";
@@ -65,6 +74,7 @@ const result = (
 
 const createChatTools = (
   dependencies: {
+    dashboardService: DashboardService;
     alertRuleService: AlertRuleService;
     appService: AppService;
     logsService: LogsService;
@@ -72,6 +82,7 @@ const createChatTools = (
     metricsService: MetricsService;
     incidentService: IncidentService;
     heartbeatService: HeartbeatService;
+    notificationDestinationService: NotificationDestinationService;
   },
   context: { appId: string; organizationId: string; userId: string },
 ) => {
@@ -82,6 +93,37 @@ const createChatTools = (
   ) => withinOutputBudget(result(toolName, value));
 
   return {
+    list_dashboards: tool({
+      description: "List saved dashboards in the current app.",
+      inputSchema: z.object({ intent: intentSchema }),
+      execute: async () =>
+        toolResult(
+          "list_dashboards",
+          await dependencies.dashboardService.getDashboards(context),
+        ),
+    }),
+    get_dashboard: tool({
+      description:
+        "Read a saved dashboard. When a live editor is connected, its unsaved form is authoritative instead.",
+      inputSchema: dashboardIdInputSchema.extend({ intent: intentSchema }),
+      execute: async (input) =>
+        toolResult(
+          "get_dashboard",
+          await dependencies.dashboardService.getDashboard(input, context),
+        ),
+    }),
+    query_dashboard_panel: tool({
+      description:
+        "Query a panel configuration against this app's real data. For Scout usage choose source traces and input_tokens, output_tokens or total_tokens; these sum per-call token attributes. Tokens are never averaged. Group by model or provider for a breakdown. An empty result means no matching telemetry. Use preview_dashboard_panel for live visible panels.",
+      inputSchema: dashboardPanelDataInputSchema.extend({
+        intent: intentSchema,
+      }),
+      execute: async (input) =>
+        toolResult(
+          "query_dashboard_panel",
+          await dependencies.dashboardService.getPanelData(input, context),
+        ),
+    }),
     get_app_overview: tool({
       description:
         "Summarize telemetry volume, open incidents, heartbeat health, and alert rules for the current app.",
@@ -215,6 +257,21 @@ const createChatTools = (
           await dependencies.tracesService.getServiceGraph(input, context),
         ),
     }),
+    get_alert_metric_options: tool({
+      description:
+        "Find available alert metrics and their type, unit, and aggregation metadata, or discover service/environment/attribute filter values. Use actual metric names including $request.* for derived metrics.",
+      inputSchema: getAlertMetricOptionsInputSchema.extend({
+        intent: intentSchema,
+      }),
+      execute: async (input) =>
+        toolResult(
+          "get_alert_metric_options",
+          await dependencies.metricsService.getAlertMetricOptions(
+            input,
+            context,
+          ),
+        ),
+    }),
     query_metrics: tool({
       description:
         "Query the metric catalog or compact time series for the current app.",
@@ -263,6 +320,31 @@ const createChatTools = (
           await dependencies.incidentService.getIncidentDetail(id, context),
         ),
     }),
+    list_notification_destinations: tool({
+      description:
+        "List the current app's notification destinations to reuse for heartbeat or alert notifications. Returns IDs, names, and types without secret credentials or webhook URLs. Read before proposing a destination; do not invent recipients.",
+      inputSchema: z.object({ intent: intentSchema }),
+      execute: async () => {
+        const destinations =
+          await dependencies.notificationDestinationService.listNotificationDestinations(
+            context,
+          );
+        return toolResult(
+          "list_notification_destinations",
+          destinations.success
+            ? {
+                success: true,
+                data: destinations.data.destinations.map((destination) => ({
+                  id: destination.id,
+                  name: destination.name,
+                  kind: destination.kind,
+                  isEnabled: destination.isEnabled,
+                })),
+              }
+            : destinations,
+        );
+      },
+    }),
     list_heartbeat_monitors: tool({
       description:
         "List heartbeat monitors and their health in the current app.",
@@ -294,6 +376,22 @@ const createChatTools = (
         );
         return toolResult("get_heartbeat_monitor", monitor);
       },
+    }),
+    get_heartbeat_check_in_history: tool({
+      description:
+        "Read a heartbeat's latest thirty configured check-in intervals and its latest sixty actual check-ins. Includes received, pending, grace, and missed windows. These windows describe a bounded history, not lifetime reliability. Use timestamps and counts as evidence; do not infer a cause from a gap alone.",
+      inputSchema: z.object({
+        intent: intentSchema,
+        id: z.string().trim().min(1),
+      }),
+      execute: async ({ id }) =>
+        toolResult(
+          "get_heartbeat_check_in_history",
+          await dependencies.heartbeatService.getHeartbeatCheckInHistory(
+            id,
+            context,
+          ),
+        ),
     }),
     list_alert_rules: tool({
       description:
@@ -392,18 +490,38 @@ const createChatTools = (
         ),
     }),
     update_heartbeat_monitor: tool({
-      description: "Update a heartbeat monitor in the current app.",
-      inputSchema: updateHeartbeatMonitorInputSchema.extend({
+      description:
+        "Edit a heartbeat's name, interval, grace period, or notification destinations. Omitted fields are preserved from its current saved state. Read the monitor and available destinations before changing notifications; destinationIds replaces the selected list, so include existing IDs when adding another destination. Call this tool directly for a clear edit request; it opens the built-in approval flow, then saves and refreshes the heartbeat page. Do not ask for preliminary approval in chat.",
+      inputSchema: updateHeartbeatMonitorInputSchema.partial().extend({
+        id: updateHeartbeatMonitorInputSchema.shape.id,
+        destinationIds: updateHeartbeatMonitorInputSchema.shape.destinationIds
+          .removeDefault()
+          .optional(),
         intent: intentSchema,
       }),
-      execute: async (input) =>
-        toolResult(
+      execute: async (input) => {
+        const current = await dependencies.heartbeatService.getHeartbeatMonitor(
+          input.id,
+          context,
+        );
+        if (!current.success)
+          return toolResult("update_heartbeat_monitor", current);
+        const monitor = current.data.monitor;
+        return toolResult(
           "update_heartbeat_monitor",
           await dependencies.heartbeatService.updateHeartbeatMonitor(
-            input,
+            {
+              id: input.id,
+              name: input.name ?? monitor.name,
+              expectedEverySeconds:
+                input.expectedEverySeconds ?? monitor.expectedEverySeconds,
+              graceSeconds: input.graceSeconds ?? monitor.graceSeconds,
+              destinationIds: input.destinationIds ?? monitor.destinationIds,
+            },
             context,
           ),
-        ),
+        );
+      },
     }),
     toggle_heartbeat_monitor_paused: tool({
       description: "Pause or resume a heartbeat monitor in the current app.",

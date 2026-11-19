@@ -116,7 +116,13 @@ const gauge = (name, description, unit, dataPoints) => ({
   }
 });
 
-const sumMetric = (name, description, unit, dataPoints, { monotonic = true, temporality = 'AGGREGATION_TEMPORALITY_CUMULATIVE' } = {}) => ({
+const sumMetric = (
+  name,
+  description,
+  unit,
+  dataPoints,
+  { monotonic = true, temporality = 'AGGREGATION_TEMPORALITY_CUMULATIVE' } = {}
+) => ({
   name,
   description,
   unit,
@@ -301,7 +307,10 @@ const collectDockerContainers = async () => {
 };
 
 const collectSnapshot = async () => {
-  const [filesystem, dockerContainers] = await Promise.all([rootFilesystem(), collectDockerContainers()]);
+  const [filesystem, dockerContainers] = await Promise.all([
+    rootFilesystem(),
+    collectDockerContainers()
+  ]);
   const now = new Date();
   const cpuTimes = cpuSnapshot();
   const loadAverage = safeArray(() => os.loadavg());
@@ -367,8 +376,7 @@ const buildPayload = async () => {
   const hostMetrics = [];
   const totalMemory = snapshot.totalMemory;
   const freeMemory = snapshot.freeMemory;
-  const usedMemory =
-    totalMemory !== null && freeMemory !== null ? totalMemory - freeMemory : null;
+  const usedMemory = totalMemory !== null && freeMemory !== null ? totalMemory - freeMemory : null;
 
   if (cpuUtilization) {
     hostMetrics.push(
@@ -380,11 +388,21 @@ const buildPayload = async () => {
         doublePoint(nowUnixNano, cpuUtilization.irq, [attr('state', 'irq')])
       ]),
       sumMetric('system.cpu.time', 'CPU time by state.', 's', [
-        cumulativeDoublePoint(nowUnixNano, metricState.cpuTimeByStateSec.user, [attr('state', 'user')]),
-        cumulativeDoublePoint(nowUnixNano, metricState.cpuTimeByStateSec.system, [attr('state', 'system')]),
-        cumulativeDoublePoint(nowUnixNano, metricState.cpuTimeByStateSec.idle, [attr('state', 'idle')]),
-        cumulativeDoublePoint(nowUnixNano, metricState.cpuTimeByStateSec.nice, [attr('state', 'nice')]),
-        cumulativeDoublePoint(nowUnixNano, metricState.cpuTimeByStateSec.irq, [attr('state', 'irq')])
+        cumulativeDoublePoint(nowUnixNano, metricState.cpuTimeByStateSec.user, [
+          attr('state', 'user')
+        ]),
+        cumulativeDoublePoint(nowUnixNano, metricState.cpuTimeByStateSec.system, [
+          attr('state', 'system')
+        ]),
+        cumulativeDoublePoint(nowUnixNano, metricState.cpuTimeByStateSec.idle, [
+          attr('state', 'idle')
+        ]),
+        cumulativeDoublePoint(nowUnixNano, metricState.cpuTimeByStateSec.nice, [
+          attr('state', 'nice')
+        ]),
+        cumulativeDoublePoint(nowUnixNano, metricState.cpuTimeByStateSec.irq, [
+          attr('state', 'irq')
+        ])
       ])
     );
   }
@@ -416,19 +434,34 @@ const buildPayload = async () => {
   }
 
   if (snapshot.uptime !== null) {
-    hostMetrics.push(gauge('system.uptime', 'System uptime.', 's', [doublePoint(nowUnixNano, snapshot.uptime)]));
+    hostMetrics.push(
+      gauge('system.uptime', 'System uptime.', 's', [doublePoint(nowUnixNano, snapshot.uptime)])
+    );
   }
 
   if (snapshot.cpuCount > 0) {
-    hostMetrics.push(gauge('system.cpu.logical.count', 'Logical CPU count.', '{cpu}', [intPoint(nowUnixNano, snapshot.cpuCount)]));
+    hostMetrics.push(
+      gauge('system.cpu.logical.count', 'Logical CPU count.', '{cpu}', [
+        intPoint(nowUnixNano, snapshot.cpuCount)
+      ])
+    );
   }
 
   if (snapshot.filesystem) {
     hostMetrics.push(
       gauge('system.filesystem.usage', 'Root filesystem usage by state.', 'By', [
-        doublePoint(nowUnixNano, snapshot.filesystem.used, [attr('state', 'used'), attr('mountpoint', '/')]),
-        doublePoint(nowUnixNano, snapshot.filesystem.available, [attr('state', 'free'), attr('mountpoint', '/')]),
-        doublePoint(nowUnixNano, snapshot.filesystem.total, [attr('state', 'total'), attr('mountpoint', '/')])
+        doublePoint(nowUnixNano, snapshot.filesystem.used, [
+          attr('state', 'used'),
+          attr('mountpoint', '/')
+        ]),
+        doublePoint(nowUnixNano, snapshot.filesystem.available, [
+          attr('state', 'free'),
+          attr('mountpoint', '/')
+        ]),
+        doublePoint(nowUnixNano, snapshot.filesystem.total, [
+          attr('state', 'total'),
+          attr('mountpoint', '/')
+        ])
       ]),
       gauge('system.filesystem.utilization', 'Root filesystem utilization.', '1', [
         doublePoint(nowUnixNano, snapshot.filesystem.utilization, [attr('mountpoint', '/')])
@@ -448,23 +481,32 @@ const buildPayload = async () => {
         doublePoint(nowUnixNano, snapshot.processMemory.heapTotal, [attr('state', 'heap_total')]),
         doublePoint(nowUnixNano, snapshot.processMemory.heapUsed, [attr('state', 'heap_used')]),
         doublePoint(nowUnixNano, snapshot.processMemory.external, [attr('state', 'external')]),
-        doublePoint(nowUnixNano, snapshot.processMemory.arrayBuffers ?? 0, [attr('state', 'array_buffers')])
+        doublePoint(nowUnixNano, snapshot.processMemory.arrayBuffers ?? 0, [
+          attr('state', 'array_buffers')
+        ])
       ])
     );
 
     if (heapUtilization !== null) {
       hostMetrics.push(
-        gauge('process.runtime.nodejs.memory.heap.utilization', 'Current process heap utilization.', '1', [
-          doublePoint(nowUnixNano, heapUtilization)
-        ])
+        gauge(
+          'process.runtime.nodejs.memory.heap.utilization',
+          'Current process heap utilization.',
+          '1',
+          [doublePoint(nowUnixNano, heapUtilization)]
+        )
       );
     }
   }
 
   hostMetrics.push(
     sumMetric('process.cpu.time', 'Current process CPU time by state.', 's', [
-      cumulativeDoublePoint(nowUnixNano, metricState.processCpuTimeByStateSec.user, [attr('state', 'user')]),
-      cumulativeDoublePoint(nowUnixNano, metricState.processCpuTimeByStateSec.system, [attr('state', 'system')])
+      cumulativeDoublePoint(nowUnixNano, metricState.processCpuTimeByStateSec.user, [
+        attr('state', 'user')
+      ]),
+      cumulativeDoublePoint(nowUnixNano, metricState.processCpuTimeByStateSec.system, [
+        attr('state', 'system')
+      ])
     ])
   );
 
@@ -480,9 +522,7 @@ const buildPayload = async () => {
     attr('telemetry.sdk.name', 'orvo-local-metrics-script')
   ];
 
-  const resourceMetrics = [
-    resourceMetric(baseResourceAttributes, hostMetrics, 'orvo.local.host')
-  ];
+  const resourceMetrics = [resourceMetric(baseResourceAttributes, hostMetrics, 'orvo.local.host')];
 
   for (const container of snapshot.dockerContainers) {
     const containerMetrics = [];

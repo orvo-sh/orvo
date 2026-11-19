@@ -1,14 +1,4 @@
-const alertSignalOptions = [
-  { value: "error_rate", label: "Error rate" },
-  { value: "latency_p95_ms", label: "P95 latency" },
-  { value: "latency_p99_ms", label: "P99 latency" },
-  { value: "apdex", label: "Apdex" },
-  { value: "throughput_per_min", label: "Throughput" },
-  { value: "availability_percent", label: "Availability" },
-  { value: "container_cpu_utilization", label: "Container CPU" },
-  { value: "container_memory_utilization", label: "Container memory" },
-  { value: "container_reporting_stale", label: "Container reporting stale" },
-] as const;
+import type { MetricAggregation } from "./metric-definitions";
 
 const alertComparatorOptions = [
   { value: "gt", label: "Greater than" },
@@ -17,35 +7,23 @@ const alertComparatorOptions = [
   { value: "lte", label: "Less than or equal to" },
 ] as const;
 
-const alertSignalDescriptions: Record<
-  (typeof alertSignalOptions)[number]["value"],
-  string
-> = {
-  error_rate: "Percent of entry spans with an error status.",
-  latency_p95_ms: "95th percentile latency across matching entry spans.",
-  latency_p99_ms: "99th percentile latency across matching entry spans.",
-  apdex: "Apdex score using the configured target latency.",
-  throughput_per_min: "Matching entry spans per minute across the rule window.",
-  availability_percent: "100 minus the error rate percentage.",
-  container_cpu_utilization:
-    "Average container CPU utilization percentage over the rule window.",
-  container_memory_utilization:
-    "Average container memory usage as a percentage of its reported limit over the rule window.",
-  container_reporting_stale:
-    "Minutes since a container last reported a metric.",
-};
-
-type AlertSignalValue = (typeof alertSignalOptions)[number]["value"];
 type AlertComparatorValue = (typeof alertComparatorOptions)[number]["value"];
 
 type AlertRuleFormValue = {
   name: string;
-  signalType: AlertSignalValue;
+  metricName: string | null;
+  metricAggregation: MetricAggregation | null;
+  metricType: string | null;
+  metricIsMonotonic: boolean;
+  metricUnit: string | null;
+  metricAttributeFilters: Record<
+    string,
+    { include: string[]; exclude: string[] }
+  >;
   comparator: AlertComparatorValue;
   threshold: number;
   windowMinutes: number;
   renotifyMinutes: number | null;
-  apdexTargetMs: number | null;
   scope: {
     services: { include: string[]; exclude: string[] };
     spanNames: { include: string[]; exclude: string[] };
@@ -58,12 +36,16 @@ type AlertRuleFormValue = {
 
 const createEmptyAlertRuleForm = (): AlertRuleFormValue => ({
   name: "",
-  signalType: "error_rate",
+  metricName: null,
+  metricType: null,
+  metricIsMonotonic: false,
+  metricAggregation: null,
+  metricUnit: null,
+  metricAttributeFilters: {},
   comparator: "gt",
   threshold: 5,
   windowMinutes: 5,
   renotifyMinutes: 15,
-  apdexTargetMs: null,
   scope: {
     services: { include: [], exclude: [] },
     spanNames: { include: [], exclude: [] },
@@ -74,10 +56,37 @@ const createEmptyAlertRuleForm = (): AlertRuleFormValue => ({
   destinationIds: [],
 });
 
+const getAlertRuleFormFingerprint = (form: AlertRuleFormValue) => {
+  const sortedFilters = (
+    filters: Record<string, { include: string[]; exclude: string[] }>,
+  ) =>
+    Object.keys(filters)
+      .sort()
+      .map((key) => [
+        key,
+        [...filters[key].include].sort(),
+        [...filters[key].exclude].sort(),
+      ]);
+  return JSON.stringify([
+    form.name,
+    form.metricName,
+    form.metricAggregation,
+    form.metricUnit,
+    form.metricType,
+    form.metricIsMonotonic,
+    form.comparator,
+    form.threshold,
+    form.windowMinutes,
+    form.renotifyMinutes,
+    sortedFilters(form.scope),
+    sortedFilters(form.metricAttributeFilters),
+    [...form.destinationIds].sort(),
+  ]);
+};
+
 export {
   alertComparatorOptions,
-  alertSignalDescriptions,
-  alertSignalOptions,
   createEmptyAlertRuleForm,
+  getAlertRuleFormFingerprint,
 };
-export type { AlertComparatorValue, AlertRuleFormValue, AlertSignalValue };
+export type { AlertComparatorValue, AlertRuleFormValue };

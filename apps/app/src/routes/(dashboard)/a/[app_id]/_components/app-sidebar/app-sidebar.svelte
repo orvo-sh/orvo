@@ -20,6 +20,8 @@
     user,
     billingSummary,
     trialBannerVisible = false,
+    footerOnly = false,
+    settingsAppId,
   }: {
     organizations: {
       id: string;
@@ -50,6 +52,8 @@
       usagePercent: number;
     } | null;
     trialBannerVisible?: boolean;
+    footerOnly?: boolean;
+    settingsAppId?: string;
   } = $props();
 
   type DashboardPageData = {
@@ -65,10 +69,14 @@
   );
 
   const navigationGroups = $derived(
-    currentAppId ? generateAppNavigationGroups(currentAppId) : [],
+    currentAppId ? generateAppNavigationGroups(currentAppId, page.data.dashboards ?? []) : [],
   );
   const settingsHref = $derived(
-    currentAppId ? `/a/${currentAppId}/settings` : "/settings",
+    footerOnly
+      ? settingsAppId && `/a/${settingsAppId}/settings`
+      : currentAppId
+        ? `/a/${currentAppId}/settings`
+        : "/settings",
   );
 
   let collapsedGroups = $state<Record<string, boolean>>({});
@@ -91,11 +99,15 @@
   <Sidebar.Header
     class="h-14 justify-center gap-0 border-b border-sidebar-border/80 px-1.5 py-3"
   >
-    <AppSidebarOrganizationSwitcher {organizations} {activeOrganizationId} />
+    <AppSidebarOrganizationSwitcher
+      {organizations}
+      {activeOrganizationId}
+      redirectTo={footerOnly ? "/apps/new" : undefined}
+    />
   </Sidebar.Header>
 
   <Sidebar.Content class="gap-1 py-2">
-    {#each navigationGroups as group (group.label)}
+    {#each footerOnly ? [] : navigationGroups as group (group.label)}
       <Sidebar.Group class="py-0!">
         {#if group.label}
           <Sidebar.GroupLabel>
@@ -129,7 +141,7 @@
               <Sidebar.MenuItem>
                 {@const Icon = item.icon}
                 {@const href = item.href}
-                {@const isActive = page.url.pathname.includes(href)}
+                {@const isActive = item.label === "Dashboards" ? page.url.pathname === href : page.url.pathname.includes(href)}
                 <Sidebar.MenuButton
                   class="group/menu-btn relative gap-2.5 overflow-visible"
                   {isActive}
@@ -164,7 +176,7 @@
                         >
                           {#snippet child({ props }: any)}
                             <a href={subitem.href} {...props}>
-                              <span>{subitem.label}</span>
+                              <span class="truncate">{subitem.label}</span>
                             </a>
                           {/snippet}
                         </Sidebar.MenuSubButton>
@@ -181,47 +193,58 @@
   </Sidebar.Content>
 
   <Sidebar.Footer class="gap-0 p-0">
-    {#if billingSummary?.billingStatus === "trialing" && billingSummary.trialEnd}
-      <AppSidebarTrialCard
-        href={`${settingsHref}/billing`}
-        trialStart={billingSummary.trialStart}
-        trialEnd={billingSummary.trialEnd}
+    {#if !footerOnly}
+      {#if billingSummary?.billingStatus === "trialing" && billingSummary.trialEnd}
+        <AppSidebarTrialCard
+          href={`${settingsHref}/billing`}
+          trialStart={billingSummary.trialStart}
+          trialEnd={billingSummary.trialEnd}
+        />
+      {/if}
+      <AppSidebarUsageCard
+        includedBytes={billingSummary?.includedBytes ?? 0}
+        logsIngestedBytes={billingSummary?.logsIngestedBytes ?? 0}
+        tracesIngestedBytes={billingSummary?.tracesIngestedBytes ?? 0}
+        metricsIngestedBytes={billingSummary?.metricsIngestedBytes ?? 0}
+        chatCreditsUsed={billingSummary?.chatUsage?.usedCredits ?? 0}
+        chatCreditsIncluded={billingSummary?.chatUsage?.includedCredits ?? 0}
       />
     {/if}
-    <AppSidebarUsageCard
-      includedBytes={billingSummary?.includedBytes ?? 0}
-      logsIngestedBytes={billingSummary?.logsIngestedBytes ?? 0}
-      tracesIngestedBytes={billingSummary?.tracesIngestedBytes ?? 0}
-      metricsIngestedBytes={billingSummary?.metricsIngestedBytes ?? 0}
-      chatCreditsUsed={billingSummary?.chatUsage?.usedCredits ?? 0}
-      chatCreditsIncluded={billingSummary?.chatUsage?.includedCredits ?? 0}
-    />
     <Sidebar.Group>
       <Sidebar.GroupContent>
         <Sidebar.Menu class="gap-0.5">
           <Sidebar.MenuItem>
             <Sidebar.MenuButton
               class="gap-2.5"
-              isActive={page.url.pathname.startsWith(settingsHref)}
+              isActive={!!settingsHref &&
+                page.url.pathname.startsWith(settingsHref)}
               tooltipContent="Settings"
             >
+              disabled={!settingsHref}
               {#snippet child({ props }: any)}
-                <a
-                  href={settingsHref}
-                  {...props}
-                  onclick={() => {
-                    if (sidebar.isMobile) sidebar.setOpenMobile(false);
-                  }}
-                >
-                  {#if page.url.pathname.startsWith(settingsHref)}
-                    <span
-                      class="absolute -left-2 h-4 w-1 rounded-r-md bg-primary/80"
-                    >
-                    </span>
-                  {/if}
-                  <GearSixIcon class="opacity-75" />
-                  <span>Settings</span>
-                </a>
+                {#if settingsHref}
+                  <a
+                    href={settingsHref}
+                    {...props}
+                    onclick={() => {
+                      if (sidebar.isMobile) sidebar.setOpenMobile(false);
+                    }}
+                  >
+                    {#if page.url.pathname.startsWith(settingsHref)}
+                      <span
+                        class="absolute -left-2 h-4 w-1 rounded-r-md bg-primary/80"
+                      >
+                      </span>
+                    {/if}
+                    <GearSixIcon class="opacity-75" />
+                    <span>Settings</span>
+                  </a>
+                {:else}
+                  <button type="button" {...props} disabled>
+                    <GearSixIcon class="opacity-75" />
+                    <span>Settings</span>
+                  </button>
+                {/if}
               {/snippet}
             </Sidebar.MenuButton>
           </Sidebar.MenuItem>

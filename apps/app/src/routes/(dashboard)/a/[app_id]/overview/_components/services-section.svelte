@@ -143,6 +143,7 @@
         <HoverCard.Trigger
           aria-label="What are services?"
           class={buttonVariants({
+            class: "cursor-help",
             variant: "ghost",
             size: "icon-sm",
           })}

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { isDashboardEditorTool } from "$lib/dashboards/editor-schema";
+  import { isRuleEditorTool } from "$lib/alerts/editor-schema";
   import { Button } from "@repo/components/ui/button";
   import { Spinner } from "@repo/components/ui/spinner";
   import {
@@ -56,9 +58,33 @@
       : null,
   );
   const label = $derived(
-    intent ??
+    (failed && (isRuleEditorTool(toolName) || isDashboardEditorTool(toolName))
+      ? "Could not complete editor action"
+      : null) ??
+      intent ??
       (
         {
+          get_dashboard_editor: complete ? "Read dashboard editor" : "Reading dashboard editor",
+          edit_dashboard: complete ? "Updated dashboard settings" : "Updating dashboard settings",
+          upsert_dashboard_panel: complete ? "Updated dashboard panel" : "Updating dashboard panel",
+          remove_dashboard_panel: complete ? "Removed dashboard panel" : "Removing dashboard panel",
+          preview_dashboard_panel: complete ? "Checked panel data" : "Checking panel data",
+          save_dashboard: complete ? "Saved dashboard" : "Saving dashboard",
+          get_rule_editor: complete
+            ? "Read rule editor"
+            : "Reading rule editor",
+          edit_rule_condition: complete
+            ? "Updated condition"
+            : "Updating condition",
+          edit_rule_filters: complete ? "Updated filters" : "Updating filters",
+          edit_rule_notifications: complete
+            ? "Selected notifications"
+            : "Selecting notifications",
+          create_notification_destination: complete
+            ? "Created notification destination"
+            : "Creating notification destination",
+          save_rule: complete ? "Saved rule" : "Saving rule",
+          get_alert_metric_options: "Looked up metric options",
           search_logs: "Searched logs",
           get_log: "Read log details",
           search_traces: "Searched traces",
@@ -77,6 +103,19 @@
   const ToolIcon = $derived(
     (
       {
+        get_dashboard_editor: IconFileDescription,
+        edit_dashboard: IconPencil,
+        upsert_dashboard_panel: IconChartLine,
+        remove_dashboard_panel: IconTrash,
+        preview_dashboard_panel: IconSearch,
+        save_dashboard: IconPencil,
+        get_rule_editor: IconFileDescription,
+        edit_rule_condition: IconPencil,
+        edit_rule_filters: IconSettings,
+        edit_rule_notifications: IconSettings,
+        create_notification_destination: IconPlus,
+        save_rule: IconPencil,
+        get_alert_metric_options: IconSearch,
         search_logs: IconSearch,
         search_traces: IconSearch,
         get_app_overview: IconChartLine,
@@ -121,9 +160,7 @@
       {#if intent}<p class="mt-1 text-sm text-muted-foreground">
           {intent}
         </p>{/if}
-      <pre
-        class="mt-2 max-h-40 overflow-auto rounded-lg bg-muted/50 p-2 font-mono text-sm leading-relaxed whitespace-pre-wrap"
-        data-scrollable>{JSON.stringify(part.input, null, 2)}</pre>
+
       <div class="mt-3 flex justify-end gap-2">
         <Button
           variant="outline"
@@ -150,5 +187,12 @@
       <span>{label}</span>
       {#if !complete}<Spinner class="ml-auto size-3.5" />{/if}
     </div>
+    {#if failed && (isRuleEditorTool(toolName) || isDashboardEditorTool(toolName))}
+      {#if typeof output?.error === "string"}
+        <p class="ml-5.5 text-sm text-destructive" data-testid="chat-editor-error">{output.error}</p>
+      {:else if part.state === "output-error"}
+        <p class="ml-5.5 text-sm text-destructive" data-testid="chat-editor-error">{part.errorText}</p>
+      {/if}
+    {/if}
   {/if}
 </div>

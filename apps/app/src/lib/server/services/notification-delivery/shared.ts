@@ -82,7 +82,7 @@ const buildEmailContent = (
   const rule = payload.rule as
     | {
         name?: string;
-        signalType?: string;
+        metricName?: string;
         comparator?: string;
         threshold?: number;
         windowMinutes?: number;
@@ -130,7 +130,7 @@ const buildEmailContent = (
           entityName: entityLabel,
           observedValue,
           ruleName: rule.name,
-          signalType: formatSignalType(rule.signalType),
+          metricName: rule.metricName ?? "Unknown metric",
           threshold,
           window: windowLabel,
         },
@@ -146,7 +146,7 @@ const buildEmailContent = (
           entityName: entityLabel,
           observedValue,
           ruleName: rule.name,
-          signalType: formatSignalType(rule.signalType),
+          metricName: rule.metricName ?? "Unknown metric",
           threshold,
           window: windowLabel,
         },
@@ -166,7 +166,7 @@ const buildEmailContent = (
               ? payload.timestamp
               : new Date().toISOString(),
           ruleName: rule.name,
-          signalType: formatSignalType(rule.signalType),
+          metricName: rule.metricName ?? "Unknown metric",
         },
       };
     }
@@ -216,18 +216,6 @@ const formatComparator = (comparator?: string) => {
 
 const formatObservedValue = (value: number) =>
   Number.isInteger(value) ? `${value}` : value.toFixed(2);
-
-const formatSignalType = (signalType?: string) =>
-  signalType
-    ? signalType
-        .split("_")
-        .map((part) =>
-          part.toUpperCase() === "P95" || part.toUpperCase() === "P99"
-            ? part.toUpperCase()
-            : part,
-        )
-        .join(" ")
-    : "Unknown signal";
 
 const createSendToDestination =
   ({ encryption, email }: { encryption: Encryption; email: Nullable<Email> }) =>

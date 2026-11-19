@@ -6,7 +6,7 @@ import type { Logger } from "@repo/logger";
 import { err, ok } from "@repo/utils";
 import { and, eq, isNull } from "drizzle-orm";
 
-import { quote } from "../../shared/query-builders";
+import { normalizeDateTime, quote } from "../../shared/query-builders";
 import { agentVersion, compareAgentVersions } from "../version";
 
 const createGetHosts =
@@ -155,7 +155,7 @@ const createGetHosts =
           const metrics = metricsByHost.get(installation.hostId);
           const disk = diskByHost.get(installation.hostId);
           const lastSeen = metrics?.last_seen
-            ? new Date(metrics.last_seen.replace(" ", "T") + "Z").toISOString()
+            ? normalizeDateTime(metrics.last_seen)
             : null;
           const reporting =
             lastSeen !== null && now - new Date(lastSeen).getTime() <= 120_000;

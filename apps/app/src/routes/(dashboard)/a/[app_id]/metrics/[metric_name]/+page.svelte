@@ -1,7 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { navigating, page } from "$app/state";
-  import { Badge } from "@repo/components/ui/badge";
   import * as Select from "@repo/components/ui/select";
   import { formatNumber } from "@repo/utils";
   import MetricsTimeseriesChart from "../_components/metrics-timeseries-chart.svelte";
@@ -64,41 +63,33 @@
         <p class="truncate text-sm font-medium">
           {selectedMetric?.name ?? data.metricName}
         </p>
-        {#if selectedMetric?.type || selectedMetric?.unit}
-          <div class="mt-1 flex flex-wrap items-center gap-2">
-            {#if selectedMetric?.type}
-              <Badge variant="outline">{selectedMetric.type}</Badge>
-            {/if}
-            {#if selectedMetric?.unit}
-              <Badge variant="secondary">{selectedMetric.unit}</Badge>
-            {/if}
-          </div>
-        {/if}
       </div>
 
       <div class="w-40">
-        <Select.Root
-          type="single"
-          value={data.aggregation}
-          onValueChange={(value) => {
-            if (!value) {
-              return;
-            }
+        {#if data.aggregationOptions.length > 1}
+          <Select.Root
+            type="single"
+            value={data.aggregation}
+            onValueChange={(value) => {
+              if (!value) {
+                return;
+              }
 
-            void updateAggregation(value);
-          }}
-        >
-          <Select.Trigger class="bg-background">
-            {data.aggregationOptions.find(
-              (option) => option.value === data.aggregation,
-            )?.label ?? data.aggregation}
-          </Select.Trigger>
-          <Select.Content>
-            {#each data.aggregationOptions as option}
-              <Select.Item value={option.value} label={option.label} />
-            {/each}
-          </Select.Content>
-        </Select.Root>
+              void updateAggregation(value);
+            }}
+          >
+            <Select.Trigger class="bg-background">
+              {data.aggregationOptions.find(
+                (option) => option.value === data.aggregation,
+              )?.label ?? data.aggregation}
+            </Select.Trigger>
+            <Select.Content>
+              {#each data.aggregationOptions as option}
+                <Select.Item value={option.value} label={option.label} />
+              {/each}
+            </Select.Content>
+          </Select.Root>
+        {/if}
       </div>
     </div>
   </div>
@@ -118,11 +109,12 @@
       <div class="grid gap-3">
         <div class="grid gap-3 md:grid-cols-2">
           <MetricsSummaryCard
-            title="Latest value"
+            title="Value in range"
             value={formatMetricValue(
               selectedMetric.lastValue,
               selectedMetric.unit,
               data.aggregation,
+              data.metricName,
             )}
             meta={formatDateTime(selectedMetric.lastSeen)}
             {loading}
@@ -150,6 +142,7 @@
         </div>
 
         <MetricsTimeseriesChart
+          metricName={data.metricName}
           title={selectedMetric.name}
           series={result.data.series}
           aggregation={data.aggregation}

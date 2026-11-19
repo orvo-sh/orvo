@@ -2,7 +2,6 @@
   import type { HTMLAttributes } from 'svelte/elements';
   import type { WithElementRef } from '../../../utils.js';
   import { cn } from '../../../utils.js';
-  import { IconMinus as MinusIcon } from '@tabler/icons-svelte';
 
   let {
     ref = $bindable(null),
@@ -22,6 +21,6 @@
   {#if children}
     {@render children?.()}
   {:else}
-    <MinusIcon />
+    <span aria-hidden="true" class="flex size-4 items-center justify-center">•</span>
   {/if}
 </div>

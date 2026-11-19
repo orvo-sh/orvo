@@ -7,8 +7,12 @@ const createHarness = ({
   expectedEverySeconds = 60,
   lastCheckInAt = null,
   bucketRows = [],
+  firstCheckInAt = lastCheckInAt,
+  graceSeconds = 30,
 }: {
   createdAt: Date;
+  firstCheckInAt?: Date | null;
+  graceSeconds?: number;
   expectedEverySeconds?: number;
   lastCheckInAt?: Date | null;
   bucketRows?: Array<{ bucket_start_ms: number | string; total: number }>;
@@ -22,7 +26,7 @@ const createHarness = ({
             id: "hbmt_test",
             appId: "app_test",
             expectedEverySeconds,
-            graceSeconds: 30,
+            graceSeconds,
             lastCheckInAt,
             pausedAt: null,
             createdAt,
@@ -35,7 +39,13 @@ const createHarness = ({
         queries.push(query);
         return Promise.resolve({
           json: () =>
-            Promise.resolve(query.includes("GROUP BY") ? bucketRows : []),
+            Promise.resolve(
+              query.includes("GROUP BY")
+                ? bucketRows
+                : query.includes("ASC LIMIT 1") && firstCheckInAt
+                  ? [{ checked_in_at: firstCheckInAt.toISOString() }]
+                  : [],
+            ),
         });
       }),
     } as never,
@@ -71,7 +81,7 @@ describe("get heartbeat check-in history", () => {
     expect(result.data.history.stats.missedBuckets24h).toBe(0);
   });
 
-  test("shows a sixty-day window for a daily heartbeat", async () => {
+  test("shows at most thirty configured intervals for a daily heartbeat", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-24T12:00:00.000Z"));
     const { queries, service } = createHarness({
@@ -85,14 +95,12 @@ describe("get heartbeat check-in history", () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
 
-    expect(result.data.history.windowSeconds).toBe(60 * 24 * 60 * 60);
-    expect(result.data.history.buckets).toHaveLength(61);
+    expect(result.data.history.windowSeconds).toBe(30 * 24 * 60 * 60);
+    expect(result.data.history.buckets).toHaveLength(30);
     expect(queries.some((query) => query.includes("LIMIT 60"))).toBe(true);
     expect(
-      queries.some(
-        (query) =>
-          query.includes("toUnixTimestamp(") &&
-          !query.includes("toUnixTimestamp64Milli"),
+      queries.some((query) =>
+        query.includes("intDiv(toUnixTimestamp64Milli(checked_in_at)"),
       ),
     ).toBe(true);
   });
@@ -101,7 +109,7 @@ describe("get heartbeat check-in history", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-24T12:00:00.000Z"));
     const checkedInAt = new Date("2026-08-24T11:59:00.000Z");
-    const bucketSizeMs = 24 * 60 * 1000;
+    const bucketSizeMs = 60 * 1000;
     const receivedBucketMs =
       Math.floor(checkedInAt.getTime() / bucketSizeMs) * bucketSizeMs;
     const { service } = createHarness({
@@ -121,5 +129,56 @@ describe("get heartbeat check-in history", () => {
     expect(
       result.data.history.buckets.every((bucket) => bucket.status !== "missed"),
     ).toBe(true);
+  });
+  test("keeps the current interval pending and waits for grace before marking a miss", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-24T12:02:00.000Z"));
+    const { service } = createHarness({
+      createdAt: new Date("2026-08-24T11:00:00.000Z"),
+      expectedEverySeconds: 300,
+      graceSeconds: 180,
+      firstCheckInAt: new Date("2026-08-24T11:00:01.000Z"),
+    });
+    const result = await service("hbmt_test", { appId: "app_test" });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const buckets = result.data.history.buckets;
+    expect(buckets).toHaveLength(13);
+    expect(buckets.at(-1)?.status).toBe("pending");
+    expect(buckets.at(-2)?.status).toBe("grace");
+    expect(buckets.at(-3)?.status).toBe("missed");
+
+    vi.setSystemTime(new Date("2026-08-24T12:03:00.000Z"));
+    const expired = await service("hbmt_test", { appId: "app_test" });
+    expect(expired.success).toBe(true);
+    if (!expired.success) return;
+    expect(expired.data.history.buckets.at(-2)?.status).toBe("missed");
+  });
+
+  test("anchors intervals to creation and groups a burst into one received segment", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-24T12:00:00.000Z"));
+    const anchor = new Date("2026-08-24T11:02:17.123Z");
+    const { service, queries } = createHarness({
+      createdAt: anchor,
+      expectedEverySeconds: 300,
+      firstCheckInAt: anchor,
+      bucketRows: [
+        { bucket_start_ms: anchor.getTime() + 10 * 300000, total: 20 },
+      ],
+    });
+    const result = await service("hbmt_test", { appId: "app_test" });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const { buckets, bucketSizeSeconds } = result.data.history;
+    expect(bucketSizeSeconds).toBe(300);
+    expect(buckets).toHaveLength(12);
+    expect(buckets[0].startAt).toEqual(anchor);
+    expect(
+      buckets.filter((bucket) => bucket.status === "healthy"),
+    ).toHaveLength(1);
+    expect(buckets.at(-2)?.count).toBe(20);
+    expect(buckets.at(-1)?.status).toBe("pending");
+    expect(queries[0]).toContain(`${anchor.getTime()} + intDiv`);
   });
 });

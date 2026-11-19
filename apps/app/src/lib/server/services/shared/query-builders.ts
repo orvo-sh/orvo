@@ -48,15 +48,22 @@ const buildBoundInClause = (
     .map((value) => bindString(prefix, value))
     .join(", ")})`;
 
+// ClickHouse's simple format has no timezone. Our query session is UTC;
+// preserve explicit offsets (and sub-millisecond precision) when provided.
 const normalizeDateTime = (value: string | Date) => {
   if (value instanceof Date) return value.toISOString();
-  if (value.includes("T")) return value.endsWith("Z") ? value : `${value}Z`;
-  return `${value.replace(" ", "T")}Z`;
+  const timestamp = value.trim().replace(" ", "T");
+  if (!timestamp || /(?:Z|[+-]\d{2}:?\d{2})$/i.test(timestamp))
+    return timestamp;
+  return `${timestamp}Z`;
 };
 
 export {
   buildBoundInClause,
-  buildInClause, createQueryBindings, normalizeDateTime, quote,
+  buildInClause,
+  createQueryBindings,
+  normalizeDateTime,
+  quote,
   toDateTime64,
-  type QueryBindings
+  type QueryBindings,
 };

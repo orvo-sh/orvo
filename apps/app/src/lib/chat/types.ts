@@ -1,7 +1,15 @@
 import type { UIMessage } from "ai";
 
 type ChatContextDescriptor = {
-  kind: "overview" | "trace" | "log" | "metric" | "incident" | "heartbeat";
+  kind:
+    | "overview"
+    | "trace"
+    | "log"
+    | "metric"
+    | "incident"
+    | "heartbeat"
+    | "alert_rule"
+    | "dashboard";
   resourceId: string;
   label: string;
   metadata?: Record<string, string | number | boolean | null>;

@@ -1,6 +1,5 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import * as Chat from "$lib/chat";
   import { Button } from "@repo/components/ui/button";
   import * as Select from "@repo/components/ui/select";
   import { formatNumber } from "@repo/utils";
@@ -19,8 +18,6 @@
 
   let time = $state(data.time);
   let loading = $state(false);
-
-  const chat = Chat.useChatState();
 
   const updateTime = async (nextTime: (typeof timeOptions)[number]) => {
     if (loading || time === nextTime) {
@@ -80,44 +77,9 @@
       value: b.p95LatencyMs,
     })) ?? [],
   );
-
-  const overviewChatContext = $derived<Chat.ChatContextDescriptor>({
-    kind: "overview",
-    resourceId: "overview",
-    label: "Overview",
-    metadata: {
-      layout:
-        "Top to bottom: Logs, Traces, and Metrics signal summaries; Error rate chart on the left and p95 latency chart on the top right on wide screens (stacked on narrow screens); Open incidents; Services needing attention. The time filter is in the page header.",
-      timeFilter: `last ${time}`,
-      logsTotal: data.logTrend?.total ?? 0,
-      tracesTotal: data.traceTrend?.total ?? 0,
-      metricPointsTotal: data.metricsTrend?.total ?? 0,
-      errorRatePercent: (data.traceMetrics?.summary.errorRate ?? 0) * 100,
-      errorRateChangePercent: errorRateTrend.change,
-      p95LatencyMs: data.traceMetrics?.summary.p95LatencyMs ?? 0,
-      p95LatencyChangePercent: latencyTrend.change,
-      openIncidentCount: data.incidents?.length ?? 0,
-      servicesNeedingAttention: (
-        data.servicesNeedingAttention
-          ?.map((service) => service.name)
-          .join(", ") || "None"
-      ).slice(0, 500),
-      hasReceivedTelemetry: data.hasReceivedFirstSignal,
-    },
-  });
-
-  $effect(() => {
-    if (
-      chat.railOpen &&
-      chat.context?.kind === "overview" &&
-      chat.context !== overviewChatContext
-    ) {
-      chat.context = overviewChatContext;
-    }
-  });
 </script>
 
-<PageContainer title="Overview" contentClass="p-3" scout={overviewChatContext}>
+<PageContainer title="Overview" contentClass="p-3">
   {#snippet actions()}
     <Select.Root
       type="single"
@@ -157,7 +119,9 @@
   {/snippet}
   <div class="flex flex-col">
     {#if !data.hasReceivedFirstSignal}
-      <OnboardingBanner ingestionKey={data.ingestionKey ?? ""} />
+      <div class="mb-3">
+        <OnboardingBanner ingestionKey={data.ingestionKey ?? ""} />
+      </div>
     {/if}
     <section class="grid gap-3 pb-3 lg:grid-cols-3">
       <SignalSummaryCard

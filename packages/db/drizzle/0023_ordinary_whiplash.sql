@@ -1,0 +1,1 @@
+ALTER TABLE "dashboard" DROP COLUMN "emoji";

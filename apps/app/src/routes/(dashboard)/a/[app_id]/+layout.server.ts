@@ -1,5 +1,5 @@
 import { getActiveOrganizationId } from "$lib/server/request-context";
-import { redirect } from "@sveltejs/kit";
+import { error, redirect } from "@sveltejs/kit";
 import type { LayoutServerLoad } from "./$types";
 
 export const load = (async (event) => {
@@ -62,6 +62,9 @@ export const load = (async (event) => {
     throw redirect(302, `/a/${apps[0].id}`);
   }
 
+  const dashboardsResult = await event.locals.container.dashboardService.getDashboards({ appId: currentApp.id, userId: auth.user.id });
+  if (!dashboardsResult.success) error(500, dashboardsResult.error);
+
   const accessResult =
     await event.locals.container.billingService?.getOrganizationAccessState({
       organizationId: activeOrganizationId,
@@ -97,6 +100,7 @@ export const load = (async (event) => {
     currentOrganization,
     apps,
     currentApp,
+    dashboards: dashboardsResult.data.dashboards,
     billingSummary:
       billingStateResult && billingStateResult.success
         ? {

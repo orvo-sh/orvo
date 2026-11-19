@@ -374,7 +374,10 @@
   {:else}
     <Card.Root class="gap-0 divide-y rounded-xl p-0">
       {#each destinations as destination (destination.id)}
-        <div class="flex items-center gap-2 px-2 py-2">
+        <div
+          id={destination.id}
+          class="flex scroll-mt-20 items-center gap-2 px-2 py-2"
+        >
           <div
             class="flex min-w-0 flex-1 flex-col gap-1 rounded-lg px-2 py-0.5 pt-0.75"
           >

@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS host_metrics_latest (
     expires_at SimpleAggregateFunction(max, DateTime64(3))
 ) ENGINE = AggregatingMergeTree
 ORDER BY (app_id, host_id)
-TTL expires_at DELETE;
+TTL toDateTime(expires_at) DELETE;
 -- statement-breakpoint
 CREATE MATERIALIZED VIEW IF NOT EXISTS host_metrics_latest_mv
 TO host_metrics_latest

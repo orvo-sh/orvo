@@ -109,6 +109,7 @@
       if (following) scheduleScrollToBottom();
     });
     observer.observe(content);
+    observer.observe(viewport);
     scheduleScrollToBottom();
     return () => {
       observer.disconnect();

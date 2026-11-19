@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS logs_raw (
 ) ENGINE = MergeTree
 PARTITION BY toDate(timestamp)
 ORDER BY (app_id, service_name, deployment_environment, timestamp, id)
-TTL expires_at DELETE;
+TTL toDateTime(expires_at) DELETE;
 -- statement-breakpoint
 CREATE TABLE IF NOT EXISTS traces_raw (
     id String,
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS traces_raw (
 ) ENGINE = MergeTree
 PARTITION BY toDate(start_time)
 ORDER BY (app_id, service_name, deployment_environment, start_time, trace_id, span_id)
-TTL expires_at DELETE;
+TTL toDateTime(expires_at) DELETE;
 -- statement-breakpoint
 CREATE TABLE IF NOT EXISTS metrics_raw (
     id String,
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS metrics_raw (
 ) ENGINE = MergeTree
 PARTITION BY toDate(time)
 ORDER BY (app_id, service_name, metric_name, time, id)
-TTL expires_at DELETE;
+TTL toDateTime(expires_at) DELETE;
 -- statement-breakpoint
 CREATE TABLE IF NOT EXISTS heartbeat_checkins (
     id String,
@@ -149,7 +149,7 @@ ORDER BY (
     scope_name,
     operation_name
 )
-TTL expires_at DELETE;
+TTL toDateTime(expires_at) DELETE;
 -- statement-breakpoint
 CREATE MATERIALIZED VIEW IF NOT EXISTS trace_metrics_1m_mv
 TO trace_metrics_1m

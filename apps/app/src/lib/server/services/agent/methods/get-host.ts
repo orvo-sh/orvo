@@ -7,7 +7,7 @@ import { err, ok } from "@repo/utils";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
-import { quote } from "../../shared/query-builders";
+import { normalizeDateTime, quote } from "../../shared/query-builders";
 import { getHostInputSchema } from "../schema";
 import { agentVersion, compareAgentVersions } from "../version";
 
@@ -241,7 +241,7 @@ const createGetHost =
         reserved_bytes: number | string;
       }>;
       const lastSeen = latest?.last_seen
-        ? new Date(latest.last_seen.replace(" ", "T") + "Z").toISOString()
+        ? normalizeDateTime(latest.last_seen)
         : null;
       const reporting =
         lastSeen !== null &&
@@ -321,9 +321,7 @@ const createGetHost =
           );
 
           return {
-            timestamp: new Date(
-              point.bucket.replace(" ", "T") + "Z",
-            ).toISOString(),
+            timestamp: normalizeDateTime(point.bucket),
             cpuUtilization: toNumber(point.cpu_utilization, 100),
             memoryUtilization: toNumber(point.memory_utilization, 100),
             diskUsedBytes: toNumber(disk?.disk_used_bytes),

@@ -18,7 +18,14 @@ import {
 const tracer = trace.getTracer('@repo/clickhouse');
 
 const getClickHouseClient = (config: ClickHouseClientConfigOptions): ClickHouseClient => {
-  const client = createClient(config);
+  const client = createClient({
+    ...config,
+    clickhouse_settings: {
+      ...config.clickhouse_settings,
+      session_timezone: 'UTC',
+      date_time_output_format: 'iso'
+    }
+  });
   const connectionAttributes = getConnectionAttributes(config.url);
 
   return new Proxy(client, {

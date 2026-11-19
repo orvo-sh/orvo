@@ -6,7 +6,12 @@ import {
   metricGroupBySchema,
   metricsQueryFiltersSchema,
 } from "./schema";
-import { buildInClause, quote, toDateTime64 } from "../shared/query-builders";
+import {
+  buildInClause,
+  normalizeDateTime,
+  quote,
+  toDateTime64,
+} from "../shared/query-builders";
 import { resolveTimeFilter } from "../shared/time-filter";
 
 type FacetRow = {
@@ -221,7 +226,10 @@ const buildSeries = (
         return {
           startAtUtc: bucketStart.toISOString(),
           endAtUtc: bucketEnd.toISOString(),
-          value: row?.value === null ? null : Number(row?.value ?? 0),
+          value:
+            row?.value === null || row?.value === undefined
+              ? null
+              : Number(row.value),
           points: Number(row?.points ?? 0),
         };
       }),
@@ -235,18 +243,6 @@ const normalizeFacetRows = (rows: FacetRow[]) =>
       value,
       count: Number(count),
     }));
-
-const normalizeDateTime = (value: string | Date) => {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  if (value.includes("T")) {
-    return value.endsWith("Z") ? value : `${value}Z`;
-  }
-
-  return `${value.replace(" ", "T")}Z`;
-};
 
 export {
   buildMetricCatalogWhereClause,

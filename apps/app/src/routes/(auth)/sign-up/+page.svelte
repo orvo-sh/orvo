@@ -143,7 +143,7 @@
 
         <FieldError>{error}</FieldError>
 
-        <Field>
+        <Field class="gap-6">
           <Button
             id="sign-up-submit-button"
             type="submit"
@@ -153,6 +153,13 @@
           >
             Sign up
           </Button>
+          <FieldDescription class="text-center text-balance">
+            By continuing, you agree to our <a
+              href="https://orvo.sh/legal/terms-of-service">Terms of Service</a
+            >, <a href="https://orvo.sh/legal/privacy-policy">Privacy Policy</a>
+            and
+            <a href="https://orvo.sh/legal/dpa">Data Processing Agreement</a>.
+          </FieldDescription>
         </Field>
       </div>
     </FieldGroup>

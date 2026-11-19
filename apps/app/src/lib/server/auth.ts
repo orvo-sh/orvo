@@ -51,6 +51,10 @@ const createAuth = (
     rateLimit: {
       enabled: env.MODE !== "test",
       customRules: {
+        "/request-password-reset": {
+          window: 60,
+          max: 3,
+        },
         "/email-otp/send-verification-otp": {
           window: 120,
           max: 1,
@@ -92,6 +96,30 @@ const createAuth = (
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: email
+        ? async ({ user, url }) => {
+            void email
+              .sendEmail({
+                to: user.email,
+                subject: "Reset your password",
+                template: "reset-password",
+                props: {
+                  resetUrl: url
+                    .replaceAll("&", "&amp;")
+                    .replaceAll('"', "&quot;")
+                    .replaceAll("<", "&lt;")
+                    .replaceAll(">", "&gt;"),
+                },
+              })
+              .catch((error) => {
+                logger.error(
+                  "sendResetPassword: failed to send password reset email",
+                  error as Error,
+                );
+              });
+          }
+        : undefined,
     },
     user: {
       deleteUser: {
@@ -284,13 +312,11 @@ const createAuth = (
                 type: "string",
                 required: false,
                 input: false,
-                fieldName: "billing_plan",
               },
               billingStatus: {
                 type: "string",
                 required: false,
                 input: false,
-                fieldName: "billing_status",
               },
             },
           },
@@ -301,7 +327,6 @@ const createAuth = (
                 required: false,
                 input: false,
                 defaultValue: "all",
-                fieldName: "app_access_mode",
               },
             },
           },
@@ -312,14 +337,12 @@ const createAuth = (
                 required: false,
                 input: true,
                 defaultValue: "all",
-                fieldName: "app_access_mode",
               },
               appIds: {
                 type: "string",
                 required: false,
                 input: true,
                 defaultValue: "[]",
-                fieldName: "app_ids",
               },
             },
           },

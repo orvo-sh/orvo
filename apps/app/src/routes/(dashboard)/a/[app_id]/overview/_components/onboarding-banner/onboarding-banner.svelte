@@ -1,27 +1,37 @@
 <script lang="ts">
-  import { Button, buttonVariants } from "@repo/components/ui/button";
+  import AgentSetupButton from "@repo/components/ui/agent-setup-button";
+  import { Button } from "@repo/components/ui/button";
   import * as Card from "@repo/components/ui/card";
   import { Input } from "@repo/components/ui/input";
   import { Label } from "@repo/components/ui/label";
   import { toast } from "@repo/components/ui/sonner";
-  import { IconChevronRight, IconCopy } from "@tabler/icons-svelte";
+  import { IconCopy } from "@tabler/icons-svelte";
 
-  import { OrvoLogo } from "@repo/components/icons/orvo-logo";
   import { redact } from "@repo/utils";
-  import OnboardingBannerInstallDialog from "./onboarding-banner-install-dialog.svelte";
+  import { trackAgentSetup } from "./agent-setup.remote";
 
   const {
     ingestionKey,
   }: {
     ingestionKey: string;
   } = $props();
+  const ingestEndpoint = "https://ingest.orvo.sh";
+  const setupPrompt = `Set up Orvo observability in this project. Read https://orvo.sh/SKILL.md and follow its instructions.
+
+Use these OpenTelemetry settings for Orvo Cloud:
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+OTEL_EXPORTER_OTLP_ENDPOINT=${ingestEndpoint}
+OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer YOUR_INGESTION_KEY"
+
+If an Orvo ingestion key is not already configured, prepare the setup with the placeholder. Tell me to click Copy ingestion key on the Orvo Overview card or get an available key from Settings → Ingestion keys in the Orvo dashboard. Tell me where to set it in this project's local environment or deployment secrets. Do not ask me to paste the key into this chat. Once a valid key is configured, send a test signal and tell me how to verify it in Orvo.`;
+
+  const trackSetup = (event: "clicked" | "copied") => {
+    void trackAgentSetup(event).catch(() => {});
+  };
 </script>
 
-<Card.Root
-  class="relative bg-linear-200 from-primary/7 from-5% via-card to-card"
->
+<Card.Root>
   <Card.Header>
-    <OrvoLogo class="absolute -top-24 -right-16 size-60 opacity-30" />
     <Card.Title>Start sending telemetry</Card.Title>
     <Card.Description class="max-w-2xl">
       Install the OpenTelemetry SDK on your system to start collecting logs,
@@ -34,7 +44,7 @@
       <Label class="mb-1 ml-1">Ingest endpoint</Label>
       <div class="flex">
         <Input
-          value="https://ingest.orvo.sh"
+          value={ingestEndpoint}
           readonly
           class="rounded-r-none border-r-0 bg-card"
         />
@@ -43,11 +53,9 @@
           size="sm"
           class="h-8 rounded-l-none px-2"
           onclick={() =>
-            window.navigator?.clipboard
-              .writeText("https://ingest.orvo.sh")
-              .then(() => {
-                toast.success("Copied ingest url to clipboard.");
-              })}
+            window.navigator?.clipboard.writeText(ingestEndpoint).then(() => {
+              toast.success("Copied ingest url to clipboard.");
+            })}
         >
           <IconCopy class="size-3.5" />
         </Button>
@@ -66,6 +74,8 @@
           variant="outline"
           size="sm"
           class="h-8 rounded-l-none px-2"
+          aria-label="Copy ingestion key"
+          disabled={!ingestionKey}
           onclick={() =>
             window.navigator?.clipboard.writeText(ingestionKey).then(() => {
               toast.success("Copied ingestion key to clipboard.");
@@ -77,12 +87,20 @@
     </div>
   </Card.Content>
   <Card.Footer class="gap-2 border-t-0 bg-transparent p-3">
-    <OnboardingBannerInstallDialog {ingestionKey} class={buttonVariants()}>
-      Show me how
-      <span class="ml-1 rounded-full bg-primary-foreground/20">
-        <IconChevronRight />
-      </span>
-    </OnboardingBannerInstallDialog>
+    <AgentSetupButton
+      prompt={setupPrompt}
+      label="Set up with agent"
+      variant="default"
+      size="default"
+      onClick={() => trackSetup("clicked")}
+      onCopied={() => {
+        trackSetup("copied");
+        toast.success("Paste the prompt into your agent", {
+          description:
+            "If you need a key, use Copy ingestion key on this card or get one from Settings → Ingestion keys.",
+        });
+      }}
+    />
     <Button variant="outline" onclick={() => location.reload()}>Refresh</Button>
   </Card.Footer>
 </Card.Root>

@@ -11,6 +11,7 @@ describe("chat titles", () => {
     });
     const generateChatTitle = createGenerateChatTitle({
       model: {} as never,
+      telemetryIdentity: { userId: "user-1", organizationId: "org-1", appId: "app-1", chatId: "chat-1" },
       logger: { error: vi.fn() } as never,
       generate: generate as never,
     });
@@ -43,6 +44,7 @@ describe("chat titles", () => {
     });
     const generateChatTitle = createGenerateChatTitle({
       model: {} as never,
+      telemetryIdentity: { userId: "user-1", organizationId: "org-1", appId: "app-1", chatId: "chat-1" },
       logger: { error: vi.fn() } as never,
       generate: generate as never,
     });
@@ -76,6 +78,7 @@ describe("chat titles", () => {
     const generate = vi.fn();
     const generateChatTitle = createGenerateChatTitle({
       model: {} as never,
+      telemetryIdentity: { userId: "user-1", organizationId: "org-1", appId: "app-1", chatId: "chat-1" },
       logger: { error: vi.fn() } as never,
       generate: generate as never,
     });

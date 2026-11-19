@@ -1,3 +1,5 @@
+import { getDerivedMetricCatalog } from "../derived-catalog";
+import { resolveTimeFilter } from "../../shared/time-filter";
 import { recordError } from "$lib/instrumentation";
 import type { ClickHouse } from "@repo/clickhouse";
 import type { Logger } from "@repo/logger";
@@ -5,34 +7,27 @@ import { err, ok } from "@repo/utils";
 import { z } from "zod";
 
 import { getMetricCatalogInputSchema } from "../schema";
-import {
-  buildMetricCatalogWhereClause,
-  normalizeDateTime,
-} from "../shared";
+import { buildMetricCatalogWhereClause, normalizeDateTime } from "../shared";
 
-const createGetMetricCatalog = ({
-  clickhouse,
-  logger,
-}: {
-  clickhouse: ClickHouse;
-  logger: Logger;
-}) => async (
-  input: z.input<typeof getMetricCatalogInputSchema>,
-  context: { appId: string },
-) => {
-  const validated = getMetricCatalogInputSchema.safeParse(input);
-  if (!validated.success) {
-    return err(validated.error.message);
-  }
+const createGetMetricCatalog =
+  ({ clickhouse, logger }: { clickhouse: ClickHouse; logger: Logger }) =>
+  async (
+    input: z.input<typeof getMetricCatalogInputSchema>,
+    context: { appId: string },
+  ) => {
+    const validated = getMetricCatalogInputSchema.safeParse(input);
+    if (!validated.success) {
+      return err(validated.error.message);
+    }
 
-  try {
-    const whereClause = buildMetricCatalogWhereClause(
-      context.appId,
-      validated.data,
-    );
-    const result = await clickhouse.query({
-      format: "JSONEachRow",
-      query: `
+    try {
+      const whereClause = buildMetricCatalogWhereClause(
+        context.appId,
+        validated.data,
+      );
+      const result = await clickhouse.query({
+        format: "JSONEachRow",
+        query: `
         SELECT
           metric_name,
           any(metric_type) AS metric_type,
@@ -50,22 +45,28 @@ const createGetMetricCatalog = ({
         ORDER BY metric_name ASC
         LIMIT ${validated.data.limit}
       `,
-    });
-    const rows = (await result.json()) as unknown as Array<{
-      metric_name: string;
-      metric_type: string;
-      metric_unit: string;
-      description: string;
-      points: number | string;
-      services: number | string;
-      containers: number | string;
-      is_monotonic: boolean | number;
-      last_seen: string | Date;
-      last_value: number | string | null;
-    }>;
+      });
+      const rows = (await result.json()) as unknown as Array<{
+        metric_name: string;
+        metric_type: string;
+        metric_unit: string;
+        description: string;
+        points: number | string;
+        services: number | string;
+        containers: number | string;
+        is_monotonic: boolean | number;
+        last_seen: string | Date;
+        last_value: number | string | null;
+      }>;
 
-    return ok({
-      catalog: rows.map((row) => ({
+      const range = resolveTimeFilter(validated.data.time);
+      const derived = await getDerivedMetricCatalog(
+        clickhouse,
+        context.appId,
+        range.startAtUtc,
+        range.endAtUtc,
+      );
+      const catalog = rows.map((row) => ({
         name: row.metric_name,
         type: row.metric_type,
         unit: row.metric_unit,
@@ -76,13 +77,26 @@ const createGetMetricCatalog = ({
         isMonotonic: Boolean(row.is_monotonic),
         lastSeen: normalizeDateTime(row.last_seen),
         lastValue: row.last_value === null ? null : Number(row.last_value),
-      })),
-    });
-  } catch (error) {
-    recordError(error);
-    logger.error("Failed to fetch metric catalog", error as Error);
-    return err("Failed to fetch metric catalog.");
-  }
-};
+      }));
+      const merged = new Map(catalog.map((metric) => [metric.name, metric]));
+      for (const metric of derived) merged.set(metric.name, metric);
+      return ok({
+        catalog: [...merged.values()]
+          .filter(
+            (metric) =>
+              !validated.data.search ||
+              (metric.name + " " + metric.description)
+                .toLowerCase()
+                .includes(validated.data.search.toLowerCase()),
+          )
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .slice(0, validated.data.limit),
+      });
+    } catch (error) {
+      recordError(error);
+      logger.error("Failed to fetch metric catalog", error as Error);
+      return err("Failed to fetch metric catalog.");
+    }
+  };
 
 export { createGetMetricCatalog };

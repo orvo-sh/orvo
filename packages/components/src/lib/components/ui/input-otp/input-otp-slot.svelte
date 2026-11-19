@@ -5,17 +5,20 @@
   let {
     ref = $bindable(null),
     cell,
+    size = 'md',
     class: className,
     ...restProps
-  }: InputOTPPrimitive.CellProps = $props();
+  }: InputOTPPrimitive.CellProps & { size?: 'md' | 'lg' } = $props();
 </script>
 
 <InputOTPPrimitive.Cell
   {cell}
   bind:ref
   data-slot="input-otp-slot"
+  data-size={size}
   class={cn(
-    'dark:bg-input/30 border-input data-[active=true]:border-ring data-[active=true]:ring-ring/50 data-[active=true]:aria-invalid:ring-destructive/20 dark:data-[active=true]:aria-invalid:ring-destructive/40 aria-invalid:border-destructive data-[active=true]:aria-invalid:border-destructive relative flex size-8 items-center justify-center border-y border-r text-sm transition-all outline-none first:rounded-l-lg first:border-l last:rounded-r-lg data-[active=true]:z-10 data-[active=true]:ring-3',
+    'dark:bg-input/30 border-input data-[active=true]:border-ring data-[active=true]:ring-ring/50 data-[active=true]:aria-invalid:ring-destructive/20 dark:data-[active=true]:aria-invalid:ring-destructive/40 aria-invalid:border-destructive data-[active=true]:aria-invalid:border-destructive relative flex items-center justify-center border-y border-r text-sm transition-all outline-none first:rounded-l-lg first:border-l last:rounded-r-lg data-[active=true]:z-10 data-[active=true]:ring-3',
+    size === 'lg' ? 'size-10' : 'size-8',
     className
   )}
   {...restProps}

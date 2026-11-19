@@ -6,6 +6,7 @@ import { AgentService } from "$lib/server/services/agent";
 import { AlertRuleService } from "$lib/server/services/alert-rule";
 import { AlertWebhookDestinationService } from "$lib/server/services/alert-webhook-destination";
 import { AppService } from "$lib/server/services/app";
+import { DashboardService } from "$lib/server/services/dashboard";
 import { BillingService } from "$lib/server/services/billing";
 import { ChatService } from "$lib/server/services/chat";
 import { ChatUsageService } from "$lib/server/services/chat-usage";
@@ -107,13 +108,14 @@ const createServerContainer = (logger: Logger) => {
     encryption,
     notificationDeliveryService,
   );
-  const alertRuleService = new AlertRuleService(db, logger);
+  const alertRuleService = new AlertRuleService(db, logger, clickhouse);
   const alertWebhookDestinationService = new AlertWebhookDestinationService(
     db,
     logger,
     encryption,
     notificationDeliveryService,
   );
+  const dashboardService = new DashboardService(db, clickhouse, logger);
   const logsService = new LogsService(clickhouse, logger);
   const tracesService = new TracesService(clickhouse, logger);
   const incidentService = new IncidentService(db, logger);
@@ -136,6 +138,7 @@ const createServerContainer = (logger: Logger) => {
   );
   const invitationService = new InvitationService(db);
   const onboardingService = new OnboardingService(
+    db,
     ingestionKeyService,
     { otlpBaseUrl: env.INGEST_BASE_URL },
     logger,
@@ -188,6 +191,7 @@ const createServerContainer = (logger: Logger) => {
       : null,
     chatUsageService,
     {
+      dashboardService,
       alertRuleService,
       appService,
       logsService,
@@ -195,6 +199,7 @@ const createServerContainer = (logger: Logger) => {
       metricsService,
       incidentService,
       heartbeatService,
+      notificationDestinationService,
     },
     env.ENCRYPTION_SECRET,
     env.CDN_BASE_URL,
@@ -222,6 +227,7 @@ const createServerContainer = (logger: Logger) => {
     mcpOauthGrantService,
     mcpService,
     agentService,
+    dashboardService,
     uploadService,
     billingService,
     chatService,
@@ -250,9 +256,16 @@ const createWorkerContainer = (logger: Logger) => {
     encryption,
     email,
   );
+  const notificationDestinationService = new NotificationDestinationService(
+    db,
+    logger,
+    encryption,
+    notificationDeliveryService,
+  );
   const incidentService = new IncidentService(db, logger);
   const ingestionKeyService = new IngestionKeyService(db, logger);
-  const alertRuleService = new AlertRuleService(db, logger);
+  const alertRuleService = new AlertRuleService(db, logger, clickhouse);
+  const dashboardService = new DashboardService(db, clickhouse, logger);
   const logsService = new LogsService(clickhouse, logger);
   const tracesService = new TracesService(clickhouse, logger);
   const metricsService = new MetricsService(clickhouse, logger);
@@ -283,6 +296,7 @@ const createWorkerContainer = (logger: Logger) => {
       : null,
     chatUsageService,
     {
+      dashboardService,
       alertRuleService,
       appService,
       logsService,
@@ -290,6 +304,7 @@ const createWorkerContainer = (logger: Logger) => {
       metricsService,
       incidentService,
       heartbeatService,
+      notificationDestinationService,
     },
     env.ENCRYPTION_SECRET,
     env.CDN_BASE_URL,

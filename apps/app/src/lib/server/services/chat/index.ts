@@ -1,6 +1,8 @@
 import { Instrument } from "$lib/instrumentation";
+import type { DashboardService } from "$lib/server/services/dashboard";
 import type { AlertRuleService } from "$lib/server/services/alert-rule";
 import type { AppService } from "$lib/server/services/app";
+import type { NotificationDestinationService } from "$lib/server/services/notification-destination";
 import type { HeartbeatService } from "$lib/server/services/heartbeat";
 import type { IncidentService } from "$lib/server/services/incident";
 import type { LogsService } from "$lib/server/services/logs";
@@ -39,6 +41,7 @@ class ChatService {
     model: LanguageModel | null,
     chatUsageService: ChatUsageService,
     toolServices: {
+      dashboardService: DashboardService;
       alertRuleService: AlertRuleService;
       appService: AppService;
       logsService: LogsService;
@@ -46,6 +49,7 @@ class ChatService {
       metricsService: MetricsService;
       incidentService: IncidentService;
       heartbeatService: HeartbeatService;
+      notificationDestinationService: NotificationDestinationService;
     },
     toolApprovalSecret: string,
     cdnBaseUrl: string,

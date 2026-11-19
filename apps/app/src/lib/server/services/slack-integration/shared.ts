@@ -73,7 +73,7 @@ const buildSlackMessage = (
   const rule = payload.rule as
     | {
         name?: string;
-        signalType?: string;
+        metricName?: string;
         comparator?: string;
         threshold?: number;
         windowMinutes?: number;
@@ -108,7 +108,7 @@ const buildSlackMessage = (
       : ":rotating_light: Incident opened";
   const details = rule
     ? [
-        `Signal: *${escapeSlackText(rule.signalType?.replaceAll("_", " ") ?? "Unknown")}*`,
+        `Metric: *${escapeSlackText(rule.metricName ?? "Unknown")}*`,
         `Observed: *${formatValue(evaluation?.observedValue)}*`,
         `Threshold: *${escapeSlackText(`${rule.comparator ?? "?"} ${formatValue(rule.threshold)}`)}* over ${rule.windowMinutes ?? "?"}m`,
       ]

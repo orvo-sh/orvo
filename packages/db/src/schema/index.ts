@@ -36,3 +36,6 @@ export * from './slack-scout.schema.js';
 export * from './subscription.schema.js';
 export * from './user.schema.js';
 export * from './verification.schema.js';
+
+export * from './dashboard.schema.js';
+export * from './onboarding.schema.js';

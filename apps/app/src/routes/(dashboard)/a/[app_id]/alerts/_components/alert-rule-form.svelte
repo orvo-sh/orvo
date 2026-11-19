@@ -1,66 +1,94 @@
 <script lang="ts">
-  import { page } from "$app/state";
+  import { alertComparatorOptions, type AlertRuleFormValue } from "$lib/alerts";
   import {
-    alertComparatorOptions,
-    alertSignalDescriptions,
-    alertSignalOptions,
-    type AlertRuleFormValue,
-  } from "$lib/alerts";
-  import { Badge } from "@repo/components/ui/badge";
-  import { Button } from "@repo/components/ui/button";
-  import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-  } from "@repo/components/ui/card";
+    getMetricAggregationOptions,
+    getMetricThresholdBounds,
+    getMetricThresholdError,
+    isUtilizationRatio,
+    getDefaultMetricAggregation,
+  } from "$lib/metric-definitions";
+  import { tick } from "svelte";
+  import MetricPicker from "./metric-picker.svelte";
+  import ScopeValuePicker from "./scope-value-picker.svelte";
   import { Checkbox } from "@repo/components/ui/checkbox";
-  import * as Collapsible from "@repo/components/ui/collapsible";
-  import { FieldDescription } from "@repo/components/ui/field";
+  import { Button, buttonVariants } from "@repo/components/ui/button";
+  import * as HoverCard from "@repo/components/ui/hover-card";
   import { Input } from "@repo/components/ui/input";
+  import * as Tabs from "@repo/components/ui/tabs";
   import * as Select from "@repo/components/ui/select";
-  import { IconChevronDown, IconInfoCircleFilled } from "@tabler/icons-svelte";
+  import {
+    IconAdjustments,
+    IconFilter,
+    IconBell,
+    IconX,
+    IconInfoCircle,
+    IconMail,
+    IconWebhook,
+    IconBrandSlack,
+    IconArrowUpRight,
+    IconPlus,
+  } from "@tabler/icons-svelte";
 
   let {
     form = $bindable(),
+    activeTab = $bindable("condition"),
+    scoutUpdate = null,
     destinations,
-    submitting = false,
+    notificationSettingsHref,
     error = "",
-    submitLabel,
-    onSubmit,
   }: {
     form: AlertRuleFormValue;
+    activeTab?: "condition" | "scope" | "notifications";
+    scoutUpdate?: { tab: string; fields: string[]; sequence: number } | null;
     destinations: Array<{
       id: string;
       name: string;
       isEnabled: boolean;
       kind: string;
+      detail?: string;
     }>;
-    submitting?: boolean;
+    notificationSettingsHref?: string;
     error?: string;
-    submitLabel: string;
-    onSubmit: () => void | Promise<void>;
   } = $props();
 
-  let scopeOpen = $state(false);
-  let advancedOpen = $state(false);
-
-  const setScopeValues = (
-    group: keyof typeof form.scope,
-    mode: "include" | "exclude",
-    value: string,
-  ) => {
-    form.scope[group][mode] = value
-      .split(",")
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-  };
-
-  const getScopeValue = (
-    group: keyof typeof form.scope,
-    mode: "include" | "exclude",
-  ) => form.scope[group][mode].join(", ");
+  let editorRoot: HTMLDivElement;
+  $effect(() => {
+    const update = scoutUpdate;
+    if (!update) return;
+    let cancelled = false;
+    void tick().then(() => {
+      if (
+        cancelled ||
+        !editorRoot ||
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      )
+        return;
+      const ids: Record<string, string> = {
+        name: "alert-rule-name",
+        metricName: "scout-metric-field",
+        metricAggregation: "metric-aggregation",
+        comparator: "alert-comparator",
+        threshold: "alert-threshold",
+        windowMinutes: "alert-window",
+        renotifyMinutes: "alert-renotify",
+        scope: "scout-scope-fields",
+        destinationIds: "scout-destination-fields",
+      };
+      for (const field of update.fields) {
+        const element = editorRoot.querySelector(`#${ids[field]}`);
+        element?.animate(
+          [
+            { outline: "2px solid var(--primary)", outlineOffset: "3px" },
+            { outline: "2px solid transparent", outlineOffset: "3px" },
+          ],
+          { duration: 1400, easing: "ease-out" },
+        );
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  });
 
   const toggleDestination = (destinationId: string, checked: boolean) => {
     if (checked) {
@@ -75,112 +103,76 @@
     );
   };
 
-  const isAppSignal = (signalType: AlertRuleFormValue["signalType"]) =>
-    [
-      "error_rate",
-      "latency_p95_ms",
-      "latency_p99_ms",
-      "apdex",
-      "throughput_per_min",
-      "availability_percent",
-    ].includes(signalType);
-
-  const isContainerSignal = (signalType: AlertRuleFormValue["signalType"]) =>
-    [
-      "container_cpu_utilization",
-      "container_memory_utilization",
-      "container_reporting_stale",
-    ].includes(signalType);
-
-  const scopeGroups = $derived.by(() => {
-    const groups: Array<{
-      key: keyof typeof form.scope;
-      label: string;
-      description: string;
-      includePlaceholder: string;
-      excludePlaceholder: string;
-    }> = [];
-
-    if (isAppSignal(form.signalType)) {
-      groups.push(
-        {
-          key: "services",
-          label: "Services",
-          description: "Exact service names from traces.",
-          includePlaceholder: "api, worker",
-          excludePlaceholder: "internal",
-        },
-        {
-          key: "spanNames",
-          label: "Span names",
-          description: "Entry span names to match.",
-          includePlaceholder: "GET /checkout",
-          excludePlaceholder: "GET /health",
-        },
-        {
-          key: "environments",
-          label: "Environments",
-          description: "Deployment environment values.",
-          includePlaceholder: "production",
-          excludePlaceholder: "staging",
-        },
-        {
-          key: "scopes",
-          label: "Instrumentation scopes",
-          description: "Instrumentation library or scope names.",
-          includePlaceholder: "@opentelemetry/instrumentation-http",
-          excludePlaceholder: "custom-test-scope",
-        },
-      );
-    }
-
-    if (isContainerSignal(form.signalType)) {
-      groups.push({
-        key: "containerNames",
-        label: "Container names",
-        description: "Match Docker container names without requiring IDs.",
-        includePlaceholder: "nginx, queue-worker",
-        excludePlaceholder: "one-shot-migration",
-      });
-    }
-
-    return groups;
+  const metricAggregations = $derived(
+    getMetricAggregationOptions({
+      name: form.metricName ?? "",
+      type: form.metricType ?? "gauge",
+      isMonotonic: form.metricIsMonotonic,
+    }),
+  );
+  const thresholdMetric = $derived({
+    name: form.metricName,
+    type: form.metricType,
+    unit: form.metricUnit,
+    isMonotonic: form.metricIsMonotonic,
+    aggregation: form.metricAggregation,
   });
-
-  const scopeFilterCount = $derived(
-    Object.values(form.scope).reduce(
-      (count, values) => count + values.include.length + values.exclude.length,
-      0,
-    ),
+  const thresholdBounds = $derived(getMetricThresholdBounds(thresholdMetric));
+  const thresholdError = $derived(
+    form.metricName
+      ? getMetricThresholdError(thresholdMetric, form.threshold)
+      : null,
   );
 
-  const signalUnits: Record<AlertRuleFormValue["signalType"], string> = {
-    error_rate: "%",
-    latency_p95_ms: "ms",
-    latency_p99_ms: "ms",
-    apdex: "score",
-    throughput_per_min: "/min",
-    availability_percent: "%",
-    container_cpu_utilization: "%",
-    container_memory_utilization: "%",
-    container_reporting_stale: "min",
-  };
-
-  const comparatorPhrases: Record<AlertRuleFormValue["comparator"], string> = {
-    gt: "is greater than",
-    gte: "is at least",
-    lt: "is less than",
-    lte: "is at most",
-  };
-
-  const submit = async () => {
-    await onSubmit();
-  };
+  const scopeAttributes = [
+    { key: "service.name", group: "services" },
+    { key: "deployment.environment", group: "environments" },
+    { key: "scope.name", group: "scopes" },
+    { key: "operation.name", group: "spanNames" },
+    { key: "container.name", group: "containerNames" },
+  ] as const;
+  let addedScopeFilters = $state<string[]>([]);
+  let choosingFilter = $state(false);
+  const filterRows = $derived([
+    ...scopeAttributes
+      .filter(
+        ({ key, group }) =>
+          addedScopeFilters.includes(key) ||
+          form.scope[group].include.length ||
+          form.scope[group].exclude.length,
+      )
+      .map(({ key, group }) => ({ key, group, values: form.scope[group] })),
+    ...Object.entries(form.metricAttributeFilters).map(([key, values]) => ({
+      key,
+      group: null,
+      values,
+    })),
+  ]);
 </script>
 
-<div
-  class="mx-auto flex w-full max-w-4xl flex-col gap-3 px-3 py-3 sm:px-5 sm:py-5"
->
+{#snippet fieldHelp(label: string, description: string)}
+  <HoverCard.Root openDelay={50} closeDelay={50}>
+    <HoverCard.Trigger
+      aria-label={`About ${label.toLowerCase()}`}
+      class={buttonVariants({
+        variant: "ghost",
+        size: "icon-sm",
+        class: "size-5 cursor-help",
+      })}
+    >
+      <IconInfoCircle class="size-3.5 text-secondary-foreground opacity-75" />
+    </HoverCard.Trigger>
+    <HoverCard.Content
+      class="max-w-sm text-sm text-secondary-foreground"
+      side="top"
+      align="start"
+    >
+      <p>{description}</p>
+    </HoverCard.Content>
+  </HoverCard.Root>
+{/snippet}
+
+<div bind:this={editorRoot} class="flex w-full flex-col">
   {#if error}
     <div
       class="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
@@ -189,341 +181,451 @@
     </div>
   {/if}
 
-  <Card>
-    <CardHeader class="gap-1 pb-2">
-      <CardTitle>Alert condition</CardTitle>
-      <CardDescription
-        >Choose what to monitor and when it should fire.</CardDescription
-      >
-    </CardHeader>
-    <CardContent class="grid gap-4">
-      <div class="grid gap-2">
-        <label class="text-sm font-medium text-foreground" for="alert-rule-name"
-          >Rule name</label
-        >
-        <Input
-          id="alert-rule-name"
-          bind:value={form.name}
-          placeholder="High checkout error rate"
-        />
-      </div>
-
-      <div class="grid gap-2">
-        <p class="text-sm font-medium text-foreground">Alert when</p>
-        <div
-          class="grid gap-3 md:grid-cols-[minmax(0,1.25fr)_minmax(12rem,1fr)_minmax(8rem,0.65fr)]"
-        >
-          <div class="grid content-start gap-2">
-            <label class="text-sm text-muted-foreground" for="alert-signal"
-              >Signal</label
-            >
-            <Select.Root
-              type="single"
-              value={form.signalType}
-              onValueChange={(value) => {
-                const option = alertSignalOptions.find(
-                  (candidate) => candidate.value === value,
-                );
-                if (!option) return;
-                form.signalType = option.value;
-                if (option.value !== "apdex") form.apdexTargetMs = null;
-              }}
-            >
-              <Select.Trigger id="alert-signal" class="w-full bg-background">
-                {alertSignalOptions.find(
-                  (option) => option.value === form.signalType,
-                )?.label ?? "Select a signal"}
-              </Select.Trigger>
-              <Select.Content>
-                {#each alertSignalOptions as option}
-                  <Select.Item value={option.value} label={option.label} />
-                {/each}
-              </Select.Content>
-            </Select.Root>
-            <FieldDescription class="flex items-start gap-1.5 text-sm">
-              <IconInfoCircleFilled class="mt-0.5 size-4 shrink-0" />
-              {alertSignalDescriptions[form.signalType]}
-            </FieldDescription>
-          </div>
-
-          <div class="grid content-start gap-2">
-            <label class="text-sm text-muted-foreground" for="alert-comparator"
-              >Condition</label
-            >
-            <Select.Root
-              type="single"
-              value={form.comparator}
-              onValueChange={(value) => {
-                const option = alertComparatorOptions.find(
-                  (candidate) => candidate.value === value,
-                );
-                if (option) form.comparator = option.value;
-              }}
-            >
-              <Select.Trigger
-                id="alert-comparator"
-                class="w-full bg-background"
-              >
-                {alertComparatorOptions.find(
-                  (option) => option.value === form.comparator,
-                )?.label ?? "Choose a condition"}
-              </Select.Trigger>
-              <Select.Content>
-                {#each alertComparatorOptions as option}
-                  <Select.Item value={option.value} label={option.label} />
-                {/each}
-              </Select.Content>
-            </Select.Root>
-          </div>
-
-          <div class="grid content-start gap-2">
-            <label class="text-sm text-muted-foreground" for="alert-threshold">
-              Threshold ({signalUnits[form.signalType]})
-            </label>
-            <Input
-              id="alert-threshold"
-              type="number"
-              bind:value={form.threshold}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div class="grid gap-2 sm:max-w-xs">
-        <label class="text-sm font-medium text-foreground" for="alert-window"
-          >Over</label
-        >
-        <div class="flex items-center gap-2">
-          <Input
-            id="alert-window"
-            type="number"
-            bind:value={form.windowMinutes}
-            min={1}
-            max={1440}
-            class="w-24"
-          />
-          <span class="text-sm text-muted-foreground">minutes</span>
-        </div>
-      </div>
-
-      <div class="rounded-lg bg-muted/40 px-3 py-2.5 text-sm">
-        <span class="font-medium">Rule preview</span>
-        <span class="text-muted-foreground">
-          Open an incident when {alertSignalOptions
-            .find((option) => option.value === form.signalType)
-            ?.label.toLowerCase() ?? "signal"}
-          {comparatorPhrases[form.comparator]}
-          {form.threshold}{signalUnits[form.signalType]}, measured over
-          {form.windowMinutes} minutes.
-        </span>
-      </div>
-
-      {#if form.signalType === "apdex"}
-        <div class="grid gap-2 sm:max-w-xs">
+  <Tabs.Root bind:value={activeTab} class="flex min-h-0 flex-1 flex-col gap-0">
+    <Tabs.List
+      variant="line"
+      class="flex h-13! w-full justify-start border-b px-3"
+    >
+      <Tabs.Trigger value="condition" class="px-3 not-sm:flex-1">
+        <IconAdjustments class="size-3.5 not-sm:hidden" />
+        Condition
+      </Tabs.Trigger>
+      <Tabs.Trigger value="scope" class="px-3 not-sm:flex-1">
+        <IconFilter class="size-3.5 not-sm:hidden" />
+        Filters
+      </Tabs.Trigger>
+      <Tabs.Trigger value="notifications" class="px-3 not-sm:flex-1">
+        <IconBell class="size-3.5 not-sm:hidden" />
+        Notifications
+      </Tabs.Trigger>
+    </Tabs.List>
+    <Tabs.Content value="condition" class="w-full max-w-4xl px-3 py-6 sm:px-5">
+      <section class="space-y-8">
+        <div class="grid gap-2">
           <label
             class="text-sm font-medium text-foreground"
-            for="alert-apdex-target">Apdex target (milliseconds)</label
+            for="alert-rule-name">Rule name</label
           >
           <Input
-            id="alert-apdex-target"
-            type="number"
-            value={form.apdexTargetMs ?? ""}
-            oninput={(event) => {
-              const nextValue = Number(
-                (event.currentTarget as HTMLInputElement).value,
-              );
-              form.apdexTargetMs =
-                Number.isFinite(nextValue) && nextValue > 0 ? nextValue : null;
-            }}
-            min={1}
+            id="alert-rule-name"
+            bind:value={form.name}
+            placeholder="High checkout error rate"
           />
         </div>
-      {/if}
 
-      <Collapsible.Root bind:open={advancedOpen}>
-        <Collapsible.Trigger
-          class="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm font-medium hover:bg-muted/50"
-        >
-          Advanced settings
-          <IconChevronDown
-            class={advancedOpen
-              ? "size-4 rotate-180 text-muted-foreground transition-transform"
-              : "size-4 text-muted-foreground transition-transform"}
-          />
-        </Collapsible.Trigger>
-        <Collapsible.Content class="pt-3">
-          <div class="grid gap-2 sm:max-w-xs">
-            <label
-              class="text-sm font-medium text-foreground"
-              for="alert-renotify">Renotify (minutes)</label
-            >
-            <Input
-              id="alert-renotify"
-              type="number"
-              value={form.renotifyMinutes ?? ""}
-              oninput={(event) => {
-                const nextValue = Number(
-                  (event.currentTarget as HTMLInputElement).value,
-                );
-                form.renotifyMinutes =
-                  Number.isFinite(nextValue) && nextValue > 0
-                    ? nextValue
-                    : null;
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div id="scout-metric-field" class="grid content-start gap-2">
+            <div class="flex items-center gap-1">
+              <span class="text-sm font-medium">Metric</span>
+              {@render fieldHelp(
+                "Metric",
+                "Search the metrics available for this app.",
+              )}
+            </div>
+            <MetricPicker
+              value={form.metricName}
+              onSelect={(name, unit, metric) => {
+                if (form.metricName !== name) {
+                  addedScopeFilters = [];
+                  choosingFilter = false;
+                  form.scope = {
+                    services: { include: [], exclude: [] },
+                    spanNames: { include: [], exclude: [] },
+                    environments: { include: [], exclude: [] },
+                    scopes: { include: [], exclude: [] },
+                    containerNames: { include: [], exclude: [] },
+                  };
+                  form.metricAttributeFilters = {};
+                }
+                form.metricName = name;
+                form.metricUnit = unit;
+                form.metricType = metric.type;
+                form.metricIsMonotonic = metric.isMonotonic;
+                form.metricAggregation = getDefaultMetricAggregation({
+                  name,
+                  ...metric,
+                });
               }}
-              min={1}
-              placeholder="Leave empty to disable"
             />
           </div>
-        </Collapsible.Content>
-      </Collapsible.Root>
-    </CardContent>
-  </Card>
-
-  <Card>
-    <CardHeader class="gap-1 pb-2">
-      <CardTitle>Scope</CardTitle>
-      <CardDescription>
-        Limit which services, spans, environments, or containers this rule
-        applies to.
-      </CardDescription>
-    </CardHeader>
-    <CardContent>
-      <Collapsible.Root bind:open={scopeOpen}>
-        <div class="flex items-center justify-between gap-3">
-          <p class="text-sm text-muted-foreground">
-            {scopeFilterCount > 0
-              ? `${scopeFilterCount} filters configured.`
-              : "No filters applied; this rule covers all matching data."}
-          </p>
-          {#if scopeGroups.length > 0}
-            <Collapsible.Trigger
-              class="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-muted"
+          <div class="grid content-start gap-2">
+            <div class="flex items-center gap-1">
+              <label class="text-sm font-medium" for="metric-aggregation"
+                >Measure</label
+              >
+              {@render fieldHelp(
+                "Measure",
+                "Choose which value to compare with the threshold. For request duration, p95 is the time that 95% of requests finish within.",
+              )}
+            </div>
+            <Select.Root
+              type="single"
+              value={form.metricAggregation ?? "avg"}
+              onValueChange={(value) => {
+                const option = metricAggregations.find(
+                  (option) => option.value === value,
+                );
+                if (option) form.metricAggregation = option.value;
+              }}
             >
-              {scopeOpen ? "Hide filters" : "Configure filters"}
-              <IconChevronDown
-                class={scopeOpen
-                  ? "size-4 rotate-180 text-muted-foreground transition-transform"
-                  : "size-4 text-muted-foreground transition-transform"}
+              <Select.Trigger id="metric-aggregation" class="w-full"
+                >{metricAggregations.find(
+                  (option) =>
+                    option.value === (form.metricAggregation ?? "avg"),
+                )?.label}</Select.Trigger
+              >
+              <Select.Content>
+                {#each metricAggregations as option}<Select.Item
+                    value={option.value}
+                    label={option.label}
+                  />{/each}
+              </Select.Content>
+            </Select.Root>
+          </div>
+        </div>
+
+        <div class="grid gap-2">
+          <p class="text-sm font-medium text-foreground">Alert when</p>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div class="grid content-start gap-2">
+              <label
+                class="text-sm font-medium text-foreground"
+                for="alert-comparator">Condition</label
+              >
+              <Select.Root
+                type="single"
+                value={form.comparator}
+                onValueChange={(value) => {
+                  const option = alertComparatorOptions.find(
+                    (candidate) => candidate.value === value,
+                  );
+                  if (option) form.comparator = option.value;
+                }}
+              >
+                <Select.Trigger
+                  id="alert-comparator"
+                  class="w-full bg-background"
+                >
+                  {alertComparatorOptions.find(
+                    (option) => option.value === form.comparator,
+                  )?.label ?? "Choose a condition"}
+                </Select.Trigger>
+                <Select.Content>
+                  {#each alertComparatorOptions as option}
+                    <Select.Item value={option.value} label={option.label} />
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+            </div>
+
+            <div class="grid content-start gap-2">
+              <label
+                class="text-sm font-medium text-foreground"
+                for="alert-threshold"
+              >
+                Threshold{isUtilizationRatio(
+                  form.metricName,
+                  form.metricUnit,
+                ) || form.metricUnit === "%"
+                  ? " (%)"
+                  : form.metricUnit && form.metricUnit !== "1"
+                    ? ` (${form.metricUnit.replace(/[{}]/g, "")})`
+                    : ""}
+              </label>
+              <Input
+                id="alert-threshold"
+                type="number"
+                step="any"
+                min={thresholdBounds.min === undefined
+                  ? undefined
+                  : thresholdBounds.min *
+                    (isUtilizationRatio(form.metricName, form.metricUnit)
+                      ? 100
+                      : 1)}
+                max={thresholdBounds.max === undefined
+                  ? undefined
+                  : thresholdBounds.max *
+                    (isUtilizationRatio(form.metricName, form.metricUnit)
+                      ? 100
+                      : 1)}
+                aria-invalid={!!thresholdError}
+                aria-describedby={thresholdError
+                  ? "alert-threshold-error"
+                  : undefined}
+                value={isUtilizationRatio(form.metricName, form.metricUnit)
+                  ? form.threshold * 100
+                  : form.threshold}
+                oninput={(event) => {
+                  const value = event.currentTarget.valueAsNumber;
+                  form.threshold = isUtilizationRatio(
+                    form.metricName,
+                    form.metricUnit,
+                  )
+                    ? value / 100
+                    : value;
+                }}
               />
-            </Collapsible.Trigger>
+              {#if thresholdError}
+                <p
+                  id="alert-threshold-error"
+                  class="text-sm text-destructive"
+                  role="alert"
+                >
+                  {thresholdError}
+                </p>
+              {/if}
+            </div>
+          </div>
+        </div>
+
+        <div class="grid gap-6 sm:grid-cols-2">
+          <div class="grid content-start gap-2">
+            <div class="flex items-center gap-1">
+              <label
+                class="text-sm font-medium text-foreground"
+                for="alert-window">Over</label
+              >
+              {@render fieldHelp(
+                "Over",
+                "Time window used to evaluate the condition.",
+              )}
+            </div>
+            <div class="relative">
+              <Input
+                id="alert-window"
+                type="number"
+                bind:value={form.windowMinutes}
+                min={1}
+                max={1440}
+                class="pr-20"
+              />
+              <span
+                class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground"
+                >minutes</span
+              >
+            </div>
+          </div>
+          <div class="grid content-start gap-2">
+            <div class="flex items-center gap-1">
+              <label
+                class="text-sm font-medium text-foreground"
+                for="alert-renotify">Repeat notification every</label
+              >
+              {@render fieldHelp(
+                "Repeat notifications",
+                "Repeat notifications while the incident is open. Leave empty to disable.",
+              )}
+            </div>
+            <div class="relative">
+              <Input
+                id="alert-renotify"
+                type="number"
+                value={form.renotifyMinutes ?? ""}
+                oninput={(event) => {
+                  const nextValue = Number(
+                    (event.currentTarget as HTMLInputElement).value,
+                  );
+                  form.renotifyMinutes =
+                    Number.isFinite(nextValue) && nextValue > 0
+                      ? nextValue
+                      : null;
+                }}
+                min={1}
+                max={10080}
+                placeholder="Disabled"
+                class="pr-20"
+              />
+              <span
+                class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground"
+                >minutes</span
+              >
+            </div>
+          </div>
+        </div>
+      </section>
+    </Tabs.Content>
+    <Tabs.Content value="scope" class="w-full max-w-4xl px-3 py-6 sm:px-5">
+      <section id="scout-scope-fields" class="space-y-5">
+        {#if !form.metricName}
+          <p class="text-sm text-muted-foreground">
+            Choose a metric in Condition to add filters.
+          </p>
+        {/if}
+        {#if filterRows.length}
+          <div class="space-y-6">
+            {#each filterRows as filter (`${filter.group ?? "attribute"}:${filter.key}`)}
+              <div
+                class="grid gap-3 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4"
+              >
+                <div class="flex min-w-0 items-start gap-1 sm:pt-1">
+                  <span
+                    class="min-w-0 flex-1 py-1 text-sm font-medium break-all"
+                    >{filter.key}</span
+                  >
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Remove ${filter.key} filter`}
+                    onclick={() => {
+                      if (filter.group) {
+                        form.scope[filter.group] = { include: [], exclude: [] };
+                        addedScopeFilters = addedScopeFilters.filter(
+                          (key) => key !== filter.key,
+                        );
+                      } else delete form.metricAttributeFilters[filter.key];
+                    }}><IconX /></Button
+                  >
+                </div>
+                <div class="min-w-0 space-y-3">
+                  {#each ["include", "exclude"] as const as mode}
+                    <div
+                      class="grid min-w-0 grid-cols-[5.5rem_minmax(0,1fr)] items-start gap-2"
+                    >
+                      <span class="pt-2 text-sm text-secondary-foreground"
+                        >{mode === "include" ? "Only include" : "Exclude"}</span
+                      >
+                      <ScopeValuePicker
+                        metricName={form.metricName ?? undefined}
+                        group="attributeValues"
+                        attributeKey={filter.key}
+                        label={`${mode === "include" ? "Include" : "Exclude"} ${filter.key}`}
+                        placeholder={filter.values[mode].length
+                          ? "Add values..."
+                          : mode === "include"
+                            ? "All values"
+                            : "None excluded"}
+                        bind:values={filter.values[mode]}
+                      />
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+        {#if choosingFilter && form.metricName}
+          <div class="flex items-start gap-2">
+            <div class="min-w-0 flex-1">
+              <MetricPicker
+                kind="attributeKeys"
+                metricName={form.metricName}
+                label="Choose a filter attribute"
+                focusOnMount
+                excludeValues={filterRows.map((filter) => filter.key)}
+                onSelect={(key) => {
+                  const scope = scopeAttributes.find(
+                    (attribute) => attribute.key === key,
+                  );
+                  if (scope)
+                    addedScopeFilters = [
+                      ...new Set([...addedScopeFilters, key]),
+                    ];
+                  else if (!Object.hasOwn(form.metricAttributeFilters, key))
+                    form.metricAttributeFilters = {
+                      ...form.metricAttributeFilters,
+                      [key]: { include: [], exclude: [] },
+                    };
+                  choosingFilter = false;
+                }}
+              />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Cancel adding filter"
+              onclick={() => {
+                choosingFilter = false;
+              }}><IconX /></Button
+            >
+          </div>
+        {:else}
+          <Button
+            variant="outline"
+            class="h-14 w-full border-dashed bg-transparent text-secondary-foreground shadow-none not-disabled:inset-shadow-none"
+            disabled={!form.metricName ||
+              Object.keys(form.metricAttributeFilters).length >= 20}
+            onclick={() => {
+              choosingFilter = true;
+            }}
+          >
+            <IconPlus data-slot="button-icon" /> Add filter
+          </Button>
+        {/if}
+      </section>
+    </Tabs.Content>
+    <Tabs.Content
+      value="notifications"
+      class="w-full max-w-4xl px-3 py-6 sm:px-5"
+    >
+      <section id="scout-destination-fields" class="max-w-2xl space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h3 class="text-sm font-medium">Send notifications to</h3>
+          {#if notificationSettingsHref}
+            <Button variant="ghost" size="sm" href={notificationSettingsHref}>
+              Manage destinations <IconArrowUpRight data-slot="button-icon" />
+            </Button>
           {/if}
         </div>
-        {#if scopeGroups.length > 0}
-          <Collapsible.Content class="pt-3">
-            <div class="grid gap-3 md:grid-cols-2">
-              {#each scopeGroups as group}
-                <div class="grid gap-3 rounded-lg border bg-muted/20 p-3">
-                  <div class="space-y-1">
-                    <h3 class="text-sm font-medium text-foreground">
-                      {group.label}
-                    </h3>
-                    <p class="text-sm text-muted-foreground">
-                      {group.description}
-                    </p>
-                  </div>
-                  <div class="grid gap-3 sm:grid-cols-2">
-                    <label class="grid gap-2">
-                      <span class="text-sm font-medium text-foreground"
-                        >Include</span
-                      >
-                      <Input
-                        value={getScopeValue(
-                          group.key as keyof typeof form.scope,
-                          "include",
-                        )}
-                        oninput={(event) =>
-                          setScopeValues(
-                            group.key as keyof typeof form.scope,
-                            "include",
-                            (event.currentTarget as HTMLInputElement).value,
-                          )}
-                        placeholder={group.includePlaceholder}
-                      />
-                    </label>
-                    <label class="grid gap-2">
-                      <span class="text-sm font-medium text-foreground"
-                        >Exclude</span
-                      >
-                      <Input
-                        value={getScopeValue(
-                          group.key as keyof typeof form.scope,
-                          "exclude",
-                        )}
-                        oninput={(event) =>
-                          setScopeValues(
-                            group.key as keyof typeof form.scope,
-                            "exclude",
-                            (event.currentTarget as HTMLInputElement).value,
-                          )}
-                        placeholder={group.excludePlaceholder}
-                      />
-                    </label>
-                  </div>
-                </div>
-              {/each}
-            </div>
-          </Collapsible.Content>
-        {/if}
-      </Collapsible.Root>
-    </CardContent>
-  </Card>
-
-  <Card>
-    <CardHeader class="gap-1 pb-2">
-      <CardTitle>Notifications</CardTitle>
-      <CardDescription
-        >Choose where to send a notification when this rule fires.</CardDescription
-      >
-    </CardHeader>
-    <CardContent class="grid gap-2">
-      {#if destinations.length === 0}
-        <div
-          class="rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground"
-        >
-          No notification destinations yet. Add one in settings before attaching
-          it to a rule.
-        </div>
-      {:else}
-        {#each destinations as destination}
-          <label
-            class="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5"
-          >
-            <div class="flex items-center gap-3">
-              <Checkbox
-                checked={form.destinationIds.includes(destination.id)}
-                onCheckedChange={(checked) =>
-                  toggleDestination(destination.id, Boolean(checked))}
-              />
-              <div class="space-y-1">
-                <p class="text-sm font-medium text-foreground">
-                  {destination.name}
-                </p>
-                <p class="text-xs text-muted-foreground">
-                  {destination.kind === "webhook"
-                    ? "Webhook"
-                    : destination.kind === "slack"
-                      ? "Slack"
-                      : "Email"} · {destination.isEnabled
-                    ? "Enabled"
-                    : "Disabled"}
-                </p>
-              </div>
-            </div>
-            {#if !destination.isEnabled}
-              <Badge variant="outline">Disabled</Badge>
+        {#if destinations.length === 0}
+          <div class="space-y-3 py-4">
+            <p class="text-sm text-muted-foreground">
+              No notification destinations yet.
+            </p>
+            {#if notificationSettingsHref}
+              <Button
+                variant="outline"
+                size="sm"
+                href={`${notificationSettingsHref}?create=1`}
+                >Add a destination</Button
+              >
             {/if}
-          </label>
-        {/each}
-      {/if}
-    </CardContent>
-  </Card>
-
-  <div class="flex items-center justify-end gap-2">
-    <Button href={`/a/${page.params.app_id}/alerts`} variant="outline"
-      >Cancel</Button
-    >
-    <Button loading={submitting} onclick={submit}>
-      {submitLabel}
-    </Button>
-  </div>
+          </div>
+        {:else}
+          <div>
+            {#each destinations as destination}
+              <label
+                class="flex cursor-pointer items-center gap-3 border-b py-3 last:border-b-0"
+                class:opacity-50={!destination.isEnabled}
+              >
+                <Checkbox
+                  aria-label={`Notify ${destination.name}`}
+                  checked={form.destinationIds.includes(destination.id)}
+                  disabled={!destination.isEnabled &&
+                    !form.destinationIds.includes(destination.id)}
+                  onCheckedChange={(checked) =>
+                    toggleDestination(destination.id, Boolean(checked))}
+                />
+                {#if destination.kind === "webhook"}<IconWebhook
+                    class="size-4 shrink-0 text-muted-foreground"
+                  />
+                {:else if destination.kind === "slack"}<IconBrandSlack
+                    class="size-4 shrink-0 text-muted-foreground"
+                  />
+                {:else}<IconMail
+                    class="size-4 shrink-0 text-muted-foreground"
+                  />{/if}
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium">{destination.name}</p>
+                  {#if destination.detail}<p
+                      class="truncate text-sm text-muted-foreground"
+                    >
+                      {destination.detail}
+                    </p>{/if}
+                </div>
+                <span class="shrink-0 text-sm text-muted-foreground"
+                  >{!destination.isEnabled
+                    ? "Disabled"
+                    : destination.kind === "webhook"
+                      ? "Webhook"
+                      : destination.kind === "slack"
+                        ? "Slack"
+                        : "Email"}</span
+                >
+              </label>
+            {/each}
+          </div>
+        {/if}
+      </section>
+    </Tabs.Content>
+  </Tabs.Root>
 </div>

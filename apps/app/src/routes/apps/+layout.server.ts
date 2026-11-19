@@ -51,5 +51,6 @@ export const load = (async (event) => {
 
   return {
     activeOrganizationId,
+    organizations,
   };
 }) satisfies LayoutServerLoad;

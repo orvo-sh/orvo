@@ -2,8 +2,12 @@
   import { goto, invalidateAll } from "$app/navigation";
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
-  import { alertSignalOptions } from "$lib/alerts";
   import {
+    getMetricAggregationOptions,
+    isUtilizationRatio,
+  } from "$lib/metric-definitions";
+  import {
+    createAlertRuleDraftCommand,
     deleteAlertRuleCommand,
     setAlertRuleEnabledCommand,
   } from "$lib/api/alert-rules.remote";
@@ -34,12 +38,18 @@
   type AlertRule = {
     id: string;
     name: string;
-    signalType: string;
     comparator: string;
     threshold: number;
     windowMinutes: number;
     renotifyMinutes: number | null;
     isEnabled: boolean;
+    isDraft: boolean;
+    lastEvaluationStatus: string | null;
+    metricType: string | null;
+    metricIsMonotonic: boolean;
+    metricName: string | null;
+    metricAggregation: string | null;
+    metricUnit: string | null;
     lastTriggeredAt: Date | null;
     openIncident: {
       id: string;
@@ -48,6 +58,26 @@
     } | null;
     openIncidentCount: number;
     destinationCount: number;
+  };
+
+  let creating = $state(false);
+  const createRule = async () => {
+    if (creating) return;
+    creating = true;
+    try {
+      const result = await createAlertRuleDraftCommand();
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      await goto(`/a/${page.params.app_id}/alerts/${result.data.id}`, {
+        state: { newAlertRule: true },
+      });
+    } catch {
+      toast.error("Failed to create alert rule draft.");
+    } finally {
+      creating = false;
+    }
   };
 
   let error = $state("");
@@ -64,36 +94,20 @@
       : [];
   });
 
-  const signalLabels = Object.fromEntries(
-    alertSignalOptions.map((option) => [option.value, option.label]),
-  );
   const comparatorSymbols: Record<string, string> = {
     gt: ">",
     gte: "≥",
     lt: "<",
     lte: "≤",
   };
-  const signalUnits: Record<string, string> = {
-    error_rate: "%",
-    latency_p95_ms: "ms",
-    latency_p99_ms: "ms",
-    apdex: "",
-    throughput_per_min: "/min",
-    availability_percent: "%",
-    container_cpu_utilization: "%",
-    container_memory_utilization: "%",
-    container_reporting_stale: "m",
-    host_cpu_utilization: "%",
-    host_memory_utilization: "%",
-    host_filesystem_utilization: "%",
-    host_reporting_stale: "m",
-  };
-
   const stats = $derived({
     total: rules.length,
     incidents: rules.filter((rule) => rule.openIncidentCount > 0).length,
     healthy: rules.filter(
-      (rule) => rule.isEnabled && rule.openIncidentCount === 0,
+      (rule) =>
+        rule.isEnabled &&
+        rule.openIncidentCount === 0 &&
+        rule.lastEvaluationStatus === "ok",
     ).length,
     disabled: rules.filter((rule) => !rule.isEnabled).length,
   });
@@ -103,7 +117,11 @@
       .filter((rule) => {
         if (tab === "incident") return rule.openIncidentCount > 0;
         if (tab === "healthy")
-          return rule.isEnabled && rule.openIncidentCount === 0;
+          return (
+            rule.isEnabled &&
+            rule.openIncidentCount === 0 &&
+            rule.lastEvaluationStatus === "ok"
+          );
         if (tab === "disabled") return !rule.isEnabled;
         return true;
       })
@@ -115,8 +133,24 @@
 
   const visibleRules = $derived.by(() => filteredRules(activeTab));
 
-  const formatCondition = (rule: AlertRule) =>
-    `${signalLabels[rule.signalType] ?? rule.signalType} ${comparatorSymbols[rule.comparator] ?? rule.comparator} ${rule.threshold}${signalUnits[rule.signalType] ?? ""} · ${rule.windowMinutes}m window`;
+  const formatCondition = (rule: AlertRule) => {
+    if (rule.isDraft) return "Finish configuring this rule";
+    const aggregation =
+      getMetricAggregationOptions({
+        name: rule.metricName ?? "",
+        type: rule.metricType ?? "gauge",
+        isMonotonic: rule.metricIsMonotonic,
+      }).find((option) => option.value === rule.metricAggregation)?.label ??
+      "Value";
+    const ratio = isUtilizationRatio(rule.metricName, rule.metricUnit);
+    const threshold = ratio ? rule.threshold * 100 : rule.threshold;
+    const unit = ratio
+      ? "%"
+      : rule.metricUnit === "1"
+        ? ""
+        : (rule.metricUnit?.replace(/[{}]/g, "") ?? "");
+    return `${rule.metricName ?? "Metric"} · ${aggregation} ${comparatorSymbols[rule.comparator]} ${threshold}${unit} · over ${rule.windowMinutes} minutes`;
+  };
 
   const toggleRule = async (rule: AlertRule) => {
     togglingRuleId = rule.id;
@@ -162,9 +196,9 @@
 
 <PageContainer title="Alerts" contentClass="min-h-0 gap-2 overflow-hidden p-0!">
   {#snippet actions()}
-    <Button href={`/a/${page.params.app_id}/alerts/new`}>
+    <Button loading={creating} onclick={createRule}>
       <IconPlus data-slot="button-icon" />
-      New rule
+      Create rule
     </Button>
   {/snippet}
 
@@ -236,7 +270,7 @@
                   <div
                     class="flex flex-wrap items-center gap-2 text-sm font-medium"
                   >
-                    {rule.name}
+                    {rule.name || "Untitled rule"}
                     {#if rule.openIncidentCount > 0}
                       <Badge
                         variant="outline"
@@ -246,6 +280,12 @@
                         {rule.openIncidentCount === 1
                           ? "Open incident"
                           : `${rule.openIncidentCount} open incidents`}
+                      </Badge>
+                    {:else if rule.isEnabled && rule.lastEvaluationStatus !== "ok"}
+                      <Badge variant="outline" class="text-muted-foreground">
+                        {rule.lastEvaluationStatus === "no_data"
+                          ? "No data"
+                          : "Awaiting evaluation"}
                       </Badge>
                     {:else if rule.isEnabled}
                       <Badge
@@ -261,7 +301,7 @@
                         class="gap-0.5 border-muted-foreground/20 bg-muted-foreground/7 pr-1.5 pl-0.75 text-muted-foreground"
                       >
                         <IconCircle class="size-2.5" />
-                        Disabled
+                        {rule.isDraft ? "Draft" : "Disabled"}
                       </Badge>
                     {/if}
                   </div>
@@ -287,7 +327,7 @@
                         {...props}
                         variant="ghost"
                         size="icon-sm"
-                        aria-label={`Actions for ${rule.name}`}
+                        aria-label={`Actions for ${rule.name || "Untitled rule"}`}
                       >
                         <IconDots />
                       </Button>
@@ -304,7 +344,7 @@
                       Edit rule
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
-                      disabled={togglingRuleId === rule.id}
+                      disabled={togglingRuleId === rule.id || rule.isDraft}
                       onSelect={() => void toggleRule(rule)}
                     >
                       <IconActivity />

@@ -22,6 +22,8 @@ export const load = (async (event) => {
   });
 
   return {
+    user: g.auth.user,
+    apps: appsResult.success ? appsResult.data.apps : [],
     hasApps: appsResult.success ? appsResult.data.apps.length > 0 : false,
     trialStarted: event.url.searchParams.get("trial") === "started",
   };

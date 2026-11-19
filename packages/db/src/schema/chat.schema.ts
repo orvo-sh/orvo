@@ -21,7 +21,9 @@ const chatContextKind = pgEnum('chat_context_kind', [
   'log',
   'metric',
   'incident',
-  'heartbeat'
+  'heartbeat',
+  'alert_rule',
+  'dashboard'
 ]);
 const chatMessageRole = pgEnum('chat_message_role', ['system', 'user', 'assistant']);
 

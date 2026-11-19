@@ -2,7 +2,6 @@ import type { createServerContainer } from "$lib/server/container";
 import type { Session, User } from "better-auth";
 
 declare global {
-
   interface Window {
     sey?: {
       identify: (payload: {
@@ -17,6 +16,9 @@ declare global {
   type Nullable<T> = T | null;
 
   namespace App {
+    interface PageState {
+      newAlertRule?: boolean;
+    }
     interface Locals {
       container: ReturnType<typeof createServerContainer>;
       auth?: {
@@ -32,5 +34,4 @@ declare global {
 declare module "d3-force";
 declare module "d3-scale";
 
-export { };
-
+export {};

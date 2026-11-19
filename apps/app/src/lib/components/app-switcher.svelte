@@ -10,6 +10,7 @@
   import { Input } from "@repo/components/ui/input";
   import * as Popover from "@repo/components/ui/popover";
   import {
+    IconBox,
     IconCheck,
     IconCircleX,
     IconPlus,
@@ -26,7 +27,7 @@
       name: string;
       logo: string | null;
     }[];
-    currentAppId: string;
+    currentAppId?: string;
   } = $props();
 
   let search = $state("");
@@ -35,21 +36,30 @@
 <Popover.Root>
   <Popover.Trigger
     class={buttonVariants({ variant: "ghost", class: "max-w-full" })}
+    disabled={apps.length === 0}
   >
-    {@const activeApp = apps.find((app) => app.id === currentAppId)!}
-    <Avatar size="xs" class="after:rounded-xs">
-      <AvatarImage
-        src={activeApp.logo ?? undefined}
-        alt={activeApp.name}
-        class="rounded-xs object-cover"
-      />
-      <AvatarFallback
-        id={activeApp.id}
-        name={activeApp.name}
-        class="rounded-xs text-[0.7rem]"
-      />
+    {@const activeApp = apps.find((app) => app.id === currentAppId)}
+    <Avatar size="xs" class={activeApp ? "after:rounded-xs" : "after:border-0"}>
+      {#if activeApp}
+        <AvatarImage
+          src={activeApp.logo ?? undefined}
+          alt={activeApp.name}
+          class="rounded-xs object-cover"
+        />
+        <AvatarFallback
+          id={activeApp.id}
+          name={activeApp.name}
+          class="rounded-xs text-[0.7rem]"
+        />
+      {:else}
+        <AvatarFallback class="rounded-xs bg-foreground/10!">
+          <IconBox class="size-3" />
+        </AvatarFallback>
+      {/if}
     </Avatar>
-    <span class="truncate">{activeApp.name}</span>
+    <span class={cn("truncate", !activeApp && "text-secondary-foreground")}>
+      {activeApp?.name ?? "Choose app..."}
+    </span>
     <IconSelector class="shrink-0" />
   </Popover.Trigger>
 

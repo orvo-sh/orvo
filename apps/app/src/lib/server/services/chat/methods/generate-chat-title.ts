@@ -1,3 +1,4 @@
+import { createScoutTelemetry } from "../telemetry";
 import { recordError } from "$lib/instrumentation";
 import type { Logger } from "@repo/logger";
 import { generateText, type LanguageModel, type UIMessage } from "ai";
@@ -18,10 +19,12 @@ const createGenerateChatTitle =
     model,
     logger,
     generate = generateText,
+    telemetryIdentity,
   }: {
     model: LanguageModel;
     logger: Logger;
     generate?: typeof generateText;
+    telemetryIdentity: Parameters<typeof createScoutTelemetry>[1];
   }) =>
   async (messages: UIMessage[]) => {
     const firstUserMessage = messages.find(
@@ -41,6 +44,7 @@ const createGenerateChatTitle =
     try {
       const result = await generate({
         model,
+        onStepEnd: createScoutTelemetry("title", telemetryIdentity),
         system: `Generate a concise title for an observability assistant conversation.
 
 Rules:

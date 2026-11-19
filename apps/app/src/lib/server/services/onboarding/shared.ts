@@ -118,8 +118,4 @@ const buildTestMetricPayload = () => {
   };
 };
 
-export {
-  buildTestLogPayload,
-  buildTestMetricPayload,
-  buildTestTracePayload,
-};
+export { buildTestLogPayload, buildTestMetricPayload, buildTestTracePayload };

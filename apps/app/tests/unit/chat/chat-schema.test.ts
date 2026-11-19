@@ -49,6 +49,22 @@ describe("chat request limits", () => {
     ).toBe(true);
   });
 
+  it("accepts alert rule context for drafting and editing", () => {
+    expect(
+      chatContextInputSchema.safeParse({
+        kind: "alert_rule",
+        resourceId: "alrt-1",
+        label: "Untitled rule",
+        metadata: {
+          isDraft: true,
+          metricName: "$request.error_rate",
+          threshold: 5,
+          instruction: "Help configure this existing rule.",
+        },
+      }).success,
+    ).toBe(true);
+  });
+
   it("accepts only one user or assistant message per stream request", () => {
     expect(
       streamChatInputSchema.safeParse({

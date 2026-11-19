@@ -46,7 +46,7 @@ describe("Slack integration helpers", () => {
         app: { id: "app_1", name: "Production" },
         rule: {
           name: "High error rate",
-          signalType: "error_rate",
+          metricName: "$request.error_rate",
           comparator: "gt",
           threshold: 5,
           windowMinutes: 5,

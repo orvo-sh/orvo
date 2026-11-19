@@ -94,7 +94,22 @@
     <div
       class="text-muted-foreground mx-auto flex max-w-6xl flex-col gap-2 px-3 py-5 text-xs sm:flex-row sm:items-center sm:justify-between sm:px-6"
     >
-      <p>© {new Date().getFullYear()} Orvo</p>
+      <p>© {new Date().getFullYear()} Sopeasy, LLC</p>
+      <nav aria-label="Legal" class="flex flex-wrap gap-x-4 gap-y-2">
+        <a
+          href={resolve('/legal/[page]', { page: 'terms-of-service' })}
+          class="hover:text-foreground"
+        >
+          Terms of service
+        </a>
+        <a
+          href={resolve('/legal/[page]', { page: 'privacy-policy' })}
+          class="hover:text-foreground"
+        >
+          Privacy policy
+        </a>
+        <a href={resolve('/legal/[page]', { page: 'dpa' })} class="hover:text-foreground"> DPA </a>
+      </nav>
       <p>Licensed under AGPL-3.0</p>
     </div>
   </div>

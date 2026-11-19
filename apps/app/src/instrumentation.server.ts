@@ -1,3 +1,4 @@
+import { createSelfTelemetrySampler } from "$lib/server/self-telemetry-sampler";
 import { dev } from "$app/environment";
 import { env } from "$env/dynamic/private";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
@@ -39,6 +40,7 @@ if (orvoOtlpBaseUrl && orvoIngestKey) {
   const sdk = new NodeSDK({
     serviceName: "orvo-app-server",
     resource,
+    sampler: createSelfTelemetrySampler(),
     traceExporter: new OTLPTraceExporter({
       url: new URL("/v1/traces", orvoOtlpBaseUrl).toString(),
       headers: {

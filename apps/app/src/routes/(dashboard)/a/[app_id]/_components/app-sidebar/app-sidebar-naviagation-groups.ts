@@ -25,7 +25,7 @@ type NavigationGroup = {
   }[];
 };
 
-const generateAppNavigationGroups = (appId: string): NavigationGroup[] => {
+const generateAppNavigationGroups = (appId: string, dashboards: { id: string; name: string; pinned: boolean }[] = []): NavigationGroup[] => {
   return [
     {
       label: "",
@@ -34,6 +34,12 @@ const generateAppNavigationGroups = (appId: string): NavigationGroup[] => {
           href: `/a/${appId}/overview`,
           label: "Overview",
           icon: IconSphere2,
+        },
+        {
+          href: `/a/${appId}/dashboards`,
+          label: "Dashboards",
+          icon: IconLayoutGrid,
+          submenu: dashboards.filter((dashboard) => dashboard.pinned).toSorted((a, b) => a.name.localeCompare(b.name)).map((dashboard) => ({ href: `/a/${appId}/dashboards/${dashboard.id}`, label: dashboard.name })),
         },
         {
           href: `/a/${appId}/incidents`,

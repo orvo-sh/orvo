@@ -1,7 +1,14 @@
+import {
+  getDefaultMetricAggregation,
+  getMetricAggregationOptions,
+} from "$lib/metric-definitions";
+import { resolveTimeFilter } from "$lib/core/time-filter";
 import type { LogTimeFilter, LogTimePreset } from "../logs/types";
 import type { MetricAggregation, MetricCatalogItem } from "./types";
 
 const metricsTimePresets = [
+  "last_30_minutes",
+  "last_4_hours",
   "last_hour",
   "today",
   "last_24_hours",
@@ -32,7 +39,7 @@ const createDefaultMetricsTimeFilter = (): LogTimeFilter => ({
 });
 
 const isMetricsTimePreset = (value: string): value is LogTimePreset =>
-  metricsTimePresets.includes(value as LogTimePreset);
+  (metricsTimePresets as readonly string[]).includes(value);
 
 const isMetricAggregation = (value: string): value is MetricAggregation =>
   metricAggregationValues.includes(value as MetricAggregation);
@@ -55,8 +62,8 @@ const resolveMetricsStateFromSearchParams = (
     !Number.isNaN(new Date(endAtUtc).getTime())
       ? ({
           kind: "range",
-          startAtUtc,
-          endAtUtc,
+          start: startAtUtc,
+          end: endAtUtc,
         } as const)
       : preset && isMetricsTimePreset(preset)
         ? ({
@@ -83,8 +90,8 @@ const createMetricsStateSearchParams = (input: {
   const searchParams = new URLSearchParams();
 
   if (input.time.kind === "range") {
-    searchParams.set("start", input.time.startAtUtc);
-    searchParams.set("end", input.time.endAtUtc);
+    searchParams.set("start", input.time.start);
+    searchParams.set("end", input.time.end);
   } else {
     searchParams.set("preset", input.time.preset);
   }
@@ -104,51 +111,8 @@ const createMetricsStateSearchParams = (input: {
   return searchParams;
 };
 
-const resolveMetricsTimeRange = (time: LogTimeFilter) => {
-  const now = new Date();
-
-  if (time.kind === "range") {
-    return {
-      start: new Date(time.startAtUtc),
-      end: new Date(time.endAtUtc),
-    };
-  }
-
-  switch (time.preset) {
-    case "last_hour":
-      return { start: new Date(now.getTime() - 60 * 60 * 1000), end: now };
-    case "today": {
-      const start = new Date(now);
-      start.setHours(0, 0, 0, 0);
-      return { start, end: now };
-    }
-    case "last_24_hours":
-      return {
-        start: new Date(now.getTime() - 24 * 60 * 60 * 1000),
-        end: now,
-      };
-    case "last_3_days":
-      return {
-        start: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
-        end: now,
-      };
-    case "last_7_days":
-      return {
-        start: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
-        end: now,
-      };
-    case "last_2_weeks":
-      return {
-        start: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000),
-        end: now,
-      };
-    case "last_month":
-      return {
-        start: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
-        end: now,
-      };
-  }
-};
+const resolveMetricsTimeRange = (time: LogTimeFilter) =>
+  resolveTimeFilter(time);
 
 const resolveMetricsBucketCount = (time: LogTimeFilter) => {
   const MIN_BUCKET_COUNT = 24;
@@ -177,64 +141,13 @@ const resolveMetricsBucketCount = (time: LogTimeFilter) => {
   );
 };
 
-const resolveMetricAggregationOptions = (metric: MetricCatalogItem | null) => {
-  if (!metric) {
-    return [{ value: "avg", label: "avg" }] as const;
-  }
+const resolveMetricAggregationOptions = (metric: MetricCatalogItem | null) =>
+  metric
+    ? getMetricAggregationOptions(metric)
+    : [{ value: "avg" as const, label: "Average" }];
 
-  if (metric.type === "histogram") {
-    return [
-      { value: "p50", label: "p50" },
-      { value: "p95", label: "p95" },
-      { value: "p99", label: "p99" },
-      { value: "avg", label: "avg" },
-      { value: "max", label: "max" },
-      { value: "count", label: "count" },
-    ] as const;
-  }
-
-  if (metric.type === "sum" && metric.isMonotonic) {
-    return [
-      { value: "rate_per_sec", label: "rate/sec" },
-      { value: "rate_per_min", label: "rate/min" },
-      { value: "increase", label: "increase" },
-      { value: "total", label: "total" },
-    ] as const;
-  }
-
-  return [
-    { value: "current", label: "current" },
-    { value: "avg", label: "avg" },
-    { value: "min", label: "min" },
-    { value: "max", label: "max" },
-  ] as const;
-};
-
-const resolveDefaultMetricAggregation = (metric: MetricCatalogItem) => {
-  const normalizedName = metric.name.toLowerCase();
-
-  if (metric.type === "histogram") {
-    return "p95" satisfies MetricAggregation;
-  }
-
-  if (metric.type === "sum" && metric.isMonotonic) {
-    if (normalizedName.includes("error") || normalizedName.includes("errors")) {
-      return "rate_per_min" satisfies MetricAggregation;
-    }
-
-    return "rate_per_sec" satisfies MetricAggregation;
-  }
-
-  if (normalizedName.includes("memory")) {
-    return "current" satisfies MetricAggregation;
-  }
-
-  if (normalizedName.includes("cpu")) {
-    return "avg" satisfies MetricAggregation;
-  }
-
-  return metric.type === "gauge" ? "current" : "avg";
-};
+const resolveDefaultMetricAggregation = (metric: MetricCatalogItem) =>
+  getDefaultMetricAggregation(metric);
 
 const encodeMetricName = (metricName: string) => encodeURIComponent(metricName);
 

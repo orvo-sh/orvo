@@ -134,7 +134,14 @@
         </Field>
 
         <Field>
-          <FieldLabel for="sign-in-password">Password</FieldLabel>
+          <div class="flex items-center justify-between gap-3">
+            <FieldLabel for="sign-in-password">Password</FieldLabel>
+            <a
+              id="forgot-password-link"
+              href={`/forgot-password?callback=${encodeURIComponent(data.callback)}`}
+              class="text-sm text-primary hover:underline"
+            >Forgot password?</a>
+          </div>
           <Input
             id="sign-in-password"
             type="password"

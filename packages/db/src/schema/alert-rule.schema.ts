@@ -3,6 +3,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   real,
@@ -12,18 +13,6 @@ import {
 
 import { app } from './app.schema.js';
 import { user } from './user.schema.js';
-
-const alertSignalType = pgEnum('alert_signal_type', [
-  'error_rate',
-  'latency_p95_ms',
-  'latency_p99_ms',
-  'apdex',
-  'throughput_per_min',
-  'availability_percent',
-  'container_cpu_utilization',
-  'container_memory_utilization',
-  'container_reporting_stale'
-]);
 
 const alertComparator = pgEnum('alert_comparator', ['gt', 'gte', 'lt', 'lte']);
 
@@ -35,12 +24,19 @@ const alertRule = pgTable(
       .notNull()
       .references(() => app.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    signalType: alertSignalType('signal_type').notNull(),
+    metricType: text('metric_type'),
+    metricIsMonotonic: boolean('metric_is_monotonic').notNull().default(false),
+    metricName: text('metric_name'),
+    metricAggregation: text('metric_aggregation'),
+    metricUnit: text('metric_unit'),
+    metricAttributeFilters: jsonb('metric_attribute_filters')
+      .$type<Record<string, { include: string[]; exclude: string[] }>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     comparator: alertComparator('comparator').notNull(),
     threshold: real('threshold').notNull(),
     windowMinutes: integer('window_minutes').notNull(),
     renotifyMinutes: integer('renotify_minutes'),
-    apdexTargetMs: integer('apdex_target_ms'),
     scopeServicesInclude: text('scope_services_include')
       .array()
       .notNull()
@@ -81,10 +77,12 @@ const alertRule = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    isDraft: boolean('is_draft').notNull().default(false),
     isEnabled: boolean('is_enabled').notNull().default(true),
     lastTriggeredAt: timestamp('last_triggered_at'),
     lastResolvedAt: timestamp('last_resolved_at'),
     nextEvaluationAt: timestamp('next_evaluation_at').defaultNow().notNull(),
+    lastEvaluationStatus: text('last_evaluation_status'),
     lastEvaluatedAt: timestamp('last_evaluated_at'),
     evaluationLeaseToken: text('evaluation_lease_token'),
     evaluationLeaseExpiresAt: timestamp('evaluation_lease_expires_at'),
@@ -103,4 +101,4 @@ const alertRule = pgTable(
   ]
 );
 
-export { alertComparator, alertRule, alertSignalType };
+export { alertComparator, alertRule };

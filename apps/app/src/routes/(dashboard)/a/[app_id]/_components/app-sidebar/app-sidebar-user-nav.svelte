@@ -23,7 +23,7 @@
       email: string;
       image?: string | null;
     };
-    settingsHref: string;
+    settingsHref?: string;
   } = $props();
 
   const handleSignOut = async () => {
@@ -32,6 +32,7 @@
   };
 
   const handleBillingNavigation = () => {
+    if (!settingsHref) return;
     const billingHref = settingsHref.startsWith("/a/")
       ? `${settingsHref}/billing`
       : "/settings/billing";
@@ -39,6 +40,7 @@
   };
 
   const handleSettingsNavigation = () => {
+    if (!settingsHref) return;
     const accountHref = settingsHref.startsWith("/a/")
       ? `${settingsHref}/account/profile`
       : "/settings/account/profile";
@@ -124,12 +126,18 @@
           <DropdownMenu.Separator />
 
           <DropdownMenu.Group>
-            <DropdownMenu.Item onSelect={handleSettingsNavigation}>
+            <DropdownMenu.Item
+              onSelect={handleSettingsNavigation}
+              disabled={!settingsHref}
+            >
               <GearIcon />
               Account settings
             </DropdownMenu.Item>
 
-            <DropdownMenu.Item onSelect={handleBillingNavigation}>
+            <DropdownMenu.Item
+              onSelect={handleBillingNavigation}
+              disabled={!settingsHref}
+            >
               <CreditCardIcon />
               Billing
             </DropdownMenu.Item>

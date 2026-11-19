@@ -1,5 +1,9 @@
+import { isDashboardEditorTool } from "$lib/dashboards/editor-schema";
+import type { createDashboardEditorController } from "$lib/dashboards/editor-controller";
+import { isRuleEditorTool } from "$lib/alerts/editor-schema";
+import type { createRuleEditorController } from "$lib/alerts/rule-editor-controller";
 import { browser } from "$app/environment";
-import { goto } from "$app/navigation";
+import { goto, invalidateAll } from "$app/navigation";
 import { resolve } from "$app/paths";
 import { page } from "$app/state";
 import {
@@ -13,6 +17,7 @@ import { Chat } from "@ai-sdk/svelte";
 import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithApprovalResponses,
+  lastAssistantMessageIsCompleteWithToolCalls,
   type FileUIPart,
   type UIMessage,
 } from "ai";
@@ -27,9 +32,16 @@ const contextKey = (context: ChatContextDescriptor) =>
 class ChatState {
   appId: string;
   activeChatId = $state<string | null>(null);
-  context = $state<ChatContextDescriptor | null>(null);
+  // Context descriptors are replaced as a whole. Keep their identity for comparisons.
+  context = $state.raw<ChatContextDescriptor | null>(null);
   railOpen = $state(false);
   conversationsOpen = $state(false);
+  composerPrompt = $state<string | null>(null);
+  dashboardEditorPrompts = $state<Array<{ label: string; prompt: string }>>([]);
+  dashboardEditor: ReturnType<typeof createDashboardEditorController> | null =
+    null;
+  heartbeatPrompts = $state<Array<{ label: string; prompt: string }>>([]);
+  ruleEditorPrompts = $state<Array<{ label: string; prompt: string }>>([]);
   loading = $state(false);
   historyLoading = $state(false);
   historyError = $state<string | null>(null);
@@ -41,6 +53,7 @@ class ChatState {
   sessions = new SvelteMap<string, ChatSession>();
   sessionAccess = new SvelteMap<string, number>();
   sessionSequence = 0;
+  ruleEditor: ReturnType<typeof createRuleEditorController> | null = null;
 
   constructor(appId: string) {
     this.appId = appId;
@@ -287,17 +300,40 @@ class ChatState {
     }
   };
 
-  createSession = (thread: ChatThread, messages: UIMessage[]) => ({
-    thread,
-    client: new Chat<UIMessage>({
+  createSession = (thread: ChatThread, messages: UIMessage[]) => {
+    let requestEditor: typeof this.ruleEditor | typeof this.dashboardEditor =
+      null;
+    const handledCalls = new SvelteMap<string, Promise<unknown>>();
+    let editorQueue = Promise.resolve();
+    const client = new Chat<UIMessage>({
       id: thread.id,
       messages,
       transport: new DefaultChatTransport({
         api: "/api/chat",
-        body: () => ({
-          appId: this.appId,
-          ...(this.context ? { pageContext: this.context } : {}),
-        }),
+        body: () => {
+          requestEditor = this.dashboardEditor ?? this.ruleEditor;
+          return {
+            appId: this.appId,
+            ...(this.context ? { pageContext: this.context } : {}),
+            ...(requestEditor
+              ? {
+                  ...("dashboardId" in requestEditor
+                    ? {
+                        dashboardEditor: {
+                          editorId: requestEditor.editorId,
+                          dashboardId: requestEditor.dashboardId,
+                        },
+                      }
+                    : {
+                        ruleEditor: {
+                          editorId: requestEditor.editorId,
+                          ruleId: requestEditor.ruleId,
+                        },
+                      }),
+                }
+              : {}),
+          };
+        },
         prepareSendMessagesRequest: ({ body, id, messages }) => ({
           body: {
             ...body,
@@ -306,17 +342,101 @@ class ChatState {
           },
         }),
       }),
-      sendAutomaticallyWhen:
-        lastAssistantMessageIsCompleteWithApprovalResponses,
-      onFinish: () => {
+      sendAutomaticallyWhen: (state) => {
+        if (lastAssistantMessageIsCompleteWithApprovalResponses(state))
+          return true;
+        const parts = state.messages.at(-1)?.parts ?? [];
+        const step = parts.reduce(
+          (index, part, current) =>
+            part.type === "step-start" ? current : index,
+          -1,
+        );
+        return (
+          parts.slice(step + 1).some((part) => {
+            const name =
+              part.type === "dynamic-tool"
+                ? part.toolName
+                : part.type.replace(/^tool-/, "");
+            return (
+              (isRuleEditorTool(name) || isDashboardEditorTool(name)) &&
+              "state" in part &&
+              part.state === "output-available"
+            );
+          }) && lastAssistantMessageIsCompleteWithToolCalls(state)
+        );
+      },
+      onToolCall: ({ toolCall }) => {
+        if (
+          !isRuleEditorTool(toolCall.toolName) &&
+          !isDashboardEditorTool(toolCall.toolName)
+        )
+          return;
+        const editor = requestEditor;
+        let action = handledCalls.get(toolCall.toolCallId);
+        if (!action) {
+          action = editorQueue
+            .then(async () => {
+              if (
+                !editor ||
+                (isDashboardEditorTool(toolCall.toolName)
+                  ? this.dashboardEditor !== editor
+                  : this.ruleEditor !== editor) ||
+                this.activeChatId !== thread.id
+              )
+                return {
+                  error:
+                    "The target editor is no longer active. Stop editing this page.",
+                };
+              return editor.execute(toolCall.toolName, toolCall.input);
+            })
+            .catch((error) => ({
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Editor action failed.",
+            }));
+          handledCalls.set(toolCall.toolCallId, action);
+          editorQueue = action.then(() => {});
+        }
+        void action.then((output) => {
+          void client.addToolOutput({
+            tool: toolCall.toolName,
+            toolCallId: toolCall.toolCallId,
+            output,
+          });
+        });
+      },
+      onFinish: ({ message }) => {
+        const changedHeartbeat = message.parts.some((part) => {
+          const name =
+            part.type === "dynamic-tool"
+              ? part.toolName
+              : part.type.replace(/^tool-/, "");
+          return (
+            [
+              "create_heartbeat_monitor",
+              "update_heartbeat_monitor",
+              "toggle_heartbeat_monitor_paused",
+              "regenerate_heartbeat_monitor_secret",
+            ].includes(name) &&
+            "state" in part &&
+            part.state === "output-available" &&
+            "output" in part &&
+            part.output &&
+            typeof part.output === "object" &&
+            !("error" in part.output)
+          );
+        });
+        if (changedHeartbeat) void invalidateAll().catch(() => {});
         void this.loadHistory();
         this.pruneSessions();
       },
       onError: (error) => {
         this.error = error.message || "The response stopped unexpectedly.";
       },
-    }),
-  });
+    });
+    return { thread, client };
+  };
 }
 
 const CHAT_CONTEXT_KEY = Symbol("app-chat");

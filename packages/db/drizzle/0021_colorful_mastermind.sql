@@ -1,0 +1,1 @@
+ALTER TABLE "dashboard" ADD COLUMN "emoji" text DEFAULT '' NOT NULL;

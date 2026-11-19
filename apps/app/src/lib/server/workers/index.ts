@@ -6,6 +6,7 @@ import { suppressTracing } from "@opentelemetry/core";
 import { Logger } from "@repo/logger";
 import { PgBoss } from "pg-boss";
 
+import { AlertRuleDraftCleanupWorker } from "./alert-rule-draft-cleanup-worker";
 import { BillingMeterWorker } from "./billing-meter-worker";
 import { BillingReconciliationWorker } from "./billing-reconciliation-worker";
 import { HeartbeatWorker } from "./heartbeat-worker";
@@ -25,8 +26,7 @@ const ensureWorkersStarted = (logger: Logger) => {
   }
 
   if (!globalWorkers.__orvoWorkerManagerStartPromise) {
-    globalWorkers.__orvoWorkerManagerStartPromise =
-      startCloudWorkers(logger);
+    globalWorkers.__orvoWorkerManagerStartPromise = startCloudWorkers(logger);
   }
 
   return globalWorkers.__orvoWorkerManagerStartPromise;
@@ -50,6 +50,7 @@ const startCloudWorkers = async (logger: Logger) => {
           ),
         ]
       : []),
+    new AlertRuleDraftCleanupWorker(workerLogger, container.db),
     new HeartbeatWorker(workerLogger, container.heartbeatService),
     new ThresholdAlertWorker(
       workerLogger,

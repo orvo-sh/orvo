@@ -1,8 +1,12 @@
 import { Instrument } from "$lib/instrumentation";
+import type { ClickHouse } from "@repo/clickhouse";
 import type { DB, Tx } from "@repo/db";
 import type { Logger } from "@repo/logger";
 import { z } from "zod";
 
+import { createDiscardAlertRuleDraft } from "./methods/discard-alert-rule-draft";
+import { createTouchAlertRuleDraft } from "./methods/touch-alert-rule-draft";
+import { createCreateAlertRuleDraft } from "./methods/create-alert-rule-draft";
 import { createCreateAlertRule } from "./methods/create-alert-rule";
 import { createDeleteAlertRule } from "./methods/delete-alert-rule";
 import { createGetAlertRule } from "./methods/get-alert-rule";
@@ -21,21 +25,41 @@ import {
 @Instrument({ prefix: "alertRule" })
 class AlertRuleService {
   private logger: Logger;
+  private discardAlertRuleDraftMethod: ReturnType<
+    typeof createDiscardAlertRuleDraft
+  >;
+  private touchAlertRuleDraftMethod: ReturnType<
+    typeof createTouchAlertRuleDraft
+  >;
+  private createAlertRuleDraftMethod: ReturnType<
+    typeof createCreateAlertRuleDraft
+  >;
   private getAlertRulesMethod: ReturnType<typeof createGetAlertRules>;
   private getAlertRuleMethod: ReturnType<typeof createGetAlertRule>;
   private createAlertRuleMethod: ReturnType<typeof createCreateAlertRule>;
   private updateAlertRuleMethod: ReturnType<typeof createUpdateAlertRule>;
-  private setAlertRuleEnabledMethod: ReturnType<typeof createSetAlertRuleEnabled>;
+  private setAlertRuleEnabledMethod: ReturnType<
+    typeof createSetAlertRuleEnabled
+  >;
   private deleteAlertRuleMethod: ReturnType<typeof createDeleteAlertRule>;
   private seedDefaultAlertRulesMethod: ReturnType<
     typeof createSeedDefaultAlertRules
   >;
 
-  constructor(
-    db: DB,
-    logger: Logger,
-  ) {
+  constructor(db: DB, logger: Logger, clickhouse?: ClickHouse) {
     this.logger = logger.child("AlertRuleService");
+    this.discardAlertRuleDraftMethod = createDiscardAlertRuleDraft({
+      db,
+      logger: this.logger,
+    });
+    this.touchAlertRuleDraftMethod = createTouchAlertRuleDraft({
+      db,
+      logger: this.logger,
+    });
+    this.createAlertRuleDraftMethod = createCreateAlertRuleDraft({
+      db,
+      logger: this.logger,
+    });
     this.getAlertRulesMethod = createGetAlertRules({
       db,
       logger: this.logger,
@@ -46,10 +70,12 @@ class AlertRuleService {
     });
     this.createAlertRuleMethod = createCreateAlertRule({
       db,
+      clickhouse,
       logger: this.logger,
     });
     this.updateAlertRuleMethod = createUpdateAlertRule({
       db,
+      clickhouse,
       logger: this.logger,
     });
     this.setAlertRuleEnabledMethod = createSetAlertRuleEnabled({
@@ -75,6 +101,24 @@ class AlertRuleService {
     context: { appId: string },
   ) {
     return this.getAlertRuleMethod(input, context);
+  }
+
+  async discardAlertRuleDraft(
+    id: string,
+    context: { appId: string; userId: string },
+  ) {
+    return this.discardAlertRuleDraftMethod(id, context);
+  }
+
+  async touchAlertRuleDraft(
+    id: string,
+    context: { appId: string; userId: string },
+  ) {
+    return this.touchAlertRuleDraftMethod(id, context);
+  }
+
+  async createAlertRuleDraft(context: { appId: string; userId: string }) {
+    return this.createAlertRuleDraftMethod(context);
   }
 
   async createAlertRule(

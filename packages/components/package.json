@@ -156,6 +156,11 @@
       "svelte": "./src/lib/components/ui/breadcrumb/index.ts",
       "default": "./src/lib/components/ui/breadcrumb/index.ts"
     },
+    "./ui/agent-setup-button": {
+      "types": "./src/lib/components/ui/agent-setup-button.svelte",
+      "svelte": "./src/lib/components/ui/agent-setup-button.svelte",
+      "default": "./src/lib/components/ui/agent-setup-button.svelte"
+    },
     "./ui/button": {
       "types": "./src/lib/components/ui/button/index.ts",
       "svelte": "./src/lib/components/ui/button/index.ts",

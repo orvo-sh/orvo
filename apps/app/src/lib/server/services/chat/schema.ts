@@ -1,3 +1,5 @@
+import { dashboardEditorDescriptorSchema } from "$lib/dashboards/editor-schema";
+import { ruleEditorDescriptorSchema } from "$lib/alerts/editor-schema";
 import { z } from "zod";
 
 const chatContextKindSchema = z.enum([
@@ -7,6 +9,8 @@ const chatContextKindSchema = z.enum([
   "metric",
   "incident",
   "heartbeat",
+  "alert_rule",
+  "dashboard",
 ]);
 
 const chatContextInputSchema = z.object({
@@ -41,6 +45,8 @@ const listChatsInputSchema = z.object({
 });
 
 const streamChatInputSchema = z.object({
+  ruleEditor: ruleEditorDescriptorSchema.optional(),
+  dashboardEditor: dashboardEditorDescriptorSchema.optional(),
   id: z.string().trim().min(1),
   pageContext: chatContextInputSchema.optional(),
   message: z

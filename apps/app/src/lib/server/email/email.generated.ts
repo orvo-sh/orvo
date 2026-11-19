@@ -217,12 +217,29 @@ function renderOtpEmail(input: RenderOtpInput): string {
 `;
 }
 
+type RenderResetPasswordInput = {
+	resetUrl: string;
+};
+
+function renderResetPasswordEmail(input: RenderResetPasswordInput): string {
+	return `<!doctype html>
+<html>
+  <body>
+    <p>We received a request to reset your Orvo password.</p>
+    <p><a href="${input.resetUrl}">Reset your password</a></p>
+    <p>This link expires in one hour and can only be used once.</p>
+    <p>If you didn’t request this, you can ignore this email.</p>
+  </body>
+</html>
+`;
+}
+
 type RenderThresholdAlertOpenedInput = {
 	appName: string;
 	entityName: string;
+	metricName: string;
 	observedValue: string;
 	ruleName: string;
-	signalType: string;
 	threshold: string;
 	window: string;
 };
@@ -234,7 +251,7 @@ function renderThresholdAlertOpenedEmail(input: RenderThresholdAlertOpenedInput)
 <body>
   <p>Hey there,</p>
   <p>Orvo opened the alert <b>${input.ruleName}</b> for ${input.appName}.</p>
-  <p>Signal: ${input.signalType}</p>
+  <p>Metric: ${input.metricName}</p>
   <p>Entity: ${input.entityName}</p>
   <p>Observed value: ${input.observedValue}</p>
   <p>Threshold: ${input.threshold}</p>
@@ -249,9 +266,9 @@ function renderThresholdAlertOpenedEmail(input: RenderThresholdAlertOpenedInput)
 type RenderThresholdAlertRenotifiedInput = {
 	appName: string;
 	entityName: string;
+	metricName: string;
 	observedValue: string;
 	ruleName: string;
-	signalType: string;
 	threshold: string;
 	window: string;
 };
@@ -263,7 +280,7 @@ function renderThresholdAlertRenotifiedEmail(input: RenderThresholdAlertRenotifi
 <body>
   <p>Hey there,</p>
   <p>The alert <b>${input.ruleName}</b> for ${input.appName} is still firing.</p>
-  <p>Signal: ${input.signalType}</p>
+  <p>Metric: ${input.metricName}</p>
   <p>Entity: ${input.entityName}</p>
   <p>Observed value: ${input.observedValue}</p>
   <p>Threshold: ${input.threshold}</p>
@@ -278,10 +295,10 @@ function renderThresholdAlertRenotifiedEmail(input: RenderThresholdAlertRenotifi
 type RenderThresholdAlertResolvedInput = {
 	appName: string;
 	entityName: string;
+	metricName: string;
 	observedValue: string;
 	resolvedAt: string;
 	ruleName: string;
-	signalType: string;
 };
 
 function renderThresholdAlertResolvedEmail(input: RenderThresholdAlertResolvedInput): string {
@@ -291,7 +308,7 @@ function renderThresholdAlertResolvedEmail(input: RenderThresholdAlertResolvedIn
 <body>
   <p>Hey there,</p>
   <p>The alert <b>${input.ruleName}</b> for ${input.appName} has resolved.</p>
-  <p>Signal: ${input.signalType}</p>
+  <p>Metric: ${input.metricName}</p>
   <p>Entity: ${input.entityName}</p>
   <p>Last observed value: ${input.observedValue}</p>
   <p>Resolved at: ${input.resolvedAt}</p>
@@ -312,6 +329,7 @@ const templates = {
 	"heartbeat-recovered": renderHeartbeatRecoveredEmail,
 	"invitation": renderInvitationEmail,
 	"otp": renderOtpEmail,
+	"reset-password": renderResetPasswordEmail,
 	"threshold-alert-opened": renderThresholdAlertOpenedEmail,
 	"threshold-alert-renotified": renderThresholdAlertRenotifiedEmail,
 	"threshold-alert-resolved": renderThresholdAlertResolvedEmail,
@@ -327,6 +345,7 @@ type TemplateMap = {
 	"heartbeat-recovered": RenderHeartbeatRecoveredInput;
 	"invitation": RenderInvitationInput;
 	"otp": RenderOtpInput;
+	"reset-password": RenderResetPasswordInput;
 	"threshold-alert-opened": RenderThresholdAlertOpenedInput;
 	"threshold-alert-renotified": RenderThresholdAlertRenotifiedInput;
 	"threshold-alert-resolved": RenderThresholdAlertResolvedInput;
@@ -359,6 +378,8 @@ const renderTemplate = (input: Template): string => {
 			return renderInvitationEmail(input.props);
 		case "otp":
 			return renderOtpEmail(input.props);
+		case "reset-password":
+			return renderResetPasswordEmail(input.props);
 		case "threshold-alert-opened":
 			return renderThresholdAlertOpenedEmail(input.props);
 		case "threshold-alert-renotified":
@@ -378,6 +399,7 @@ export {
 	renderHeartbeatRecoveredEmail,
 	renderInvitationEmail,
 	renderOtpEmail,
+	renderResetPasswordEmail,
 	renderThresholdAlertOpenedEmail,
 	renderThresholdAlertRenotifiedEmail,
 	renderThresholdAlertResolvedEmail,
@@ -395,6 +417,7 @@ export type {
 	RenderHeartbeatRecoveredInput,
 	RenderInvitationInput,
 	RenderOtpInput,
+	RenderResetPasswordInput,
 	RenderThresholdAlertOpenedInput,
 	RenderThresholdAlertRenotifiedInput,
 	RenderThresholdAlertResolvedInput,

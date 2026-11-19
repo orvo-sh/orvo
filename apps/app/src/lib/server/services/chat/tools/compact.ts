@@ -1,3 +1,5 @@
+import { isDashboardEditorTool } from "$lib/dashboards/editor-schema";
+import { isRuleEditorTool } from "$lib/alerts/editor-schema";
 import type { UIMessage } from "ai";
 
 const asRecord = (value: unknown) =>
@@ -451,6 +453,8 @@ const compactToolOutput = (toolName: string, value: unknown) => {
       return {
         data: compactHeartbeat(data?.monitor ?? output.data, true),
       };
+    case "get_heartbeat_check_in_history":
+      return compactValue(value, { maxDepth: 6, maxEntries: 60 });
     case "list_alert_rules":
     case "get_alert_rule":
       return compactValue(value, { maxDepth: 6, maxEntries: 25 });
@@ -511,6 +515,10 @@ const compactMessagesForModel = (messages: UIMessage[]) => {
           "toolName" in part && typeof part.toolName === "string"
             ? part.toolName
             : part.type.replace(/^tool-/, "");
+        if (isRuleEditorTool(toolName) || isDashboardEditorTool(toolName)) {
+          parts.push(part);
+          continue;
+        }
         parts.push({
           ...part,
           ...(typeof part.input === "object" && part.input !== null

@@ -121,7 +121,7 @@
               disabled={loading || name.trim().length < 2}
               class="w-full"
             >
-              {createdOrganizationId ? "Retry trial" : "Create organization"}
+              Create organization
             </Button>
           </Field>
         </FieldGroup>

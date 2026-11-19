@@ -7,7 +7,7 @@ export const load = (async ({ locals, params, parent }) => {
     error(404, "App not found.");
   }
 
-  const [ruleResult, destinationsResult] = await Promise.all([
+  const [ruleResult, destinationsResult, onboardingResult] = await Promise.all([
     locals.container.alertRuleService.getAlertRule(params.rule_id, {
       appId: params.app_id,
     }),
@@ -16,17 +16,28 @@ export const load = (async ({ locals, params, parent }) => {
         appId: params.app_id,
       },
     ),
+    locals.container.onboardingService.getOnboardingProgress({
+      userId: locals.auth!.user.id,
+    }),
   ]);
 
   if (!ruleResult.success) {
-    error(ruleResult.error === "Alert rule not found." ? 404 : 500, ruleResult.error);
+    error(
+      ruleResult.error === "Alert rule not found." ? 404 : 500,
+      ruleResult.error,
+    );
   }
 
   if (!destinationsResult.success) {
     error(500, destinationsResult.error);
   }
 
+  if (!onboardingResult.success) error(500, onboardingResult.error);
+
   return {
+    hasCreatedAlertRule: onboardingResult.data.milestones.includes(
+      "first_alert_rule_created",
+    ),
     rule: ruleResult.data.rule,
     destinations: destinationsResult.data.destinations,
   };

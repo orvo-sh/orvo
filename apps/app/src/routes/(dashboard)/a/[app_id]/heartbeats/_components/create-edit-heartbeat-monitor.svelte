@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { invalidateAll } from "$app/navigation";
+  import { goto, invalidateAll } from "$app/navigation";
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import {
@@ -127,7 +127,17 @@
 
     open = false;
     submitting = false;
-    await invalidateAll();
+    if (!heartbeatMonitor && result.data) {
+      await goto(
+        resolve("/(dashboard)/a/[app_id]/heartbeats/[heartbeat_monitor_id]", {
+          app_id: page.params.app_id!,
+          heartbeat_monitor_id: result.data.id,
+        }),
+        { invalidateAll: true },
+      );
+    } else {
+      await invalidateAll();
+    }
     await onSuccess?.();
     toast.success(
       heartbeatMonitor

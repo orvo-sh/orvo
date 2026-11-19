@@ -2,9 +2,8 @@
   import { goto, invalidateAll } from "$app/navigation";
   import { navigating, page } from "$app/state";
   import { cn } from "@repo/components";
-  import { Button } from "@repo/components/ui/button";
   import { Input } from "@repo/components/ui/input";
-  import { IconFileDescription, IconSearch } from "@tabler/icons-svelte";
+  import { IconSearch } from "@tabler/icons-svelte";
   import LiveRefreshButtonGroup from "../_components/live-refresh-button-group.svelte";
   import PageContainer from "../_components/page-container/page-container.svelte";
   import TimeRangePicker from "../_components/time-range-picker.svelte";
@@ -48,8 +47,8 @@
     if (time.kind === "range") {
       time = {
         kind: "range",
-        startAtUtc: time.startAtUtc,
-        endAtUtc: new Date().toISOString(),
+        start: time.start,
+        end: new Date().toISOString(),
       };
       return;
     }
@@ -80,8 +79,8 @@
     if (time.kind === "range") {
       time = {
         kind: "range",
-        startAtUtc: time.startAtUtc,
-        endAtUtc: new Date().toISOString(),
+        start: time.start,
+        end: new Date().toISOString(),
       };
     }
 
@@ -89,8 +88,8 @@
       if (time.kind === "range") {
         time = {
           kind: "range",
-          startAtUtc: time.startAtUtc,
-          endAtUtc: new Date().toISOString(),
+          start: time.start,
+          end: new Date().toISOString(),
         };
         return;
       }
@@ -129,31 +128,7 @@
     : undefined}
   class="overflow-hidden bg-background"
   contentClass="p-0!"
-  scrollContent={false}
 >
-  {#snippet helper()}
-    <div class="space-y-2">
-      <p>
-        Metrics show how your systems behave over time, from infrastructure
-        health to application throughput and latency.
-      </p>
-      <p>
-        Use this page to inspect one metric at a time, choose the right view for
-        its type, and watch how it changes across your services.
-      </p>
-      <Button
-        href="https://orvo.sh/docs/metrics"
-        size="sm"
-        target="_blank"
-        variant="outline"
-        class="mt-2 w-full"
-      >
-        <IconFileDescription data-slot="button-icon" />
-        Metrics docs
-      </Button>
-    </div>
-  {/snippet}
-
   {#snippet actions()}
     <div class="flex items-center gap-2">
       <TimeRangePicker bind:time />
@@ -208,9 +183,6 @@
               )}
             >
               <span class="min-w-0 truncate text-sm">{metric.name}</span>
-              <span class="shrink-0 text-xs text-muted-foreground">
-                {metric.type || "unknown"}
-              </span>
             </a>
           {/each}
         {/if}

@@ -105,3 +105,39 @@ export const deleteAlertRuleCommand = command(
     });
   },
 );
+
+export const createAlertRuleDraftCommand = command(async () => {
+  const event = getRequestEvent();
+  const appContext = await resolveRequestAppContext(event);
+  if (!appContext.success) return err(appContext.error);
+  return event.locals.container.alertRuleService.createAlertRuleDraft({
+    appId: appContext.data.appId,
+    userId: event.locals.auth!.user.id,
+  });
+});
+
+export const discardAlertRuleDraftCommand = command(
+  getAlertRuleInputSchema,
+  async (id) => {
+    const event = getRequestEvent();
+    const appContext = await resolveRequestAppContext(event);
+    if (!appContext.success) return err(appContext.error);
+    return event.locals.container.alertRuleService.discardAlertRuleDraft(id, {
+      appId: appContext.data.appId,
+      userId: event.locals.auth!.user.id,
+    });
+  },
+);
+
+export const touchAlertRuleDraftCommand = command(
+  getAlertRuleInputSchema,
+  async (id) => {
+    const event = getRequestEvent();
+    const appContext = await resolveRequestAppContext(event);
+    if (!appContext.success) return err(appContext.error);
+    return event.locals.container.alertRuleService.touchAlertRuleDraft(id, {
+      appId: appContext.data.appId,
+      userId: event.locals.auth!.user.id,
+    });
+  },
+);

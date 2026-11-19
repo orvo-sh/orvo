@@ -1,3 +1,4 @@
+import { isUtilizationRatio } from "$lib/metric-definitions";
 import { formatNumber } from "@repo/utils";
 import type { MetricAggregation } from "./types";
 
@@ -5,12 +6,14 @@ const formatMetricValue = (
   value: number | null,
   unit = "",
   aggregation: MetricAggregation = "avg",
+  metricName = "",
 ) => {
   if (value === null || !Number.isFinite(value)) {
-    return "n/a";
+    return "No data";
   }
 
-  if (unit === "%" || unit === "1") {
+  if (isUtilizationRatio(metricName, unit)) value *= 100;
+  if (unit === "%" || isUtilizationRatio(metricName, unit)) {
     return `${value.toFixed(value >= 10 ? 0 : 1)}%`;
   }
 
@@ -33,7 +36,9 @@ const formatMetricValue = (
         ? value.toString()
         : value.toFixed(Math.abs(value) < 10 ? 2 : 1);
 
-  return aggregation === "count" || !unit ? formatted : `${formatted} ${unit}`;
+  return aggregation === "count" || !unit || unit === "1"
+    ? formatted
+    : `${formatted} ${unit.replace(/[{}]/g, "")}`;
 };
 
 const formatBytes = (value: number) => {

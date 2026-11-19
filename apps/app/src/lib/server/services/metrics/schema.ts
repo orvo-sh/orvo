@@ -45,6 +45,46 @@ const metricsQueryFiltersSchema = z.object({
   entityKinds: z.array(metricEntityKindSchema).max(10).default([]),
 });
 
+const getAlertMetricOptionsInputSchema = z
+  .object({
+    kind: z.enum([
+      "metrics",
+      "services",
+      "environments",
+      "scopes",
+      "containerNames",
+      "attributeKeys",
+      "attributeValues",
+    ]),
+    metricName: z
+      .string()
+      .trim()
+      .max(255)
+      .optional()
+      .transform((value) => value || undefined),
+    attributeKey: z
+      .string()
+      .trim()
+      .max(255)
+      .optional()
+      .transform((value) => value || undefined),
+    query: z.string().trim().max(255).default(""),
+    limit: z.number().int().min(1).max(100).default(100),
+  })
+  .refine(
+    (input) => input.kind === "metrics" || !!input.metricName,
+    "Choose a metric first.",
+  )
+  .refine(
+    (input) => input.kind !== "attributeValues" || !!input.attributeKey,
+    "Choose an attribute first.",
+  );
+
+const getContainerNameSuggestionsInputSchema = z.object({
+  query: z.string().trim().max(255).default(""),
+  limit: z.number().int().min(1).max(100).default(100),
+});
+
 const getMetricCatalogInputSchema = z.object({
   time: timeFilterSchema,
   search: z.string().trim().max(500).optional().default(""),
@@ -61,6 +101,8 @@ const getTotalMetricsInputSchema = z.object({
 });
 
 export {
+  getAlertMetricOptionsInputSchema,
+  getContainerNameSuggestionsInputSchema,
   getMetricCatalogInputSchema,
   getMetricsExplorerInputSchema,
   getTotalMetricsInputSchema,

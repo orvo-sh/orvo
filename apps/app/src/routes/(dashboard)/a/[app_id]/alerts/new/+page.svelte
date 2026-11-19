@@ -1,80 +1,46 @@
 <script lang="ts">
-  import { goto, invalidateAll } from "$app/navigation";
+  import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import {
-    createEmptyAlertRuleForm,
-    type AlertRuleFormValue,
-  } from "$lib/alerts";
-  import { createAlertRuleCommand } from "$lib/api/alert-rules.remote";
+  import { createAlertRuleDraftCommand } from "$lib/api/alert-rules.remote";
+  import { Button } from "@repo/components/ui/button";
+  import { onMount } from "svelte";
   import PageContainer from "../../_components/page-container/page-container.svelte";
-  import AlertRuleForm from "../_components/alert-rule-form.svelte";
 
-  let { data } = $props();
-
-  let submitting = $state(false);
+  let loading = $state(false);
   let error = $state("");
-  let form = $state<AlertRuleFormValue>((() => {
-    const next = createEmptyAlertRuleForm();
-    const signalType = page.url.searchParams.get("signalType");
-    const name = page.url.searchParams.get("name");
-    const containerNames = page.url.searchParams.get("containerNames");
-
-    if (
-      signalType &&
-      [
-        "container_cpu_utilization",
-        "container_memory_utilization",
-        "container_reporting_stale",
-      ].includes(signalType)
-    ) {
-      next.signalType = signalType as AlertRuleFormValue["signalType"];
-    }
-
-    if (name) {
-      next.name = name;
-    }
-
-    if (containerNames) {
-      next.scope.containerNames.include = containerNames
-        .split(",")
-        .map((value) => value.trim())
-        .filter(Boolean);
-    }
-
-    return next;
-  })());
-  const destinations = $derived(
-    data.destinations.map((destination) => ({
-      id: destination.id,
-      name: destination.name,
-      isEnabled: destination.isEnabled,
-      kind: destination.kind,
-    })),
-  );
-
-  const submit = async () => {
-    submitting = true;
+  const createDraft = async () => {
+    if (loading) return;
+    loading = true;
     error = "";
-
-    const result = await createAlertRuleCommand(form);
-    if (result.success === false) {
-      error = result.error;
-      submitting = false;
-      return;
+    try {
+      const result = await createAlertRuleDraftCommand();
+      if (!result.success) {
+        error = result.error;
+        return;
+      }
+      await goto(
+        `/a/${page.params.app_id}/alerts/${result.data.id}${page.url.search}`,
+        { replaceState: true, state: { newAlertRule: true } },
+      );
+    } catch {
+      error = "Failed to create alert rule draft.";
+    } finally {
+      loading = false;
     }
-
-    void invalidateAll();
-    await goto(`/a/${page.params.app_id}/alerts/${result.data.id}`);
   };
+  onMount(() => {
+    void createDraft();
+  });
 </script>
 
-<PageContainer title="New alert rule">
-  <AlertRuleForm
-    bind:form
-    {destinations}
-    {submitting}
-    {error}
-    submitLabel="Create rule"
-    onSubmit={submit}
-  />
+<PageContainer
+  title="New alert rule"
+  back={{ href: `/a/${page.params.app_id}/alerts`, title: "Alerts" }}
+>
+  {#if error}
+    <div class="p-3">
+      <p class="mb-3 text-sm text-destructive" role="alert">{error}</p>
+      <Button onclick={createDraft} {loading}>Try again</Button>
+    </div>
+  {/if}
 </PageContainer>

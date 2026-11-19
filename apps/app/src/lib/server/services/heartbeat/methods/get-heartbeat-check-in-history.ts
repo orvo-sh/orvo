@@ -7,7 +7,11 @@ import { err, ok } from "@repo/utils";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { quote, toDateTime64 } from "../../shared/query-builders";
+import {
+  normalizeDateTime,
+  quote,
+  toDateTime64,
+} from "../../shared/query-builders";
 import { getHeartbeatMonitorInputSchema } from "../schema";
 
 const createGetHeartbeatCheckInHistory =
@@ -42,34 +46,24 @@ const createGetHeartbeatCheckInHistory =
       }
 
       const rangeEndAt = new Date();
-      const windowSeconds = Math.min(
-        90 * 24 * 60 * 60,
-        Math.max(24 * 60 * 60, monitor.expectedEverySeconds * 60),
-      );
-      const rangeStartAt = new Date(
-        rangeEndAt.getTime() - windowSeconds * 1000,
-      );
-      const rangeSeconds = Math.max(
-        Math.floor((rangeEndAt.getTime() - rangeStartAt.getTime()) / 1000),
-        1,
-      );
-      const bucketSizeSeconds = Math.min(
-        rangeSeconds,
-        Math.max(monitor.expectedEverySeconds, Math.ceil(rangeSeconds / 60)),
-      );
+      const bucketSizeSeconds = monitor.expectedEverySeconds;
       const bucketSizeMs = bucketSizeSeconds * 1000;
-      const alignedStartAt = new Date(
-        Math.floor(rangeStartAt.getTime() / bucketSizeMs) * bucketSizeMs,
+      const anchorMs = monitor.createdAt.getTime();
+      const currentWindow = Math.max(
+        0,
+        Math.floor((rangeEndAt.getTime() - anchorMs) / bucketSizeMs),
       );
+      const firstWindow = Math.max(0, currentWindow - 29);
+      const alignedStartAt = new Date(anchorMs + firstWindow * bucketSizeMs);
+      const windowSeconds =
+        (currentWindow - firstWindow + 1) * bucketSizeSeconds;
 
-      const [bucketResult, recentResult] = await Promise.all([
+      const [bucketResult, recentResult, firstResult] = await Promise.all([
         clickhouse.query({
           format: "JSONEachRow",
           query: `
           SELECT
-            toUnixTimestamp(
-              toStartOfInterval(checked_in_at, INTERVAL ${bucketSizeSeconds} SECOND)
-            ) * 1000 AS bucket_start_ms,
+            ${anchorMs} + intDiv(toUnixTimestamp64Milli(checked_in_at) - ${anchorMs}, ${bucketSizeMs}) * ${bucketSizeMs} AS bucket_start_ms,
             count() AS total
           FROM heartbeat_checkins
           WHERE app_id = ${quote(context.appId)}
@@ -89,6 +83,16 @@ const createGetHeartbeatCheckInHistory =
             AND heartbeat_monitor_id = ${quote(monitor.id)}
           ORDER BY checked_in_at DESC
           LIMIT 60
+        `,
+        }),
+        clickhouse.query({
+          format: "JSONEachRow",
+          query: `
+          SELECT checked_in_at
+          FROM heartbeat_checkins
+          WHERE app_id = ${quote(context.appId)}
+            AND heartbeat_monitor_id = ${quote(monitor.id)}
+          ORDER BY checked_in_at ASC LIMIT 1
         `,
         }),
       ]);
@@ -111,11 +115,12 @@ const createGetHeartbeatCheckInHistory =
         count: number;
         status: "healthy" | "missed" | "grace" | "pending";
       }> = [];
-      const firstReceivedBucketMs = Math.min(
-        ...[...totalsByBucket.entries()]
-          .filter(([, total]) => total > 0)
-          .map(([bucketStartMs]) => bucketStartMs),
-      );
+      const [firstReceived] = (await firstResult.json()) as unknown as Array<{
+        checked_in_at: string;
+      }>;
+      const firstReceivedMs = firstReceived
+        ? new Date(normalizeDateTime(firstReceived.checked_in_at)).getTime()
+        : (monitor.lastCheckInAt?.getTime() ?? Infinity);
 
       for (
         let bucketStartMs = alignedStartAt.getTime();
@@ -125,24 +130,20 @@ const createGetHeartbeatCheckInHistory =
         const startAt = new Date(bucketStartMs);
         const endAt = new Date(bucketStartMs + bucketSizeMs);
 
-        if (endAt.getTime() <= monitor.createdAt.getTime()) {
-          continue;
-        }
-
         const count = totalsByBucket.get(bucketStartMs) ?? 0;
         const status =
           count > 0
             ? "healthy"
-            : !monitor.lastCheckInAt ||
-                (monitor.createdAt.getTime() >= rangeStartAt.getTime() &&
-                  bucketStartMs < firstReceivedBucketMs) ||
+            : endAt.getTime() <= firstReceivedMs ||
                 (monitor.pausedAt &&
-                  bucketStartMs >= monitor.pausedAt.getTime())
+                  endAt.getTime() > monitor.pausedAt.getTime())
               ? "pending"
-              : endAt.getTime() + monitor.graceSeconds * 1000 <
-                  rangeEndAt.getTime()
-                ? "missed"
-                : "grace";
+              : rangeEndAt.getTime() < endAt.getTime()
+                ? "pending"
+                : rangeEndAt.getTime() <
+                    endAt.getTime() + monitor.graceSeconds * 1000
+                  ? "grace"
+                  : "missed";
 
         buckets.push({
           startAt,
@@ -153,7 +154,7 @@ const createGetHeartbeatCheckInHistory =
       }
 
       const recentCheckIns = recentRows.map((row) => ({
-        checkedInAt: new Date(row.checked_in_at),
+        checkedInAt: new Date(normalizeDateTime(row.checked_in_at)),
       }));
       const ascendingCheckInTimes = recentCheckIns
         .slice()

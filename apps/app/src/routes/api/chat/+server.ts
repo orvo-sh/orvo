@@ -30,7 +30,7 @@ export const POST: RequestHandler = async (event) => {
     { id: body.appId },
     { organizationId },
   );
-  if (!appResult.success) {
+  if (!appResult.success || !await locals.container.appService.canAccessApp({ appId: body.appId, organizationId, userId: locals.auth.user.id })) {
     return json({ message: "App not found." }, { status: 404 });
   }
 

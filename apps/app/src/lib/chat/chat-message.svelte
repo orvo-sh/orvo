@@ -96,10 +96,12 @@
             </div>
           </details>
         {:else if part.type === "dynamic-tool" || part.type.startsWith("tool-")}
-          <ChatToolPart
-            part={part as import("ai").DynamicToolUIPart}
-            {onToolApproval}
-          />
+          {#if (part.type === "dynamic-tool" ? part.toolName : part.type.replace(/^tool-/, "")) !== "suggest_next_actions"}
+            <ChatToolPart
+              part={part as import("ai").DynamicToolUIPart}
+              {onToolApproval}
+            />
+          {/if}
         {/if}
       {/each}
 

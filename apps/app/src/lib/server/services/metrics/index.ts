@@ -3,6 +3,8 @@ import type { ClickHouse } from "@repo/clickhouse";
 import type { Logger } from "@repo/logger";
 import { z } from "zod";
 
+import { createGetAlertMetricOptions } from "./methods/get-alert-metric-options";
+import { createGetContainerNameSuggestions } from "./methods/get-container-name-suggestions";
 import { createGetMetricCatalog } from "./methods/get-metric-catalog";
 import { createGetMetricsExplorer } from "./methods/get-metrics-explorer";
 import {
@@ -10,6 +12,8 @@ import {
   createGetTotalMetrics,
 } from "./methods/get-total-metrics";
 import {
+  getAlertMetricOptionsInputSchema,
+  getContainerNameSuggestionsInputSchema,
   getMetricCatalogInputSchema,
   getMetricsExplorerInputSchema,
   getTotalMetricsInputSchema,
@@ -18,16 +22,27 @@ import {
 @Instrument({ prefix: "metrics" })
 class MetricsService {
   private logger: Logger;
+  private getAlertMetricOptionsMethod: ReturnType<
+    typeof createGetAlertMetricOptions
+  >;
+  private getContainerNameSuggestionsMethod: ReturnType<
+    typeof createGetContainerNameSuggestions
+  >;
   private getTotalMetricsMethod: ReturnType<typeof createGetTotalMetrics>;
   private getMetricsTrendMethod: ReturnType<typeof createGetMetricsTrend>;
   private getMetricCatalogMethod: ReturnType<typeof createGetMetricCatalog>;
   private getMetricsExplorerMethod: ReturnType<typeof createGetMetricsExplorer>;
 
-  constructor(
-    clickhouse: ClickHouse,
-    logger: Logger,
-  ) {
+  constructor(clickhouse: ClickHouse, logger: Logger) {
     this.logger = logger.child("MetricsService");
+    this.getAlertMetricOptionsMethod = createGetAlertMetricOptions({
+      clickhouse,
+      logger: this.logger,
+    });
+    this.getContainerNameSuggestionsMethod = createGetContainerNameSuggestions({
+      clickhouse,
+      logger: this.logger,
+    });
     this.getTotalMetricsMethod = createGetTotalMetrics({
       clickhouse,
       logger: this.logger,
@@ -58,6 +73,20 @@ class MetricsService {
     context: { appId: string },
   ) {
     return this.getMetricsTrendMethod(input, context);
+  }
+
+  async getAlertMetricOptions(
+    input: z.input<typeof getAlertMetricOptionsInputSchema>,
+    context: { appId: string },
+  ) {
+    return this.getAlertMetricOptionsMethod(input, context);
+  }
+
+  async getContainerNameSuggestions(
+    input: z.input<typeof getContainerNameSuggestionsInputSchema>,
+    context: { appId: string },
+  ) {
+    return this.getContainerNameSuggestionsMethod(input, context);
   }
 
   async getMetricCatalog(

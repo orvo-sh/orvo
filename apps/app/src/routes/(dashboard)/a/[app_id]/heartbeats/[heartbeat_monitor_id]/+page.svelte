@@ -1,22 +1,21 @@
 <script lang="ts">
   import { goto, invalidateAll } from "$app/navigation";
   import { page } from "$app/state";
+  import { useChatState } from "$lib/chat";
+  import { getHeartbeatSuggestions } from "$lib/heartbeats/heartbeat-suggestions";
   import { startAutoRefresh } from "$lib/browser/auto-refresh";
   import { createNowStore } from "$lib/stores/now";
-  import { Badge } from "@repo/components/ui/badge";
-  import { Button, buttonVariants } from "@repo/components/ui/button";
-  import * as Card from "@repo/components/ui/card";
+  import { Button } from "@repo/components/ui/button";
   import * as DropdownMenu from "@repo/components/ui/dropdown-menu";
   import * as HoverCard from "@repo/components/ui/hover-card";
-  import * as InputGroup from "@repo/components/ui/input-group";
   import { toast } from "@repo/components/ui/sonner";
   import { formatDuration } from "@repo/utils";
   import {
-    IconActivityHeartbeat,
     IconAlertTriangle,
     IconArrowRight,
     IconCopy,
-    IconInfoCircle,
+    IconDots,
+    IconWorld,
     IconPencil,
     IconPlayerPause,
     IconPlayerPlay,
@@ -31,6 +30,7 @@
   let { data } = $props();
 
   const nowStore = createNowStore(1000);
+  const chat = useChatState();
 
   let editOpen = $state(false);
   let pauseOpen = $state(false);
@@ -88,19 +88,6 @@
     monitor.expectedEverySeconds + monitor.graceSeconds,
   );
 
-  const formatCompactDuration = (seconds: number | null) => {
-    if (seconds === null || !Number.isFinite(seconds)) return "—";
-
-    const total = Math.max(Math.floor(seconds), 0);
-    const hours = Math.floor(total / 3600);
-    const minutes = Math.floor((total % 3600) / 60);
-    const remainingSeconds = total % 60;
-
-    return hours > 0
-      ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`
-      : `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
-  };
-
   const formatRelativeTime = (value: Date | string | null) => {
     if (!value) return "No heartbeat received";
 
@@ -128,105 +115,33 @@
         }).format(new Date(value))
       : "—";
 
-  const formatHistoryWindow = (seconds: number) => {
-    const hours = Math.round(seconds / 3600);
-    return hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`;
-  };
-
-  const progressPercent = $derived(
-    monitor.isPaused ||
-      timeSinceLastCheckInSeconds === null ||
-      totalWindowSeconds <= 0
-      ? 0
-      : Math.min((timeSinceLastCheckInSeconds / totalWindowSeconds) * 100, 100),
-  );
-
-  const expectedWindowPercent = $derived(
-    totalWindowSeconds <= 0
-      ? 100
-      : (monitor.expectedEverySeconds / totalWindowSeconds) * 100,
-  );
-
-  const nextBeatLabel = $derived.by(() => {
-    if (monitor.isPaused) return "Paused for";
+  const nextCheckInSummary = $derived.by(() => {
+    if (monitor.isPaused) return "Monitoring is paused.";
     if (timeSinceLastCheckInSeconds === null)
-      return "First beat expected within";
-    if (timeSinceLastCheckInSeconds < monitor.expectedEverySeconds) {
-      return "Next beat expected in";
-    }
-    if (timeSinceLastCheckInSeconds < totalWindowSeconds) {
-      return "Grace period ends in";
-    }
-    return "Overdue by";
+      return "No check-ins received yet.";
+    if (timeSinceLastCheckInSeconds < monitor.expectedEverySeconds)
+      return `Next check-in expected in ${formatDuration(monitor.expectedEverySeconds - timeSinceLastCheckInSeconds)}`;
+    if (timeSinceLastCheckInSeconds < totalWindowSeconds)
+      return `Grace period ends in ${formatDuration(totalWindowSeconds - timeSinceLastCheckInSeconds)}`;
+    return `Overdue by ${formatDuration(timeSinceLastCheckInSeconds - totalWindowSeconds)}`;
   });
-
-  const nextBeatValue = $derived.by(() => {
-    if (monitor.isPaused) {
-      return monitor.pausedAt
-        ? formatCompactDuration(
-            Math.max(
-              Math.floor(
-                ($nowStore - new Date(monitor.pausedAt).getTime()) / 1000,
-              ),
-              0,
-            ),
-          )
-        : "—";
-    }
-    if (timeSinceLastCheckInSeconds === null) {
-      return formatCompactDuration(monitor.expectedEverySeconds);
-    }
-    if (timeSinceLastCheckInSeconds < monitor.expectedEverySeconds) {
-      return formatCompactDuration(
-        monitor.expectedEverySeconds - timeSinceLastCheckInSeconds,
-      );
-    }
-    if (timeSinceLastCheckInSeconds < totalWindowSeconds) {
-      return formatCompactDuration(
-        totalWindowSeconds - timeSinceLastCheckInSeconds,
-      );
-    }
-    return formatCompactDuration(
-      timeSinceLastCheckInSeconds - totalWindowSeconds,
-    );
-  });
-
-  const bars = $derived(history.buckets.slice(-60));
-  const evaluatedBuckets = $derived(
-    history.buckets.filter(
-      (bucket) => bucket.status === "healthy" || bucket.status === "missed",
-    ),
-  );
-  const uptimePercent = $derived(
-    evaluatedBuckets.length === 0
-      ? "Waiting"
-      : `${(
-          (evaluatedBuckets.filter((bucket) => bucket.status === "healthy")
-            .length /
-            evaluatedBuckets.length) *
-          100
-        ).toFixed(2)}%`,
-  );
+  const bars = $derived(history.buckets.slice(-30));
+  const bucketStyles = {
+    healthy: { label: "Received", color: "bg-emerald-500" },
+    grace: { label: "Grace period", color: "bg-amber-500" },
+    missed: { label: "Missed", color: "bg-destructive" },
+    pending: { label: "Waiting", color: "bg-muted-foreground/20" },
+  };
   const activityRows = $derived(
     [
-      ...history.buckets
-        .filter(
-          (bucket) => bucket.status === "healthy" || bucket.status === "grace",
-        )
-        .map((bucket) => ({
-          id: `heartbeat:${bucket.startAt}`,
-          occurredAt: bucket.endAt,
-          title:
-            bucket.status === "healthy"
-              ? `${bucket.count} heartbeat${bucket.count === 1 ? "" : "s"} received`
-              : "Heartbeat is running late",
-          detail:
-            bucket.status === "healthy"
-              ? formatAbsoluteTime(bucket.startAt)
-              : `Expected by ${formatAbsoluteTime(bucket.endAt)}`,
-          tone: bucket.status === "healthy" ? "healthy" : "warning",
-          incidentId: null,
-        })),
+      ...history.recentCheckIns.map((checkIn, index) => ({
+        id: `check-in:${checkIn.checkedInAt}:${index}`,
+        occurredAt: checkIn.checkedInAt,
+        title: "Check-in received",
+        detail: null,
+        tone: "healthy",
+        incidentId: null,
+      })),
       ...incidentEvents.map((event) => ({
         id: event.id,
         occurredAt: event.occurredAt,
@@ -259,21 +174,7 @@
       .slice(0, 12),
   );
 
-  const copyHeartbeatUrl = async () => {
-    try {
-      await navigator.clipboard.writeText(monitor.secretUrl);
-      toast.success("Heartbeat URL copied.");
-    } catch {
-      toast.error("Failed to copy heartbeat URL.");
-    }
-  };
-</script>
-
-<PageContainer
-  title={monitor.name}
-  back={{ href: `/a/${page.params.app_id}/heartbeats`, title: "Heartbeats" }}
-  contentClass="p-3"
-  scout={{
+  const heartbeatChatContext = $derived({
     kind: "heartbeat",
     resourceId: monitor.id,
     label: monitor.name,
@@ -282,10 +183,33 @@
       expectedEverySeconds: monitor.expectedEverySeconds,
       graceSeconds: monitor.graceSeconds,
       lastCheckInAt: monitor.lastCheckInAt?.toISOString() ?? null,
-      uptime: uptimePercent,
       openIncidentCount: incidents.length,
     },
-  }}
+  } satisfies import("$lib/chat").ChatContextDescriptor);
+
+  $effect(() => {
+    chat.heartbeatPrompts = getHeartbeatSuggestions(monitor);
+    if (chat.railOpen) chat.context = $state.snapshot(heartbeatChatContext);
+    return () => {
+      chat.heartbeatPrompts = [];
+    };
+  });
+
+  const copyValue = async (value: string, message: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(message);
+    } catch {
+      toast.error("Could not copy to clipboard.");
+    }
+  };
+</script>
+
+<PageContainer
+  title={monitor.name}
+  back={{ href: `/a/${page.params.app_id}/heartbeats`, title: "Heartbeats" }}
+  contentClass="px-4 py-6 sm:px-6 sm:py-7"
+  scout={heartbeatChatContext}
 >
   {#snippet actions()}
     <CreateEditHeartbeatMonitor
@@ -306,10 +230,23 @@
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
         {#snippet child({ props })}
-          <Button {...props} variant="outline">Manage</Button>
+          <Button
+            {...props}
+            variant="ghost"
+            size="icon"
+            aria-label="Manage heartbeat"
+            ><IconDots data-slot="button-icon" /></Button
+          >
         {/snippet}
       </DropdownMenu.Trigger>
-      <DropdownMenu.Content align="end" class="w-40">
+      <DropdownMenu.Content align="end" class="w-48">
+        <DropdownMenu.Item
+          onSelect={() =>
+            void copyValue(monitor.secretUrl, "Check-in URL copied.")}
+        >
+          <IconCopy /> Copy check-in URL
+        </DropdownMenu.Item>
+        <DropdownMenu.Separator />
         <DropdownMenu.Item
           onSelect={() => queueMicrotask(() => (editOpen = true))}
         >
@@ -327,6 +264,7 @@
             Pause
           {/if}
         </DropdownMenu.Item>
+        <DropdownMenu.Separator />
         <DropdownMenu.Item
           variant="destructive"
           onSelect={() => queueMicrotask(() => (deleteOpen = true))}
@@ -338,373 +276,205 @@
     </DropdownMenu.Root>
   {/snippet}
 
-  <div class="flex w-full flex-col gap-3">
+  <div class="flex w-full max-w-5xl flex-col gap-8">
     <section
-      class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+      class="flex flex-wrap items-center justify-between gap-4"
+      aria-label="Heartbeat status"
     >
-      <div class="flex min-w-0 items-start gap-3">
-        <span
-          class={`flex size-11 shrink-0 items-center justify-center rounded-lg ${
-            currentStatus === "up"
-              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-              : currentStatus === "late"
-                ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                : currentStatus === "down"
-                  ? "bg-destructive/10 text-destructive"
-                  : "bg-muted text-muted-foreground"
-          }`}
-        >
-          <IconActivityHeartbeat class="size-5" />
-        </span>
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold">{statusLabel}</h2>
+      <div class="space-y-2">
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="inline-flex items-center gap-2 text-sm font-medium">
+            <span
+              class={`size-2 rounded-full ${currentStatus === "up" ? "bg-emerald-500" : currentStatus === "late" ? "bg-amber-500" : currentStatus === "down" ? "bg-destructive" : "bg-muted-foreground/50"}`}
+            ></span>
+            {statusLabel}
+          </span>
           {#if monitor.lastCheckInAt}
-            <p class="mt-1 text-xs text-muted-foreground">
-              Last heartbeat {formatRelativeTime(monitor.lastCheckInAt)} · {formatAbsoluteTime(
-                monitor.lastCheckInAt,
-              )}
-            </p>
+            <span class="text-sm text-muted-foreground"
+              >Last check-in {formatRelativeTime(monitor.lastCheckInAt)}</span
+            >
           {/if}
         </div>
-      </div>
-
-      <div class="shrink-0 sm:text-right">
-        <p class="text-xs text-muted-foreground">{nextBeatLabel}</p>
-        <p class="mt-1 font-mono text-2xl font-semibold tabular-nums">
-          {nextBeatValue}
+        <p class="text-sm text-muted-foreground tabular-nums">
+          {nextCheckInSummary}
         </p>
       </div>
     </section>
 
-    <section class="flex flex-col">
-      <Card.Root class="z-1 gap-0 overflow-hidden">
-        <Card.Content class="p-0">
-          <div class="px-5 py-4">
-            <div class="relative h-2 rounded-full bg-muted">
-              {#if currentStatus !== "paused" && timeSinceLastCheckInSeconds !== null}
-                <span
-                  class="absolute inset-y-0 left-0 rounded-l-full bg-emerald-500/70"
-                  style={`width: ${expectedWindowPercent}%`}
-                ></span>
-                <span
-                  class="absolute inset-y-0 right-0 rounded-r-full bg-amber-500/70"
-                  style={`width: ${100 - expectedWindowPercent}%`}
-                ></span>
-                <span
-                  class="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-foreground shadow-sm"
-                  style={`left: ${progressPercent}%`}
-                ></span>
-              {/if}
-            </div>
-            <div
-              class="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground"
-            >
-              <span
-                >Expected every {formatDuration(
-                  monitor.expectedEverySeconds,
-                )}</span
-              >
-              <span>{formatDuration(monitor.graceSeconds)} grace</span>
-            </div>
-          </div>
-
-          <div class="grid border-t sm:grid-cols-3 sm:divide-x">
-            <div class="px-5 py-4">
-              <p class="text-xs text-muted-foreground">
-                Uptime · {formatHistoryWindow(history.windowSeconds)}
-              </p>
-              <p class="mt-1 text-lg font-semibold">{uptimePercent}</p>
-            </div>
-            <div class="border-t px-5 py-4 sm:border-t-0">
-              <p class="text-xs text-muted-foreground">Average interval</p>
-              <p class="mt-1 text-lg font-semibold">
-                {history.stats.averageIntervalSeconds === null
-                  ? "Waiting"
-                  : formatDuration(history.stats.averageIntervalSeconds)}
-              </p>
-            </div>
-            <div class="border-t px-5 py-4 sm:border-t-0">
-              <p class="text-xs text-muted-foreground">
-                Check-ins · {formatHistoryWindow(history.windowSeconds)}
-              </p>
-              <p class="mt-1 text-lg font-semibold">
-                {history.stats.totalCheckIns24h}
-              </p>
-            </div>
-          </div>
-        </Card.Content>
-      </Card.Root>
-
-      {#if incidents.length > 0}
-        <a
-          href={`/a/${page.params.app_id}/incidents/${incidents[0].id}`}
-          class="-mt-2 flex flex-wrap items-center gap-2 rounded-b-xl border border-foreground/10 bg-secondary px-3.5 pt-4 pb-2 text-sm text-secondary-foreground inset-shadow-[0px_-1px_--theme(--color-white)] transition-colors hover:bg-secondary/80"
+    {#if incidents.length > 0}
+      <a
+        href={`/a/${page.params.app_id}/incidents/${incidents[0].id}`}
+        class="flex flex-wrap items-center gap-3 border-l-2 border-destructive bg-destructive/5 px-4 py-3 text-sm transition-colors hover:bg-destructive/10"
+      >
+        <IconAlertTriangle class="size-4 shrink-0 text-destructive" />
+        <span class="font-medium"
+          >{incidents.length} open incident{incidents.length === 1
+            ? ""
+            : "s"}</span
         >
-          <IconAlertTriangle class="size-4 shrink-0 text-muted-foreground" />
-          <Badge variant="outline" class="h-5 bg-background/50 px-2 text-xs">
-            {incidents.length} open incident{incidents.length === 1 ? "" : "s"}
-          </Badge>
-          <span class="text-xs text-muted-foreground">
-            Opened {formatRelativeTime(incidents[0].openedAt)}
-          </span>
-          <span class="ml-auto inline-flex items-center gap-2 font-medium">
-            View incident
-            <IconArrowRight class="size-4" />
-          </span>
-        </a>
+        <span class="text-muted-foreground"
+          >Opened {formatRelativeTime(incidents[0].openedAt)}</span
+        >
+        <span class="ml-auto inline-flex items-center gap-2"
+          >View incident <IconArrowRight class="size-4" /></span
+        >
+      </a>
+    {/if}
+
+    {#if !monitor.lastCheckInAt}
+      <section
+        class="space-y-4 rounded-lg border border-border bg-muted/20 p-4 sm:p-5"
+        aria-label="Connect heartbeat"
+      >
+        <div class="space-y-1">
+          <h2 class="text-sm font-medium">Send your first check-in</h2>
+          <p class="text-sm text-muted-foreground">
+            Call this URL when your job finishes.
+          </p>
+        </div>
+        <div
+          class="flex min-w-0 items-center gap-3 rounded-md bg-muted px-3 py-2"
+        >
+          <IconWorld class="size-4 shrink-0 text-muted-foreground" />
+          <code class="min-w-0 flex-1 overflow-x-auto text-xs whitespace-nowrap"
+            >{monitor.secretUrl}</code
+          >
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Copy check-in URL"
+            onclick={() =>
+              void copyValue(monitor.secretUrl, "Check-in URL copied.")}
+            ><IconCopy data-slot="button-icon" /></Button
+          >
+        </div>
+      </section>
+    {/if}
+
+    <section class="space-y-4" aria-label="Check-in history">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h2 class="text-sm font-medium">Check-in history</h2>
+        <div class="flex flex-wrap items-center gap-3">
+          {#each Object.values(bucketStyles) as status}
+            <span
+              class="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+              ><span class={`size-1.5 rounded-sm ${status.color}`}
+              ></span>{status.label}</span
+            >
+          {/each}
+        </div>
+      </div>
+      {#if !monitor.lastCheckInAt || bars.length === 0}
+        <div
+          class="flex h-12 items-center justify-center rounded-md bg-muted/40 text-sm text-muted-foreground"
+        >
+          Check-ins will appear here once connected.
+        </div>
+      {:else}
+        <div class="flex h-9 items-stretch gap-1">
+          {#each bars as bucket (bucket.startAt)}
+            {@const hoverId = `bucket:${bucket.startAt}`}
+            <HoverCard.Root
+              open={activeHistoryHover === hoverId}
+              openDelay={50}
+              closeDelay={0}
+              onOpenChange={(open) => {
+                activeHistoryHover = open ? hoverId : null;
+              }}
+            >
+              <HoverCard.Trigger
+                type="button"
+                class={`min-w-0 flex-1 cursor-help rounded-sm ${bucketStyles[bucket.status].color}`}
+                aria-label={`${bucketStyles[bucket.status].label} from ${formatAbsoluteTime(bucket.startAt)} to ${formatAbsoluteTime(bucket.endAt)}`}
+              ></HoverCard.Trigger>
+              <HoverCard.Content class="w-64 space-y-2 text-sm" side="top">
+                <p class="text-muted-foreground">
+                  {formatAbsoluteTime(bucket.startAt)} – {formatAbsoluteTime(
+                    bucket.endAt,
+                  )}
+                </p>
+                <p class="font-medium">
+                  {bucketStyles[bucket.status].label}{bucket.count > 0
+                    ? ` · ${bucket.count} check-in${bucket.count === 1 ? "" : "s"}`
+                    : ""}
+                </p>
+              </HoverCard.Content>
+            </HoverCard.Root>
+          {/each}
+        </div>
+        <div class="flex justify-between text-xs text-muted-foreground">
+          <span>{formatAbsoluteTime(bars[0]?.startAt ?? null)}</span><span
+            >Now</span
+          >
+        </div>
       {/if}
     </section>
 
-    <section class="flex flex-col">
-      <div
-        class="rounded-t-xl border border-foreground/10 bg-secondary pb-2 inset-shadow-[0px_1px_--theme(--color-white)]"
-      >
-        <div class="flex items-center px-3.5 py-0.75">
-          <h2 class="text-sm text-secondary-foreground">Check-in history</h2>
-          <HoverCard.Root
-            open={activeHistoryHover === "legend"}
-            openDelay={50}
-            closeDelay={0}
-            onOpenChange={(open) => {
-              if (open) {
-                activeHistoryHover = "legend";
-              } else if (activeHistoryHover === "legend") {
-                activeHistoryHover = null;
-              }
-            }}
-          >
-            <HoverCard.Trigger
-              aria-label="About check-in history"
-              class={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-            >
-              <IconInfoCircle
-                class="size-3.5 text-secondary-foreground opacity-75"
-              />
-            </HoverCard.Trigger>
-            <HoverCard.Content class="w-64 text-sm" side="top" align="start">
-              <div class="grid gap-2">
-                <span class="inline-flex items-center gap-2">
-                  <span class="size-2 rounded-sm bg-emerald-500"></span>
-                  Received
-                </span>
-                <span class="inline-flex items-center gap-2">
-                  <span class="size-2 rounded-sm bg-amber-500"></span>
-                  Grace period
-                </span>
-                <span class="inline-flex items-center gap-2">
-                  <span class="size-2 rounded-sm bg-destructive"></span>
-                  Missed
-                </span>
-                <span class="inline-flex items-center gap-2">
-                  <span class="size-2 rounded-sm bg-muted-foreground/25"></span>
-                  Waiting
-                </span>
-              </div>
-            </HoverCard.Content>
-          </HoverCard.Root>
-        </div>
-      </div>
-      <Card.Root class="z-1 -mt-2 gap-0 p-0">
-        <Card.Content class="px-4 py-4">
-          {#if bars.length === 0}
-            <p class="py-6 text-center text-sm text-muted-foreground">
-              No check-ins yet.
-            </p>
-          {:else}
-            <div class="flex h-10 items-stretch gap-1">
-              {#each bars as bucket (bucket.startAt)}
-                {@const hoverId = `bucket:${bucket.startAt}`}
-                <HoverCard.Root
-                  open={activeHistoryHover === hoverId}
-                  openDelay={50}
-                  closeDelay={0}
-                  onOpenChange={(open) => {
-                    if (open) {
-                      activeHistoryHover = hoverId;
-                    } else if (activeHistoryHover === hoverId) {
-                      activeHistoryHover = null;
-                    }
-                  }}
+    <div
+      class="grid items-start gap-8 border-t pt-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-10"
+    >
+      <section aria-label="Recent activity">
+        <h2 class="mb-3 text-sm font-medium">Recent activity</h2>
+        {#if activityRows.length === 0}
+          <p class="py-3 text-sm text-muted-foreground">No activity yet.</p>
+        {:else}
+          <div class="divide-y">
+            {#each activityRows as activity (activity.id)}
+              <div class="flex items-start gap-3 py-3">
+                <span
+                  class={`mt-1.5 size-1.5 shrink-0 rounded-full ${activity.tone === "healthy" ? "bg-emerald-500" : activity.tone === "muted" ? "bg-muted-foreground/40" : "bg-destructive"}`}
+                ></span>
+                <div class="min-w-0 flex-1">
+                  {#if activity.incidentId}<a
+                      class="text-sm font-medium hover:underline"
+                      href={`/a/${page.params.app_id}/incidents/${activity.incidentId}`}
+                      >{activity.title}</a
+                    >
+                  {:else}<p class="text-sm">{activity.title}</p>{/if}
+                  {#if activity.detail}<p
+                      class="truncate text-sm text-muted-foreground"
+                    >
+                      {activity.detail}
+                    </p>{/if}
+                </div>
+                <span
+                  class="shrink-0 text-xs text-muted-foreground"
+                  title={formatAbsoluteTime(activity.occurredAt)}
+                  >{formatRelativeTime(activity.occurredAt)}</span
                 >
-                  <HoverCard.Trigger
-                    type="button"
-                    class={`min-w-1 flex-1 rounded-sm ${
-                      bucket.status === "healthy"
-                        ? "bg-emerald-500"
-                        : bucket.status === "grace"
-                          ? "bg-amber-500"
-                          : bucket.status === "missed"
-                            ? "bg-destructive"
-                            : "bg-muted-foreground/20"
-                    }`}
-                    aria-label={`${bucket.status} from ${formatAbsoluteTime(bucket.startAt)} to ${formatAbsoluteTime(bucket.endAt)}`}
-                  ></HoverCard.Trigger>
-                  <HoverCard.Content class="w-64 text-sm" side="top">
-                    <p class="text-muted-foreground">
-                      {formatAbsoluteTime(bucket.startAt)} – {formatAbsoluteTime(
-                        bucket.endAt,
-                      )}
-                    </p>
-                    <div class="mt-2 flex items-center gap-2">
-                      <span
-                        class={`size-2 rounded-sm ${
-                          bucket.status === "healthy"
-                            ? "bg-emerald-500"
-                            : bucket.status === "grace"
-                              ? "bg-amber-500"
-                              : bucket.status === "missed"
-                                ? "bg-destructive"
-                                : "bg-muted-foreground/25"
-                        }`}
-                      ></span>
-                      <span class="font-medium">
-                        {bucket.status === "healthy"
-                          ? "Received"
-                          : bucket.status === "grace"
-                            ? "Grace period"
-                            : bucket.status === "missed"
-                              ? "Missed"
-                              : "Waiting"}
-                      </span>
-                      {#if bucket.count > 0}
-                        <span class="ml-auto text-muted-foreground">
-                          {bucket.count} check-in{bucket.count === 1 ? "" : "s"}
-                        </span>
-                      {/if}
-                    </div>
-                  </HoverCard.Content>
-                </HoverCard.Root>
-              {/each}
-            </div>
-          {/if}
-        </Card.Content>
-      </Card.Root>
-    </section>
-
-    <div class="grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.6fr)]">
-      <section class="flex flex-col">
-        <div
-          class="flex items-center rounded-t-xl border border-foreground/10 bg-secondary px-3.5 pt-2 pb-4 inset-shadow-[0px_1px_--theme(--color-white)]"
-        >
-          <h2 class="text-sm text-secondary-foreground">Recent activity</h2>
-        </div>
-        <Card.Root class="z-1 -mt-2 gap-0 overflow-hidden p-0">
-          <Card.Content class="p-0">
-            {#if activityRows.length === 0}
-              <p class="px-5 py-10 text-center text-sm text-muted-foreground">
-                No heartbeat activity has been recorded yet.
-              </p>
-            {:else}
-              <div class="divide-y">
-                {#each activityRows as activity (activity.id)}
-                  <div
-                    class="grid grid-cols-[auto_1fr_auto] items-start gap-3 px-4 py-3"
-                  >
-                    <span
-                      class={`mt-1.5 size-2 rounded-full ${
-                        activity.tone === "healthy"
-                          ? "bg-emerald-500"
-                          : activity.tone === "warning"
-                            ? "bg-amber-500"
-                            : activity.tone === "muted"
-                              ? "bg-muted-foreground/40"
-                              : "bg-destructive"
-                      }`}
-                    ></span>
-                    <div class="min-w-0">
-                      {#if activity.incidentId}
-                        <a
-                          class="text-sm font-medium hover:underline"
-                          href={`/a/${page.params.app_id}/incidents/${activity.incidentId}`}
-                          >{activity.title}</a
-                        >
-                      {:else}
-                        <p class="text-sm font-medium">{activity.title}</p>
-                      {/if}
-                      <p class="text-xs text-muted-foreground">
-                        {activity.detail}
-                      </p>
-                    </div>
-                    <span class="font-mono text-xs text-muted-foreground">
-                      {formatRelativeTime(activity.occurredAt)}
-                    </span>
-                  </div>
-                {/each}
               </div>
-            {/if}
-          </Card.Content>
-        </Card.Root>
+            {/each}
+          </div>
+        {/if}
       </section>
-
-      <section class="flex h-fit flex-col">
-        <div
-          class="flex items-center rounded-t-xl border border-foreground/10 bg-secondary px-3.5 pt-2 pb-4 inset-shadow-[0px_1px_--theme(--color-white)]"
-        >
-          <h2 class="text-sm text-secondary-foreground">Monitor details</h2>
-        </div>
-        <Card.Root class="z-1 -mt-2 gap-0 p-0">
-          <Card.Content class="p-0">
-            <div class="border-b p-4">
-              <span class="text-xs text-muted-foreground">Heartbeat URL</span>
-              <InputGroup.Root class="mt-2">
-                <InputGroup.Input
-                  class="font-mono text-xs"
-                  value={monitor.secretUrl}
-                  readonly
-                  title={monitor.secretUrl}
-                />
-                <InputGroup.Button
-                  aria-label="Copy heartbeat URL"
-                  onclick={copyHeartbeatUrl}
-                >
-                  <IconCopy data-slot="button-icon" />
-                  Copy
-                </InputGroup.Button>
-              </InputGroup.Root>
-            </div>
-
-            <dl class="divide-y text-sm">
-              <div class="flex items-center justify-between gap-3 px-4 py-3">
-                <dt class="text-muted-foreground">Expected cadence</dt>
-                <dd class="font-medium">
-                  {formatDuration(monitor.expectedEverySeconds)}
-                </dd>
-              </div>
-              <div class="flex items-center justify-between gap-3 px-4 py-3">
-                <dt class="text-muted-foreground">Grace period</dt>
-                <dd class="font-medium">
-                  {formatDuration(monitor.graceSeconds)}
-                </dd>
-              </div>
-              <div class="flex items-center justify-between gap-3 px-4 py-3">
-                <dt class="text-muted-foreground">Last received</dt>
-                <dd class="text-right font-medium">
-                  {monitor.lastCheckInAt
-                    ? formatRelativeTime(monitor.lastCheckInAt)
-                    : "Never"}
-                </dd>
-              </div>
-              <div class="flex items-start justify-between gap-3 px-4 py-3">
-                <dt class="pt-0.5 text-muted-foreground">Notifications</dt>
-                <dd class="flex max-w-[65%] flex-wrap justify-end gap-1.5">
-                  {#if monitor.destinations.length === 0}
-                    <span class="text-sm font-medium">None</span>
-                  {:else}
-                    {#each monitor.destinations as destination (destination.id)}
-                      <Badge variant="outline">
-                        {destination.kind === "email"
-                          ? `Email · ${destination.name}`
-                          : destination.kind === "webhook"
-                            ? `Webhook · ${destination.name}`
-                            : `Slack · ${destination.name}`}
-                      </Badge>
-                    {/each}
-                  {/if}
-                </dd>
-              </div>
-            </dl>
-          </Card.Content>
-        </Card.Root>
+      <section aria-label="Configuration">
+        <h2 class="mb-3 text-sm font-medium">Configuration</h2>
+        <dl class="space-y-4 text-sm">
+          <div class="flex items-center justify-between gap-4">
+            <dt class="text-muted-foreground">Expected every</dt>
+            <dd>{formatDuration(monitor.expectedEverySeconds)}</dd>
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <dt class="text-muted-foreground">Grace period</dt>
+            <dd>{formatDuration(monitor.graceSeconds)}</dd>
+          </div>
+          <div class="flex items-start justify-between gap-4">
+            <dt class="text-muted-foreground">Notifications</dt>
+            <dd class="min-w-0 space-y-1 text-right">
+              {#if monitor.destinations.length === 0}
+                <span class="text-muted-foreground">None selected</span>
+              {:else}
+                {#each monitor.destinations as destination (destination.id)}
+                  <a
+                    class="block break-words underline underline-offset-4 hover:text-primary"
+                    href={`/a/${page.params.app_id}/settings/notification-destinations#${encodeURIComponent(destination.id)}`}
+                    >{destination.name}</a
+                  >
+                {/each}
+              {/if}
+            </dd>
+          </div>
+        </dl>
       </section>
     </div>
   </div>

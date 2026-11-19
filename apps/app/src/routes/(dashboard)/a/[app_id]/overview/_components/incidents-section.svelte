@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { alertSignalOptions } from "$lib/alerts";
   import { Button, buttonVariants } from "@repo/components/ui/button";
   import * as Card from "@repo/components/ui/card";
   import * as HoverCard from "@repo/components/ui/hover-card";
@@ -22,7 +21,7 @@
     rule?: {
       id: string;
       name: string;
-      signalType: string;
+      metricName: string | null;
     } | null;
   };
 
@@ -40,10 +39,6 @@
 
   const limit = 3;
   const visible = $derived(incidents.slice(0, limit));
-
-  const signalLabels = Object.fromEntries(
-    alertSignalOptions.map((o) => [o.value, o.label]),
-  );
 
   function formatTimeAgo(value: Date) {
     const seconds = Math.floor((Date.now() - new Date(value).getTime()) / 1000);
@@ -68,6 +63,7 @@
       <HoverCard.Root openDelay={50} closeDelay={50}>
         <HoverCard.Trigger
           class={buttonVariants({
+            class: "cursor-help",
             variant: "ghost",
             size: "icon-sm",
           })}
@@ -130,8 +126,7 @@
                 </div>
                 <p class="line-clamp-2 text-xs text-muted-foreground">
                   {incident.rule
-                    ? (signalLabels[incident.rule.signalType] ??
-                      incident.rule.signalType)
+                    ? (incident.rule.metricName ?? "Metric")
                     : incident.sourceType}
                   {#if incident.lastObservedValue !== null}
                     · value {formatNumber(incident.lastObservedValue)}

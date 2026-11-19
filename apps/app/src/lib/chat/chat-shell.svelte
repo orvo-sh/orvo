@@ -9,6 +9,8 @@
     IconX,
   } from "@tabler/icons-svelte";
 
+  import { getFollowUpSuggestions } from "./suggestions";
+
   import ChatComposer from "./chat-composer.svelte";
   import ChatHistory from "./chat-history.svelte";
   import ChatMessageList from "./chat-message-list.svelte";
@@ -133,6 +135,15 @@
         onSend={chat.send}
         onStop={() => client?.stop()}
         centered={!messages.length}
+        suggestions={mode === "rail" && status === "ready" && !chat.error
+          ? messages.length
+            ? getFollowUpSuggestions(messages, chat.context)
+            : chat.context?.kind === "heartbeat"
+              ? chat.heartbeatPrompts
+              : chat.context?.kind === "alert_rule"
+                ? chat.ruleEditorPrompts
+                : chat.dashboardEditorPrompts
+          : []}
         compact={mode === "rail"}
       />
     {/if}

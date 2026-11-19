@@ -2,6 +2,9 @@
   import { replaceState } from "$app/navigation";
   import { resolve } from "$app/paths";
   import { createAppCommand } from "$lib/api/apps.remote";
+  import AppSwitcher from "$lib/components/app-switcher.svelte";
+  import AppSidebar from "../../(dashboard)/a/[app_id]/_components/app-sidebar/app-sidebar.svelte";
+  import * as Sidebar from "@repo/components/ui/sidebar";
   import { MAX_UPLOAD_FILE_SIZE_BYTES } from "$lib/constants";
   import { uploadFile } from "$lib/upload-file";
   import { OrvoLogo } from "@repo/components/icons/orvo-logo";
@@ -124,116 +127,140 @@
   };
 </script>
 
-<div
-  class="flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10"
->
-  <div class="w-full max-w-md">
-    <div class="flex flex-col gap-6">
-      <form
-        id="create-app-form"
-        onsubmit={(event) => {
-          event.preventDefault();
-          void submit();
-        }}
-      >
-        <FieldGroup>
-          <div class="flex flex-col items-center gap-2 text-center">
-            <OrvoLogo class="size-14" />
-            <div class="space-y-1">
-              <h1 class="text-xl font-semibold">
-                {data.hasApps ? "Create a new app" : "Create your first app"}
-              </h1>
-              <FieldDescription>
-                Apps own telemetry, ingestion keys, alerts, and dashboard views.
-              </FieldDescription>
-            </div>
-          </div>
-
-          <div class="grid gap-3">
-            <Field>
-              <FieldLabel>App logo</FieldLabel>
-              <div class="flex items-center gap-4">
-                <Avatar class="size-16 rounded-lg border after:rounded-lg">
-                  <AvatarImage
-                    src={logoPreviewUrl ?? logo ?? undefined}
-                    alt={name.trim() || "App logo"}
-                    class="rounded-lg object-cover"
-                  />
-                  <AvatarFallback class="rounded-lg">
-                    <IconBox class="size-5" />
-                  </AvatarFallback>
-                </Avatar>
-
-                <div class="min-w-0 flex-1 space-y-1">
-                  <div class="flex items-center gap-2">
-                    <Button
-                      id="upload-app-logo-button"
-                      type="button"
-                      variant="outline"
-                      loading={uploadingLogo}
-                      disabled={loading}
-                      onclick={() => logoInput?.click()}
-                    >
-                      <IconUpload data-slot="button-icon" />
-                      {logo ? "Change logo" : "Upload logo"}
-                    </Button>
-
-                    {#if (logo || logoPreviewUrl) && !uploadingLogo}
-                      <Button
-                        id="remove-app-logo-button"
-                        type="button"
-                        variant="ghost"
-                        disabled={loading}
-                        onclick={clearLogo}
-                      >
-                        <IconX data-slot="button-icon" />
-                        Remove
-                      </Button>
-                    {/if}
-                  </div>
+<Sidebar.Provider class="h-dvh min-h-0 overflow-hidden">
+  <AppSidebar
+    organizations={data.organizations}
+    activeOrganizationId={data.activeOrganizationId}
+    user={data.user}
+    billingSummary={null}
+    settingsAppId={data.apps[0]?.id}
+    footerOnly
+  />
+  <Sidebar.Inset class="min-h-0 min-w-0 overflow-y-auto">
+    <header
+      class="sticky top-0 z-10 flex h-14 shrink-0 items-center border-b border-border/90 bg-background"
+    >
+      <div class="flex min-w-0 items-center gap-2 p-3">
+        <div class="md:hidden">
+          <Sidebar.Trigger />
+        </div>
+        <AppSwitcher apps={data.apps} />
+      </div>
+    </header>
+    <main
+      class="flex flex-1 flex-col items-center justify-center gap-6 p-6 md:p-10"
+    >
+      <div class="w-full max-w-md">
+        <div class="flex flex-col gap-6">
+          <form
+            id="create-app-form"
+            onsubmit={(event) => {
+              event.preventDefault();
+              void submit();
+            }}
+          >
+            <FieldGroup>
+              <div class="flex flex-col items-center gap-2 text-center">
+                <OrvoLogo class="size-14" />
+                <div class="space-y-1">
+                  <h1 class="text-xl font-semibold">
+                    {data.hasApps
+                      ? "Create a new app"
+                      : "Create your first app"}
+                  </h1>
                   <FieldDescription>
-                    PNG, JPG, GIF, SVG, or WebP up to 10 MB.
+                    Use an app to monitor a service or project in Orvo.
                   </FieldDescription>
                 </div>
               </div>
 
-              <input
-                bind:this={logoInput}
-                type="file"
-                accept="image/*"
-                class="hidden"
-                onchange={(event) => void handleLogoInput(event)}
-              />
-              <FieldError>{logoError}</FieldError>
-            </Field>
-            <Field>
-              <FieldLabel for="app-name">App name</FieldLabel>
-              <Input
-                id="app-name"
-                bind:value={name}
-                minlength={2}
-                maxlength={64}
-                placeholder="Acme API"
-                required
-              />
-            </Field>
-          </div>
+              <div class="grid gap-3">
+                <Field>
+                  <FieldLabel>App logo</FieldLabel>
+                  <div class="flex items-center gap-4">
+                    <Avatar class="size-16 rounded-lg border after:rounded-lg">
+                      <AvatarImage
+                        src={logoPreviewUrl ?? logo ?? undefined}
+                        alt={name.trim() || "App logo"}
+                        class="rounded-lg object-cover"
+                      />
+                      <AvatarFallback class="rounded-lg">
+                        <IconBox class="size-5" />
+                      </AvatarFallback>
+                    </Avatar>
 
-          {#if error}
-            <p class="text-sm text-destructive">{error}</p>
-          {/if}
+                    <div class="min-w-0 flex-1 space-y-1">
+                      <div class="flex items-center gap-2">
+                        <Button
+                          id="upload-app-logo-button"
+                          type="button"
+                          variant="outline"
+                          loading={uploadingLogo}
+                          disabled={loading}
+                          onclick={() => logoInput?.click()}
+                        >
+                          <IconUpload data-slot="button-icon" />
+                          {logo ? "Change logo" : "Upload logo"}
+                        </Button>
 
-          <Button
-            id="create-app-submit-button"
-            type="submit"
-            {loading}
-            disabled={loading || uploadingLogo || name.trim().length < 2}
-            class="w-full"
-          >
-            Create app
-          </Button>
-        </FieldGroup>
-      </form>
-    </div>
-  </div>
-</div>
+                        {#if (logo || logoPreviewUrl) && !uploadingLogo}
+                          <Button
+                            id="remove-app-logo-button"
+                            type="button"
+                            variant="ghost"
+                            disabled={loading}
+                            onclick={clearLogo}
+                          >
+                            <IconX data-slot="button-icon" />
+                            Remove
+                          </Button>
+                        {/if}
+                      </div>
+                      <FieldDescription>
+                        PNG, JPG, GIF, SVG, or WebP up to 10 MB.
+                      </FieldDescription>
+                    </div>
+                  </div>
+
+                  <input
+                    bind:this={logoInput}
+                    type="file"
+                    accept="image/*"
+                    class="hidden"
+                    onchange={(event) => void handleLogoInput(event)}
+                  />
+                  <FieldError>{logoError}</FieldError>
+                </Field>
+                <Field>
+                  <FieldLabel for="app-name">App name</FieldLabel>
+                  <Input
+                    id="app-name"
+                    bind:value={name}
+                    minlength={2}
+                    maxlength={64}
+                    placeholder="Acme API"
+                    required
+                  />
+                </Field>
+              </div>
+
+              {#if error}
+                <p class="text-sm text-destructive">{error}</p>
+              {/if}
+
+              <Button
+                id="create-app-submit-button"
+                type="submit"
+                {loading}
+                disabled={loading || uploadingLogo || name.trim().length < 2}
+                class="w-full"
+              >
+                Create app
+              </Button>
+            </FieldGroup>
+          </form>
+        </div>
+      </div>
+    </main>
+  </Sidebar.Inset>
+</Sidebar.Provider>
