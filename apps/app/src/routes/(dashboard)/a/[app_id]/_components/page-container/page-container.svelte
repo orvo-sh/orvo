@@ -173,7 +173,7 @@
           <div
             aria-hidden="true"
             data-testid="bottom-panel-overflow-fade"
-            class="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-linear-to-t from-background to-transparent"
+            class="pointer-events-none absolute inset-x-0 bottom-0 h-2 bg-linear-to-t from-black/5 to-transparent"
           ></div>
           <Button
             variant="outline"
