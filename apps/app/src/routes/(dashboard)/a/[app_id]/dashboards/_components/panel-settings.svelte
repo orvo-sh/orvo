@@ -7,14 +7,20 @@
   let {
     panel,
     onchange,
+    horizontal = false,
   }: {
     panel: DashboardPanel;
+    horizontal?: boolean;
     onchange: (patch: Partial<DashboardPanel>) => void;
   } = $props();
   const id = $props.id();
 </script>
 
-<div class="space-y-5 p-4">
+<div
+  class={horizontal
+    ? "grid grid-cols-1 items-start gap-5 p-4 sm:grid-cols-2 xl:grid-cols-4"
+    : "space-y-5 p-4"}
+>
   <div class="space-y-2">
     <Label for={`${id}-title`}>Title</Label><Input
       id={`${id}-title`}

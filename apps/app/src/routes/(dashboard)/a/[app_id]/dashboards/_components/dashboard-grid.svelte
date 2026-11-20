@@ -21,6 +21,7 @@
   import PanelContent from "./panel-content.svelte";
   let {
     panels,
+    width = $bindable(0),
     editing,
     selectedId,
     timeRange,
@@ -32,6 +33,7 @@
     onadd,
   }: {
     panels: DashboardPanel[];
+    width?: number;
     editing: boolean;
     selectedId: string | null;
     timeRange: (typeof dashboardTimeRanges)[number];
@@ -42,7 +44,6 @@
     ondelete: (id: string) => void;
     onadd: () => void;
   } = $props();
-  let width = $state(0);
   let interaction = $state<{
     id: string;
     mode: "move" | "resize";
@@ -53,7 +54,9 @@
     original: DashboardPanel[];
   } | null>(null);
   let preview = $state<DashboardPanel[] | null>(null);
-  const displayed = $derived(preview ?? panels);
+  const displayed = $derived(
+    (preview ?? panels).toSorted((a, b) => a.y - b.y || a.x - b.x),
+  );
   const bottom = $derived(
     Math.max(0, ...displayed.map((panel) => panel.y + panel.h)),
   );

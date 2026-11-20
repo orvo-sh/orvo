@@ -27,18 +27,18 @@
     IconArrowUpRight,
   } from "@tabler/icons-svelte";
   import PageContainer from "../_components/page-container/page-container.svelte";
-  import CreateDashboardDialog from "./_components/create-dashboard-dialog.svelte";
   let { data } = $props();
   let search = $state("");
   let filter = $state("all");
   let sort = $state("updated");
-  let creatingWithScout = $state(false);
-  const createWithScout = async () => {
-    if (creatingWithScout) return;
-    creatingWithScout = true;
+  let creating = $state<"manual" | "scout" | null>(null);
+  const create = async (withScout = false) => {
+    if (creating) return;
+    creating = withScout ? "scout" : "manual";
     try {
       const result = await createDashboardCommand({
         name: "Untitled dashboard",
+        description: "",
         panels: [],
         timeRange: "last_hour",
       });
@@ -47,16 +47,17 @@
         return;
       }
       await goto(
-        resolve(`/a/${data.appId}/dashboards/${result.data.id}?edit=1&scout=1`),
+        resolve(
+          `/a/${data.appId}/dashboards/${result.data.id}?edit=1${withScout ? "&scout=1" : ""}`,
+        ),
+        { invalidateAll: true },
       );
-      await invalidateAll();
     } catch {
       toast.error("Failed to create dashboard.");
     } finally {
-      creatingWithScout = false;
+      creating = null;
     }
   };
-  let creating = $state(false);
   let removing = $state<{ id: string; name: string } | null>(null);
   let busy = $state<string[]>([]);
   const dashboards = $derived(
@@ -76,7 +77,7 @@
   );
   $effect(() => {
     if (page.url.searchParams.get("new") === "1") {
-      creating = true;
+      void create();
       // Preserve SvelteKit's already-resolved URL while consuming the one-shot action.
       const next = new URL(page.url);
       next.searchParams.delete("new");
@@ -140,11 +141,16 @@
       <div class="flex flex-wrap items-center justify-end gap-2">
         <Button
           variant="outline"
-          loading={creatingWithScout}
-          onclick={createWithScout}
+          loading={creating === "scout"}
+          disabled={creating !== null}
+          onclick={() => create(true)}
           ><IconSparkle data-slot="button-icon" />Create with Scout</Button
         >
-        <Button id="new-dashboard-button" onclick={() => (creating = true)}
+        <Button
+          id="new-dashboard-button"
+          loading={creating === "manual"}
+          disabled={creating !== null}
+          onclick={() => create()}
           ><IconPlus data-slot="button-icon" />New dashboard</Button
         >
       </div>
@@ -192,7 +198,11 @@
         <p class="max-w-sm text-sm text-muted-foreground">
           Arrange charts, logs, and metrics in a view of your own.
         </p>
-        <Button variant="outline" onclick={() => (creating = true)}
+        <Button
+          variant="outline"
+          loading={creating === "manual"}
+          disabled={creating !== null}
+          onclick={() => create()}
           ><IconPlus data-slot="button-icon" />New dashboard</Button
         >
       </div>
@@ -301,7 +311,6 @@
     {/if}
   </div>
 </PageContainer>
-<CreateDashboardDialog bind:open={creating} />
 <Dialog.Root
   open={removing !== null}
   onOpenChange={(open) => {

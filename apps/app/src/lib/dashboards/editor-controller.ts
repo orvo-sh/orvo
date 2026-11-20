@@ -5,12 +5,20 @@ import {
   isDashboardEditorTool,
 } from "./editor-schema";
 import { createDashboardPanel } from "./panels";
-import { placePanel } from "./grid";
+import {
+  GRID_COLUMNS,
+  GRID_ROW_HEIGHT,
+  GRID_GAP,
+  placePanel,
+  nextPosition,
+} from "./grid";
+import { reviewDashboardLayout } from "./layout-review";
 
 const createDashboardEditorController = (options: {
   editorId: string;
   dashboardId: string;
   isActive: () => boolean;
+  getGridWidth?: () => number;
   getForm: () => z.infer<typeof dashboardDefinitionSchema>;
   setForm: (form: z.infer<typeof dashboardDefinitionSchema>) => void;
   reveal: (panelId?: string) => Promise<void>;
@@ -33,6 +41,23 @@ const createDashboardEditorController = (options: {
   let revision = 0;
   let fingerprint = JSON.stringify(options.getForm());
   let busy = false;
+  const layoutFingerprint = (panels: DashboardPanel[]) =>
+    JSON.stringify({
+      width: options.getGridWidth?.() ?? null,
+      panels: panels
+        .map(({ id, visualization, x, y, w, h }) => ({
+          id,
+          visualization,
+          x,
+          y,
+          w,
+          h,
+        }))
+        .toSorted((a, b) => a.id.localeCompare(b.id)),
+    });
+  let reviewedLayout: string | null = layoutFingerprint(
+    options.getForm().panels,
+  );
   const snapshot = () => {
     const form = structuredClone(options.getForm());
     const current = JSON.stringify(form);
@@ -45,7 +70,25 @@ const createDashboardEditorController = (options: {
       dashboardId: options.dashboardId,
       revision,
       form,
-      grid: { columns: 24, minimumWidth: 4, minimumHeight: 3 },
+      grid: {
+        columns: GRID_COLUMNS,
+        rowHeightPx: GRID_ROW_HEIGHT,
+        gapPx: GRID_GAP,
+        minimumWidth: 4,
+        minimumHeight: 3,
+        canvasWidth: options.getGridWidth?.() || null,
+        coordinates:
+          "Zero-based grid cells, not pixels. A panel spans [x, x+w) and [y, y+h); x+w must be <=24. Adjacent panels touch in grid coordinates; CSS adds the 12px gap automatically. Height in pixels = h*32+(h-1)*12.",
+        recommendedSizes: {
+          stat: { w: 6, h: 3 },
+          time_series: { w: 12, h: 7 },
+          bar: { w: 12, h: 7 },
+          table: { w: 12, h: 8 },
+          logs: { w: 24, h: 9 },
+          text: { w: 24, h: 3 },
+        },
+        layoutNeedsReview: reviewedLayout !== layoutFingerprint(form.panels),
+      },
       tokenUsage: {
         source: "traces",
         measures: ["input_tokens", "output_tokens", "total_tokens"],
@@ -120,11 +163,37 @@ const createDashboardEditorController = (options: {
           panel.source = "logs";
           panel.measure = "count";
         }
+        if (!previous && patch.x === undefined && patch.y === undefined)
+          Object.assign(panel, nextPosition(next.panels, panel.w, panel.h));
         panelId = panel.id;
         next.panels = previous
           ? next.panels.map((p) => (p.id === panelId ? panel : p))
           : [...next.panels, panel];
         next.panels = placePanel(next.panels, panel.id, panel);
+      } else if (name === "layout_dashboard") {
+        const { placements } =
+          dashboardEditorToolSchemas.layout_dashboard.parse(input);
+        if (
+          new Set(placements.map((panel) => panel.id)).size !==
+          placements.length
+        )
+          throw new Error("Each panel may appear only once in the layout.");
+        for (const placement of placements)
+          if (!next.panels.some((panel) => panel.id === placement.id))
+            throw new Error(
+              `Unknown panel ${placement.id}. Read the editor and use its existing IDs.`,
+            );
+        next.panels = next.panels.map((panel) => ({
+          ...panel,
+          ...placements.find((placement) => placement.id === panel.id),
+        }));
+      } else if (name === "review_dashboard_layout") {
+        const report = reviewDashboardLayout(
+          next.panels,
+          options.getGridWidth?.(),
+        );
+        reviewedLayout = layoutFingerprint(next.panels);
+        return { data: { ...snapshot(), layoutReview: report } };
       } else if (name === "remove_dashboard_panel") {
         const { panelId: id } =
           dashboardEditorToolSchemas.remove_dashboard_panel.parse(input);
@@ -155,6 +224,10 @@ const createDashboardEditorController = (options: {
           },
         };
       } else if (name === "save_dashboard") {
+        if (reviewedLayout !== layoutFingerprint(next.panels))
+          throw new Error(
+            "The layout changed. Call review_dashboard_layout, assess its warnings, correct unintended issues with layout_dashboard, and review again before saving.",
+          );
         const validated = dashboardDefinitionSchema.parse(next);
         const result = await options.save(validated);
         if (!result.success)
@@ -165,6 +238,7 @@ const createDashboardEditorController = (options: {
       }
       const validated = dashboardDefinitionSchema.parse(next);
       options.setForm(validated);
+      if (name === "layout_dashboard") reviewedLayout = null;
       await options.reveal(panelId);
       return { data: snapshot() };
     } catch (error) {

@@ -86,6 +86,10 @@ test("Scout composes visible token panels, previews data, preserves other fields
   ).toMatchObject({
     data: { preview: { series: [{ name: "All", value: 350 }] } },
   });
+  await h.controller.execute("review_dashboard_layout", {
+    ...target,
+    revision: 2,
+  });
   expect(
     await h.controller.execute("save_dashboard", { ...target, revision: 2 }),
   ).toMatchObject({ data: { saved: true, savedRevision: 2 } });
@@ -140,7 +144,6 @@ test("panel additions snap, push collisions down, and reject invalid changes ato
   expect(h.getForm()).toEqual(before);
 });
 
-
 test("Scout can create a panel with a supplied id and patch it without duplicating it", async () => {
   const h = harness();
   const panel = {
@@ -152,23 +155,182 @@ test("Scout can create a panel with a supplied id and patch it without duplicati
     aggregation: "sum",
     unit: "tokens",
     service: "orvo-app-server",
-    x: 0, y: 0, w: 8, h: 4,
-    text: "", model: "", provider: "", metricName: "", environment: "",
+    x: 0,
+    y: 0,
+    w: 8,
+    h: 4,
+    text: "",
+    model: "",
+    provider: "",
+    metricName: "",
+    environment: "",
     groupBy: "none",
   };
-  expect(await h.controller.execute("upsert_dashboard_panel", {
-    ...target, revision: 0, panel,
-  })).toMatchObject({ data: { revision: 1, form: { panels: [panel] } } });
-  expect(await h.controller.execute("upsert_dashboard_panel", {
-    ...target, revision: 1,
-    panel: { id: "total-tokens", title: "All Scout tokens" },
-  })).toMatchObject({ data: { revision: 2 } });
+  expect(
+    await h.controller.execute("upsert_dashboard_panel", {
+      ...target,
+      revision: 0,
+      panel,
+    }),
+  ).toMatchObject({ data: { revision: 1, form: { panels: [panel] } } });
+  expect(
+    await h.controller.execute("upsert_dashboard_panel", {
+      ...target,
+      revision: 1,
+      panel: { id: "total-tokens", title: "All Scout tokens" },
+    }),
+  ).toMatchObject({ data: { revision: 2 } });
   expect(h.getForm().panels).toEqual([{ ...panel, title: "All Scout tokens" }]);
-  expect(await h.controller.execute("preview_dashboard_panel", {
-    ...target, revision: 2, panelId: "total-tokens",
-  })).toMatchObject({ data: { preview: { panelId: "total-tokens" } } });
-  expect(await h.controller.execute("save_dashboard", {
-    ...target, revision: 2,
-  })).toMatchObject({ data: { saved: true } });
+  expect(
+    await h.controller.execute("preview_dashboard_panel", {
+      ...target,
+      revision: 2,
+      panelId: "total-tokens",
+    }),
+  ).toMatchObject({ data: { preview: { panelId: "total-tokens" } } });
+  await h.controller.execute("review_dashboard_layout", {
+    ...target,
+    revision: 2,
+  });
+  expect(
+    await h.controller.execute("save_dashboard", {
+      ...target,
+      revision: 2,
+    }),
+  ).toMatchObject({ data: { saved: true } });
   expect(h.save).toHaveBeenCalledExactlyOnceWith(h.getForm());
+});
+
+test("multi-panel layouts swap positions atomically and must be reviewed before saving", async () => {
+  const h = harness();
+  await h.controller.execute("upsert_dashboard_panel", {
+    ...target,
+    revision: 0,
+    panel: { id: "left", title: "Left", x: 0, y: 0, w: 12, h: 6 },
+  });
+  await h.controller.execute("upsert_dashboard_panel", {
+    ...target,
+    revision: 1,
+    panel: { id: "right", title: "Right", x: 12, y: 0, w: 12, h: 6 },
+  });
+  expect(
+    await h.controller.execute("save_dashboard", { ...target, revision: 2 }),
+  ).toMatchObject({
+    error: expect.stringContaining("review_dashboard_layout"),
+  });
+  expect(h.save).not.toHaveBeenCalled();
+  const before = structuredClone(h.getForm());
+  expect(
+    await h.controller.execute("layout_dashboard", {
+      ...target,
+      revision: 2,
+      placements: [{ id: "left", x: 12, y: 0, w: 12, h: 6 }],
+    }),
+  ).toMatchObject({ error: expect.stringContaining("overlap") });
+  expect(h.getForm()).toEqual(before);
+  expect(
+    await h.controller.execute("layout_dashboard", {
+      ...target,
+      revision: 2,
+      placements: [
+        { id: "left", x: 12, y: 0, w: 12, h: 6 },
+        { id: "right", x: 0, y: 0, w: 12, h: 6 },
+      ],
+    }),
+  ).toMatchObject({ data: { revision: 3, grid: { layoutNeedsReview: true } } });
+  expect(
+    h.getForm().panels.map((panel) => [panel.id, panel.x, panel.y]),
+  ).toEqual([
+    ["left", 12, 0],
+    ["right", 0, 0],
+  ]);
+  expect(h.getForm().panels.map((panel) => panel.title)).toEqual([
+    "Left",
+    "Right",
+  ]);
+  expect(
+    await h.controller.execute("review_dashboard_layout", {
+      ...target,
+      revision: 3,
+    }),
+  ).toMatchObject({
+    data: {
+      grid: { layoutNeedsReview: false },
+      layoutReview: { readingOrder: [{ id: "right" }, { id: "left" }] },
+    },
+  });
+  expect(
+    await h.controller.execute("save_dashboard", { ...target, revision: 3 }),
+  ).toMatchObject({ data: { saved: true } });
+  await h.controller.execute("upsert_dashboard_panel", {
+    ...target,
+    revision: 3,
+    panel: { id: "left", h: 8 },
+  });
+  expect(
+    await h.controller.execute("save_dashboard", { ...target, revision: 4 }),
+  ).toMatchObject({ error: expect.stringContaining("layout changed") });
+  expect(h.save).toHaveBeenCalledTimes(1);
+});
+
+test("invalid and stale arrangements leave the entire dashboard unchanged", async () => {
+  const h = harness();
+  await h.controller.execute("upsert_dashboard_panel", {
+    ...target,
+    revision: 0,
+    panel: { id: "panel", title: "Original" },
+  });
+  const before = structuredClone(h.getForm());
+  for (const placements of [
+    [{ id: "missing", x: 0, y: 0, w: 12, h: 6 }],
+    [{ id: "panel", x: 20, y: 0, w: 12, h: 6 }],
+    [
+      { id: "panel", x: 0, y: 0, w: 12, h: 6 },
+      { id: "panel", x: 12, y: 0, w: 12, h: 6 },
+    ],
+  ]) {
+    expect(
+      await h.controller.execute("layout_dashboard", {
+        ...target,
+        revision: 1,
+        placements,
+      }),
+    ).toMatchObject({ error: expect.any(String) });
+    expect(h.getForm()).toEqual(before);
+  }
+  h.setName("My changes");
+  expect(
+    await h.controller.execute("layout_dashboard", {
+      ...target,
+      revision: 1,
+      placements: [{ id: "panel", x: 0, y: 0, w: 12, h: 6 }],
+    }),
+  ).toMatchObject({ error: expect.stringContaining("changed") });
+  expect(h.getForm().name).toBe("My changes");
+});
+
+test("custom-sized new panels find space using their final dimensions", async () => {
+  const h = harness();
+  await h.controller.execute("upsert_dashboard_panel", {
+    ...target,
+    revision: 0,
+    panel: { id: "first", visualization: "stat", w: 8, h: 3 },
+  });
+  await h.controller.execute("upsert_dashboard_panel", {
+    ...target,
+    revision: 1,
+    panel: { id: "second", visualization: "stat", w: 8, h: 3 },
+  });
+  await h.controller.execute("upsert_dashboard_panel", {
+    ...target,
+    revision: 2,
+    panel: { id: "third", visualization: "stat", w: 8, h: 3 },
+  });
+  expect(
+    h.getForm().panels.map((panel) => [panel.x, panel.y, panel.w]),
+  ).toEqual([
+    [0, 0, 8],
+    [8, 0, 8],
+    [16, 0, 8],
+  ]);
 });

@@ -26,9 +26,20 @@ const createDashboardEditorTools = (
     }),
     upsert_dashboard_panel: tool({
       description:
-        "Add or patch a visible dashboard panel. An existing id updates that panel; a new id creates it. Omit id to generate a new panel id. Reuse the returned id for subsequent edits. Omitted fields stay unchanged. The grid snaps and pushes collisions down. Does not save. For token usage choose traces, input_tokens/output_tokens/total_tokens, unit tokens; aggregation is always sum. Never add total to input/output counts.",
+        "Add or patch a visible dashboard panel. An existing id updates that panel; a new id creates it. Omit id to generate a new panel id. Reuse the returned id for subsequent edits. Omitted fields stay unchanged. The grid snaps and pushes collisions down for an individual placement; use layout_dashboard to rearrange multiple existing panels together. After additions, review and refine the whole layout with review_dashboard_layout before saving. Does not save. For token usage choose traces, input_tokens/output_tokens/total_tokens, unit tokens; aggregation is always sum. Never add total to input/output counts.",
       inputSchema:
         dashboardEditorToolSchemas.upsert_dashboard_panel.extend(target),
+    }),
+    layout_dashboard: tool({
+      description:
+        "Arrange existing panels as one complete, atomic layout. Read the current editor first. Coordinates are zero-based grid cells on 24 columns, never pixels or CSS row numbers: x+w <= 24, next row y = previous y+h. Equal splits: 4 stats at x=0,6,12,18 with w=6; 3 panels w=8; 2 charts x=0,12 with w=12; full-width lists w=24. Prefer compact aligned stats above larger related charts, consistent row heights, and no accidental gaps. All affected panels move together so swaps do not push other panels away. Omitted panels remain unchanged. Invalid layouts return errors without changes. Does not save. Follow with review_dashboard_layout and correct any unintended issues before saving.",
+      inputSchema: dashboardEditorToolSchemas.layout_dashboard.extend(target),
+    }),
+    review_dashboard_layout: tool({
+      description:
+        "Review the final arrangement AFTER adding, removing, moving, or resizing panels. Returns the actual resulting positions, visual reading order, canvas width, and design warnings about cramped panels, whitespace, and alignment. Use a separate reasoning step to assess this report, correct unintended issues with layout_dashboard, and review again after corrections. Preserve intentional user choices; this is a structural review, not a screenshot. Required before saving changed geometry. Does not save or change the dashboard.",
+      inputSchema:
+        dashboardEditorToolSchemas.review_dashboard_layout.extend(target),
     }),
     remove_dashboard_panel: tool({
       description:

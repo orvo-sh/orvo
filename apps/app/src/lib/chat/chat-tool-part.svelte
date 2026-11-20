@@ -64,11 +64,27 @@
       intent ??
       (
         {
-          get_dashboard_editor: complete ? "Read dashboard editor" : "Reading dashboard editor",
-          edit_dashboard: complete ? "Updated dashboard settings" : "Updating dashboard settings",
-          upsert_dashboard_panel: complete ? "Updated dashboard panel" : "Updating dashboard panel",
-          remove_dashboard_panel: complete ? "Removed dashboard panel" : "Removing dashboard panel",
-          preview_dashboard_panel: complete ? "Checked panel data" : "Checking panel data",
+          get_dashboard_editor: complete
+            ? "Read dashboard editor"
+            : "Reading dashboard editor",
+          edit_dashboard: complete
+            ? "Updated dashboard settings"
+            : "Updating dashboard settings",
+          upsert_dashboard_panel: complete
+            ? "Updated dashboard panel"
+            : "Updating dashboard panel",
+          remove_dashboard_panel: complete
+            ? "Removed dashboard panel"
+            : "Removing dashboard panel",
+          preview_dashboard_panel: complete
+            ? "Checked panel data"
+            : "Checking panel data",
+          layout_dashboard: complete
+            ? "Arranged dashboard panels"
+            : "Arranging dashboard panels",
+          review_dashboard_layout: complete
+            ? "Reviewed dashboard layout"
+            : "Reviewing dashboard layout",
           save_dashboard: complete ? "Saved dashboard" : "Saving dashboard",
           get_rule_editor: complete
             ? "Read rule editor"
@@ -109,6 +125,8 @@
         remove_dashboard_panel: IconTrash,
         preview_dashboard_panel: IconSearch,
         save_dashboard: IconPencil,
+        layout_dashboard: IconSettings,
+        review_dashboard_layout: IconSearch,
         get_rule_editor: IconFileDescription,
         edit_rule_condition: IconPencil,
         edit_rule_filters: IconSettings,
@@ -189,9 +207,19 @@
     </div>
     {#if failed && (isRuleEditorTool(toolName) || isDashboardEditorTool(toolName))}
       {#if typeof output?.error === "string"}
-        <p class="ml-5.5 text-sm text-destructive" data-testid="chat-editor-error">{output.error}</p>
+        <p
+          class="ml-5.5 text-sm text-destructive"
+          data-testid="chat-editor-error"
+        >
+          {output.error}
+        </p>
       {:else if part.state === "output-error"}
-        <p class="ml-5.5 text-sm text-destructive" data-testid="chat-editor-error">{part.errorText}</p>
+        <p
+          class="ml-5.5 text-sm text-destructive"
+          data-testid="chat-editor-error"
+        >
+          {part.errorText}
+        </p>
       {/if}
     {/if}
   {/if}

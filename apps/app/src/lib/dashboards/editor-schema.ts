@@ -23,6 +23,24 @@ const dashboardEditorToolSchemas = {
         "An existing id patches that panel; a new id creates a panel with that id. Omit id to generate one for a new panel. Reuse the returned id for subsequent edits. Omitted fields are preserved. Positions and sizes use integer grid units in 24 columns. Token measures input_tokens/output_tokens/total_tokens sum per-call GenAI span usage; source must be traces. Model and provider are optional filters. Group by model or provider for a breakdown.",
       ),
   }),
+  layout_dashboard: target.extend({
+    placements: z
+      .array(
+        z.object(dashboardPanelSchema.shape).pick({
+          id: true,
+          x: true,
+          y: true,
+          w: true,
+          h: true,
+        }),
+      )
+      .min(1)
+      .max(100)
+      .describe(
+        "Apply all affected panel positions together. Include every panel that must move, including panels swapping places. Unspecified panels stay put; overlaps or out-of-bounds placements are rejected, never silently pushed.",
+      ),
+  }),
+  review_dashboard_layout: target,
   remove_dashboard_panel: target.extend({
     panelId: z.string().min(1).max(100),
   }),

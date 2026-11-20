@@ -69,7 +69,9 @@
   );
 
   const navigationGroups = $derived(
-    currentAppId ? generateAppNavigationGroups(currentAppId, page.data.dashboards ?? []) : [],
+    currentAppId
+      ? generateAppNavigationGroups(currentAppId, page.data.dashboards ?? [])
+      : [],
   );
   const settingsHref = $derived(
     footerOnly
@@ -141,7 +143,10 @@
               <Sidebar.MenuItem>
                 {@const Icon = item.icon}
                 {@const href = item.href}
-                {@const isActive = item.label === "Dashboards" ? page.url.pathname === href : page.url.pathname.includes(href)}
+                {@const isActive =
+                  item.label === "Dashboards"
+                    ? page.url.pathname === href
+                    : page.url.pathname.includes(href)}
                 <Sidebar.MenuButton
                   class="group/menu-btn relative gap-2.5 overflow-visible"
                   {isActive}
@@ -168,11 +173,21 @@
                 </Sidebar.MenuButton>
 
                 {#if item.submenu && item.submenu.length > 0}
-                  <Sidebar.MenuSub>
+                  <Sidebar.MenuSub class="mr-0 ml-4 pr-0">
                     {#each item.submenu as subitem (subitem.href)}
+                      {@const isSubitemActive =
+                        page.url.pathname === subitem.href ||
+                        page.url.pathname.startsWith(`${subitem.href}/`)}
                       <Sidebar.MenuSubItem>
+                        {#if isSubitemActive}
+                          <span
+                            aria-hidden="true"
+                            class="absolute top-1/2 -left-9 h-4 w-1 -translate-y-1/2 rounded-r-md bg-primary/80"
+                          ></span>
+                        {/if}
                         <Sidebar.MenuSubButton
-                          isActive={page.url.pathname.includes(subitem.href)}
+                          class="h-8 w-full"
+                          isActive={isSubitemActive}
                         >
                           {#snippet child({ props }: any)}
                             <a href={subitem.href} {...props}>

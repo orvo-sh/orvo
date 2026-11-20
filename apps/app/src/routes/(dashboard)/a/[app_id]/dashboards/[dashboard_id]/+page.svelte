@@ -1,6 +1,12 @@
 <script lang="ts">
   import { resolve } from "$app/paths";
-  import { beforeNavigate, goto, invalidateAll } from "$app/navigation";
+  import {
+    afterNavigate,
+    beforeNavigate,
+    goto,
+    invalidateAll,
+    replaceState,
+  } from "$app/navigation";
   import { page } from "$app/state";
   import * as Chat from "$lib/chat";
   import { createDashboardEditorController } from "$lib/dashboards/editor-controller";
@@ -23,6 +29,7 @@
   import { Input } from "@repo/components/ui/input";
   import { Label } from "@repo/components/ui/label";
   import { Textarea } from "@repo/components/ui/textarea";
+  import * as Tabs from "@repo/components/ui/tabs";
   import * as Dialog from "@repo/components/ui/dialog";
   import { toast } from "@repo/components/ui/sonner";
   import {
@@ -57,11 +64,12 @@
     untrack(() => page.url.searchParams.get("edit") === "1"),
   );
   let saving = $state(false);
+  let gridWidth = $state(0);
   let pinning = $state(false);
   let selectedId = $state<string | null>(null);
   let dock = $state<"add" | "settings" | null>(null);
   let dockOpen = $state(false);
-  let metadataOpen = $state(false);
+  let editorTab = $state("details");
   let refresh = $state(0);
   let history = $state<DashboardPanel[][]>([]);
   let future = $state<DashboardPanel[][]>([]);
@@ -69,6 +77,19 @@
   let leaveHref = $state<string | null>(null);
   let leaveOpen = $state(false);
   let allowLeave = false;
+  let returnHref = $state<string>(
+    untrack(() => resolve(`/a/${data.appId}/dashboards/${data.dashboard.id}`)),
+  );
+  afterNavigate(({ from, to }) => {
+    if (to?.url.searchParams.get("edit") !== "1") return;
+    if (
+      from?.url.pathname.startsWith(`/a/${data.appId}/`) &&
+      from.url.pathname !== to.url.pathname
+    )
+      returnHref = `${from.url.pathname}${from.url.search}`;
+    else
+      returnHref = resolve(`/a/${data.appId}/dashboards/${data.dashboard.id}`);
+  });
   let duplicateId = $state("");
   const definition = $derived({ name, description, panels, timeRange });
   const dirty = $derived(JSON.stringify(definition) !== savedDefinition);
@@ -102,11 +123,25 @@
         reset();
         loadedId = id;
         editing = page.url.searchParams.get("edit") === "1";
-        if (editing && !panels.length) {
+        if (editing) {
+          editorTab = "details";
           dock = "add";
           dockOpen = true;
         }
       });
+  });
+  $effect(() => {
+    const isEditing = editing;
+    untrack(() => {
+      if (loadedId !== data.dashboard.id) return;
+      const next = new URL(page.url);
+      if ((next.searchParams.get("edit") === "1") === isEditing) return;
+      if (isEditing) next.searchParams.set("edit", "1");
+      else next.searchParams.delete("edit");
+      // Preserve the current resolved URL and unrelated query parameters.
+      // eslint-disable-next-line svelte/no-navigation-without-resolve
+      replaceState(next, page.state);
+    });
   });
   $effect(() => {
     if (
@@ -159,6 +194,7 @@
   const select = (id: string) => {
     selectedId = id;
     dock = "settings";
+    editorTab = "panels";
     dockOpen = true;
   };
   const addPanel = (visualization: DashboardPanel["visualization"]) => {
@@ -216,6 +252,8 @@
         error: validated.error.issues[0]?.message ?? "Invalid dashboard.",
       };
     }
+    if (JSON.stringify(validated.data) === savedDefinition)
+      return { success: true };
     saving = true;
     try {
       const result = await updateDashboardCommand({
@@ -232,11 +270,14 @@
       dockOpen = false;
       dock = null;
       await invalidateAll();
-      if (!editing) await goto(resolve(`/a/${data.appId}/dashboards/${data.dashboard.id}`), {
-        replaceState: true,
-        noScroll: true,
-        keepFocus: true,
-      });
+      if (!editing)
+        // Destination comes from SvelteKit navigation or resolve above.
+        // eslint-disable-next-line svelte/no-navigation-without-resolve
+        await goto(returnHref, {
+          replaceState: true,
+          noScroll: true,
+          keepFocus: true,
+        });
       toast.success("Dashboard saved.");
       return { success: true };
     } catch {
@@ -277,6 +318,7 @@
         dashboardId: id,
         isActive: () => active && data.dashboard.id === id,
         getForm: () => $state.snapshot(definition),
+        getGridWidth: () => gridWidth,
         setForm: (next) => {
           editing = true;
           name = next.name;
@@ -285,8 +327,12 @@
           changePanels(next.panels);
         },
         reveal: async (panelId) => {
-          dockOpen = false;
-          if (panelId) selectedId = panelId;
+          if (panelId) {
+            selectedId = panelId;
+            dock = "settings";
+            editorTab = "panels";
+            dockOpen = true;
+          }
           await tick();
         },
         preview: (panel, timeRange) =>
@@ -335,7 +381,6 @@
     ) {
       scoutOpenedFor = data.dashboard.id;
       untrack(() => {
-        dockOpen = false;
         void chat.openContext($state.snapshot(dashboardChatContext));
       });
     }
@@ -358,9 +403,11 @@
   scout={dashboardChatContext}
   back={{ href: `/a/${data.appId}/dashboards`, title: "Dashboards" }}
   contentClass="overflow-hidden"
-  asideTitle={dock === "add" ? "Add panel" : "Panel settings"}
+  asideTitle="Dashboard editor"
+  asideHeader={false}
+  asideSide="bottom"
   bind:asideOpen={dockOpen}
-  aside={editing && dockOpen ? editorAside : undefined}
+  aside={editing ? editorAside : undefined}
 >
   {#snippet actions()}
     <div class="hidden sm:block">
@@ -381,6 +428,7 @@
       ><Button
         id="save-dashboard-button"
         loading={saving}
+        disabled={!dirty || saving}
         onclick={() => save()}
         ><span class="hidden sm:inline">Save dashboard</span><span
           class="sm:hidden">Save</span
@@ -404,61 +452,30 @@
         aria-label="Refresh dashboard"
         class="hidden sm:inline-flex"
         onclick={() => refresh++}><IconRefresh /></Button
-      ><Button id="edit-dashboard-button" onclick={() => (editing = true)}
+      ><Button
+        id="edit-dashboard-button"
+        onclick={() => {
+          returnHref = resolve(
+            `/a/${data.appId}/dashboards/${data.dashboard.id}`,
+          );
+          editing = true;
+          editorTab = "details";
+          dockOpen = true;
+        }}
         ><IconPencil data-slot="button-icon" /><span class="hidden sm:inline"
           >Edit dashboard</span
         ><span class="sm:hidden">Edit</span></Button
       >{/if}
   {/snippet}
-  <div class="flex shrink-0 flex-wrap items-center gap-3 border-b px-3 py-2">
-    {#if editing}<Button
-        variant="outline"
-        onclick={() => {
-          dock = "add";
-          dockOpen = true;
-        }}><IconPlus data-slot="button-icon" />Add panel</Button
-      >
-      <div class="flex gap-1">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Undo panel change"
-          disabled={!history.length}
-          onclick={() => {
-            future = [structuredClone($state.snapshot(panels)), ...future];
-            panels = history.at(-1)!;
-            history = history.slice(0, -1);
-          }}><IconArrowBackUp /></Button
-        ><Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Redo panel change"
-          disabled={!future.length}
-          onclick={() => {
-            history = [...history, structuredClone($state.snapshot(panels))];
-            panels = future[0];
-            future = future.slice(1);
-          }}><IconArrowForwardUp /></Button
-        >
-      </div>
-      <Button variant="ghost" size="sm" onclick={() => (metadataOpen = true)}
-        >Dashboard settings</Button
-      ><span class="ml-auto text-xs text-muted-foreground" role="status"
-        >{dirty ? "Unsaved changes" : "Editing dashboard"}</span
-      >
-    {:else}<p class="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-        {description ||
-          `${panels.length} ${panels.length === 1 ? "panel" : "panels"}`}
-      </p>{/if}
-    <div class="w-full sm:hidden">
-      <SelectField
-        label="Time range"
-        value={timeRange}
-        options={timeOptions}
-        onchange={(value) => (timeRange = value as typeof timeRange)}
-      />
-    </div>
+  <div class="shrink-0 border-b px-3 py-2 sm:hidden">
+    <SelectField
+      label="Time range"
+      value={timeRange}
+      options={timeOptions}
+      onchange={(value) => (timeRange = value as typeof timeRange)}
+    />
   </div>
+
   {#if !editing && !panels.length}<div
       class="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center"
     >
@@ -469,11 +486,13 @@
         onclick={() => {
           editing = true;
           dock = "add";
+          editorTab = "panels";
           dockOpen = true;
         }}><IconPlus data-slot="button-icon" />Add your first panel</Button
       >
     </div>
   {:else}<DashboardGrid
+      bind:width={gridWidth}
       {panels}
       {editing}
       {timeRange}
@@ -485,56 +504,119 @@
       ondelete={removePanel}
       onadd={() => {
         dock = "add";
+        editorTab = "panels";
         dockOpen = true;
       }}
     />{/if}
 </PageContainer>
 {#snippet editorAside()}
-  <div class="min-h-0 flex-1 overflow-y-auto">
-    {#if dock === "add"}<div class="grid grid-cols-2 gap-3 p-4">
-        {#each [{ value: "time_series", label: "Time series", icon: IconChartLine }, { value: "stat", label: "Stat", icon: IconNumber123 }, { value: "table", label: "Table", icon: IconTable }, { value: "bar", label: "Bar chart", icon: IconChartBar }, { value: "logs", label: "Logs", icon: IconTerminal2 }, { value: "text", label: "Text", icon: IconTypography }] as item (item.value)}<Button
-            variant="outline"
-            class="h-24 flex-col gap-3"
-            onclick={() =>
-              addPanel(item.value as DashboardPanel["visualization"])}
-            ><item.icon class="size-6 text-primary" />{item.label}</Button
-          >{/each}
+  <Tabs.Root
+    bind:value={editorTab}
+    onValueChange={() => {
+      dockOpen = true;
+    }}
+    class="flex min-h-0 flex-1 flex-col gap-0"
+  >
+    <div class="relative shrink-0">
+      <Tabs.List
+        variant="line"
+        class="flex h-10! min-h-10 w-full justify-start border-b px-3 pr-24"
+      >
+        <Tabs.Trigger value="details" class="px-3">Details</Tabs.Trigger>
+        <Tabs.Trigger value="panels" class="px-3">Panels</Tabs.Trigger>
+      </Tabs.List>
+      <div class="absolute top-1/2 right-3 flex -translate-y-1/2 gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Undo panel change"
+          disabled={!history.length}
+          onclick={() => {
+            future = [structuredClone($state.snapshot(panels)), ...future];
+            panels = history.at(-1)!;
+            history = history.slice(0, -1);
+          }}><IconArrowBackUp data-slot="button-icon" /></Button
+        >
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Redo panel change"
+          disabled={!future.length}
+          onclick={() => {
+            history = [...history, structuredClone($state.snapshot(panels))];
+            panels = future[0];
+            future = future.slice(1);
+          }}><IconArrowForwardUp data-slot="button-icon" /></Button
+        >
       </div>
-    {:else if selected}<PanelSettings
-        panel={selected}
-        onchange={updatePanel}
-      />{:else}<p class="p-4 text-sm text-muted-foreground">
-        Select a panel to edit its settings.
-      </p>{/if}
-  </div>
-{/snippet}
-<Dialog.Root bind:open={metadataOpen}
-  ><Dialog.Content class="sm:max-w-md"
-    ><Dialog.Header
-      ><Dialog.Title>Dashboard settings</Dialog.Title></Dialog.Header
+    </div>
+    <Tabs.Content
+      inert={!dockOpen}
+      value="details"
+      class="grid min-h-0 flex-1 grid-cols-1 content-start gap-4 overflow-y-auto p-4 sm:grid-cols-2"
     >
-    <div class="space-y-4">
-      <div class="space-y-2">
+      <div class="max-w-xl space-y-2">
         <Label for="edit-dashboard-name">Name</Label>
-        <div class="flex items-center gap-2">
-          <Input id="edit-dashboard-name" bind:value={name} maxlength={120} />
-        </div>
+        <Input
+          id="edit-dashboard-name"
+          bind:value={name}
+          maxlength={120}
+          required
+          placeholder="Untitled dashboard"
+        />
       </div>
-      <div class="space-y-2">
-        <Label for="edit-dashboard-description">Description</Label><Textarea
+      <div class="max-w-xl space-y-2">
+        <Label for="edit-dashboard-description"
+          >Description <span class="font-normal text-muted-foreground"
+            >(optional)</span
+          ></Label
+        >
+        <Textarea
           id="edit-dashboard-description"
           bind:value={description}
           maxlength={500}
-          rows={3}
+          rows={2}
+          class="min-h-16"
+          placeholder="What does this dashboard help you monitor?"
         />
       </div>
-    </div>
-    <Dialog.Footer
-      ><Button onclick={() => (metadataOpen = false)}>Done</Button
-      ></Dialog.Footer
-    ></Dialog.Content
-  ></Dialog.Root
->
+    </Tabs.Content>
+    <Tabs.Content
+      inert={!dockOpen}
+      value="panels"
+      class="min-h-0 flex-1 overflow-y-auto"
+    >
+      {#if dock !== "add"}
+        <div class="flex items-center justify-between border-b px-4 py-2">
+          <span class="truncate text-sm text-muted-foreground"
+            >{selected?.title ?? "Panel settings"}</span
+          >
+          <Button variant="ghost" size="sm" onclick={() => (dock = "add")}
+            ><IconPlus data-slot="button-icon" />Add panel</Button
+          >
+        </div>
+      {/if}
+      {#if dock === "add"}<div
+          class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 xl:grid-cols-6"
+        >
+          {#each [{ value: "time_series", label: "Time series", icon: IconChartLine }, { value: "stat", label: "Stat", icon: IconNumber123 }, { value: "table", label: "Table", icon: IconTable }, { value: "bar", label: "Bar chart", icon: IconChartBar }, { value: "logs", label: "Logs", icon: IconTerminal2 }, { value: "text", label: "Text", icon: IconTypography }] as item (item.value)}<Button
+              variant="outline"
+              class="h-24 flex-col gap-3"
+              onclick={() =>
+                addPanel(item.value as DashboardPanel["visualization"])}
+              ><item.icon class="size-6 text-primary" />{item.label}</Button
+            >{/each}
+        </div>
+      {:else if selected}<PanelSettings
+          horizontal
+          panel={selected}
+          onchange={updatePanel}
+        />{:else}<p class="p-4 text-sm text-muted-foreground">
+          Select a panel to edit its settings.
+        </p>{/if}
+    </Tabs.Content>
+  </Tabs.Root>
+{/snippet}
 <Dialog.Root bind:open={leaveOpen}
   ><Dialog.Content class="sm:max-w-sm"
     ><Dialog.Header
